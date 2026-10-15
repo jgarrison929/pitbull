@@ -24,6 +24,7 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(p => p.ClientPhone).HasMaxLength(50);
         builder.Property(p => p.ContractAmount).HasPrecision(18, 2);
         builder.Property(p => p.OriginalBudget).HasPrecision(18, 2);
+        builder.Property(p => p.CertifiedPayroll).HasDefaultValue(false);
         builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(50);
         builder.Property(p => p.Type).HasConversion<string>().HasMaxLength(50);
 

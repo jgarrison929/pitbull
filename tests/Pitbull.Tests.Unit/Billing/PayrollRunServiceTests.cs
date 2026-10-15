@@ -1,13 +1,16 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Pitbull.Billing.Features.PayrollRuns;
-using Pitbull.Billing.Services;
+using Microsoft.Extensions.Options;
+using Pitbull.Payroll.Features.PayrollRuns;
+using Pitbull.Payroll.Domain;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Entities;
+using Pitbull.Projects.Domain;
 
 namespace Pitbull.Tests.Unit.Billing;
 
@@ -28,7 +31,7 @@ public class PayrollRunServiceTests : IDisposable
             .Options;
 
         _db = new PitbullDbContext(options, tenantContext, companyContext);
-        _service = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance);
+        _service = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), new PrevailingWageValidationService(_db), new CheckPayrollTaxEngine(Options.Create(new PayrollTaxOptions())));
     }
 
     public void Dispose()
@@ -112,7 +115,8 @@ public class PayrollRunServiceTests : IDisposable
     }
 
     private async Task SeedApprovedTimeEntry(Guid employeeId, DateOnly date,
-        decimal regularHours = 8m, decimal overtimeHours = 0m, decimal doubletimeHours = 0m)
+        decimal regularHours = 8m, decimal overtimeHours = 0m, decimal doubletimeHours = 0m,
+        Guid? workClassificationId = null, string? shiftCode = null, Guid? projectId = null)
     {
         TimeEntry entry = new()
         {
@@ -120,7 +124,7 @@ public class PayrollRunServiceTests : IDisposable
             TenantId = TestTenantId,
             CompanyId = TestCompanyId,
             EmployeeId = employeeId,
-            ProjectId = Guid.NewGuid(),
+            ProjectId = projectId ?? Guid.NewGuid(),
             CostCodeId = Guid.NewGuid(),
             Date = date,
             RegularHours = regularHours,
@@ -128,10 +132,94 @@ public class PayrollRunServiceTests : IDisposable
             DoubletimeHours = doubletimeHours,
             Status = TimeEntryStatus.Approved,
             ApprovedAt = DateTime.UtcNow,
-            ApprovedById = Guid.NewGuid()
+            ApprovedById = Guid.NewGuid(),
+            WorkClassificationId = workClassificationId,
+            ShiftCode = shiftCode
         };
         _db.Set<TimeEntry>().Add(entry);
         await _db.SaveChangesAsync();
+    }
+
+    private async Task<(Employee Employee, WorkClassification Classification, UnionAgreement Agreement)> SeedUnionAffiliation(
+        decimal baseRate,
+        decimal? packageRate,
+        Guid? classificationId = null)
+    {
+        Employee emp = await SeedEmployee(baseRate);
+        WorkClassification classification = new()
+        {
+            Id = classificationId ?? Guid.NewGuid(),
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            Code = "LABR",
+            Name = "Laborer",
+            IsActive = true,
+            Craft = "Laborer"
+        };
+        UnionAgreement agreement = new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            UnionName = "LIUNA",
+            LocalNumber = "210",
+            Name = "Laborers CBA 2026",
+            EffectiveDate = new DateOnly(2026, 1, 1),
+            Status = UnionAgreementStatus.Active
+        };
+        _db.Set<WorkClassification>().Add(classification);
+        _db.Set<UnionAgreement>().Add(agreement);
+
+        if (packageRate.HasValue)
+        {
+            PayComponent st = new()
+            {
+                Id = Guid.NewGuid(),
+                TenantId = TestTenantId,
+                CompanyId = TestCompanyId,
+                Code = "ST",
+                Name = "Straight Time",
+                Kind = PayComponentKind.Earning,
+                OverlayPack = "union"
+            };
+            WagePackage package = new()
+            {
+                Id = Guid.NewGuid(),
+                TenantId = TestTenantId,
+                CompanyId = TestCompanyId,
+                UnionAgreementId = agreement.Id,
+                WorkClassificationId = classification.Id,
+                ScaleCode = "Journeyman",
+                EffectiveDate = new DateOnly(2026, 1, 1)
+            };
+            package.Rates.Add(new WagePackageRate
+            {
+                Id = Guid.NewGuid(),
+                TenantId = TestTenantId,
+                CompanyId = TestCompanyId,
+                WagePackageId = package.Id,
+                PayComponentId = st.Id,
+                PayComponent = st,
+                HourlyRate = packageRate.Value,
+                Amount = packageRate.Value,
+                Unit = WageRateUnit.PerHour
+            });
+            _db.Set<PayComponent>().Add(st);
+            _db.Set<WagePackage>().Add(package);
+        }
+
+        _db.Set<EmployeeUnionAffiliation>().Add(new EmployeeUnionAffiliation
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestTenantId,
+            EmployeeId = emp.Id,
+            UnionAgreementId = agreement.Id,
+            WorkClassificationId = classification.Id,
+            ScaleCode = "Journeyman",
+            EffectiveDate = new DateOnly(2026, 1, 1)
+        });
+        await _db.SaveChangesAsync();
+        return (emp, classification, agreement);
     }
 
     private async Task<PayrollRun> SeedPayrollRun(Guid payPeriodId, PayrollRunStatus status = PayrollRunStatus.Draft)
@@ -223,6 +311,50 @@ public class PayrollRunServiceTests : IDisposable
         result.Value.Lines[0].OvertimeHours.Should().Be(2m);
         result.Value.Lines[0].RegularPay.Should().Be(400m);      // 8 * 50
         result.Value.Lines[0].OvertimePay.Should().Be(150m);      // 2 * 50 * 1.5
+    }
+
+    [Fact]
+    public async Task GeneratePayrollRun_WithoutTaxVendor_LabelsNetAsProxy()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        Employee emp = await SeedEmployee(50m);
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalNet.Should().Be(result.Value.TotalGross);
+        result.Value.NetIsProxy.Should().BeTrue();
+        result.Value.TaxTableVersionId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GeneratePayrollRun_VendorSelectedWithoutCredentials_FailsClosed()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        Employee emp = await SeedEmployee(50m);
+        Project project = new()
+        {
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            Name = "Hwy Overlay",
+            Number = "P-TAX-1",
+            Status = ProjectStatus.Active,
+            State = "CA"
+        };
+        _db.Set<Project>().Add(project);
+        await _db.SaveChangesAsync();
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m, projectId: project.Id);
+
+        var engine = new CheckPayrollTaxEngine(Options.Create(new PayrollTaxOptions { Vendor = "check" }));
+        var service = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), new PrevailingWageValidationService(_db), engine);
+
+        var result = await service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("TAX_VENDOR_NOT_CONFIGURED");
     }
 
     [Fact]
@@ -722,5 +854,154 @@ public class PayrollRunServiceTests : IDisposable
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Status.Should().Be(PayrollRunStatus.Processing);
+    }
+    [Fact]
+    public async Task GeneratePayrollRun_UnionPackageMatch_UsesPackageRateNotBaseHourlyRate()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        (Employee emp, WorkClassification classification, UnionAgreement _) =
+            await SeedUnionAffiliation(baseRate: 50m, packageRate: 85m);
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m,
+            workClassificationId: classification.Id);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        PayrollRunLineDto line = result.Value!.Lines[0];
+        line.RegularHours.Should().Be(8m);
+        line.RegularPay.Should().Be(680m);
+        line.RateSource.Should().Be(RateSource.UnionPackage);
+        line.WorkClassificationId.Should().Be(classification.Id);
+    }
+
+    [Fact]
+    public async Task GeneratePayrollRun_UnionAffiliationWithoutPackage_ReturnsUnionRateNotFound()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        (Employee emp, WorkClassification classification, UnionAgreement _) =
+            await SeedUnionAffiliation(baseRate: 50m, packageRate: null);
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m,
+            workClassificationId: classification.Id);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("UNION_RATE_NOT_FOUND");
+    }
+
+
+    [Fact]
+    public async Task GeneratePayrollRun_RetainsProjectAndCostCodeOnPaySlipLines()
+    {
+        await SeedCompany();
+        PayPeriod period = await SeedLockedPayPeriod();
+        Employee emp = await SeedEmployee(50m);
+        Guid projectA = Guid.NewGuid();
+        Guid projectB = Guid.NewGuid();
+        Guid costA = Guid.NewGuid();
+        Guid costB = Guid.NewGuid();
+
+        TimeEntry entryA = new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            EmployeeId = emp.Id,
+            ProjectId = projectA,
+            CostCodeId = costA,
+            Date = new DateOnly(2026, 2, 3),
+            RegularHours = 8m,
+            Status = TimeEntryStatus.Approved,
+            ApprovedAt = DateTime.UtcNow,
+            ApprovedById = Guid.NewGuid()
+        };
+        TimeEntry entryB = new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            EmployeeId = emp.Id,
+            ProjectId = projectB,
+            CostCodeId = costB,
+            Date = new DateOnly(2026, 2, 4),
+            RegularHours = 8m,
+            Status = TimeEntryStatus.Approved,
+            ApprovedAt = DateTime.UtcNow,
+            ApprovedById = Guid.NewGuid()
+        };
+        _db.Set<TimeEntry>().AddRange(entryA, entryB);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Lines.Should().HaveCount(1);
+
+        PayrollRun run = _db.Set<PayrollRun>().Include(r => r.PaySlips).ThenInclude(s => s.Lines).Single();
+        run.PaySlips.Should().HaveCount(1);
+        List<PaySlipLine> earnings = run.PaySlips[0].Lines.Where(l => l.ComponentCode == "ST").ToList();
+        earnings.Should().HaveCount(2);
+        earnings.Should().Contain(l => l.ProjectId == projectA && l.CostCodeId == costA && l.Amount == 400m);
+        earnings.Should().Contain(l => l.ProjectId == projectB && l.CostCodeId == costB && l.Amount == 400m);
+        earnings.Should().OnlyContain(l => l.TimeEntryId != null);
+    }
+
+    [Fact]
+    public async Task GeneratePayrollRun_UnionEmployerComponents_AreOnPaySlipLinesNotThirtyFivePercent()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        (Employee emp, WorkClassification classification, UnionAgreement _) =
+            await SeedUnionAffiliation(baseRate: 50m, packageRate: 80m);
+
+        PayComponent hw = new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            Code = "HW",
+            Name = "Health & Welfare",
+            Kind = PayComponentKind.EmployerContribution,
+            OverlayPack = "union"
+        };
+        _db.Set<PayComponent>().Add(hw);
+        await _db.SaveChangesAsync();
+
+        foreach (Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry in _db.ChangeTracker.Entries<WagePackage>().ToList())
+            entry.State = EntityState.Detached;
+        foreach (Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry in _db.ChangeTracker.Entries<WagePackageRate>().ToList())
+            entry.State = EntityState.Detached;
+
+        Guid packageId = await _db.Set<WagePackage>().AsNoTracking().Select(p => p.Id).SingleAsync();
+        _db.Set<WagePackageRate>().Add(new WagePackageRate
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            WagePackageId = packageId,
+            PayComponentId = hw.Id,
+            HourlyRate = 5m,
+            Amount = 5m,
+            Unit = WageRateUnit.PerHour
+        });
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m,
+            workClassificationId: classification.Id);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Lines[0].RegularPay.Should().Be(640m);
+
+        PayrollRun run = _db.Set<PayrollRun>().Include(r => r.PaySlips).ThenInclude(s => s.Lines).Single();
+        PaySlipLine hwLine = run.PaySlips[0].Lines.Single(l => l.ComponentCode == "HW");
+        hwLine.Kind.Should().Be(PayComponentKind.EmployerContribution);
+        hwLine.Amount.Should().Be(40m);
+        hwLine.ProjectId.Should().NotBe(Guid.Empty);
+        hwLine.CostCodeId.Should().NotBe(Guid.Empty);
+        run.PaySlips[0].EmployerCost.Should().Be(40m);
+        run.PaySlips[0].EmployerCost.Should().NotBe(640m * 0.35m);
     }
 }

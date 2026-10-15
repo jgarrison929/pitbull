@@ -1244,7 +1244,7 @@ public sealed class DemoBootstrapper(
         if (email is "ap-clerk@demo.local" or "mgr-purchasing@demo.local")
             return PermissionConstants.RoleTemplates.Controller;
 
-        if (email is "ar-clerk@demo.local" or "staff-accountant@demo.local"
+        if (email is "cfo@demo.local" or "ar-clerk@demo.local" or "staff-accountant@demo.local"
             or "mgr-accounting@demo.local" or "vp-accounting@demo.local" or "vp-controller@demo.local"
             or "sr-dir-accounting@demo.local")
             return PermissionConstants.RoleTemplates.Controller;

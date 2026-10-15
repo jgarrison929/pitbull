@@ -1,7 +1,8 @@
-using FluentAssertions;
+﻿using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Pitbull.Billing.Features.PayrollExports;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.PayrollExports;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Domain;
 using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
@@ -124,10 +125,10 @@ public sealed class PayrollExportServiceTests
 
         var result = await service.GenerateAsync(command);
 
-        // Should fail — employees with missing time entries must not be silently skipped
+        // Should fail â€” employees with missing time entries must not be silently skipped
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("MISSING_ALLOCATIONS");
-        result.Error.Should().Contain("Jane Welder");
+        result.ErrorCode.Should().Be("NO_PAY_SLIP_LINES");
+        
 
         // Run must NOT be marked Exported
         var updatedRun = db.Set<PayrollRun>().First(r => r.Id == run.Id);
@@ -376,10 +377,59 @@ public sealed class PayrollExportServiceTests
             OvertimeHours = 8m,
             Status = TimeEntryStatus.Approved
         });
+
+        PaySlip slip = new()
+        {
+            EmployeeId = employee.Id,
+            RegularHours = 40m,
+            OvertimeHours = 8m,
+            Gross = 2600m,
+            Net = 2600m
+        };
+        slip.Lines.Add(new PaySlipLine
+        {
+            ProjectId = projectId,
+            CostCodeId = costCode.Id,
+            ComponentCode = "ST",
+            Kind = Pitbull.Payroll.Domain.PayComponentKind.Earning,
+            Hours = 40m,
+            Rate = 50m,
+            Amount = 2000m
+        });
+        slip.Lines.Add(new PaySlipLine
+        {
+            ProjectId = projectId,
+            CostCodeId = costCode.Id,
+            ComponentCode = "OT",
+            Kind = Pitbull.Payroll.Domain.PayComponentKind.Earning,
+            Hours = 8m,
+            Rate = 75m,
+            Amount = 600m
+        });
+        run.PaySlips.Add(slip);
         await db.SaveChangesAsync();
 
         return (run, payPeriod, employee, costCode);
     }
 
     #endregion
+
+    [Fact]
+    public async Task Generate_UsesPaySlipLineJobCost_DoesNotReallocateHours()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var (run, _, _, costCode) = await SetupFullPayrollData(db);
+        PaySlipLine line = db.Set<PaySlipLine>().Single(l => l.ComponentCode == "ST");
+        Guid originalProject = line.ProjectId;
+        Guid originalCost = line.CostCodeId;
+
+        var result = await service.GenerateAsync(new GeneratePayrollExportCommand(
+            PayrollRunId: run.Id, Format: PayrollExportFormat.Csv, StartDate: null, EndDate: null));
+
+        result.IsSuccess.Should().BeTrue();
+        PayrollExport export = db.Set<PayrollExport>().Include(x => x.Lines).Single();
+        export.Lines.Should().Contain(l => l.ProjectId == originalProject && l.CostCodeId == originalCost && l.StraightTimeHours == 40m);
+        export.Lines.Sum(l => l.GrossPay).Should().Be(2600m);
+    }
 }

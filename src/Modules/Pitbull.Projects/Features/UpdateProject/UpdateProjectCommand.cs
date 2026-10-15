@@ -24,5 +24,6 @@ public record UpdateProjectCommand(
     DateTime? ActualCompletionDate,
     decimal ContractAmount,
     Guid? ProjectManagerId,
-    Guid? SuperintendentId
+    Guid? SuperintendentId,
+    bool? CertifiedPayroll = null
 ) : ICommand<ProjectDto>;

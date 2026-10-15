@@ -106,7 +106,10 @@ public sealed record UnionAffiliationDto(
     string? Jurisdiction,
     DateOnly? EffectiveDate,
     DateOnly? EndDate,
-    string? Notes
+    string? Notes,
+    Guid? UnionAgreementId = null,
+    Guid? WorkClassificationId = null,
+    string? ScaleCode = null
 );
 
 public sealed record SaveUnionAffiliationRequest(
@@ -120,7 +123,10 @@ public sealed record SaveUnionAffiliationRequest(
     string? Jurisdiction,
     DateOnly? EffectiveDate,
     DateOnly? EndDate,
-    string? Notes
+    string? Notes,
+    Guid? UnionAgreementId = null,
+    Guid? WorkClassificationId = null,
+    string? ScaleCode = null
 );
 
 // === Settings ===

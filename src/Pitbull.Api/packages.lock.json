@@ -732,6 +732,15 @@
           "Pitbull.Core": "[1.0.0, )"
         }
       },
+      "pitbull.payroll": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.OpenApi": "[2.12.2, )",
+          "Pitbull.Core": "[1.0.0, )",
+          "Pitbull.Projects": "[1.0.0, )",
+          "Pitbull.TimeTracking": "[1.0.0, )"
+        }
+      },
       "pitbull.portal": {
         "type": "Project",
         "dependencies": {

@@ -31,6 +31,8 @@ using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.ProjectManagement.Storage;
 using Pitbull.Billing.Features;
+using Pitbull.Payroll.Features;
+using Pitbull.Payroll.Services;
 using Pitbull.Api.Data;
 using Pitbull.Api.Services;
 using Pitbull.Core.Messaging;
@@ -85,6 +87,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Documents.Features.Docume
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Notifications.Features.NotificationsModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.SystemAdmin.Features.SystemAdminModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(BillingModuleMarker).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(PayrollModuleMarker).Assembly);
 
 // PostHog server-side analytics (optional â€” only if API key is configured)
 if (!string.IsNullOrEmpty(builder.Configuration["PostHog:ProjectApiKey"]))
@@ -145,6 +148,7 @@ builder.Services.AddPitbullModule<CreateSubcontractCommand>(); // Contracts modu
 builder.Services.AddPitbullModule<CreateProjectManagementModuleCommand>(); // ProjectManagement module
 builder.Services.AddPitbullModule<CreateAiModuleCommand>(); // AI module
 builder.Services.AddPitbullModule<BillingModuleMarker>(); // Billing module
+builder.Services.AddPitbullModule<PayrollModuleMarker>(); // Payroll module
 
 // Direct service registrations (MediatR migration)
 builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
@@ -155,6 +159,11 @@ builder.Services.AddPitbullModuleServices<CreateSubcontractCommand>(); // Contra
 builder.Services.AddPitbullModuleServices<CreateProjectManagementModuleCommand>(); // ProjectManagement module
 builder.Services.AddPitbullModuleServices<CreateAiModuleCommand>(); // AI module
 builder.Services.AddPitbullModuleServices<BillingModuleMarker>(); // Billing module
+builder.Services.AddPitbullModuleServices<PayrollModuleMarker>(); // Payroll module
+builder.Services.AddUnionOverlayPack();
+builder.Services.Configure<PayrollTaxOptions>(
+    builder.Configuration.GetSection(PayrollTaxOptions.SectionName));
+builder.Services.AddUsTaxOverlayPack();
 
 // AI module registration (providers + HttpClients)
 builder.Services.AddPitbullAiModule(builder.Configuration);
@@ -183,7 +192,9 @@ builder.Services.AddScoped<Pitbull.Api.Services.IDataExportService, Pitbull.Api.
 builder.Services.AddScoped<Pitbull.Api.Services.IIntegrationExportService, Pitbull.Api.Services.IntegrationExportService>();
 
 // TimeTracking singleton services (don't require DI scope)
-builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();
+builder.Services.AddScoped<Pitbull.TimeTracking.Services.ILaborCostCalculator>(sp =>
+    new Pitbull.TimeTracking.Services.LaborCostCalculator(
+        sp.GetService<Pitbull.TimeTracking.Services.ILaborCostRateSource>()));
 builder.Services.AddSingleton<Pitbull.TimeTracking.Services.IGeofenceService, Pitbull.TimeTracking.Services.GeofenceService>();
 
 // TimeTracking scoped services (require DbContext)

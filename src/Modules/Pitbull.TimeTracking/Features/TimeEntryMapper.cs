@@ -44,7 +44,9 @@ public static class TimeEntryMapper
             Latitude: timeEntry.Latitude,
             Longitude: timeEntry.Longitude,
             GpsAccuracy: timeEntry.GpsAccuracy,
-            GpsCapturedAt: timeEntry.GpsCapturedAt
+            GpsCapturedAt: timeEntry.GpsCapturedAt,
+            WorkClassificationId: timeEntry.WorkClassificationId,
+            ShiftCode: timeEntry.ShiftCode
         );
     }
 

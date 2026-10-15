@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Xunit.Abstractions;
 using Pitbull.Api.Controllers;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;

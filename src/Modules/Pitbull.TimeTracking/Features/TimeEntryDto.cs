@@ -41,5 +41,7 @@ public record TimeEntryDto(
     decimal? Longitude = null,
     decimal? GpsAccuracy = null,
     DateTime? GpsCapturedAt = null,
-    string? GeofenceWarning = null
+    string? GeofenceWarning = null,
+    Guid? WorkClassificationId = null,
+    string? ShiftCode = null
 );

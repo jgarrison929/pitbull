@@ -52,6 +52,12 @@ public class Project : BaseEntity, ICompanyScoped
     public decimal ContractAmount { get; set; }
     public decimal? OriginalBudget { get; set; }
 
+    /// <summary>
+    /// Legal posture for this job. True = WH-347 and prevailing-wage validation required.
+    /// Not inferred from the presence of a WageDetermination row.
+    /// </summary>
+    public bool CertifiedPayroll { get; set; }
+
     // Reference back to bid if converted
     public Guid? SourceBidId { get; set; }
 

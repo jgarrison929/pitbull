@@ -9,6 +9,7 @@ using Pitbull.Core.Data;
 using Pitbull.Core.Extensions;
 using Pitbull.Core.Services;
 using Pitbull.Notifications.Features;
+using Pitbull.Payroll.Features;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.RFIs.Features.CreateRfi;
@@ -40,6 +41,7 @@ internal static class ModuleInit
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectManagementModuleCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(BillingModuleMarker).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(PayrollModuleMarker).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(SystemAdminModuleMarker).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(NotificationsModuleMarker).Assembly);
 

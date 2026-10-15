@@ -92,7 +92,7 @@ internal static class SimplePdfWriter
         [
             "(1) Name", "(2) Ex.", "(3) Class", "OT/ST",
             "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
-            "Hours", "Rate", "Gross", "FICA", "W/H", "Other", "Net"
+            "Hours", "Rate", "Gross", "FICA*", "W/H*", "Other", "Net"
         ];
         float[] widths =
         [
@@ -113,7 +113,7 @@ internal static class SimplePdfWriter
                 Hrs(row.MonHours), Hrs(row.TueHours), Hrs(row.WedHours), Hrs(row.ThuHours),
                 Hrs(row.FriHours), Hrs(row.SatHours), Hrs(row.SunHours),
                 row.StraightTimeHours.ToString("N1", CultureInfo.InvariantCulture),
-                Money(row.Rate), Money(row.GrossPay), Money(row.Fica), Money(row.Withholding),
+                Money(row.Rate), Money(row.GrossPay), TaxOrNc(row.Fica), TaxOrNc(row.Withholding),
                 row.OtherDeductions > 0 ? Money(row.OtherDeductions) : "",
                 Money(row.NetPay)
             ]);
@@ -142,8 +142,7 @@ internal static class SimplePdfWriter
             (model.Rows.Sum(r => r.StraightTimeHours) + model.Rows.Sum(r => r.OvertimeHours)).ToString("N1", CultureInfo.InvariantCulture),
             "",
             Money(model.Rows.Sum(r => r.GrossPay)),
-            Money(model.Rows.Sum(r => r.Fica)),
-            Money(model.Rows.Sum(r => r.Withholding)),
+            TaxOrNc(SumNullable(model.Rows.Select(r => r.Fica))), TaxOrNc(SumNullable(model.Rows.Select(r => r.Withholding))),
             Money(model.Rows.Sum(r => r.OtherDeductions)),
             Money(model.Rows.Sum(r => r.NetPay))
         ]);
@@ -457,6 +456,24 @@ internal static class SimplePdfWriter
     private static string SingleLine(string? text) =>
         (text ?? string.Empty).Replace('\n', ' ').Replace('\r', ' ');
 
+    private static string TaxOrNc(decimal? value) => value.HasValue ? Money(value.Value) : "n/c";
+
+    private static decimal? SumNullable(IEnumerable<decimal?> values)
+    {
+        decimal? sum = null;
+        foreach (decimal? v in values)
+        {
+            if (!v.HasValue)
+                continue;
+            sum = (sum ?? 0m) + v.Value;
+        }
+
+        // If any row had null tax, leave totals as not-calculated rather than partial sums.
+        if (values.Any(v => !v.HasValue))
+            return null;
+        return sum ?? 0m;
+    }
+
     private static string Money(decimal value) => value.ToString("C2", CultureInfo.CurrentCulture);
 
     private static string Hrs(decimal value) => value > 0 ? value.ToString("N1", CultureInfo.InvariantCulture) : "";
@@ -506,8 +523,8 @@ internal static class SimplePdfWriter
         decimal OvertimeHours,
         decimal Rate,
         decimal GrossPay,
-        decimal Fica,
-        decimal Withholding,
+        decimal? Fica,
+        decimal? Withholding,
         decimal OtherDeductions,
         decimal NetPay,
         decimal MonHours,

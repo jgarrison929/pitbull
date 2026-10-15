@@ -1,7 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using Pitbull.Billing.Features.CertifiedPayroll;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.CertifiedPayroll;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.Tests.Unit.Helpers;
@@ -74,7 +75,7 @@ public sealed class CertifiedPayrollServiceTests
             ProjectId = projectId,
             WeekEnding = weekEnding,
             WHDFormNumber = "WH-347",
-            Status = CertifiedPayrollStatus.Draft
+            Status = CertifiedPayrollStatus.Submitted
         });
         await db.SaveChangesAsync();
 
@@ -86,7 +87,7 @@ public sealed class CertifiedPayrollServiceTests
         var result = await service.GenerateAsync(command);
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("DUPLICATE_REPORT");
+        result.ErrorCode.Should().Be("REPORT_IMMUTABLE");
     }
 
     [Fact]
@@ -320,6 +321,151 @@ public sealed class CertifiedPayrollServiceTests
         result.Value.TotalPages.Should().Be(2);
     }
 
+
+    [Fact]
+    public async Task Generate_ProjectNotCertified_ReturnsError()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var (run, payPeriod, projectId) = await SetupPayrollData(db);
+
+        var project = await db.Set<Project>().FirstAsync(p => p.Id == projectId);
+        project.CertifiedPayroll = false;
+        await db.SaveChangesAsync();
+
+        var command = new GenerateCertifiedPayrollCommand(
+            PayrollRunId: run.Id,
+            ProjectId: projectId,
+            WeekEnding: DateOnly.FromDateTime(DateTime.UtcNow));
+
+        var result = await service.GenerateAsync(command);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("PROJECT_NOT_CERTIFIED");
+    }
+
+    [Fact]
+    public async Task Generate_PersistsLines_AndGetReturnsStored()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var (run, payPeriod, projectId) = await SetupPayrollData(db);
+
+        var classification = new WorkClassification
+        {
+            Code = "ELEC",
+            Name = "Electrician",
+            IsActive = true
+        };
+        db.Set<WorkClassification>().Add(classification);
+
+        var employee = new Employee
+        {
+            FirstName = "John",
+            LastName = "Electrician",
+            EmployeeNumber = "EMP-CP-010",
+            Email = "john.persist@test.com",
+            IsActive = true,
+            Classification = EmployeeClassification.Hourly,
+            BaseHourlyRate = 45m
+        };
+        db.Set<Employee>().Add(employee);
+
+        var costCode = new CostCode
+        {
+            Code = "16-200",
+            Description = "Electrical",
+            IsActive = true,
+            CostType = CostType.Labor
+        };
+        db.Set<CostCode>().Add(costCode);
+
+        db.Set<PayrollRunLine>().Add(new PayrollRunLine
+        {
+            PayrollRunId = run.Id,
+            EmployeeId = employee.Id,
+            WorkClassificationId = classification.Id,
+            RegularHours = 40m,
+            OvertimeHours = 0m,
+            DoubletimeHours = 0m,
+            RegularPay = 1800m,
+            OvertimePay = 0m,
+            DoubletimePay = 0m,
+            GrossPay = 1800m
+        });
+
+        db.Set<FringeBenefitAllocation>().Add(new FringeBenefitAllocation
+        {
+            EmployeeId = employee.Id,
+            ProjectId = projectId,
+            AllocationMethod = FringeAllocationMethod.Split,
+            RequiredFringeRate = 10m,
+            CashFringeAmount = 200m,
+            BenefitFringeAmount = 200m
+        });
+
+        db.Set<TimeEntry>().Add(new TimeEntry
+        {
+            Date = payPeriod.StartDate,
+            EmployeeId = employee.Id,
+            ProjectId = projectId,
+            CostCodeId = costCode.Id,
+            WorkClassificationId = classification.Id,
+            RegularHours = 40m,
+            Status = TimeEntryStatus.Approved
+        });
+        await db.SaveChangesAsync();
+
+        var weekEnding = DateOnly.FromDateTime(DateTime.UtcNow);
+        var generate = await service.GenerateAsync(new GenerateCertifiedPayrollCommand(run.Id, projectId, weekEnding));
+        generate.IsSuccess.Should().BeTrue();
+        generate.Value!.Lines.Should().HaveCount(1);
+        generate.Value.Lines[0].WorkClassificationCode.Should().Be("ELEC");
+        generate.Value.Lines[0].CashFringe.Should().BeGreaterThan(0);
+
+        var storedCount = await db.Set<CertifiedPayrollLine>().CountAsync(x => x.ReportId == generate.Value.Report.Id);
+        storedCount.Should().Be(1);
+
+        var detail = await service.GetAsync(generate.Value.Report.Id);
+        detail.IsSuccess.Should().BeTrue();
+        detail.Value!.Lines.Should().HaveCount(1);
+        detail.Value.Lines[0].WorkClassificationName.Should().Be("Electrician");
+    }
+
+    [Fact]
+    public async Task Submit_RequiresStatementFields()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var (run, _, projectId) = await SetupPayrollData(db);
+
+        var report = new CertifiedPayrollReport
+        {
+            PayrollRunId = run.Id,
+            ProjectId = projectId,
+            WeekEnding = DateOnly.FromDateTime(DateTime.UtcNow),
+            WHDFormNumber = "WH-347",
+            Status = CertifiedPayrollStatus.Draft,
+            Lines =
+            [
+                new CertifiedPayrollLine
+                {
+                    EmployeeId = Guid.NewGuid(),
+                    ProjectId = projectId,
+                    RegularHours = 8m,
+                    GrossPay = 400m,
+                    NetPay = 400m
+                }
+            ]
+        };
+        db.Set<CertifiedPayrollReport>().Add(report);
+        await db.SaveChangesAsync();
+
+        var result = await service.SubmitAsync(new SubmitCertifiedPayrollCommand(report.Id, "user-1"));
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("STATEMENT_INCOMPLETE");
+    }
+
     #region Helpers
 
     private static CertifiedPayrollService CreateService(Pitbull.Core.Data.PitbullDbContext db)
@@ -332,6 +478,9 @@ public sealed class CertifiedPayrollServiceTests
     {
         var projectId = Guid.NewGuid();
         await TestDbContextFactory.SeedProjectAsync(db, projectId);
+        var project = await db.Set<Project>().FirstAsync(p => p.Id == projectId);
+        project.CertifiedPayroll = true;
+        await db.SaveChangesAsync();
 
         var payPeriod = new PayPeriod
         {

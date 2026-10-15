@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Pitbull.Api.Controllers;
-using Pitbull.Billing.Features.PayrollReviews;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.PayrollReviews;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Domain;
 

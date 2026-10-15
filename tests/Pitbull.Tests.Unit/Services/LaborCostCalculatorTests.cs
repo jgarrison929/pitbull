@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Services;
 
@@ -48,12 +48,12 @@ public class LaborCostCalculatorTests
         var result = _calculator.CalculateCost(entry, employee);
 
         // Assert
-        // 8 hours × $30 = $240 base
+        // 8 hours Ã— $30 = $240 base
         result.HoursBreakdown.RegularHours.Should().Be(8m);
         result.HoursBreakdown.RegularCost.Should().Be(240m);
         result.BaseWageCost.Should().Be(240m);
 
-        // Default burden = 35%: $240 × 0.35 = $84
+        // Default burden = 35%: $240 Ã— 0.35 = $84
         result.BurdenCost.Should().Be(84m);
         result.BurdenRateApplied.Should().Be(0.35m);
 
@@ -72,10 +72,10 @@ public class LaborCostCalculatorTests
         var result = _calculator.CalculateCost(entry, employee);
 
         // Assert
-        // Regular: 8 × $20 = $160
+        // Regular: 8 Ã— $20 = $160
         result.HoursBreakdown.RegularCost.Should().Be(160m);
 
-        // Overtime: 2 × $20 × 1.5 = $60
+        // Overtime: 2 Ã— $20 Ã— 1.5 = $60
         result.HoursBreakdown.OvertimeHours.Should().Be(2m);
         result.HoursBreakdown.OvertimeCost.Should().Be(60m);
 
@@ -94,7 +94,7 @@ public class LaborCostCalculatorTests
         var result = _calculator.CalculateCost(entry, employee);
 
         // Assert
-        // Doubletime: 8 × $25 × 2.0 = $400
+        // Doubletime: 8 Ã— $25 Ã— 2.0 = $400
         result.HoursBreakdown.DoubletimeHours.Should().Be(8m);
         result.HoursBreakdown.DoubletimeCost.Should().Be(400m);
         result.BaseWageCost.Should().Be(400m);
@@ -115,19 +115,19 @@ public class LaborCostCalculatorTests
         var result = _calculator.CalculateCost(entry, employee);
 
         // Assert
-        // Regular: 8 × $40 = $320
+        // Regular: 8 Ã— $40 = $320
         result.HoursBreakdown.RegularCost.Should().Be(320m);
 
-        // Overtime: 3 × $40 × 1.5 = $180
+        // Overtime: 3 Ã— $40 Ã— 1.5 = $180
         result.HoursBreakdown.OvertimeCost.Should().Be(180m);
 
-        // Doubletime: 2 × $40 × 2.0 = $160
+        // Doubletime: 2 Ã— $40 Ã— 2.0 = $160
         result.HoursBreakdown.DoubletimeCost.Should().Be(160m);
 
         // Base wage = $320 + $180 + $160 = $660
         result.BaseWageCost.Should().Be(660m);
 
-        // Burden = $660 × 0.35 = $231
+        // Burden = $660 Ã— 0.35 = $231
         result.BurdenCost.Should().Be(231m);
 
         // Total = $660 + $231 = $891
@@ -146,10 +146,10 @@ public class LaborCostCalculatorTests
         var result = _calculator.CalculateCost(entry, employee, burdenRate: customBurden);
 
         // Assert
-        // Base: 8 × $50 = $400
+        // Base: 8 Ã— $50 = $400
         result.BaseWageCost.Should().Be(400m);
 
-        // Burden at 40%: $400 × 0.40 = $160
+        // Burden at 40%: $400 Ã— 0.40 = $160
         result.BurdenCost.Should().Be(160m);
         result.BurdenRateApplied.Should().Be(0.40m);
 
@@ -209,7 +209,7 @@ public class LaborCostCalculatorTests
 
         // Assert - should round to 2 decimal places
         result.BaseWageCost.Should().Be(33.33m);
-        // Burden: $33.33 × 0.35 = $11.6655 → rounds to $11.67
+        // Burden: $33.33 Ã— 0.35 = $11.6655 â†’ rounds to $11.67
         result.BurdenCost.Should().Be(11.67m);
     }
 
@@ -245,8 +245,8 @@ public class LaborCostCalculatorTests
         var result = _calculator.CalculateTotalCost(entries);
 
         // Assert
-        // Entry 1: 8 × $30 = $240
-        // Entry 2: 8 × $40 = $320 regular + 2 × $40 × 1.5 = $120 OT = $440
+        // Entry 1: 8 Ã— $30 = $240
+        // Entry 2: 8 Ã— $40 = $320 regular + 2 Ã— $40 Ã— 1.5 = $120 OT = $440
         // Total base = $240 + $440 = $680
         result.BaseWageCost.Should().Be(680m);
 
@@ -254,7 +254,7 @@ public class LaborCostCalculatorTests
         result.HoursBreakdown.RegularHours.Should().Be(16m);
         result.HoursBreakdown.OvertimeHours.Should().Be(2m);
 
-        // Burden = $680 × 0.35 = $238
+        // Burden = $680 Ã— 0.35 = $238
         result.BurdenCost.Should().Be(238m);
     }
 
@@ -306,5 +306,57 @@ public class LaborCostCalculatorTests
         result.BaseWageCost.Should().Be(expectedBase);
         result.BurdenCost.Should().Be(expectedBurden);
         result.BurdenRateApplied.Should().Be(burdenRate);
+    }
+
+    private sealed class StubRateSource(LaborRateQuote quote) : ILaborCostRateSource
+    {
+        public Task<LaborRateQuote?> QuoteAsync(TimeEntry timeEntry, Employee employee, CancellationToken cancellationToken = default)
+            => Task.FromResult<LaborRateQuote?>(quote);
+    }
+
+    [Fact]
+    public async Task CalculateCostAsync_PostedSlip_DoesNotUseThirtyFivePercent()
+    {
+        var employee = CreateEmployee(50m);
+        var entry = CreateTimeEntry(regularHours: 8m, employee: employee);
+        var source = new StubRateSource(new LaborRateQuote(
+            RegularRate: 50m,
+            OvertimeMultiplier: 1.5m,
+            DoubletimeMultiplier: 2.0m,
+            EmployerHourlyBurden: 0m,
+            IsPosted: true,
+            IsProxy: false,
+            PostedBaseWage: 400m,
+            PostedBurden: 32m));
+        var calculator = new LaborCostCalculator(source);
+
+        var result = await calculator.CalculateCostAsync(entry, employee);
+
+        result.BaseWageCost.Should().Be(400m);
+        result.BurdenCost.Should().Be(32m);
+        result.IsProxy.Should().BeFalse();
+        result.BurdenCost.Should().NotBe(140m);
+    }
+
+    [Fact]
+    public async Task CalculateCostAsync_EmployerComponents_ReplaceProxyBurden()
+    {
+        var employee = CreateEmployee(50m);
+        var entry = CreateTimeEntry(regularHours: 8m, employee: employee);
+        var source = new StubRateSource(new LaborRateQuote(
+            RegularRate: 80m,
+            OvertimeMultiplier: 1.5m,
+            DoubletimeMultiplier: 2.0m,
+            EmployerHourlyBurden: 5m,
+            IsPosted: false,
+            IsProxy: false));
+        var calculator = new LaborCostCalculator(source);
+
+        var result = await calculator.CalculateCostAsync(entry, employee);
+
+        result.BaseWageCost.Should().Be(640m);
+        result.BurdenCost.Should().Be(40m);
+        result.IsProxy.Should().BeFalse();
+        result.BurdenRateApplied.Should().Be(0.0625m);
     }
 }

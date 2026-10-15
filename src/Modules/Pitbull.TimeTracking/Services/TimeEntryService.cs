@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -734,6 +734,11 @@ public class TimeEntryService : ITimeEntryService
                 "Cannot log time to a completed or closed project",
                 "PROJECT_INACTIVE");
 
+        if (project.CertifiedPayroll && !command.WorkClassificationId.HasValue)
+            return Result.Failure<TimeEntryDto>(
+                "Work classification is required on certified-payroll projects",
+                "MISSING_WORK_CLASSIFICATION");
+
         // Validate employee is assigned to this project
         var hasAssignment = await _db.Set<ProjectAssignment>()
             .AnyAsync(pa => pa.EmployeeId == command.EmployeeId
@@ -840,13 +845,15 @@ public class TimeEntryService : ITimeEntryService
             Longitude = command.Longitude,
             GpsAccuracy = command.GpsAccuracy,
             GpsCapturedAt = command.GpsCapturedAt,
+            WorkClassificationId = command.WorkClassificationId,
+            ShiftCode = command.ShiftCode,
         };
 
         _db.Set<TimeEntry>().Add(timeEntry);
 
         await _db.SaveChangesAsync(cancellationToken);
 
-        // Geofence validation — warning only, does not block entry creation
+        // Geofence validation â€” warning only, does not block entry creation
         string? geofenceWarning = null;
         if (command.Latitude.HasValue && command.Longitude.HasValue
             && project.Latitude.HasValue && project.Longitude.HasValue
@@ -1242,6 +1249,12 @@ public class TimeEntryService : ITimeEntryService
         if (!string.IsNullOrWhiteSpace(updateLockValidation))
             return Result.Failure<TimeEntryDto>(updateLockValidation, "PAY_PERIOD_LOCKED");
 
+        var effectiveClassificationId = command.WorkClassificationId ?? timeEntry.WorkClassificationId;
+        if (timeEntry.Project.CertifiedPayroll && !effectiveClassificationId.HasValue)
+            return Result.Failure<TimeEntryDto>(
+                "Work classification is required on certified-payroll projects",
+                "MISSING_WORK_CLASSIFICATION");
+
         // Handle status transition if requested
         var oldTimeEntryStatus = timeEntry.Status;
         if (command.NewStatus.HasValue)
@@ -1277,6 +1290,12 @@ public class TimeEntryService : ITimeEntryService
 
             if (command.Description != null)
                 timeEntry.Description = command.Description;
+
+            if (command.WorkClassificationId.HasValue)
+                timeEntry.WorkClassificationId = command.WorkClassificationId;
+
+            if (command.ShiftCode is not null)
+                timeEntry.ShiftCode = command.ShiftCode;
 
             // Phase update - validate belongs to project
             if (command.PhaseId.HasValue)
@@ -1380,6 +1399,11 @@ public class TimeEntryService : ITimeEntryService
         if (!isDraft && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed))
             return Result.Failure<BatchTimeEntryUpsert>(
                 "Cannot log time to a completed or closed project", "PROJECT_INACTIVE");
+
+        if (project.CertifiedPayroll && !item.WorkClassificationId.HasValue)
+            return Result.Failure<BatchTimeEntryUpsert>(
+                "Work classification is required on certified-payroll projects",
+                "MISSING_WORK_CLASSIFICATION");
 
         // Validate employee is assigned to this project
         var hasAssignment = await _db.Set<ProjectAssignment>()
@@ -1489,6 +1513,8 @@ public class TimeEntryService : ITimeEntryService
             existingEntry.Longitude = item.Longitude;
             existingEntry.GpsAccuracy = item.GpsAccuracy;
             existingEntry.GpsCapturedAt = item.GpsCapturedAt;
+            existingEntry.WorkClassificationId = item.WorkClassificationId;
+            existingEntry.ShiftCode = item.ShiftCode;
             existingEntry.Employee = employee;
 
             return Result.Success(new BatchTimeEntryUpsert(existingEntry, IsNew: false));
@@ -1511,6 +1537,8 @@ public class TimeEntryService : ITimeEntryService
             Longitude = item.Longitude,
             GpsAccuracy = item.GpsAccuracy,
             GpsCapturedAt = item.GpsCapturedAt,
+            WorkClassificationId = item.WorkClassificationId,
+            ShiftCode = item.ShiftCode,
             Employee = employee
         };
 
@@ -1555,7 +1583,7 @@ public class TimeEntryService : ITimeEntryService
                     "UNAUTHORIZED");
             }
 
-            // SEC-002: Enforce project-scope — approver must have Manager/Supervisor
+            // SEC-002: Enforce project-scope â€” approver must have Manager/Supervisor
             // assignment on the entry's project (same check as bulk ReviewTimeEntriesAsync).
             var hasProjectAccess = await _db.Set<ProjectAssignment>()
                 .AnyAsync(pa => pa.EmployeeId == command.ApproverId.Value &&
@@ -1653,7 +1681,7 @@ public class TimeEntryService : ITimeEntryService
             (TimeEntryStatus.Rejected, TimeEntryStatus.Draft) => true,
             (TimeEntryStatus.Rejected, TimeEntryStatus.Submitted) => true,
 
-            // Approved entries are final — no backward transitions allowed
+            // Approved entries are final â€” no backward transitions allowed
 
             // Same status is a no-op, allow it
             var (f, t) when f == t => true,
@@ -1703,7 +1731,8 @@ public class TimeEntryService : ITimeEntryService
             BaseWageCost = costResult.BaseWageCost,
             BurdenCost = costResult.BurdenCost,
             TotalCost = costResult.TotalCost,
-            BurdenRateApplied = costResult.BurdenRateApplied
+            BurdenRateApplied = costResult.BurdenRateApplied,
+            IsProxy = costResult.IsProxy
         };
     }
 

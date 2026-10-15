@@ -32,7 +32,8 @@ public record CreateProjectCommand(
     Guid? SourceBidId,
     List<CreateProjectPhaseInput>? Phases = null,
     List<CreateProjectTeamMemberInput>? TeamMembers = null,
-    bool ActivateOnCreate = false
+    bool ActivateOnCreate = false,
+    bool CertifiedPayroll = false
 ) : ICommand<ProjectDto>;
 
 public record ProjectDto(
@@ -64,7 +65,8 @@ public record ProjectDto(
     decimal? UnbilledAmount = null,
     /// <summary>Approved labor (+ equip) spend vs contract (when enriched for budget alerts).</summary>
     decimal? LaborSpent = null,
-    decimal? LaborPercentOfContract = null
+    decimal? LaborPercentOfContract = null,
+    bool CertifiedPayroll = false
 );
 
 /// <summary>

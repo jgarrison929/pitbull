@@ -51,5 +51,7 @@ public record UpdateTimeEntryCommand(
     /// <summary>
     /// Optional: update equipment hours (only allowed in Draft/Submitted status)
     /// </summary>
-    decimal? EquipmentHours = null
+    decimal? EquipmentHours = null,
+    Guid? WorkClassificationId = null,
+    string? ShiftCode = null
 ) : ICommand<TimeEntryDto>;
