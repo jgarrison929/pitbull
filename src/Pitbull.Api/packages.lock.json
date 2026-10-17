@@ -185,18 +185,18 @@
       },
       "PostHog": {
         "type": "Direct",
-        "requested": "[2.15.1, )",
-        "resolved": "2.15.1",
-        "contentHash": "DXjBljd+SVchBH/x1EWBbPuX03mP9zcmk8ITWJwnuOnVt4xPpVdH+Tx5Wd6InUa5CthNABBY8b8gqfk742+t6A=="
+        "requested": "[2.15.6, )",
+        "resolved": "2.15.6",
+        "contentHash": "I+IQqm2Eri1nwzpYhljGycHZoidXOzrzGBNFtYrS81FeBOo/HILXCrVKNDV1F3Yw9I9aLd50kTrFOMc/H29ErQ=="
       },
       "PostHog.AspNetCore": {
         "type": "Direct",
-        "requested": "[2.9.2, )",
-        "resolved": "2.9.2",
-        "contentHash": "Zg3VmzNOj0/74ZQX7B3Kzn0rqdPnnSw+i6o+tXLtw2NZYrXJbs5BEeN79qn4I+lUSro7rTKgkraFFaflEp3uOw==",
+        "requested": "[2.9.7, )",
+        "resolved": "2.9.7",
+        "contentHash": "ZIieX5VZJzxXfdwvCeeKclfgg7WcBkpz7a4G3AMrl0eQ+EnR3zn7W3rwYQkE5h5s8cf6HFF4o3hUYgcAX4+Bhg==",
         "dependencies": {
-          "Microsoft.FeatureManagement": "4.0.0",
-          "PostHog": "2.15.1"
+          "Microsoft.FeatureManagement": "4.6.0",
+          "PostHog": "2.15.6"
         }
       },
       "Resend": {
@@ -453,8 +453,8 @@
       },
       "Microsoft.FeatureManagement": {
         "type": "Transitive",
-        "resolved": "4.0.0",
-        "contentHash": "NUm3m815Qx9Y63W0WArpwv6auyK/mRInlqadHFf3oiC8z6hpy61LVDY3JgWE/PV4PVKKUg2MO9LkI6q92O60Hg==",
+        "resolved": "4.6.0",
+        "contentHash": "kLjGgEhlzuKs6t7g8so1dqsmE5NaSURNPOWkKD056nF43G/6w/VK5Gd02WKgpuBRQ9mjl7odAe462bn3XKBXmg==",
         "dependencies": {
           "Microsoft.Bcl.TimeProvider": "8.0.1"
         }
