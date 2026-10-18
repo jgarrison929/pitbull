@@ -25,13 +25,17 @@ env:
   MEDIATR_LICENSE_KEY: ${{ secrets.MEDIATR_LICENSE_KEY }}
 
 jobs:
-  # Docs-only PRs run build + unit tests (docs tests live there) and skip the rest; ci-gate still reports.
-  # Pushes to main always run everything.
+  # PR path routing (pushes to main always run everything; ci-gate still reports either way):
+  #   legacy: any file outside v5/ -> .NET build + unit tests (docs tests live there)
+  #   code:   legacy code beyond docs/*.md/LICENSE -> integration tests, legacy frontend, smokes
+  #   v5:     v5/** or this workflow -> v5 job
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
+      legacy: ${{ steps.filter.outputs.legacy }}
       code: ${{ steps.filter.outputs.code }}
+      v5: ${{ steps.filter.outputs.v5 }}
     steps:
       - uses: actions/checkout@v7
         if: github.event_name == 'pull_request'
@@ -41,18 +45,25 @@ jobs:
       - id: filter
         run: |
           if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
+            { echo "legacy=true"; echo "code=true"; echo "v5=true"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(git diff --name-only HEAD^1 HEAD)
           echo "$files"
-          if grep -qvE '^docs/|\.md$|^LICENSE$' <<<"$files"; then code=true; else code=false; fi
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "Code changed: **$code** (false = docs-only: integration tests, frontend and smokes skipped)" >> "$GITHUB_STEP_SUMMARY"
+          if grep -qvE '^v5/' <<<"$files"; then legacy=true; else legacy=false; fi
+          if grep -qvE '^v5/|^docs/|\.md$|^LICENSE$' <<<"$files"; then code=true; else code=false; fi
+          if grep -qE '^v5/|^\.github/workflows/ci\.yml$' <<<"$files"; then v5=true; else v5=false; fi
+          { echo "legacy=$legacy"; echo "code=$code"; echo "v5=$v5"; } >> "$GITHUB_OUTPUT"
+          {
+            echo "Legacy files changed: **$legacy** (false = .NET build and unit tests skipped)"
+            echo "Legacy code changed: **$code** (false = integration tests, legacy frontend and smokes skipped)"
+            echo "v5 changed: **$v5**"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build-backend:
     name: Build & Test (.NET)
     needs: changes
+    if: needs.changes.outputs.legacy == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -424,11 +435,88 @@ jobs:
             /tmp/pitbull-owner-signup-ci/**
           if-no-files-found: ignore
 
+  v5:
+    name: v5 (lint, typecheck, test, build, e2e)
+    needs: changes
+    if: needs.changes.outputs.v5 == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: v5
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pcs
+          POSTGRES_PASSWORD: pcs_ci
+          POSTGRES_DB: pcs_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://pcs:pcs_ci@localhost:5432/pcs_test
+      GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: v5/.nvmrc
+          cache: 'npm'
+          cache-dependency-path: v5/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --audit-level high --omit=dev
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke
+        env:
+          EXPECT_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          export EXPECT_COMMIT="${EXPECT_COMMIT:0:12}"
+          npm run e2e
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: v5-playwright
+          path: |
+            v5/test-results/**
+            v5/playwright-report/**
+          if-no-files-found: ignore
+
   # The only required check on main. Add new required jobs to `needs`; the check name stays ci-gate.
   ci-gate:
     name: ci-gate
     if: always()
-    needs: [changes, build-backend, build-frontend, mobile-smoke, owner-signup-smoke]
+    needs: [changes, build-backend, build-frontend, mobile-smoke, owner-signup-smoke, v5]
     runs-on: ubuntu-latest
     permissions:
       actions: read
