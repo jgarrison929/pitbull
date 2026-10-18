@@ -121,6 +121,18 @@ Every row here is wired into DI, routing, and nav. Most have unit tests that pas
 5. Run integration tests on every PR. They ran on main but were not run for this inventory.
 6. Merge the four health views into one admin page.
 
+## Version path: 3.8.2 to 5.0.0
+
+This is a plan, not a promise. Versions and order will move as evidence comes in. Current release is `v3.8.2` (2026-10-05). `release.yml` promotes an existing `vX.Y.Z` tag to production only when it matches the root `VERSION` file and sits on main, so each step below ends in a tagged release from main.
+
+| Step | Theme | Exit criteria |
+|---|---|---|
+| 3.9.x | Subtract | Cut candidates above removed in their own PRs (dead modules, stub jobs, unlinked pages, empty projects). CI has a single required gate that agents can drive to auto-merge. |
+| 3.10.x to 3.12.x | Prove | `/verify-pitbull` green for every Keep row and for each Verify row, or that row is cut. AI, digital twin, and payroll decisions above are made and applied. |
+| 4.0.0 | Major stamp | The existing bar still holds: runway DoD in `docs/specs/product-bands/band-3.12-runway-and-4.0.0.md` and the job cost glance must-win in `docs/gtm/gc-tool-replacement-4.0.0.md`. No new domain features. |
+| 4.x | Harden | Flaky tests fixed, dependencies current with no audit warnings, docs match main, Railway deploys healthy on each release. |
+| 5.0.0 | Release | The release bar below holds at the release commit. |
+
 ## Release bar for 5.0.0
 
 5.0.0 ships when all of these hold:
