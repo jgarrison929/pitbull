@@ -124,8 +124,8 @@ Supporting choices: Auth.js-free custom session (signed httpOnly cookie, users t
 
 **CI: one required check, `ci-gate` (landed in #610).**
 
-- The `v5` job runs on `v5/**` changes: install → lint → typecheck → vitest → drizzle migrate against a Postgres service container → seed → `next build` → Playwright (demo journey per role + the full nav crawl from the trust bar + screenshot baselines). The existing `ci-gate` job aggregates these with the legacy jobs and stays the only required status check.
-- Both live in `ci.yml`. Its `changes` job routes PRs: legacy jobs run only when files outside `v5/` change, and v5 jobs run when `v5/**` or `ci.yml` changes. `ci-gate` always reports, so the required check never sits pending.
+- The `v5` job runs on `v5/**` changes: install → lint → typecheck → vitest → drizzle migrate against a Postgres service container → seed → `next build` → Playwright (demo journey per role + the full nav crawl from the trust bar + screenshot baselines). The existing `ci-gate` job aggregates it and stays the only required status check.
+- `ci.yml` has three jobs: `changes`, `v5` and `ci-gate`. The v5 job runs on pushes to main and on PRs that touch `v5/**` or `ci.yml`. Other PRs skip it, and `ci-gate` always reports, so the required check never sits pending. The legacy app has no CI (see below).
 - Branch ruleset: require `ci-gate`, squash only, auto-merge allowed, no required human review (the agent-friendly part). Agents open PRs with `gh pr merge --auto --squash`.
 - Release: tag `v5.x.y` → GitHub release notes generated from conventional commits → the changelog page reads the same file.
 
@@ -175,7 +175,7 @@ Not reused: C# modules, EF migrations, the 163-page web app, the RBAC permission
 Each milestone merges through `ci-gate`, deploys to staging, and ends with a run of the v5 verification skill whose evidence is linked in its release notes. Production stays on legacy 3.8.2 until M6. Review effort goes into what gets built (diffs, running app, evidence), not adversarial review of this plan.
 
 - **M0: Subtract and set the rails** (about 1 day).
-  - Repo half (landed with this doc): tag `legacy-3.8.2-final` on `88a686d3` (v3.8.2, what production runs). The `v5/` scaffold (`/status`, `/health`, `v5/railway.toml`). v5 jobs aggregated into the existing required check `ci-gate`. Legacy features frozen (security fixes only).
+  - Repo half (landed with this doc): tag `legacy-3.8.2-final` on `88a686d3` (v3.8.2, what production runs). The `v5/` scaffold (`/status`, `/health`, `v5/railway.toml`). v5 jobs aggregated into the existing required check `ci-gate`. Legacy CI and legacy Dependabot removed in the follow-up PR.
   - Railway half: the repoint runbook in section 7.
   - A v5 verification skill: driver script plus playbook, Linux and Node, evidence saved per run. Its first flow drives the running staging app and proves `/status` loads with the deployed commit and DB `ok`, with a screenshot and the JSON from `/health` as evidence.
   - *Done when:* the verification skill has passed once against staging, with evidence. No autonomous loops run on v5 until then.
@@ -202,5 +202,6 @@ Post-5.0 map toward InEight parity (north star, one module per release, each hel
 - Stack: a single Next.js 16 + Postgres + Drizzle app in `v5/` (npm, Node 24 LTS).
 - Demo archetype: heavy-civil.
 - Repo: the `v5/` folder on `main`. Legacy tag `legacy-3.8.2-final`.
+- Legacy is frozen. No CI jobs, no Dependabot updates, no fixes. Its source stays in `src/`, `tests/` and `e2e/` until the cutover PR deletes it. Production keeps running 3.8.2 from the `production` branch. Agents don't spend time keeping the old app working.
 - Railway: no new services. v5 reuses the staging `pitbull-web` service, with a separate `pcs_v5` database on the existing staging Postgres. The staging API is retired later. Production stays on 3.8.2 until cutover. No preview environments.
 - The shell (screen-first or chat/voice-first) is picked from the M1 prototypes, so sections 5 and 6 are provisional until then.
