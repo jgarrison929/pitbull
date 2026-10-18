@@ -140,13 +140,13 @@ Supporting choices: Auth.js-free custom session (signed httpOnly cookie, users t
 
 There are no PR or preview environments. CI (`ci-gate`) is the per-PR proof, and staging is the shared running app.
 
-Repoint runbook for staging `pitbull-web` (a Railway write; do it after the M0 PR merges):
+Repoint runbook for staging `pitbull-web` (done 2026-10-18):
 
-1. Create the database: `CREATE DATABASE pcs_v5;` on the staging Postgres.
-2. Service settings: Root Directory `/v5`, and Config File Path `/v5/railway.toml`. Railway does not look inside the root directory for config, and the repo-root `railway.toml` forces the legacy Dockerfile builder. `v5/railway.toml` sets the Railpack builder, `npm run build`, `npm start`, healthcheck `/health`, and watch pattern `/v5/**`.
+1. Database: no manual SQL. `v5/railway.toml` runs `npm run db:ensure` as the pre-deploy command. It creates the `DATABASE_URL` database (`pcs_v5`) when it is missing and never drops or alters anything. CI runs the same step against a database that does not exist yet.
+2. Service settings: Root Directory `/v5`, and Config File Path `/v5/railway.toml`. Railway does not look inside the root directory for config, and the repo-root `railway.toml` forces the legacy Dockerfile builder. `v5/railway.toml` sets the Railpack builder, `npm run build`, the pre-deploy step, `npm start`, healthcheck `/health`, and watch pattern `/v5/**`.
 3. Variables: set `DATABASE_URL=postgresql://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/pcs_v5`. Remove `RAILWAY_DOCKERFILE_PATH`, `RAILWAY_HEALTHCHECK_PATH` and the legacy `NEXT_PUBLIC_*` variables. Railpack derives Node 24 from `engines`/`.nvmrc` and npm 11 from `packageManager`. Its install step sets `NPM_CONFIG_PRODUCTION=false`, so the build-time dev dependencies (Tailwind, shadcn CSS) are installed. Railway provides `PORT` and `RAILWAY_GIT_COMMIT_SHA`.
-4. Keep "wait for CI" on, so staging only deploys commits where `ci-gate` is green. The two legacy staging deploys stuck in WAITING on 2026-10-18 should be checked here first.
-5. Verify: run the v5 verification skill against pitbull-web-staging.up.railway.app. `/status` shows the deployed commit with Database `ok`.
+4. Keep "wait for CI" on. Railway waits for every GitHub Actions run on the commit, CodeQL included, and skips the deploy when any run fails (https://docs.railway.com/deployments/github-autodeploys). On 2026-10-18 the #614 and #615 deploys were skipped because Dependabot's esbuild security-update run failed on those commits. drizzle-kit pinned esbuild 0.18 and 0.25, which no update could fix. `v5/package.json` now overrides esbuild to `^0.28.2`, so that run has nothing to fix.
+5. Verify: `node .cursor/skills/verify-v5/verify.mjs --wait 1800`. It passes when `/health` and `/status` show the `origin/main` commit with Database `ok`.
 
 Config-as-code (`railway.toml`) is deprecated, with a hard cutoff on 2026-12-01 (https://docs.railway.com/config-as-code). Before then, move these settings into Railway's replacement (`.railway/railway.ts`) or into the service settings. That is an M1-era task.
 
