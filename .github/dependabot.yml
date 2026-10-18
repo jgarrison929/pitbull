@@ -10,6 +10,10 @@ updates:
     labels: ["dependencies"]
     commit-message:
       prefix: "deps"
+    # react-dom pins an exact react peer, so a solo bump of either fails npm ci.
+    groups:
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
