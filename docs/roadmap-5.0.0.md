@@ -37,7 +37,7 @@ Stack note: the repo targets .NET 10 (`net10.0`, SDK 10.0.100 in `global.json`),
 | Auth, login, demo Explore-as-role | `AuthEndpointsTests`, `AuthRbacJwtTests`, `AuthFlowTests` (integration). The L4 smoke signs in through the `setup-roles` project. |
 | Owner self-service signup and company provisioning | `owner-signup` smoke green on `88a686d3`. `OwnerSignupIntegrationTests`. |
 | Projects create, list, and workspace | `ProjectsEndpointsTests` (integration). The L4 smoke runs inside a project. |
-| Owner billing (AR, `BillingApplication`, G702/G703) | Role E2E smoke `L4 Owner billing: PM creates app, AR certifies via UI` green on `88a686d3`. |
+| Owner billing (AR, `BillingApplication`, G702/G703) | Last proven by role E2E smoke `L4 Owner billing: PM creates app, AR certifies via UI`, green on `88a686d3` (2026-10-05). That smoke is leaving CI (#608), so nothing proves this path on an ongoing basis. Needs a verify-pitbull `contracts-aia-billing` run to stay Keep. |
 | Field daily report on mobile, with offline queue | `mobile-field-report` smoke green on `88a686d3`. `DailyReportsEndpointsTests` (integration). |
 | Multi-company isolation and RLS | `MultiCompanyIsolationTests` (integration). |
 | Health and version endpoints | `HealthEndpointsTests` (integration). `/api/version` reports commit and build date since #596. |
