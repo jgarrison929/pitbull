@@ -6,33 +6,19 @@
 
 ## Jobs
 
-| Job | Introduced | Spec / project | `continue-on-error` |
-|-----|------------|----------------|---------------------|
-| `mobile-smoke` | 2.21.5 / 2.21.7 | Playwright mobile field report path | **true** (see below) |
-| `owner-signup-smoke` | 2.21.6 | `e2e` project `owner-signup` | **true** (see below) |
-| Role L4 smoke | earlier | existing role-workflows | required with main CI |
+| Job | Introduced | Spec / project | Status |
+|-----|------------|----------------|--------|
+| `mobile-smoke` | 2.21.5 / 2.21.7 | Playwright mobile field report path | **required** via `ci-gate` |
+| `owner-signup-smoke` | 2.21.6 | `e2e` project `owner-signup` | **required** via `ci-gate` |
+| Role L4 smoke | earlier | existing role-workflows | removed from CI (#608); local `scripts/run-role-e2e.sh` |
 
-## Required checks vs optional (2.22.2 decision)
+## Required checks (2026-10-18 decision, supersedes 2.22.2)
 
-**Branch protection (recommended):** require the main CI aggregate / unit+web jobs that already gate PRs. Do **not** mark `mobile-smoke` or `owner-signup-smoke` as required branch checks until both are green without `continue-on-error` on a stable demo stack.
+`main` requires the single `ci-gate` check, which needs both smokes. `continue-on-error` is gone. Both jobs were green on 80 of 80 runs that reached them between 2026-08-03 and 2026-10-15; every non-green run was a skip after a build failure. If they start to flake, fix the flake or drop the job from `ci-gate.needs` (advisory). Don't bring back `continue-on-error`.
 
-**Why still optional (`continue-on-error: true`):**
+The 2.22.2 stance kept them optional because GitHub runners might flake on the live API + seeded demo stack. That flakiness never showed up in run history.
 
-1. Playwright jobs need a live API + seeded demo env; GitHub runners can flake when secrets, DB, or cold starts lag.
-2. Owner signup and mobile field report are high-value regression nets but not the only coverage — unit tests + FullWeb preflight + role smoke already block bad merges.
-3. Keeping the jobs on every PR still surfaces failures in Checks (red X with continued workflow) without blocking unrelated docs/API fixes during runway.
-
-**Risk accepted:** a merge can land while mobile/owner E2E is red. Mitigations:
-
-- Local: `./scripts/preflight.ps1 -FullWeb -DotNet` before push  
-- Runway checklist §5: re-evaluate making these required after demo CI env is hardened  
-- Artifacts: both jobs upload Playwright traces/screenshots on failure  
-
-## Evidence for runway checklist §5
-
-- Jobs present in `ci.yml` (mobile-smoke, owner-signup-smoke)  
-- Spec Status shipped through 2.22.2 with honest optional flag  
-- This file + workflow comments document the protection guidance  
+Both jobs upload Playwright traces and screenshots on failure. See AGENTS.md "Merging PRs (ci-gate)".
 
 ## Version map
 
@@ -42,3 +28,4 @@
 | 2.21.6 | owner-signup-smoke |
 | 2.21.7 | mobile field report in CI |
 | 2.22.2 | Required-check notes (this doc); keep continue-on-error until env stable |
+| 2026-10-18 | Required via `ci-gate`; `continue-on-error` removed |
