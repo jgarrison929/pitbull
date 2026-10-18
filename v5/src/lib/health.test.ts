@@ -1,0 +1,31 @@
+import { describe, expect, it } from "vitest";
+import { checkHealth } from "./health";
+import { getBuildInfo } from "./build-info";
+
+describe("checkHealth", () => {
+  it("is ok without a database", async () => {
+    expect(await checkHealth(null)).toEqual({ status: "ok", db: "not-configured" });
+  });
+
+  it("is ok when the ping succeeds", async () => {
+    expect(await checkHealth(async () => {})).toEqual({ status: "ok", db: "ok" });
+  });
+
+  it("is degraded when the ping fails", async () => {
+    const ping = async () => {
+      throw new Error("connection refused");
+    };
+    expect(await checkHealth(ping)).toEqual({ status: "degraded", db: "error" });
+  });
+});
+
+describe("getBuildInfo", () => {
+  it("prefers the Railway commit and shortens it", () => {
+    const info = getBuildInfo({ RAILWAY_GIT_COMMIT_SHA: "0123456789abcdef0123", GIT_COMMIT_SHA: "ffff" });
+    expect(info.commit).toBe("0123456789ab");
+  });
+
+  it("reports unknown when no commit is set", () => {
+    expect(getBuildInfo({}).commit).toBe("unknown");
+  });
+});
