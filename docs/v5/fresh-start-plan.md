@@ -1,6 +1,6 @@
 # Pitbull 5.0.0: fresh-start plan
 
-Status: decisions locked 2026-10-18 (PT). M0 (repo side) landed with this doc: tag `legacy-3.8.2-final`, the `v5/` scaffold, and v5 jobs inside `ci-gate`.
+Status: decisions locked 2026-10-18 (PT). M0 (repo side) landed with this doc: tag `legacy-3.8.2-final`, the `v5/` scaffold with its Railway config, and v5 jobs inside `ci-gate`. The staging repoint and the v5 verification skill finish M0.
 Decision context: Joshua chose to start over after looking at the live app. A recent prospect picked InEight over us; the read is they did not trust what we can deliver. 5.0.0 exists to fix trust, not to add breadth.
 
 ## 1. Where the old app stands (evidence snapshot)
@@ -100,7 +100,7 @@ Recommendation: **one TypeScript app, Next.js 16 (App Router, server actions and
 Why it beats keeping .NET 10 + Next.js for this goal:
 
 - **One contract, no drift.** Several of the worst live failures are seams between web and API: pages calling endpoints that answer 400, 403 or 404 for the same role. One typed codebase (Drizzle schema → zod → server actions) removes that class of bug.
-- **Half the CI and deploy surface.** One build, one test runner family (vitest + Playwright), one Railway service plus Postgres. Agents change features in one place.
+- **Half the CI and deploy surface.** One build, one test runner family (vitest + Playwright), one Railway service (the reused staging web service) plus a database on the existing Postgres. Agents change features in one place.
 - **It fits the domain math.** EV, forecasts and gain/loss are arithmetic over a few thousand rows per project. Use integer cents and integer milli-quantities, no floats.
 - **Lower maintenance.** The old repo spent recent weeks on NuGet and npm advisory churn in two ecosystems.
 
@@ -129,16 +129,27 @@ Supporting choices: Auth.js-free custom session (signed httpOnly cookie, users t
 - Branch ruleset: require `ci-gate`, squash only, auto-merge allowed, no required human review (the agent-friendly part). Agents open PRs with `gh pr merge --auto --squash`.
 - Release: tag `v5.x.y` → GitHub release notes generated from conventional commits → the changelog page reads the same file.
 
-**Railway topology** (project `dependable-heart`, alongside the legacy services):
+**Railway topology: reuse, no new services** (project `dependable-heart`, decided 2026-10-18):
 
-| Service | Env | Source | Domain |
+| Service | Env | Runs | Domain |
 |---|---|---|---|
-| `pcs` (new, root dir `v5/`) | staging | `main` | pcs-staging.up.railway.app |
-| `pcs` | production | `v5-production` branch or release tag | next.pcserp.app until cutover, then demo.pcserp.app + app.pcserp.app |
-| `pcs-db` (new Postgres) | each env | image | private network only |
-| legacy `pitbull`, `pitbull-web`, `Postgres` | unchanged | `production` | keep running; after cutover move to legacy.pcserp.app |
+| `pitbull-web` | staging | **v5** from `main`, root directory `/v5` | pitbull-web-staging.up.railway.app |
+| `Postgres` | staging | the existing instance, plus a separate database `pcs_v5` for v5 | private network only |
+| `pitbull` (API) | staging | legacy, idle once the web points at v5; retire it later | pitbull-staging.up.railway.app |
+| `pitbull`, `pitbull-web`, `Postgres` | production | legacy 3.8.2 until cutover | demo.pcserp.app, app.pcserp.app, api.pcserp.app |
 
-- Turn on Railway PR environments for the `pcs` service. Each PR gets its own deploy plus an ephemeral Postgres, seeded on boot, so reviewers and agents click the real thing. Use Railway's wait-for-CI so staging only deploys commits where `ci-gate` is green. (The legacy staging deploys are currently stuck in WAITING; check that setting first.)
+There are no PR or preview environments. CI (`ci-gate`) is the per-PR proof, and staging is the shared running app.
+
+Repoint runbook for staging `pitbull-web` (a Railway write; do it after the M0 PR merges):
+
+1. Create the database: `CREATE DATABASE pcs_v5;` on the staging Postgres.
+2. Service settings: Root Directory `/v5`, and Config File Path `/v5/railway.toml`. Railway does not look inside the root directory for config, and the repo-root `railway.toml` forces the legacy Dockerfile builder. `v5/railway.toml` sets the Railpack builder, `npm run build`, `npm start`, healthcheck `/health`, and watch pattern `/v5/**`.
+3. Variables: set `DATABASE_URL=postgresql://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/pcs_v5`. Remove `RAILWAY_DOCKERFILE_PATH`, `RAILWAY_HEALTHCHECK_PATH` and the legacy `NEXT_PUBLIC_*` variables. Railpack derives Node 24 from `engines`/`.nvmrc` and npm 11 from `packageManager`. Its install step sets `NPM_CONFIG_PRODUCTION=false`, so the build-time dev dependencies (Tailwind, shadcn CSS) are installed. Railway provides `PORT` and `RAILWAY_GIT_COMMIT_SHA`.
+4. Keep "wait for CI" on, so staging only deploys commits where `ci-gate` is green. The two legacy staging deploys stuck in WAITING on 2026-10-18 should be checked here first.
+5. Verify: run the v5 verification skill against pitbull-web-staging.up.railway.app. `/status` shows the deployed commit with Database `ok`.
+
+Config-as-code (`railway.toml`) is deprecated, with a hard cutoff on 2026-12-01 (https://docs.railway.com/config-as-code). Before then, move these settings into Railway's replacement (`.railway/railway.ts`) or into the service settings. That is an M1-era task.
+
 - Deploy healthcheck: `/health` pings the DB and returns version, commit and build time (503 when a configured DB is down). `/status` shows the same.
 
 ## 8. Demo data and what we reuse
@@ -146,7 +157,7 @@ Supporting choices: Auth.js-free custom session (signed httpOnly cookie, users t
 Seed strategy:
 
 - One deterministic TypeScript seed module (`v5/src/seed/`). It builds one demo company ("Summit Highway & Bridge", a heavy-civil archetype reused from `docs/DEMO-COMPANY-PROFILES.md`) with 3 projects, a WBS of about 40 to 80 cost items each, crews and rates, 30 to 60 days of approved daily reports on the active jobs, and 4 to 6 change orders in mixed states. EV is deliberately varied: one job ahead of plan, one behind on cost, one behind on schedule.
-- The seed is a pure function `(companyId, today) → rows`, with dates relative to today so the demo never looks stale. The same function seeds CI, PR envs, staging, and each visitor sandbox.
+- The seed is a pure function `(companyId, today) → rows`, with dates relative to today so the demo never looks stale. The same function seeds CI, staging, and each visitor sandbox.
 - A unit test asserts the story invariants (each project has non-empty EV, at least one pending CO, today's plan exists for the superintendent), so the trust bar can't regress silently.
 
 Reuse from the old code: **ideas and specs, not code**.
@@ -161,15 +172,19 @@ Not reused: C# modules, EF migrations, the 163-page web app, the RBAC permission
 
 ## 9. Milestones (each shippable and verifiable)
 
-Each milestone merges through `ci-gate`, deploys to staging and a PR env, and ends with a verify run whose evidence is linked in its release notes. Production for `pcs` stays on next.pcserp.app until M6.
+Each milestone merges through `ci-gate`, deploys to staging, and ends with a run of the v5 verification skill whose evidence is linked in its release notes. Production stays on legacy 3.8.2 until M6. Review effort goes into what gets built (diffs, running app, evidence), not adversarial review of this plan.
 
-- **M0: Subtract and set the rails** (about 1 day). Repo half done: tag `legacy-3.8.2-final` on `88a686d3` (v3.8.2, what production runs), the `v5/` scaffold (`/status`, `/health`), and v5 jobs aggregated into the existing required check `ci-gate`. Freeze legacy features (security fixes only). Railway half, pending Joshua's OK on cost: create the `pcs` + `pcs-db` services and PR envs. *Verify:* the `v5/` app deploys to staging and a PR env, and `/status` and `/health` show the deployed commit with the DB `ok`.
-- **M1: Shell, login, sandbox, portfolio.** Design-system tokens and layout components, role-card login, per-visitor sandbox seeding plus reset, projects portfolio with KPIs, `/status` and changelog pages. *Verify:* Playwright logs in as all 4 roles, the nav crawl is clean, screenshot baselines are approved.
+- **M0: Subtract and set the rails** (about 1 day).
+  - Repo half (landed with this doc): tag `legacy-3.8.2-final` on `88a686d3` (v3.8.2, what production runs). The `v5/` scaffold (`/status`, `/health`, `v5/railway.toml`). v5 jobs aggregated into the existing required check `ci-gate`. Legacy features frozen (security fixes only).
+  - Railway half: the repoint runbook in section 7.
+  - A v5 verification skill: driver script plus playbook, Linux and Node, evidence saved per run. Its first flow drives the running staging app and proves `/status` loads with the deployed commit and DB `ok`, with a screenshot and the JSON from `/health` as evidence.
+  - *Done when:* the verification skill has passed once against staging, with evidence. No autonomous loops run on v5 until then.
+- **M1: Shell, login, sandbox, portfolio.** First, build 2 or 3 working prototypes of the app shell behind a switcher on staging, including a screen-first shell (sidebar, tables, dashboards) and a chat/voice-first agentic shell (ask, dictate a daily report, act from conversation). Send screenshots to Joshua and let him pick. Until he picks, the stack and UI choices in sections 5 and 6 are provisional. Then build on the chosen shell: design-system tokens and layout components, role-card login, per-visitor sandbox seeding plus reset, projects portfolio with KPIs, `/status` and changelog pages. *Verify:* Playwright logs in as all 4 roles, the nav crawl is clean, screenshot baselines are approved.
 - **M2: Estimate → Budget.** WBS and cost items, CSV import, approve to budget, budget views. *Verify:* PM imports a CSV, approves it, and the budget totals match a fixture.
 - **M3: Field daily plan/report.** Superintendent plans the day, foreman fills in hours and quantities on mobile with live gain/loss, submit, approve or return, then posting. *Verify:* a mobile-viewport e2e from plan to approval, and the posted quantities show on the cost items.
 - **M4: Cost and earned value.** PV/EV/AC, CPI/SPI, EAC with 2 forecast methods, S-curve, portfolio rollup, drill-down. *Verify:* unit tests for the EV math on a hand-computed fixture, and e2e numbers matching the seeded expectations.
 - **M5: Change orders.** PCO → priced → approved → revises the budget and forecast, with audit trail. *Verify:* e2e where the executive approves and EAC and the current budget move by the exact amount.
-- **M6: Trust pass and 5.0.0 cutover.** Full nav crawl with zero findings, visual review, perf budget (each page under 1.5 s on staging), release notes. Then move demo.pcserp.app and app.pcserp.app to `pcs` and the legacy web to legacy.pcserp.app, and watch for 48 h. Then the cleanup PR removes legacy code from `main` (recoverable from the tag), and later the legacy Railway services are retired with Joshua's sign-off. *Verify:* the crawl and journeys pass against the production domain after the domain move.
+- **M6: Trust pass and 5.0.0 cutover.** Full nav crawl with zero findings, visual review, perf budget (each page under 1.5 s on staging), release notes. Then move demo.pcserp.app and app.pcserp.app to the v5 service (promoted from staging the same way) and the legacy web to legacy.pcserp.app, and watch for 48 h. Then the cleanup PR removes legacy code from `main` (recoverable from the tag), and later the legacy Railway services are retired with Joshua's sign-off. *Verify:* the crawl and journeys pass against the production domain after the domain move.
 
 Post-5.0 map toward InEight parity (north star, one module per release, each held to the same trust bar):
 
@@ -187,4 +202,5 @@ Post-5.0 map toward InEight parity (north star, one module per release, each hel
 - Stack: a single Next.js 16 + Postgres + Drizzle app in `v5/` (npm, Node 24 LTS).
 - Demo archetype: heavy-civil.
 - Repo: the `v5/` folder on `main`. Legacy tag `legacy-3.8.2-final`.
-- Still open: Railway services and domain (`next.pcserp.app` proposed) wait on Joshua's OK, since new services add cost.
+- Railway: no new services. v5 reuses the staging `pitbull-web` service, with a separate `pcs_v5` database on the existing staging Postgres. The staging API is retired later. Production stays on 3.8.2 until cutover. No preview environments.
+- The shell (screen-first or chat/voice-first) is picked from the M1 prototypes, so sections 5 and 6 are provisional until then.

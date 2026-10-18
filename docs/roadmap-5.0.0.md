@@ -9,8 +9,8 @@ This is a plan, not a promise. Versions and order will move as evidence comes in
 | Stage | What | Exit criteria |
 |---|---|---|
 | 3.8.2 (legacy) | The .NET API + Next.js app in `src/`, tagged `legacy-3.8.2-final`. It keeps serving the demo until cutover and gets security fixes only. | Replaced by v5 at cutover |
-| v5 M0 | Rails: `v5/` scaffold (`/status`, `/health`), v5 jobs in `ci-gate`, Railway services and PR envs | v5 deploys to staging with its commit on `/status` |
-| v5 M1 to M5 | Shell and demo login with per-visitor sandboxes, then estimate → budget, field daily plan, cost and earned value, change orders | Each milestone merges through `ci-gate` and closes with a verify run |
+| v5 M0 | Rails: `v5/` scaffold (`/status`, `/health`), v5 jobs in `ci-gate`, staging `pitbull-web` repointed to `v5/`, a v5 verification skill | The verification skill proves `/status` on staging shows the deployed commit |
+| v5 M1 to M5 | Shell prototypes (screen-first vs chat/voice-first) for Joshua to pick, then demo login with per-visitor sandboxes, then estimate → budget, field daily plan, cost and earned value, change orders | Each milestone merges through `ci-gate` and closes with a verify run |
 | v5 M6 | Trust pass and cutover: the demo domains move to v5 and legacy code leaves `main` | Nav crawl and role journeys pass on the production domain |
 | 5.0.0 | Release | The trust bar in the fresh-start plan holds at the release commit |
 
