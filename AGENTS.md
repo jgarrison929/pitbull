@@ -47,6 +47,17 @@ When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator / Contract
 | CI / E2E | `docs/specs/ci-mobile-owner-smoke.md`, `e2e/fixtures/ROLE-PERSONA-MAP.md` |
 | Preflight | `./scripts/preflight.ps1 -FullWeb -DotNet` before push |
 
+## Merging PRs (ci-gate)
+
+- `main` requires one check, **`ci-gate`** (`.github/workflows/ci.yml`). No human review is required.
+- Open the PR, then run `gh pr merge <n> --auto --squash`. The gate decides; it merges itself once `ci-gate` passes.
+- `ci-gate` fails if any job in its `needs` failed or was cancelled. Its run summary lists the failing jobs and steps; the .NET job summary lists failed test names.
+- Required (in the gate): Build & Test (.NET), Build Frontend (Next.js), Mobile field report smoke, Owner signup smoke.
+- Docs-only PRs (`docs/**`, `*.md`, `LICENSE`) run the .NET build + unit tests (docs tests live there) and skip the rest.
+- New required job: add it to `ci-gate.needs`. Advisory job: leave it out. Never put job names in the ruleset.
+- Dependabot patch/minor PRs auto-merge (`dependabot-auto-merge.yml`); majors need a manual `gh pr merge --auto --squash`.
+- Emergency revert: repo admins can bypass the ruleset.
+
 ## Version bumps
 
 Per `CONTRIBUTING.md`: update `VERSION`, web `package.json`, API csproj Version props, Docker ARGs together. Stamp CHANGELOG headers with ISO date+time.
