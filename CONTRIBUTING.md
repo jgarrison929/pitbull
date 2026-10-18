@@ -75,20 +75,32 @@ Thanks for your interest in contributing to Pitbull! This guide will get you up 
 
 ## Releases and versioning
 
-Product version lives in root **`VERSION`** (keep in sync with `package.json`, API csproj, and Docker `ARG` defaults). **Bump incrementally on every user-visible ship** (patch for fixes/docs/deploy unblocks, minor for features, major for breaking). Same calendar day can have multiple releases — versions and timestamps distinguish them.
+Product version lives in root **`VERSION`** (keep in sync with `package.json`, API csproj, and Docker `ARG` defaults). **Bump incrementally on every user-visible ship** (patch for fixes/docs/deploy unblocks, minor for features, major for breaking). Same calendar day can have multiple releases; versions and timestamps distinguish them.
+
+**Deploy model:** merges to `main` deploy to Railway **staging**. Production deploys only when a `vX.Y.Z` tag is promoted onto the `production` branch by `.github/workflows/release.yml`. See `deploy/RAILWAY-SETUP.md`.
 
 When cutting a release:
 
 1. Move items from `## [Unreleased]` in `CHANGELOG.md` into a new header with **date and time** of publish, e.g.  
    `## [2.3.0] - 2026-07-10T12:58:16-07:00`  
    (ISO-8601 with offset preferred; date-only `YYYY-MM-DD` still works for older entries)
-2. Bump `VERSION`, `package.json` `version`, and API csproj `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` together
+2. Bump `VERSION`, `package.json` `version`, and API csproj `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` together (prefer `scripts/bump-version.ps1` / `scripts/stamp-version.ps1`)
 3. Bump `ARG VERSION` / `ARG NEXT_PUBLIC_APP_VERSION` defaults in both Dockerfiles and `docker-compose.prod.yml` if they hardcode the version
 4. Bump web `package-lock.json` root `version` and `app-version.ts` fallback to match
 5. Run local preflight before open/push PR (cuts CI thrash):  
    `./scripts/preflight.ps1`  
    Optional: `-FullWeb` (lint + next build), `-DotNet` (unit tests)
-6. Deploy; confirm `GET /api/version`, the bottom-left badge, and `GET /api/changelog?current=true` all agree; About → changelog shows **date + time** in the viewer’s locale
+6. Merge the PR to `main`. Staging deploys automatically after CI.
+7. Tag and push to promote production:
+   ```bash
+   git checkout main && git pull
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+   The Release workflow checks that the tag matches root `VERSION`, the commit is on `main`, and CI succeeded, then fast-forwards `production` and creates a GitHub Release.
+8. Confirm production: `GET /api/version`, the bottom-left badge, and `GET /api/changelog?current=true` all agree; About → changelog shows **date + time** in the viewer's locale
+
+**Rollback:** re-run the Release workflow (`workflow_dispatch`) with a previous tag and `force_rollback: true`, or redeploy a prior Railway deployment. Migrations are forward-only; prefer a forward fix when schema already advanced.
 
 In-app release notes are served from `CHANGELOG.md` via `GET /api/changelog` (no separate CMS).
 
@@ -98,13 +110,14 @@ In-app release notes are served from `CHANGELOG.md` via `GET /api/changelog` (no
 
 ### Branching Strategy
 
-Main-only strategy (no long-lived develop/staging branches):
+Feature work merges to `main`. Production is a separate release branch moved only by tagged promotes:
 
 | Branch | Purpose | Deploys To |
 |--------|---------|------------|
-| `main` | Production (sacred) | Railway (from main) |
+| `main` | Integration (sacred; PR-only) | Railway **staging** |
+| `production` | Release pointer (tag-gated) | Railway **production** |
 
-Feature branches are created from main and target main via PR. Never commit directly to `main`. (Historical docs referenced multi-branch + Railway staging; current CI and practice is main-only.)
+Feature branches are created from main and target main via PR. Never commit directly to `main` or `production`. Do not push to `production` by hand; use `git tag vX.Y.Z && git push origin vX.Y.Z` (or the Release workflow `workflow_dispatch` for rollback).
 
 ### Branch Naming
 
@@ -118,7 +131,7 @@ Use conventional prefixes:
 
 ### Workflow
 
-The project uses a **main-only** branch strategy (no long-lived develop branch). Feature branches are created from main. (See earlier Branching Strategy section for details.)
+Feature branches are created from `main` and merge via PR. The `production` branch is a release pointer only (see Branching Strategy).
 
 1. **Create feature branch from main:**
 
@@ -276,7 +289,7 @@ GitHub Actions runs automatically on push/PR to `main` (see .github/workflows/ci
 **Frontend:**
 - `npm ci` / `npm run build` / `npm run lint`
 
-Both jobs must pass before merge. (No develop branch in current CI.)
+Required jobs must pass before merge. Production promote also requires a successful CI run on the tagged commit (see `.github/workflows/release.yml`).
 
 ### MediatR community license (quiet Lucky Penny warnings)
 

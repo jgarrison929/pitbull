@@ -29,10 +29,10 @@ Railway Project
 ```powershell
 railway login
 .\scripts\railway-provision.ps1
-git push origin main   # one deploy per commit — do NOT also run railway redeploy
+git push origin main   # staging deploy per commit; do NOT also run railway redeploy
 ```
 
-**Important:** GitHub auto-deploy is enabled. Pushing to `main` triggers a deploy. Do not chain `railway redeploy --from-source` after a push (that causes double deploys).
+**Important:** GitHub auto-deploy is enabled. Pushing to `main` deploys **staging**. Production deploys only when the `production` branch moves (via a version tag / Release workflow). Do not chain `railway redeploy --from-source` after a push (that causes double deploys).
 
 ---
 
@@ -145,14 +145,62 @@ Railway passes service variables as Docker build args when the Dockerfile declar
 
 ---
 
-## 6. Deploy triggers
+## 6. Environments and deploy triggers
 
-Each service **Settings → Source**:
+Pitbull uses two Railway environments. Staging tracks `main`; production tracks a release branch that only moves when a version tag is promoted.
+
+| Railway environment | Git branch | Wait for CI | Purpose |
+|---------------------|------------|-------------|---------|
+| `staging` | `main` | On | Continuous deploy of merged work |
+| `production` | `production` | On | Tag-gated releases only |
+
+### Staging (`main`)
+
+For each service in the **staging** environment → **Settings → Source**:
 
 - **Branch**: `main`
-- **Auto-deploy**: enabled (deploys on every push to `main`)
+- **Auto-deploy**: enabled
+- **Wait for CI**: enabled
 
-CI must pass before merging to `main` (`.github/workflows/ci.yml`).
+Every merge to `main` deploys to staging after GitHub CI check runs on that commit succeed.
+
+### Production (`production` branch)
+
+For each service in the **production** environment → **Settings → Source**:
+
+- **Branch**: `production` (not `main`)
+- **Auto-deploy**: enabled
+- **Wait for CI**: enabled
+
+The `production` branch is moved only by `.github/workflows/release.yml` when a `vX.Y.Z` tag is promoted. Railway watches that branch via its GitHub app. A push by `GITHUB_TOKEN` does not re-trigger GitHub Actions workflows on `production`; that is intentional. Wait for CI still works because the promoted commit is the same SHA that already ran CI on `main`, so the existing check runs on that commit satisfy Railway.
+
+### One-time Railway cutover (from main-only)
+
+1. Create a Railway **staging** environment (duplicate production or create empty, then copy variables/services as needed).
+2. Point staging services at branch `main`, enable Wait for CI.
+3. Create an empty `production` git branch at the currently deployed SHA (or let the first release workflow create it), then point production services at branch `production`, enable Wait for CI.
+4. Confirm staging auto-deploys on the next `main` push and production does **not** move until a tag is promoted.
+
+### How to release
+
+1. Bump version and changelog with the existing scripts (`scripts/bump-version.ps1` / `scripts/stamp-version.ps1`), move `## [Unreleased]` into a dated `## [X.Y.Z]` header, open a PR, merge to `main`.
+2. After CI is green on that merge commit:
+   ```bash
+   git checkout main && git pull
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+3. The **Release** workflow validates the tag against root `VERSION`, confirms the commit is on `main`, confirms CI succeeded, fast-forwards `production` to the tag SHA, and creates a GitHub Release (notes from the matching `CHANGELOG.md` section, or generated notes if missing).
+4. Railway production services deploy from the updated `production` branch once Wait for CI sees the existing successful checks on that SHA.
+
+### Rollback
+
+Migrations are **forward-only** (applied on API startup). Rolling back application code does not reverse schema changes. Prefer a forward fix when migrations already ran in production.
+
+Options:
+
+1. **Re-promote a previous tag** (preferred for app code): run workflow **Release** via `workflow_dispatch` with `tag` set to the prior `vX.Y.Z` and `force_rollback: true`. That updates `production` with `--force-with-lease`. Only use force when intentionally rolling back; normal promotes stay fast-forward only.
+2. **Railway dashboard**: redeploy a prior successful deployment on the production services (does not move the git branch; next tag promote will overwrite).
 
 ---
 

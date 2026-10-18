@@ -1,7 +1,7 @@
 # Railway Deployment Setup (historical multi-env notes)
 
-> **Live Railway setup:** use [`deploy/RAILWAY-SETUP.md`](../../deploy/RAILWAY-SETUP.md) and [`deploy/RAILWAY-DEMO.md`](../../deploy/RAILWAY-DEMO.md).  
-> This file documents an older multi-branch (dev/staging) layout and is **not** the source of truth for current `main` → Railway deploy.
+> **HISTORICAL / NOT SOURCE OF TRUTH.** Live Railway setup: [`deploy/RAILWAY-SETUP.md`](../../deploy/RAILWAY-SETUP.md) and [`deploy/RAILWAY-DEMO.md`](../../deploy/RAILWAY-DEMO.md).  
+> This file documents an older multi-branch (dev/staging) layout. Current flow: Railway **staging** tracks `main`; Railway **production** tracks the `production` branch (tag-gated via `.github/workflows/release.yml`).
 
 ## Task: Wire in Railway Dev and Staging Environments
 
