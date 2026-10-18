@@ -10,6 +10,10 @@ updates:
     labels: ["dependencies"]
     commit-message:
       prefix: "deps"
+    ignore:
+      # @types/node must match the Node major in v5/.nvmrc and engines; bump it with the runtime, not alone.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
