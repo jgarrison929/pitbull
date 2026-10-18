@@ -1,6 +1,6 @@
 # Spec: CI — mobile + owner-signup smoke
 
-**Status:** Shipped through **2.22.2** (jobs live; branch-required optional by design — see notes)  
+**Status:** Shipped through **2.22.2**; both jobs required via `ci-gate` since 2026-10-18 (see notes)  
 **Version band:** 2.21.5 → 2.22.2 (subset of Arc E)  
 **Related:** `.github/workflows/ci.yml`, `e2e/tests/owner-signup.spec.ts`, `e2e/tests/mobile-field-report.spec.ts`, `docs/ci/mobile-owner-smoke-notes.md`
 
