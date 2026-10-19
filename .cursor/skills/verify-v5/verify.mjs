@@ -61,7 +61,8 @@ const browser = await chromium.launch();
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
-  check("/ redirects to /status", new URL(page.url()).pathname === "/status", page.url());
+  check("/ redirects to /login", new URL(page.url()).pathname === "/login", page.url());
+  await page.goto(`${base}/status`, { waitUntil: "networkidle" });
   const text = async (id) => (await page.getByTestId(id).textContent({ timeout: 15000 }))?.trim();
   const status = {
     health: await text("health-status"),
