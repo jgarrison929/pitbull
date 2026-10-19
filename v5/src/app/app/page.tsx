@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Assistant } from "@/components/app/assistant";
 import { DataSource } from "@/components/app/shell";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { IndexValue, Money } from "@/components/app/format";
@@ -18,7 +19,7 @@ export default function PortfolioPage() {
 async function Portfolio() {
   const user = await requireUser();
   const { jobs, totals, contractCents } = await getPortfolio(user.companyId);
-  return (
+  const portfolio = (
     <>
       <PageHeader
         title="Portfolio"
@@ -54,6 +55,23 @@ async function Portfolio() {
         <PortfolioTable jobs={jobs} />
       </Section>
       <DataSource />
+    </>
+  );
+  if (user.role !== "foreman") return portfolio;
+  // A foreman on a phone gets the chat and voice view first; wider screens keep the portfolio.
+  return (
+    <>
+      <div
+        className="flex flex-col gap-3 md:hidden"
+        data-testid="foreman-phone"
+      >
+        <PageHeader
+          title={`Hi, ${user.name.split(" ")[0]}`}
+          meta={user.title}
+        />
+        <Assistant variant="page" />
+      </div>
+      <div className="hidden md:contents">{portfolio}</div>
     </>
   );
 }

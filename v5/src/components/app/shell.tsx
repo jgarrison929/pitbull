@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ChevronDown, FileText, LayoutDashboard, Activity } from "lucide-react";
+import {
+  Activity,
+  ChevronDown,
+  FileText,
+  LayoutDashboard,
+  Sparkles,
+} from "lucide-react";
 import { HealthPill } from "@/components/app/format";
 import { LocalTime } from "@/components/app/local-time";
 import { NavLink } from "@/components/app/nav-link";
@@ -11,6 +17,7 @@ import { resetDemo, signOut } from "@/app/login/actions";
 
 export const navItems = [
   { href: "/app", label: "Portfolio", icon: LayoutDashboard, exact: true },
+  { href: "/app/assistant", label: "Assistant", icon: Sparkles },
   { href: "/status", label: "Status", icon: Activity },
   { href: "/changelog", label: "Changelog", icon: FileText },
 ];
@@ -94,9 +101,9 @@ export function AppShell({
           <main className="flex min-w-0 flex-1 flex-col gap-5 p-4 pb-24 md:p-6">
             {children}
           </main>
-          {rail}
         </div>
       </div>
+      {rail}
 
       <nav
         aria-label="Main"

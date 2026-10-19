@@ -8,6 +8,8 @@ import { PlanCard } from "@/components/app/plan-card";
 import { pct, usdShort } from "@/lib/ev";
 import { getJob, getPlansForJob } from "@/server/data";
 import { requireUser } from "@/server/session";
+import { runAction } from "@/app/app/assistant/actions";
+import { actions } from "@/server/assistant/actions";
 
 export default function JobPage({ params }: PageProps<"/app/jobs/[number]">) {
   return (
@@ -65,7 +67,27 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         />
       </KpiStrip>
       {plans.map((plan) => (
-        <PlanCard key={plan.id} plan={plan} />
+        <PlanCard
+          key={plan.id}
+          plan={plan}
+          actions={
+            plan.status === "draft" &&
+            actions["dailyPlan.submit"].roles?.includes(user.role) ? (
+              <form action={runAction}>
+                <input type="hidden" name="action" value="dailyPlan.submit" />
+                <input type="hidden" name="job" value={p.job.number} />
+                <input type="hidden" name="label" value="Submit plan" />
+                <button
+                  type="submit"
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                  data-testid="submit-plan"
+                >
+                  Submit plan
+                </button>
+              </form>
+            ) : undefined
+          }
+        />
       ))}
       <Section
         title="Budget vs earned value by cost code"
