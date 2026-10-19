@@ -208,3 +208,33 @@ test("a job number that isn't in the sandbox is refused, not swapped for another
     "draft",
   );
 });
+
+test("each role has its own conversation; the job page keeps everyone's changes", async ({
+  page,
+}) => {
+  await signIn(page, "foreman");
+  const rail = page.getByTestId("assistant-rail");
+  await ask(rail, "Submit tomorrow's plan");
+
+  // A new role starts a fresh conversation, filtered on the server, so a reload shows nothing either.
+  await signIn(page, "pm");
+  await expect(rail.getByTestId("assistant-input")).toBeVisible();
+  await expect(rail.getByTestId("action-run")).toHaveCount(0);
+  await page.reload();
+  await expect(rail.getByTestId("assistant-input")).toBeVisible();
+  await expect(rail.getByTestId("action-run")).toHaveCount(0);
+
+  // The audit trail on the screen still says who changed what.
+  await page.goto("/app/jobs/25-031");
+  await expect(page.getByTestId("job-changes")).toContainText("Luis Ortega");
+  await expect(page.getByTestId("job-changes")).toContainText(
+    "Submitted Bridge Crew 2's plan",
+  );
+
+  await signIn(page, "foreman");
+  await expect(rail.getByTestId("assistant-input")).toBeVisible();
+  await expect(rail.getByTestId("action-run")).toHaveCount(1);
+  await expect(rail.getByTestId("action-run")).toContainText(
+    "Submit tomorrow's plan",
+  );
+});
