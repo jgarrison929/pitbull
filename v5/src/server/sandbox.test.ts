@@ -6,7 +6,9 @@ import { seed, seedId } from "@/seed";
 import {
   countRows,
   createSandbox,
+  MAX_SANDBOXES_PER_VISITOR,
   resetSandbox,
+  sandboxForVisitor,
   sweepExpiredSandboxes,
 } from "./sandbox";
 
@@ -40,16 +42,14 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
       .update(dailyPlans)
       .set({ status: "submitted" })
       .where(eq(dailyPlans.id, planId));
-    await db!
-      .insert(actionRuns)
-      .values({
-        companyId: id,
-        userId: seedId(id, "user:pm"),
-        prompt: "x",
-        action: "portfolio.summary",
-        args: {},
-        summary: "x",
-      });
+    await db!.insert(actionRuns).values({
+      companyId: id,
+      userId: seedId(id, "user:pm"),
+      prompt: "x",
+      action: "portfolio.summary",
+      args: {},
+      summary: "x",
+    });
     await resetSandbox(id);
     const [plan] = await db!
       .select()
@@ -69,5 +69,20 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
     );
     expect(ids).toContain(live);
     expect(ids).not.toContain(old);
+  });
+
+  it("caps live sandboxes per visitor, then reuses the newest", async () => {
+    const visitor = `test-${Date.now()}`;
+    const ids: string[] = [];
+    for (let i = 0; i < MAX_SANDBOXES_PER_VISITOR; i++) {
+      // Distinct seed times so "newest" is well defined.
+      ids.push(
+        await sandboxForVisitor(visitor, new Date(Date.now() + i * 1000)),
+      );
+    }
+    created.push(...ids);
+    expect(new Set(ids).size).toBe(MAX_SANDBOXES_PER_VISITOR);
+    const next = await sandboxForVisitor(visitor, new Date(Date.now() + 5000));
+    expect(next).toBe(ids.at(-1));
   });
 });
