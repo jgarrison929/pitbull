@@ -25,7 +25,7 @@ npm run build && npm run e2e   # Playwright smoke against `next start`
 
 ## Deploy
 
-Staging `pitbull-web` on Railway runs this folder: Root Directory `/v5`, Config File Path `/v5/railway.toml`, and `DATABASE_URL` pointing at the `pcs_v5` database. The full runbook is section 7 of the plan.
+Staging `pitbull-web` on Railway runs this folder: Root Directory `/v5`, and `DATABASE_URL` pointing at the `pcs_v5` database. Build and deploy settings live in the Railway service settings, not in a config file: Railpack, `npm run build`, pre-deploy `npm run db:prepare`, `npm start`, healthcheck `/health` (60 s), watch `/v5/**`. The full runbook is section 7 of the plan.
 
 ## Routes
 

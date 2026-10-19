@@ -135,20 +135,20 @@ Supporting choices: Auth.js-free custom session (signed httpOnly cookie, users t
 |---|---|---|---|
 | `pitbull-web` | staging | **v5** from `main`, root directory `/v5` | pitbull-web-staging.up.railway.app |
 | `Postgres` | staging | the existing instance, plus a separate database `pcs_v5` for v5 | private network only |
-| `pitbull` (API) | staging | legacy, idle once the web points at v5; retire it later | pitbull-staging.up.railway.app |
+| `pitbull` (API) | staging | retired 2026-10-18 (deleted from staging only, config saved) | none |
 | `pitbull`, `pitbull-web`, `Postgres` | production | legacy 3.8.2 until cutover | demo.pcserp.app, app.pcserp.app, api.pcserp.app |
 
 There are no PR or preview environments. CI (`ci-gate`) is the per-PR proof, and staging is the shared running app.
 
 Repoint runbook for staging `pitbull-web` (done 2026-10-18):
 
-1. Database: no manual SQL. `v5/railway.toml` runs `npm run db:ensure` as the pre-deploy command. It creates the `DATABASE_URL` database (`pcs_v5`) when it is missing and never drops or alters anything. CI runs the same step against a database that does not exist yet.
-2. Service settings: Root Directory `/v5`, and Config File Path `/v5/railway.toml`. Railway does not look inside the root directory for config, and the repo-root `railway.toml` forces the legacy Dockerfile builder. `v5/railway.toml` sets the Railpack builder, `npm run build`, the pre-deploy step, `npm start`, healthcheck `/health`, and watch pattern `/v5/**`.
+1. Database: no manual SQL. The pre-deploy command `npm run db:prepare` runs `db:ensure`, then migrations. It creates the `DATABASE_URL` database (`pcs_v5`) when it is missing and never drops or alters anything. CI runs the same step against a database that does not exist yet.
+2. Service settings: Root Directory `/v5`, no config file. The service settings hold the Railpack builder, `npm run build`, the pre-deploy step, `npm start`, healthcheck `/health` (60 s), and watch pattern `/v5/**`.
 3. Variables: set `DATABASE_URL=postgresql://${{Postgres.PGUSER}}:${{Postgres.PGPASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/pcs_v5`. Remove `RAILWAY_DOCKERFILE_PATH`, `RAILWAY_HEALTHCHECK_PATH` and the legacy `NEXT_PUBLIC_*` variables. Railpack derives Node 24 from `engines`/`.nvmrc` and npm 11 from `packageManager`. Its install step sets `NPM_CONFIG_PRODUCTION=false`, so the build-time dev dependencies (Tailwind, shadcn CSS) are installed. Railway provides `PORT` and `RAILWAY_GIT_COMMIT_SHA`.
 4. Keep "wait for CI" on. Railway waits for every GitHub Actions run on the commit, CodeQL included, and skips the deploy when any run fails (https://docs.railway.com/deployments/github-autodeploys). On 2026-10-18 the #614 and #615 deploys were skipped because Dependabot's esbuild security-update run failed on those commits. drizzle-kit pinned esbuild 0.18 and 0.25, which no update could fix. `v5/package.json` now overrides esbuild to `^0.28.2`, so that run has nothing to fix.
 5. Verify: `node .cursor/skills/verify-v5/verify.mjs --wait 1800`. It passes when `/health` and `/status` show the `origin/main` commit with Database `ok`.
 
-Config-as-code (`railway.toml`) is deprecated, with a hard cutoff on 2026-12-01 (https://docs.railway.com/config-as-code). Before then, move these settings into Railway's replacement (`.railway/railway.ts`) or into the service settings. That is an M1-era task.
+Config-as-code (`railway.toml`) is deprecated, with a hard cutoff on 2026-12-01 (https://docs.railway.com/config-as-code). Done for staging on 2026-10-18: the settings moved into the `pitbull-web` service settings and both `railway.toml` files left `main`. Railway IaC (`.railway/railway.ts`) was not used, because one file owns a whole environment and deletes what it omits, which puts production at risk. The `production` branch still has its own `railway.toml`. Production is frozen, so that needs Joshua's call before 2026-12-01.
 
 - Deploy healthcheck: `/health` pings the DB and returns version, commit and build time (503 when a configured DB is down). `/status` shows the same.
 
