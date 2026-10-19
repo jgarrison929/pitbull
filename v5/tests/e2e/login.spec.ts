@@ -41,6 +41,7 @@ test("switching roles keeps the sandbox, a new visitor gets a new one, reset res
   await other.close();
 
   const seeded = await page.getByTestId("seeded-at").getAttribute("datetime");
+  await page.getByTestId("user-menu").click();
   await page.getByRole("button", { name: "Reset demo" }).click();
   await expect(page).toHaveURL(/reset=1/);
   await expect(page.getByTestId("seeded-at")).not.toHaveAttribute(

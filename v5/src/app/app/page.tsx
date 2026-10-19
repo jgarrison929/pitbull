@@ -1,56 +1,73 @@
 import { Suspense } from "react";
+import { DataSource } from "@/components/app/shell";
+import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
+import { IndexValue, Money } from "@/components/app/format";
+import { PortfolioTable } from "@/components/app/portfolio-table";
+import { usdShort } from "@/lib/ev";
+import { getPortfolio } from "@/server/data";
 import { requireUser } from "@/server/session";
-import { resetDemo, signOut } from "../login/actions";
 
-export default function AppHome() {
+export default function PortfolioPage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-12">
-      <Suspense
-        fallback={
-          <p className="text-sm text-muted-foreground">Loading your sandbox…</p>
-        }
-      >
-        <SandboxCard />
-      </Suspense>
-    </main>
+    <Suspense fallback={<PortfolioSkeleton />}>
+      <Portfolio />
+    </Suspense>
   );
 }
 
-async function SandboxCard() {
+async function Portfolio() {
   const user = await requireUser();
+  const { jobs, totals, contractCents } = await getPortfolio(user.companyId);
   return (
-    <section className="flex flex-col gap-3 rounded-xl border p-4">
-      <h1 className="text-lg font-semibold" data-testid="signed-in-as">
-        {user.name} · {user.title}
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        {user.companyName} sandbox{" "}
-        <span className="font-mono" data-testid="sandbox-id">
-          {user.companyId.slice(0, 8)}
-        </span>
-        , seeded{" "}
-        <time data-testid="seeded-at" dateTime={user.seededAt.toISOString()}>
-          {user.seededAt.toISOString()}
-        </time>
-      </p>
-      <div className="flex gap-2">
-        <form action={resetDemo}>
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground"
-          >
-            Reset demo
-          </button>
-        </form>
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="rounded-md border px-3 py-1.5 text-sm"
-          >
-            Sign out
-          </button>
-        </form>
+    <>
+      <PageHeader
+        title="Portfolio"
+        meta={`${jobs.length} active jobs · earned value to date`}
+      />
+      <KpiStrip>
+        <Kpi
+          label="Contract value"
+          value={<Money cents={contractCents} />}
+          sub={`${jobs.length} jobs`}
+          testId="kpi-contract"
+        />
+        <Kpi
+          label="Earned to date"
+          value={<Money cents={totals.earnedCents} />}
+          sub={`vs ${usdShort(totals.plannedCents)} planned`}
+          testId="kpi-earned"
+        />
+        <Kpi
+          label="Portfolio CPI"
+          value={<IndexValue value={totals.cpi} />}
+          sub="earned ÷ actual cost"
+          testId="kpi-cpi"
+        />
+        <Kpi
+          label="Portfolio SPI"
+          value={<IndexValue value={totals.spi} />}
+          sub="earned ÷ planned"
+          testId="kpi-spi"
+        />
+      </KpiStrip>
+      <Section title="Jobs" meta="EAC assumes each job's current CPI holds">
+        <PortfolioTable jobs={jobs} />
+      </Section>
+      <DataSource />
+    </>
+  );
+}
+
+function PortfolioSkeleton() {
+  return (
+    <div className="flex flex-col gap-5" aria-busy="true">
+      <div className="h-7 w-40 animate-pulse rounded bg-muted" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-20 animate-pulse rounded-lg bg-muted" />
+        ))}
       </div>
-    </section>
+      <div className="h-64 animate-pulse rounded-lg bg-muted" />
+    </div>
   );
 }

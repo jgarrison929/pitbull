@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   createSandbox,
@@ -31,6 +32,8 @@ export async function signIn(formData: FormData) {
 export async function resetDemo() {
   const user = await requireUser();
   await resetSandbox(user.companyId);
+  // The shell layout shows sandbox data, so drop every cached segment under /app, not just the page.
+  revalidatePath("/app", "layout");
   redirect("/app?reset=1");
 }
 
