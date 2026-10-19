@@ -7,6 +7,8 @@ export const changelog = [
       "Role-card demo login with a private sandbox per visitor, reset in one click, expiring after 24 hours.",
       "Portfolio and job screens read live from Postgres: earned value, CPI, SPI and EAC by job and cost code.",
       "Cost codes stack into readable rows on phones instead of scrolling sideways.",
+      "Assistant rail: ask in words or by voice, and it runs the same typed actions as the screens and shows each one it ran.",
+      "On a phone the foreman starts in the chat and voice view.",
     ],
   },
   {
