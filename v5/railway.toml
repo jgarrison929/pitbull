@@ -2,7 +2,7 @@
 # Service settings: Root Directory `/v5`, Config File Path `/v5/railway.toml`
 # (Railway does not look for config inside the root directory on its own,
 # and the repo-root railway.toml forces the legacy Dockerfile builder).
-# The pre-deploy step creates the DATABASE_URL database if it is missing.
+# The pre-deploy step creates the DATABASE_URL database if missing, then applies migrations.
 # Railpack detects npm and Node 24 from package.json and package-lock.json.
 [build]
 builder = "RAILPACK"
@@ -10,7 +10,7 @@ buildCommand = "npm run build"
 watchPatterns = ["/v5/**"]
 
 [deploy]
-preDeployCommand = ["npm run db:ensure"]
+preDeployCommand = ["npm run db:prepare"]
 startCommand = "npm start"
 healthcheckPath = "/health"
 healthcheckTimeout = 60

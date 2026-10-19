@@ -69,7 +69,7 @@ jobs:
           --health-retries 5
 
     env:
-      # pcs_v5_ci does not exist until db:ensure creates it, the same path Railway's pre-deploy takes.
+      # pcs_v5_ci does not exist until db:prepare creates and migrates it, the same path Railway's pre-deploy takes.
       DATABASE_URL: postgres://pcs:pcs_ci@localhost:5432/pcs_v5_ci
       GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -98,8 +98,8 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Ensure database (pre-deploy step)
-        run: npm run db:ensure
+      - name: Prepare database (pre-deploy step)
+        run: npm run db:prepare
 
       - name: Build
         run: npm run build

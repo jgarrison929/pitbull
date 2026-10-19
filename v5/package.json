@@ -10,7 +10,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "e2e": "playwright test",
-    "db:ensure": "node scripts/db-ensure.mjs"
+    "db:ensure": "node scripts/db-ensure.mjs",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "db:prepare": "npm run db:ensure && npm run db:migrate"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
