@@ -204,4 +204,4 @@ Post-5.0 map toward InEight parity (north star, one module per release, each hel
 - Repo: the `v5/` folder on `main`. Legacy tag `legacy-3.8.2-final`.
 - Legacy is frozen. No CI jobs, no Dependabot updates, no fixes. Its source stays in `src/`, `tests/` and `e2e/` until the cutover PR deletes it. Production keeps running 3.8.2 from the `production` branch. Agents don't spend time keeping the old app working.
 - Railway: no new services. v5 reuses the staging `pitbull-web` service, with a separate `pcs_v5` database on the existing staging Postgres. The staging API is retired later. Production stays on 3.8.2 until cutover. No preview environments.
-- The shell (screen-first or chat/voice-first) is picked from the M1 prototypes, so sections 5 and 6 are provisional until then.
+- Shell: the hybrid (prototype C), picked by Joshua on 2026-10-18. Screens stay primary, the assistant rail runs the same typed actions, and a foreman on a phone starts in the chat and voice view. The prototypes were removed once the real shell shipped. They are in git history at f30f8afe.
