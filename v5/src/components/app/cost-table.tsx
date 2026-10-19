@@ -1,0 +1,150 @@
+import type { CostLine } from "@/lib/ev";
+import { pct, qty, rollup } from "@/lib/ev";
+import { cn } from "@/lib/utils";
+import { IndexValue, Money, Progress } from "./format";
+import { Td, Th } from "./page";
+
+const hot = (l: CostLine) => l.cpi !== null && l.cpi < 0.8;
+
+/** Budget vs earned value by cost code. A table from md up; stacked rows on phones, so nothing scrolls sideways. */
+export function CostTable({ lines }: { lines: CostLine[] }) {
+  const t = rollup(lines);
+  return (
+    <div data-testid="cost-table">
+      <table className="hidden w-full text-sm md:table">
+        <thead>
+          <tr className="border-b">
+            <Th>Cost code</Th>
+            <Th right>Installed</Th>
+            <Th>% complete</Th>
+            <Th right>Budget</Th>
+            <Th right>Earned</Th>
+            <Th right>Actual</Th>
+            <Th right>Variance</Th>
+            <Th right>CPI</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((l) => (
+            <tr
+              key={l.code}
+              className={cn(
+                "border-b last:border-0",
+                hot(l) && "bg-negative-soft/60",
+              )}
+            >
+              <Td className="whitespace-nowrap">
+                <span className="mr-2 font-mono text-xs text-muted-foreground">
+                  {l.code}
+                </span>
+                <span className="font-medium">{l.description}</span>
+              </Td>
+              <Td
+                right
+                className="whitespace-nowrap text-xs tabular-nums text-muted-foreground"
+              >
+                {qty(l.installedQtyMilli)} / {qty(l.budgetQtyMilli)} {l.unit}
+              </Td>
+              <Td>
+                <div className="flex items-center gap-2">
+                  <Progress value={l.percent} className="w-16" />
+                  <span className="w-9 text-xs tabular-nums">
+                    {pct(l.percent)}
+                  </span>
+                </div>
+              </Td>
+              <Td right>
+                <Money cents={l.budgetCents} />
+              </Td>
+              <Td right>
+                <Money cents={l.earnedCents} />
+              </Td>
+              <Td right>
+                <Money cents={l.actualCents} />
+              </Td>
+              <Td right>
+                <Money cents={l.varianceCents} signed />
+              </Td>
+              <Td right>
+                <IndexValue value={l.cpi} />
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 font-medium">
+            <Td>Job total</Td>
+            <Td />
+            <Td className="text-xs tabular-nums">{pct(t.percent)}</Td>
+            <Td right>
+              <Money cents={t.budgetCents} />
+            </Td>
+            <Td right>
+              <Money cents={t.earnedCents} />
+            </Td>
+            <Td right>
+              <Money cents={t.actualCents} />
+            </Td>
+            <Td right>
+              <Money cents={t.costVarianceCents} signed />
+            </Td>
+            <Td right>
+              <IndexValue value={t.cpi} />
+            </Td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <ul className="divide-y md:hidden" data-testid="cost-list">
+        {lines.map((l) => (
+          <li
+            key={l.code}
+            className={cn(
+              "flex flex-col gap-1.5 py-3",
+              hot(l) && "-mx-4 bg-negative-soft/60 px-4",
+            )}
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="min-w-0">
+                <span className="mr-1.5 font-mono text-xs text-muted-foreground">
+                  {l.code}
+                </span>
+                <span className="font-medium">{l.description}</span>
+              </div>
+              <IndexValue value={l.cpi} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Progress value={l.percent} className="flex-1" />
+              <span className="w-24 text-right text-xs tabular-nums text-muted-foreground">
+                {pct(l.percent)} of {qty(l.budgetQtyMilli)} {l.unit}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <div className="text-muted-foreground">Earned</div>
+                <Money cents={l.earnedCents} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Actual</div>
+                <Money cents={l.actualCents} />
+              </div>
+              <div className="text-right">
+                <div className="text-muted-foreground">Variance</div>
+                <Money cents={l.varianceCents} signed />
+              </div>
+            </div>
+          </li>
+        ))}
+        <li className="flex items-center justify-between py-3 text-sm font-medium">
+          <span>Job total · {pct(t.percent)}</span>
+          <span className="flex gap-3">
+            <Money cents={t.costVarianceCents} signed />
+            <span>
+              CPI <IndexValue value={t.cpi} />
+            </span>
+          </span>
+        </li>
+      </ul>
+    </div>
+  );
+}
