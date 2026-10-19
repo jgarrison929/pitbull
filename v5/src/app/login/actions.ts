@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  createSandbox,
+  sandboxForVisitor,
   resetSandbox,
   sweepExpiredSandboxes,
 } from "@/server/sandbox";
@@ -12,19 +12,21 @@ import {
   getCurrentUser,
   requireUser,
   startSession,
+  visitorHash,
   type Role,
 } from "@/server/session";
 
 const roles: Role[] = ["executive", "pm", "superintendent", "foreman"];
 
-/** Role-card login. A visitor keeps their sandbox when switching roles; a new visitor gets a fresh one. */
+/** Role-card login. Switching roles keeps the sandbox. A signed-out visitor gets a fresh one, up to MAX_SANDBOXES_PER_VISITOR, then their newest. */
 export async function signIn(formData: FormData) {
   const role = formData.get("role");
   if (typeof role !== "string" || !roles.includes(role as Role))
     redirect("/login");
   await sweepExpiredSandboxes();
   const current = await getCurrentUser();
-  const companyId = current?.companyId ?? (await createSandbox());
+  const companyId =
+    current?.companyId ?? (await sandboxForVisitor(await visitorHash()));
   await startSession(companyId, role as Role);
   redirect("/app");
 }

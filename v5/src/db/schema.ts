@@ -30,15 +30,21 @@ export const roleEnum = pgEnum("role", [
 ]);
 export const planStatusEnum = pgEnum("plan_status", ["draft", "submitted"]);
 
-export const companies = pgTable("companies", {
-  id: uuid("id").primaryKey(),
-  name: text("name").notNull(),
-  isSandbox: boolean("is_sandbox").notNull().default(true),
-  seededAt: timestamp("seeded_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }),
-});
+export const companies = pgTable(
+  "companies",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    isSandbox: boolean("is_sandbox").notNull().default(true),
+    seededAt: timestamp("seeded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** sha256 of the visitor cookie that created this sandbox, for the per-visitor cap. */
+    visitorHash: text("visitor_hash"),
+  },
+  (t) => [index("companies_visitor_idx").on(t.visitorHash)],
+);
 
 export const users = pgTable(
   "users",
