@@ -36,6 +36,14 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     getPlansForJob(user.companyId, p.job.id),
     jobChanges(user.companyId, p.job.number),
   ]);
+  const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
+  // The cost code list comes from this job's cost items in Postgres; the server checks it again.
+  const costItems = p.lines.map((l) => ({
+    value: l.id,
+    label: `${l.code} ${l.description}`,
+    hint: l.unit,
+    unit: l.unit,
+  }));
   return (
     <>
       <PageHeader
@@ -74,6 +82,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         <PlanCard
           key={plan.id}
           plan={plan}
+          costItems={canEdit ? costItems : undefined}
           actions={
             plan.status === "draft" &&
             actions["dailyPlan.submit"].roles?.includes(user.role) ? (
@@ -101,7 +110,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       </Section>
       <Section
         title="Changes on this job"
-        meta="Every change, by anyone in this sandbox"
+        meta="Every edit and submit, by anyone in this sandbox"
       >
         {changes.length === 0 ? (
           <p className="px-4 py-3 text-sm text-muted-foreground">

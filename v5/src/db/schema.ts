@@ -154,6 +154,7 @@ export const dailyPlanLines = pgTable(
     qtyMilli: milli("qty_milli"),
     workers: integer("workers").notNull(),
     hoursTenths: integer("hours_tenths").notNull(),
+    notes: text("notes").notNull().default(""),
     sort: integer("sort").notNull(),
   },
   (t) => [index("daily_plan_lines_plan_idx").on(t.planId)],
