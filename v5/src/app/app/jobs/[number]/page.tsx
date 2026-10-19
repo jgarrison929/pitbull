@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { CostTable } from "@/components/app/cost-table";
-import { HealthPill, IndexValue, Money } from "@/components/app/format";
+import { Money, StatusIndex, StatusPill } from "@/components/app/format";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { DataSource } from "@/components/app/shell";
 import { PlanCard } from "@/components/app/plan-card";
@@ -37,7 +37,9 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       <PageHeader
         title={p.job.name}
         meta={`${p.job.number} · ${p.job.owner} · PM ${p.job.pmName} · finish ${new Date(`${p.job.finishOn}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })}`}
-        actions={<HealthPill value={p.status} />}
+        actions={
+          <StatusPill value={p.status} varianceCents={p.costVarianceCents} />
+        }
       />
       <KpiStrip>
         <Kpi
@@ -48,22 +50,25 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         <Kpi
           label="Actual cost"
           value={<Money cents={p.actualCents} />}
-          sub={
-            <>
-              variance <Money cents={p.costVarianceCents} signed />
-            </>
-          }
+          sub={`vs ${usdShort(p.earnedCents)} earned`}
         />
         <Kpi
           label="CPI"
-          value={<IndexValue value={p.cpi} />}
-          sub={`EAC ${usdShort(p.eacCents)}`}
+          value={
+            <StatusIndex index={p.cpi} varianceCents={p.costVarianceCents} />
+          }
+          sub={`cost variance · EAC ${usdShort(p.eacCents)}`}
           testId="job-cpi"
         />
         <Kpi
           label="SPI"
-          value={<IndexValue value={p.spi} />}
-          sub={`vs ${usdShort(p.plannedCents)} planned`}
+          value={
+            <StatusIndex
+              index={p.spi}
+              varianceCents={p.scheduleVarianceCents}
+            />
+          }
+          sub={`schedule variance · ${usdShort(p.plannedCents)} planned`}
         />
       </KpiStrip>
       {plans.map((plan) => (
@@ -91,7 +96,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       ))}
       <Section
         title="Budget vs earned value by cost code"
-        meta="Rows under CPI 0.80 are tinted"
+        meta="CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never green. At-risk rows are tinted."
       >
         <CostTable lines={p.lines} />
       </Section>

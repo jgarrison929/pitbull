@@ -9,7 +9,8 @@ import {
   jobs,
   users,
 } from "@/db/schema";
-import { costLine, health, rollup } from "@/lib/ev";
+import { costLine, rollup } from "@/lib/ev";
+import { overallStatus } from "@/lib/status";
 
 // The tenant boundary: every read takes the signed-in user's companyId and filters on it.
 
@@ -33,7 +34,7 @@ export const getPortfolio = cache(async function getPortfolio(
   const portfolio = jobRows.map((job) => {
     const lines = itemRows.filter((i) => i.jobId === job.id).map(costLine);
     const r = rollup(lines);
-    return { job, lines, ...r, status: health(Math.min(r.cpi, r.spi)) };
+    return { job, lines, ...r, status: overallStatus(r) };
   });
   return {
     jobs: portfolio,
