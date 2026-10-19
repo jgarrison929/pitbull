@@ -28,7 +28,9 @@ export function findJob(prompt: string, jobs: JobRef[]) {
 
 export function route(prompt: string, jobs: JobRef[]): Intent | null {
   const text = prompt.toLowerCase();
-  const job = findJob(prompt, jobs)?.number;
+  // A job number that isn't in this sandbox still goes to the action, which refuses it.
+  const job =
+    findJob(prompt, jobs)?.number ?? prompt.match(/\b\d{2}-\d{3}\b/)?.[0];
   const args: JobArgs = job ? { job } : {};
   const has = (re: RegExp) => re.test(text);
 

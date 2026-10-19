@@ -41,6 +41,11 @@ test("a foreman submits tomorrow's plan from the rail, the screen agrees, reset 
   await expect(run.getByTestId("action-summary")).toContainText(
     "Submitted Bridge Crew 2's plan",
   );
+  // The request named no job, so the history records the one the action picked.
+  await expect(run.getByTestId("action-name")).toHaveText(
+    "dailyPlan.submit(25-031)",
+  );
+  await expect(run.getByTestId("job-picked")).toBeVisible();
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
@@ -172,3 +177,34 @@ for (const role of ["executive", "pm", "superintendent", "foreman"]) {
     expect(errors).toEqual([]);
   });
 }
+
+test("a job number that isn't in the sandbox is refused, not swapped for another job", async ({
+  page,
+}) => {
+  await signIn(page, "foreman");
+  const run = await ask(
+    page.getByTestId("assistant-rail"),
+    "Submit the plan for 99-999",
+  );
+  await expect(run.getByTestId("action-summary")).toContainText(
+    "There is no job 99-999 in this sandbox",
+  );
+  await expect(run.getByTestId("action-name")).toHaveText(
+    "dailyPlan.submit(99-999)",
+  );
+
+  // The Submit button posts the job number; a forged one is refused the same way.
+  await page.goto("/app/jobs/25-031");
+  await page
+    .getByTestId("plan-card")
+    .locator('input[name="job"]')
+    .evaluate((el) => ((el as HTMLInputElement).value = "99-999"));
+  await page.getByTestId("submit-plan").click();
+  await expect(
+    page.getByTestId("assistant-rail").getByTestId("action-run").last(),
+  ).toContainText("There is no job 99-999");
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "draft",
+  );
+});

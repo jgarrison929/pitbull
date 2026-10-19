@@ -32,6 +32,7 @@ describe("assistant router", () => {
     ],
     ["Submit tomorrow's plan", "dailyPlan.submit", {}],
     ["send the plan for cedar", "dailyPlan.submit", { job: "25-031" }],
+    ["submit the plan for 99-999", "dailyPlan.submit", { job: "99-999" }],
   ])("%s → %s", (prompt, action, args) => {
     expect(route(prompt, jobs)).toEqual({ action, args });
   });
