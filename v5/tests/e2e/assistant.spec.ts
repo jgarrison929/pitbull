@@ -7,6 +7,8 @@ async function signIn(page: Page, role: string) {
 }
 
 async function ask(scope: ReturnType<Page["getByTestId"]>, prompt: string) {
+  // The transcript streams in after navigation; count runs only once the composer has rendered.
+  await expect(scope.getByTestId("assistant-input")).toBeVisible();
   const before = await scope.getByTestId("action-run").count();
   await scope.getByTestId("assistant-input").fill(prompt);
   await scope.getByRole("button", { name: "Send" }).click();
