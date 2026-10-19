@@ -116,6 +116,15 @@ async function flows(browser) {
   };
   const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 
+  await step("signed out, /app redirects to /login", async () => {
+    const anon = await browser.newContext();
+    const p = await anon.newPage();
+    await p.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
+    const where = new URL(p.url()).pathname;
+    check("signed out, /app redirects to /login", where === "/login", p.url());
+    await anon.close();
+  });
+
   const desk = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await desk.newPage();
   let sandbox;
@@ -166,6 +175,14 @@ async function flows(browser) {
     const after = await page.getByTestId("plan-card").getAttribute("data-status", { timeout: T });
     const ok = action === "dailyPlan.submit" && submitted === "submitted" && after === "draft" && reseeded !== seeded && runs === 0 && same === sandbox;
     check("sandbox reset reseeds", ok, `${action}: plan ${submitted} → ${after}, seeded ${seeded} → ${reseeded}, runs ${runs}, sandbox ${sandbox} → ${same}`);
+  });
+  await step("an unknown job number is refused", async () => {
+    // The sandbox was just reset, so Cedar Creek's plan is a draft that a wrong match would submit.
+    const run = await ask(page.getByTestId("assistant-rail"), "Submit the plan for 99-999");
+    const summary = (await run.getByTestId("action-summary").textContent())?.trim();
+    await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
+    const status = await page.getByTestId("plan-card").getAttribute("data-status", { timeout: T });
+    check("an unknown job number is refused", summary?.includes("There is no job 99-999") && status === "draft", `${summary} (Cedar plan ${status})`);
   });
   await desk.close();
 
