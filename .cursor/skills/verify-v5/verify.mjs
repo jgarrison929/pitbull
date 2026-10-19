@@ -181,8 +181,10 @@ async function flows(browser) {
   });
   await step("phone: cost codes do not scroll sideways", async () => {
     await signIn(mobile, "pm");
+    await mobile.getByTestId("portfolio-table").waitFor({ timeout: T });
     await shot(mobile, "portfolio-mobile");
     await mobile.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
+    await mobile.getByTestId("cost-list").waitFor({ timeout: T });
     const list = await mobile.getByTestId("cost-list").isVisible();
     const over = await overflow(mobile);
     await shot(mobile, "job-mobile");
