@@ -231,13 +231,24 @@ export async function run(
   return row;
 }
 
-/** The latest runs in this sandbox, oldest first, for the assistant transcript. */
-export async function recentRuns(companyId: string, limit = 30) {
+/**
+ * One person's conversation: their latest runs, oldest first. Filtered here on the server by
+ * the signed-in user, so switching roles starts fresh and nothing leaks through a reload.
+ */
+export async function recentRuns(
+  user: Pick<CurrentUser, "companyId" | "userId">,
+  limit = 30,
+) {
   const rows = await requireDb()
     .select({ run: actionRuns, userName: users.name, role: users.role })
     .from(actionRuns)
     .innerJoin(users, eq(users.id, actionRuns.userId))
-    .where(eq(actionRuns.companyId, companyId))
+    .where(
+      and(
+        eq(actionRuns.companyId, user.companyId),
+        eq(actionRuns.userId, user.userId),
+      ),
+    )
     .orderBy(desc(actionRuns.createdAt))
     .limit(limit);
   return rows.reverse().map(({ run, userName, role }) => ({
@@ -252,3 +263,36 @@ export async function recentRuns(companyId: string, limit = 30) {
   }));
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
+
+const WRITES: ActionName[] = ["dailyPlan.submit"];
+
+/** The audit trail for one job: every change anyone in this sandbox made, newest first. */
+export async function jobChanges(
+  companyId: string,
+  jobNumber: string,
+  limit = 20,
+) {
+  const rows = await requireDb()
+    .select({ run: actionRuns, userName: users.name })
+    .from(actionRuns)
+    .innerJoin(users, eq(users.id, actionRuns.userId))
+    .where(
+      and(
+        eq(actionRuns.companyId, companyId),
+        sql`${actionRuns.args}->>'job' = ${jobNumber}`,
+        sql`${actionRuns.action} in (${sql.join(
+          WRITES.map((w) => sql`${w}`),
+          sql`, `,
+        )})`,
+      ),
+    )
+    .orderBy(desc(actionRuns.createdAt))
+    .limit(limit);
+  return rows.map(({ run, userName }) => ({
+    id: run.id,
+    action: run.action,
+    summary: run.summary,
+    createdAt: run.createdAt.toISOString(),
+    userName,
+  }));
+}
