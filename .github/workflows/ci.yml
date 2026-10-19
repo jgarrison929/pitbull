@@ -95,11 +95,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm test
-
       - name: Prepare database (pre-deploy step)
         run: npm run db:prepare
+
+      - name: Unit tests
+        run: npm test
 
       - name: Build
         run: npm run build
