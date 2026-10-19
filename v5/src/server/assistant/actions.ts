@@ -10,7 +10,8 @@ import type { CurrentUser, Role } from "@/server/session";
 // The typed actions. The assistant and on-screen buttons both call run(), so every change goes
 // through one path, is checked against the role, and is written to action_runs.
 
-export type ActionResult = { summary: string; href?: string };
+/** job is the job number the action acted on, whether the request named it or the action picked it. */
+export type ActionResult = { summary: string; href?: string; job?: string };
 
 type ActionDef = {
   title: string;
@@ -32,10 +33,22 @@ async function resolveJob(user: CurrentUser, number?: string) {
   return number ? all.find((j) => j.job.number === number) : undefined;
 }
 
+/** A named job that isn't in this sandbox is refused, never swapped for another job. */
+async function unknownJob(
+  user: CurrentUser,
+  number: string,
+): Promise<ActionResult> {
+  const { jobs: all } = await getPortfolio(user.companyId);
+  return {
+    summary: `There is no job ${number} in this sandbox. Jobs here: ${all.map((j) => j.job.number).join(", ")}.`,
+  };
+}
+
 /** The plan a request means: the named job's next plan, or else the next draft this person can act on. */
 async function resolvePlan(user: CurrentUser, number?: string) {
   const db = requireDb();
   const target = await resolveJob(user, number);
+  if (number && !target) return null;
   const [row] = await db
     .select({ id: dailyPlans.id, jobId: dailyPlans.jobId })
     .from(dailyPlans)
@@ -108,6 +121,7 @@ export const actions: Record<ActionName, ActionDef> = {
             ? `Largest overruns: ${worst.map((l) => `${l.code} ${l.description} ${usdShort(l.varianceCents)}`).join("; ")}.`
             : "No cost code is over."),
         href: jobHref(j),
+        job: j.job.number,
       };
     },
   },
@@ -127,6 +141,7 @@ export const actions: Record<ActionName, ActionDef> = {
             ? `Over budgeted rate: ${over.map((l) => l.code).join(", ")}.`
             : "Every line is within its budgeted unit rate."),
         href: jobHref(j),
+        job: j.job.number,
       };
     },
   },
@@ -141,6 +156,7 @@ export const actions: Record<ActionName, ActionDef> = {
         return {
           summary: `${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName} was already submitted.`,
           href: jobHref(j),
+          job: j.job.number,
         };
       await requireDb()
         .update(dailyPlans)
@@ -155,6 +171,7 @@ export const actions: Record<ActionName, ActionDef> = {
       return {
         summary: `Submitted ${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName}: ${plan.lines.length} activities, ${mh} man-hours.`,
         href: jobHref(j),
+        job: j.job.number,
       };
     },
   },
@@ -162,6 +179,12 @@ export const actions: Record<ActionName, ActionDef> = {
 
 export const isActionName = (s: unknown): s is ActionName =>
   typeof s === "string" && Object.hasOwn(actions, s);
+
+export type RunArgs = {
+  requested: string | null;
+  job: string | null;
+  href?: string;
+};
 
 const roleNames: Record<Role, string> = {
   executive: "an executive",
@@ -179,11 +202,15 @@ export async function run(
 ) {
   const def = actions[action];
   const allowed = !def.roles || def.roles.includes(user.role);
-  const result: ActionResult = allowed
-    ? await def.run(user, args)
-    : {
-        summary: `${def.title} needs ${def.roles!.map((r) => roleNames[r]).join(" or ")}. You are signed in as ${roleNames[user.role]}. Switch role to try it.`,
-      };
+  // A named job that isn't in this sandbox is refused here, so no action can swap in another job.
+  const unknown = args.job && !(await resolveJob(user, args.job));
+  const result: ActionResult = unknown
+    ? await unknownJob(user, args.job!)
+    : allowed
+      ? await def.run(user, args)
+      : {
+          summary: `${def.title} needs ${def.roles!.map((r) => roleNames[r]).join(" or ")}. You are signed in as ${roleNames[user.role]}. Switch role to try it.`,
+        };
   const [row] = await requireDb()
     .insert(actionRuns)
     .values({
@@ -191,7 +218,13 @@ export async function run(
       userId: user.userId,
       prompt,
       action,
-      args: { ...args, ...(result.href ? { href: result.href } : {}) },
+      // requested is the job the person named; job is the one the action acted on.
+      // They differ when the request named none and the action picked one.
+      args: {
+        requested: args.job ?? null,
+        job: result.job ?? null,
+        ...(result.href ? { href: result.href } : {}),
+      } satisfies RunArgs,
       summary: result.summary,
     })
     .returning();
@@ -211,7 +244,7 @@ export async function recentRuns(companyId: string, limit = 30) {
     id: run.id,
     prompt: run.prompt,
     action: run.action,
-    args: run.args as JobArgs & { href?: string },
+    args: run.args as RunArgs,
     summary: run.summary,
     createdAt: run.createdAt.toISOString(),
     userName,

@@ -127,8 +127,11 @@ export function AssistantPanel({
                   data-testid="action-name"
                 >
                   {r.action}
-                  {r.args.job ? `(${r.args.job})` : "()"}
+                  {`(${r.args.job ?? r.args.requested ?? ""})`}
                 </code>
+                {r.args.job && r.args.requested === null && (
+                  <span data-testid="job-picked">job picked by the action</span>
+                )}
                 <span>
                   {r.userName} · <LocalTime iso={r.createdAt} />
                 </span>
