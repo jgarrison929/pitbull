@@ -62,10 +62,12 @@ function argsFromForm(formData: FormData): JobArgs {
   }
   const lineIds = new Set([...mhByLine.keys(), ...qtyByLine.keys()]);
   for (const lineId of lineIds) {
+    // Number inputs omit empty values from FormData. A present sibling without
+    // its pair must not fall back to the plan — mark the missing side invalid.
     actuals.push({
       lineId,
-      manHours: mhByLine.get(lineId),
-      qty: qtyByLine.get(lineId),
+      manHours: mhByLine.has(lineId) ? mhByLine.get(lineId) : Number.NaN,
+      qty: qtyByLine.has(lineId) ? qtyByLine.get(lineId) : Number.NaN,
     });
   }
   return {

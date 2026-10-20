@@ -204,33 +204,66 @@ test("blank or non-finite report fields are rejected, not replaced by the plan",
     "submitted",
   );
 
+  const actualBefore80 = await actualCents(page);
   await page.getByTestId("report-mh-04-210").fill("80");
   await page.getByTestId("report-qty-04-210").fill("38");
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
+  await expect(page.getByTestId("report-summary")).toContainText(/80/);
+  // Wait until AC moves with the 80 MH report (revalidate is async).
+  await expect
+    .poll(async () => actualCents(page))
+    .toBeGreaterThan(actualBefore80);
   const actualAfter80 = await actualCents(page);
 
-  await page.getByTestId("report-work-form").evaluate((f) =>
-    f.setAttribute("novalidate", ""),
-  );
   // Blank MH must error — not silently post plan 60 and drop AC by $1,700.
-  await page.getByTestId("report-mh-04-210").fill("");
-  await page.getByTestId("report-qty-04-210").fill("38");
-  await page.getByTestId("report-work").click();
-  await expect(page.getByTestId("report-summary")).toContainText(/Man-hours/i);
-  expect(await actualCents(page)).toBe(actualAfter80);
-  await page.reload();
-  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
-
-  // Non-finite (1e309 → Infinity) same rejection.
-  await page.getByTestId("report-work-form").evaluate((f) =>
-    f.setAttribute("novalidate", ""),
+  // Mutate + button click in one turn so React cannot restore defaultValue
+  // before FormData is built.
+  await page.getByTestId("report-work-form").evaluate((form) => {
+    const f = form as HTMLFormElement;
+    f.setAttribute("novalidate", "");
+    const mh = f.querySelector(
+      '[data-testid="report-mh-04-210"]',
+    ) as HTMLInputElement;
+    const qty = f.querySelector(
+      '[data-testid="report-qty-04-210"]',
+    ) as HTMLInputElement;
+    mh.type = "text";
+    mh.value = "";
+    mh.removeAttribute("required");
+    qty.value = "38";
+    (
+      f.querySelector('[data-testid="report-work"]') as HTMLButtonElement
+    ).click();
+  });
+  await expect(page.getByTestId("report-summary")).toContainText(
+    /Man-hours must be from/i,
   );
-  await page.getByTestId("report-mh-04-210").fill("1e309");
-  await page.getByTestId("report-qty-04-210").fill("38");
-  await page.getByTestId("report-work").click();
-  await expect(page.getByTestId("report-summary")).toContainText(/Man-hours/i);
+  expect(await actualCents(page)).toBe(actualAfter80);
+
+  // Non-finite (1e309 → Infinity) same rejection (keep page — no reload).
+  await page.getByTestId("report-work-form").evaluate((form) => {
+    const f = form as HTMLFormElement;
+    f.setAttribute("novalidate", "");
+    const mh = f.querySelector(
+      '[data-testid="report-mh-04-210"]',
+    ) as HTMLInputElement;
+    const qty = f.querySelector(
+      '[data-testid="report-qty-04-210"]',
+    ) as HTMLInputElement;
+    mh.type = "text";
+    mh.value = "1e309";
+    mh.removeAttribute("required");
+    qty.value = "38";
+    (
+      f.querySelector('[data-testid="report-work"]') as HTMLButtonElement
+    ).click();
+  });
+  await expect(page.getByTestId("report-summary")).toContainText(
+    /Man-hours must be from/i,
+  );
   expect(await actualCents(page)).toBe(actualAfter80);
   await page.reload();
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
+  expect(await actualCents(page)).toBe(actualAfter80);
 });
