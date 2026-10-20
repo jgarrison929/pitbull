@@ -41,7 +41,11 @@ test("foreman reports quantity; after PM locks claim, job earned and CPI move", 
   expect(earnedAfterReport).toBe(earnedBefore);
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("job-actual")).toBeVisible();
-  await expect(page.getByTestId("pending-04-210")).toBeVisible();
+  // Desktop table + phone list both render pending; either is enough.
+  await expect(page.getByTestId("pending-04-210").first()).toBeVisible();
+  await expect(page.getByTestId("pending-04-210").first()).toContainText(
+    "pending",
+  );
   await expect(page.getByTestId("job-earned")).toHaveText(earnedBefore);
 
   // Switch to PM and lock the open period claim so installed qty drives EV.
