@@ -68,15 +68,53 @@ test("the cost code field lists this job's real codes and the server rejects any
   await page.goto("/app/jobs/25-031");
   await pourLine(page).getByTestId("edit-line").click();
   const form = pourLine(page).getByTestId("line-form");
-  const code = form.getByRole("combobox", { name: "Cost code" });
+  const code = form.getByTestId("async-cost-search");
+  // Selected label comes from the line itself — never blank when outside first-40.
+  await expect(code).toHaveValue(/04-210 Pier column concrete/);
+  // Wait for the settled open-search response — buggy code searches the full
+  // selected label and lands on "No matches" after the 150ms debounce.
+  const openSearch = page.waitForResponse(
+    (r) =>
+      r.url().includes("/cost-items/search") &&
+      r.ok() &&
+      new URL(r.url()).searchParams.get("q") === "",
+  );
   await code.click();
+  const openBody = await openSearch.then((r) => r.json());
+  expect(openBody.items?.length).toBeGreaterThanOrEqual(12);
   const options = form.getByRole("option");
-  await expect(options).toHaveCount(12);
+  await expect(options).toHaveCount(12, { timeout: 10_000 });
+  await expect(form.getByText("No matches")).toHaveCount(0);
   await expect(
     options.filter({ hasText: "04-210 Pier column concrete" }),
   ).toHaveCount(1);
+  // Quantity unit comes from the line / picked option, not only the first-40 slice.
+  await expect(form.getByText(/Quantity \(CY\)/)).toBeVisible();
+  // Prefix-first: "04-2" should keep 04-210 near the top, not drown in mid-code hits.
+  const prefixSearch = page.waitForResponse(
+    (r) =>
+      r.url().includes("/cost-items/search") &&
+      r.ok() &&
+      (new URL(r.url()).searchParams.get("q") ?? "") === "04-2",
+  );
+  await code.fill("04-2");
+  const prefixBody = await prefixSearch.then((r) => r.json());
+  expect(
+    (prefixBody.items as { label: string }[]).some((i) =>
+      i.label.startsWith("04-2"),
+    ),
+  ).toBe(true);
+  const filterSearch = page.waitForResponse(
+    (r) =>
+      r.url().includes("/cost-items/search") &&
+      r.ok() &&
+      (new URL(r.url()).searchParams.get("q") ?? "")
+        .toLowerCase()
+        .includes("cofferdam"),
+  );
   await code.fill("cofferdam");
-  await expect(options).toHaveCount(1);
+  await filterSearch;
+  await expect(options).toHaveCount(1, { timeout: 10_000 });
   await code.press("Escape");
 
   // Forge a value that isn't one of the listed codes; only the server can catch this.

@@ -18,6 +18,7 @@ import {
   users,
 } from "@/db/schema";
 import { seed, type SeedRows } from "@/seed";
+import { seedStressJob, STRESS_JOB_NUMBER } from "@/seed/stress";
 
 export const SANDBOX_TTL_MS = 24 * 60 * 60 * 1000;
 /** Live sandboxes one browser may hold. Past the cap, signing in reuses the newest one. */
@@ -27,7 +28,11 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 async function insertWork(tx: Tx, rows: SeedRows) {
   await tx.insert(jobs).values(rows.jobs);
-  await tx.insert(costItems).values(rows.costItems);
+  // Chunk large WBS inserts (10k stress leaves) so one statement stays under PG limits.
+  const CHUNK = 500;
+  for (let i = 0; i < rows.costItems.length; i += CHUNK) {
+    await tx.insert(costItems).values(rows.costItems.slice(i, i + CHUNK));
+  }
   if (rows.costItemMilestones.length)
     await tx.insert(costItemMilestones).values(rows.costItemMilestones);
   if (rows.costEntries.length)
@@ -156,4 +161,35 @@ export async function countRows(companyId: string) {
       (select count(*)::int from ${dailyPlans} where company_id = ${companyId}) as plans,
       (select count(*)::int from ${actionRuns} where company_id = ${companyId}) as runs`);
   return r;
+}
+
+/**
+ * Idempotent 10k WBS insert for stress e2e / perf. Default seed and Reset demo
+ * stay fast — callers opt in (stress-typeahead fixture), never via V5_SEED_STRESS
+ * on the shared Playwright webServer.
+ */
+export async function ensureStressJob(companyId: string, now = new Date()) {
+  const db = requireDb();
+  const existing = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(
+      and(eq(jobs.companyId, companyId), eq(jobs.number, STRESS_JOB_NUMBER)),
+    )
+    .limit(1);
+  if (existing.length) return { created: false };
+
+  const stress = seedStressJob(companyId, now);
+  await db.transaction(async (tx) => {
+    await tx.insert(jobs).values(stress.job);
+    const CHUNK = 500;
+    for (let i = 0; i < stress.costItems.length; i += CHUNK) {
+      await tx
+        .insert(costItems)
+        .values(stress.costItems.slice(i, i + CHUNK));
+    }
+    await tx.insert(dailyPlans).values(stress.dailyPlans);
+    await tx.insert(dailyPlanLines).values(stress.dailyPlanLines);
+  });
+  return { created: true };
 }

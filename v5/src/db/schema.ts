@@ -2,6 +2,7 @@
 // Every tenant row carries company_id and cascades from companies, so deleting a sandbox removes all of it.
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   date,
@@ -107,6 +108,15 @@ export const costItems = pgTable(
     jobId: uuid("job_id")
       .notNull()
       .references(() => jobs.id, { onDelete: "cascade" }),
+    /** Parent summary code; null = root. Leaves hold quantities and EV. */
+    parentId: uuid("parent_id").references((): AnyPgColumn => costItems.id, {
+      onDelete: "cascade",
+    }),
+    /** Materialized path, e.g. `/02/02-100/`, for prefix roll-ups and tree order. */
+    path: text("path").notNull(),
+    depth: integer("depth").notNull().default(0),
+    /** False for WBS summary rows; roll-ups sum only leaves. */
+    isLeaf: boolean("is_leaf").notNull().default(true),
     code: text("code").notNull(),
     description: text("description").notNull(),
     unit: text("unit").notNull(),
@@ -137,7 +147,13 @@ export const costItems = pgTable(
     /** Budgeted man-hours per unit, in thousandths. */
     budgetMhPerUnitMilli: milli("budget_mh_per_unit_milli"),
   },
-  (t) => [index("cost_items_job_idx").on(t.jobId)],
+  (t) => [
+    index("cost_items_job_idx").on(t.jobId),
+    index("cost_items_job_path_idx").on(t.jobId, t.path),
+    index("cost_items_job_parent_idx").on(t.jobId, t.parentId),
+    index("cost_items_job_code_idx").on(t.jobId, t.code),
+    index("cost_items_job_leaf_idx").on(t.jobId, t.isLeaf),
+  ],
 );
 
 /** Weighted milestones for cost items that earn by milestone completion. */

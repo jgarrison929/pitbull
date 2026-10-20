@@ -11,16 +11,26 @@ import {
   pmPercentLogs,
   users,
 } from "@/db/schema";
-import { costLine, plannedValueCents, rollup } from "@/lib/ev";
+import {
+  costLine,
+  plannedValueCents,
+  rollup,
+  type CostLine,
+  type Rollup,
+} from "@/lib/ev";
 import { overallStatus } from "@/lib/status";
+import { portfolioRollupsSql } from "@/server/cost-rollups";
 
 // The tenant boundary: every read takes the signed-in user's companyId and filters on it.
 
+type ItemRow = typeof costItems.$inferSelect;
+
+function rollupFromSql(r: Rollup) {
+  return { ...r, status: overallStatus(r) };
+}
+
 /** PV advances by calendar date — recompute as-of today on every read. */
-function lineAsOfToday(
-  item: typeof costItems.$inferSelect,
-  asOf: Date,
-) {
+function lineAsOfToday(item: ItemRow, asOf: Date) {
   return costLine({
     ...item,
     plannedCents: plannedValueCents(
@@ -32,34 +42,86 @@ function lineAsOfToday(
   });
 }
 
-/** Cached per request, so the job strip and the page share one read. */
+/** Leaf lines only, for EV math and plan-line pickers. */
+function leafLines(items: ItemRow[], asOf: Date) {
+  return items.filter((i) => i.isLeaf).map((i) => lineAsOfToday(i, asOf));
+}
+
+/**
+ * Portfolio: jobs + SQL leaf roll-ups. Does not hydrate every cost item into memory
+ * (required once a company can hold a 10k-code stress job).
+ */
 export const getPortfolio = cache(async function getPortfolio(
   companyId: string,
   asOf = new Date(),
 ) {
   const db = requireDb();
-  const [jobRows, itemRows] = await Promise.all([
-    db
-      .select()
-      .from(jobs)
-      .where(eq(jobs.companyId, companyId))
-      .orderBy(asc(jobs.number)),
-    db
-      .select()
-      .from(costItems)
-      .where(eq(costItems.companyId, companyId))
-      .orderBy(asc(costItems.code)),
-  ]);
+  const jobRows = await db
+    .select()
+    .from(jobs)
+    .where(eq(jobs.companyId, companyId))
+    .orderBy(asc(jobs.number));
+
+  const sums = await portfolioRollupsSql(companyId, asOf);
+  const byJob = new Map(sums.map((s) => [s.job_id, s]));
   const portfolio = jobRows.map((job) => {
-    const lines = itemRows
-      .filter((i) => i.jobId === job.id)
-      .map((i) => lineAsOfToday(i, asOf));
-    const r = rollup(lines);
-    return { job, lines, ...r, status: overallStatus(r) };
+    const s = byJob.get(job.id);
+    const r = rollupFromSql(
+      (() => {
+        const budgetCents = Number(s?.budget_cents ?? 0);
+        const plannedCents = Number(s?.planned_cents ?? 0);
+        const earnedCents = Number(s?.earned_cents ?? 0);
+        const actualCents = Number(s?.actual_cents ?? 0);
+        const cpi = actualCents === 0 ? 1 : earnedCents / actualCents;
+        return {
+          budgetCents,
+          plannedCents,
+          earnedCents,
+          actualCents,
+          costVarianceCents: earnedCents - actualCents,
+          scheduleVarianceCents: earnedCents - plannedCents,
+          percent: budgetCents === 0 ? 0 : earnedCents / budgetCents,
+          cpi,
+          spi: plannedCents === 0 ? 1 : earnedCents / plannedCents,
+          eacCents: Math.round(budgetCents / cpi),
+        } satisfies Rollup;
+      })(),
+    );
+    return {
+      job,
+      /** Empty on portfolio; call getJob for the tree. */
+      lines: [] as CostLine[],
+      ...r,
+    };
   });
+  const totals = rollup(
+    portfolio.map((p) => ({
+      ...p,
+      // Synthetic single line per job for portfolio totals.
+      code: p.job.number,
+      description: p.job.name,
+      unit: "LS",
+      budgetQtyMilli: 0,
+      installedQtyMilli: 0,
+      claimedInstalledQtyMilli: 0,
+      budgetMhPerUnitMilli: 0,
+      claimedPercentMilli: Math.round(p.percent * 1000),
+      evMethod: "units" as const,
+      earnDerivation: "",
+      percent: p.percent,
+      earnedCents: p.earnedCents,
+      varianceCents: p.costVarianceCents,
+      scheduleVarianceCents: p.scheduleVarianceCents,
+      cpi: p.cpi,
+      spi: p.spi,
+      budgetCents: p.budgetCents,
+      plannedCents: p.plannedCents,
+      actualCents: p.actualCents,
+    })),
+  );
   return {
     jobs: portfolio,
-    totals: rollup(portfolio.flatMap((p) => p.lines)),
+    totals,
     contractCents: jobRows.reduce((s, j) => s + j.contractCents, 0),
   };
 });
@@ -68,10 +130,53 @@ export type PortfolioJob = Awaited<
   ReturnType<typeof getPortfolio>
 >["jobs"][number];
 
-export async function getJob(companyId: string, number: string) {
-  const { jobs: all } = await getPortfolio(companyId);
-  return all.find((j) => j.job.number === number) ?? null;
+/** Job id only — for search/typeahead paths that must not hydrate the WBS. */
+export async function resolveJobId(companyId: string, number: string) {
+  const db = requireDb();
+  const [row] = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
+    .limit(1);
+  return row?.id ?? null;
 }
+
+/**
+ * One job with its full WBS (ordered by path) and leaf EV lines.
+ * Job-scoped reads — does not pull other jobs' cost items.
+ */
+export async function getJob(
+  companyId: string,
+  number: string,
+  asOf = new Date(),
+) {
+  const db = requireDb();
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
+    .limit(1);
+  if (!job) return null;
+  const items = await db
+    .select()
+    .from(costItems)
+    .where(
+      and(eq(costItems.companyId, companyId), eq(costItems.jobId, job.id)),
+    )
+    .orderBy(asc(costItems.path));
+  const lines = leafLines(items, asOf);
+  // Prefer JS leaf rollup so claimed-installed / as-of PV match costLine exactly.
+  const r = rollup(lines);
+  return {
+    job,
+    items,
+    lines,
+    ...r,
+    status: overallStatus(r),
+  };
+}
+
+export type JobDetail = NonNullable<Awaited<ReturnType<typeof getJob>>>;
 
 export async function getPlansForJob(companyId: string, jobId: string) {
   const db = requireDb();
@@ -120,6 +225,32 @@ export function planLine(
   };
 }
 
+/** Leaf cost-code options for a job (capped) — prefer searchCostItems for large WBS. */
+export async function listLeafCostOptions(
+  companyId: string,
+  jobId: string,
+  limit = 50,
+) {
+  const db = requireDb();
+  return db
+    .select({
+      id: costItems.id,
+      code: costItems.code,
+      description: costItems.description,
+      unit: costItems.unit,
+    })
+    .from(costItems)
+    .where(
+      and(
+        eq(costItems.companyId, companyId),
+        eq(costItems.jobId, jobId),
+        eq(costItems.isLeaf, true),
+      ),
+    )
+    .orderBy(asc(costItems.code))
+    .limit(limit);
+}
+
 /** Milestones + latest PM percent logs for on-screen EV method controls. */
 export async function getJobEvControls(companyId: string, jobId: string) {
   const db = requireDb();
@@ -138,6 +269,7 @@ export async function getJobEvControls(companyId: string, jobId: string) {
       and(
         eq(costItemMilestones.companyId, companyId),
         eq(costItems.jobId, jobId),
+        eq(costItems.isLeaf, true),
       ),
     )
     .orderBy(asc(costItems.code), asc(costItemMilestones.sort));
@@ -154,6 +286,7 @@ export async function getJobEvControls(companyId: string, jobId: string) {
         eq(costItems.companyId, companyId),
         eq(costItems.jobId, jobId),
         eq(costItems.evMethod, "pm_percent"),
+        eq(costItems.isLeaf, true),
       ),
     )
     .orderBy(asc(costItems.code));

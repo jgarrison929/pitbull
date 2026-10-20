@@ -19,11 +19,14 @@ export function PlanCard({
   plan,
   actions,
   costItems,
+  searchUrl,
 }: {
   plan: Plan;
   actions?: React.ReactNode;
   /** This job's cost items. Pass them only when the viewer may edit this plan's lines. */
   costItems?: (Option & { unit: string })[];
+  /** Server typeahead for large WBS. */
+  searchUrl?: string;
 }) {
   const manHours = plan.lines.reduce((s, l) => s + l.manHours, 0);
   const draft = plan.status === "draft";
@@ -62,7 +65,11 @@ export function PlanCard({
             data-code={l.code}
           >
             {costItems && draft ? (
-              <PlanLineEditor line={l} costItems={costItems}>
+              <PlanLineEditor
+                line={l}
+                costItems={costItems}
+                searchUrl={searchUrl}
+              >
                 <LineView l={l} />
               </PlanLineEditor>
             ) : (

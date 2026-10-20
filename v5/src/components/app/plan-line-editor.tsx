@@ -20,22 +20,29 @@ export type EditableLine = {
   id: string;
   costItemId: string;
   code: string;
+  /** Cost-item description — used for the selected label when outside the initial slice. */
+  description: string;
   activity: string;
   location: string;
   qtyMilli: number;
   workers: number;
   hoursTenths: number;
   notes: string;
+  /** Unit of the line's current cost code (survives codes outside the initial slice). */
+  unit: string;
 };
 
 /** Edit button plus the inline form for one plan line. Saving runs dailyPlan.updateLine. */
 export function PlanLineEditor({
   line,
   costItems,
+  searchUrl,
   children,
 }: {
   line: EditableLine;
   costItems: (Option & { unit: string })[];
+  /** When set, the cost-code field searches the server instead of the full list. */
+  searchUrl?: string;
   children: React.ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
@@ -58,6 +65,7 @@ export function PlanLineEditor({
     <LineForm
       line={line}
       costItems={costItems}
+      searchUrl={searchUrl}
       onDone={() => setEditing(false)}
     />
   );
@@ -66,24 +74,43 @@ export function PlanLineEditor({
 function LineForm({
   line,
   costItems,
+  searchUrl,
   onDone,
 }: {
   line: EditableLine;
   costItems: (Option & { unit: string })[];
+  searchUrl?: string;
   onDone: () => void;
 }) {
   const [state, action, pending] = useActionState<SaveLineState, FormData>(
     saveLine,
     {},
   );
-  const [costItemId, setCostItemId] = useState(line.costItemId);
+  // Prefer the picked option's unit — never look up only in costItems.slice(0, 40).
+  const [unit, setUnit] = useState(
+    () =>
+      costItems.find((c) => c.value === line.costItemId)?.unit ??
+      line.unit ??
+      "",
+  );
+  // Label for the current code when it sits outside the first-40 slice.
+  // Never merge into `options` — that would put the prior pick first on Enter.
+  const selectedCodeOption: Option | undefined = costItems.some(
+    (c) => c.value === line.costItemId,
+  )
+    ? undefined
+    : {
+        value: line.costItemId,
+        label: `${line.code} ${line.description}`,
+        hint: line.unit,
+        unit: line.unit,
+      };
   const [workers, setWorkers] = useState(String(line.workers));
   const [hours, setHours] = useState(String(line.hoursTenths / 10));
   const [manHours, setManHours] = useState(
     String((line.workers * line.hoursTenths) / 10),
   );
   const first = useRef<HTMLInputElement>(null);
-  const unit = costItems.find((c) => c.value === costItemId)?.unit ?? "";
   const e = state.errors ?? {};
   const id = (f: string) => `line-${line.id}-${f}`;
 
@@ -132,11 +159,16 @@ function LineForm({
             id={id("costItemId")}
             name="costItemId"
             options={costItems}
+            selectedOption={selectedCodeOption}
             defaultValue={line.costItemId}
-            onChange={setCostItemId}
+            onChange={(_value, option) => {
+              const next = option?.unit ?? option?.hint;
+              if (next) setUnit(next);
+            }}
             disabled={pending}
             invalid={!!e.costItemId}
             describedBy={e.costItemId ? `${id("costItemId")}-error` : undefined}
+            searchUrl={searchUrl}
           />
         </Field>
         <Field id={id("activity")} label="Activity" error={e.activity}>

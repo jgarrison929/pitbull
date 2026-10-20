@@ -13,7 +13,12 @@ import {
 import type { ActionName, JobArgs } from "@/lib/assistant/route";
 import { qty, usdShort } from "@/lib/ev";
 import { applyLineInput, manHoursOf, type LineValues } from "@/lib/plan-line";
-import { getPlansForJob, getPortfolio, type PortfolioJob } from "@/server/data";
+import {
+  getJob,
+  getPlansForJob,
+  getPortfolio,
+  type JobDetail,
+} from "@/server/data";
 import {
   lockProgressClaim,
   postDailyReport,
@@ -51,8 +56,19 @@ const day = (iso: string) =>
   });
 
 async function resolveJob(user: CurrentUser, number?: string) {
-  const { jobs: all } = await getPortfolio(user.companyId);
-  return number ? all.find((j) => j.job.number === number) : undefined;
+  if (!number) return undefined;
+  // getJob hydrates this job's WBS — never getPortfolio (empty lines after hierarchy).
+  return (await getJob(user.companyId, number)) ?? undefined;
+}
+
+async function jobById(user: CurrentUser, jobId: string) {
+  const db = requireDb();
+  const [row] = await db
+    .select({ number: jobs.number })
+    .from(jobs)
+    .where(and(eq(jobs.id, jobId), eq(jobs.companyId, user.companyId)))
+    .limit(1);
+  return row ? getJob(user.companyId, row.number) : null;
 }
 
 /** A named job that isn't in this sandbox is refused, never swapped for another job. */
@@ -89,18 +105,15 @@ async function resolvePlan(user: CurrentUser, number?: string) {
     )
     .limit(1);
   if (!row) return null;
-  const job =
-    target ??
-    (await getPortfolio(user.companyId)).jobs.find(
-      (j) => j.job.id === row.jobId,
-    )!;
+  const job = target ?? (await jobById(user, row.jobId));
+  if (!job) return null;
   const plan = (await getPlansForJob(user.companyId, job.job.id)).find(
     (p) => p.id === row.id,
   )!;
   return { job, plan };
 }
 
-const jobHref = (j: PortfolioJob) => `/app/jobs/${j.job.number}`;
+const jobHref = (j: JobDetail) => `/app/jobs/${j.job.number}`;
 
 type Plan = NonNullable<Awaited<ReturnType<typeof resolvePlan>>>["plan"];
 type Line = Plan["lines"][number];
@@ -166,9 +179,8 @@ async function findLineById(user: CurrentUser, lineId: string) {
     )
     .limit(1);
   if (!row) return null;
-  const job = (await getPortfolio(user.companyId)).jobs.find(
-    (j) => j.job.id === row.jobId,
-  )!;
+  const job = await jobById(user, row.jobId);
+  if (!job) return null;
   const plan = (await getPlansForJob(user.companyId, job.job.id)).find(
     (p) => p.id === row.planId,
   )!;
@@ -281,7 +293,7 @@ export const actions: Record<ActionName, ActionDef> = {
           summary:
             "What should change? Say a number with its unit, like 80 man-hours.",
         };
-      let found: { job: PortfolioJob; plan: Plan; line: Line } | null = null;
+      let found: { job: JobDetail; plan: Plan; line: Line } | null = null;
       if (lineId) {
         found = await findLineById(user, lineId);
         if (!found)

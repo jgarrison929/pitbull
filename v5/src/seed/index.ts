@@ -24,6 +24,7 @@ import {
   snapshotClaimPercent,
   type EvMethod,
 } from "@/lib/ev";
+import { seedStressJob } from "./stress";
 
 export const SEED_COMPANY_NAME = "Summit Highway & Bridge";
 
@@ -608,6 +609,10 @@ export function seed(companyId: string, today: Date): SeedRows {
         id: costItemId,
         companyId,
         jobId,
+        parentId: null,
+        path: `/${s.code}/`,
+        depth: 0,
+        isLeaf: true,
         code: s.code,
         description: s.description,
         unit: s.unit,
@@ -731,6 +736,17 @@ export function seed(companyId: string, today: Date): SeedRows {
       installedQtyMilli: itemRow.installedQtyMilli,
       derivation: "Draft — will refresh from field on lock",
     });
+  }
+
+  // Optional 10k WBS for local/perf only. Do not set V5_SEED_STRESS on the
+  // Playwright webServer — e2e stress specs call ensureStressJob instead so
+  // default sandboxes and Reset demo stay fast.
+  if (process.env.V5_SEED_STRESS === "1") {
+    const stress = seedStressJob(companyId, today);
+    out.jobs.push(stress.job);
+    out.costItems.push(...stress.costItems);
+    out.dailyPlans.push(...stress.dailyPlans);
+    out.dailyPlanLines.push(...stress.dailyPlanLines);
   }
 
   return out;

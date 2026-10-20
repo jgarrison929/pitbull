@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { Select, type Option } from "@/components/form/form";
 
@@ -22,7 +22,7 @@ export function Combobox({
   name: string;
   options: Option[];
   defaultValue: string;
-  onChange?: (value: string) => void;
+  onChange?: (value: string, option?: Option) => void;
   disabled?: boolean;
   invalid?: boolean;
   describedBy?: string;
@@ -47,7 +47,7 @@ export function Combobox({
     setValue(o.value);
     setQuery(o.label);
     setOpen(false);
-    onChange?.(o.value);
+    onChange?.(o.value, o);
   }
 
   return (
@@ -138,7 +138,15 @@ export function Combobox({
 }
 
 /** The one way to render a coded field: a select for short lists, a searchable combobox for long ones. */
-export function ChoiceField(props: React.ComponentProps<typeof Combobox>) {
+export function ChoiceField(
+  props: React.ComponentProps<typeof Combobox> & {
+    searchUrl?: string;
+    /** Label for the current value when it is outside `options` — never merged into the list. */
+    selectedOption?: Option;
+  },
+) {
+  if (props.searchUrl)
+    return <AsyncCombobox {...props} searchUrl={props.searchUrl} />;
   if (props.options.length > 8) return <Combobox {...props} />;
   return (
     <Select
@@ -149,7 +157,174 @@ export function ChoiceField(props: React.ComponentProps<typeof Combobox>) {
       disabled={props.disabled}
       aria-invalid={props.invalid || undefined}
       aria-describedby={props.describedBy}
-      onChange={(e) => props.onChange?.(e.target.value)}
+      onChange={(e) => {
+        const o = props.options.find((x) => x.value === e.target.value);
+        props.onChange?.(e.target.value, o);
+      }}
     />
+  );
+}
+
+/**
+ * Server-backed typeahead for large WBS. Debounced GET to searchUrl?q=;
+ * only listed values can be chosen (same allow-list rule as Combobox).
+ * Opening with the selected label searches with an empty q so the job's
+ * codes appear — never `q=<full selected label>` → "No matches".
+ *
+ * The current pick lives in `selectedOption` for the field label only.
+ * Search results are never prepended with the selected code (Enter / first
+ * option must reflect the query ranking, not the prior pick).
+ */
+export function AsyncCombobox({
+  id,
+  name,
+  options: initial,
+  defaultValue,
+  selectedOption: selectedOptionProp,
+  onChange,
+  disabled,
+  invalid,
+  describedBy,
+  searchUrl,
+}: React.ComponentProps<typeof Combobox> & {
+  searchUrl: string;
+  selectedOption?: Option;
+}) {
+  const listId = useId();
+  const [value, setValue] = useState(defaultValue);
+  const [selectedOption, setSelectedOption] = useState<Option | undefined>(
+    () =>
+      selectedOptionProp ?? initial.find((o) => o.value === defaultValue),
+  );
+  const [query, setQuery] = useState(selectedOption?.label ?? "");
+  const [options, setOptions] = useState(initial);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [, startTransition] = useTransition();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const selectedLabel = selectedOption?.label ?? "";
+
+  useEffect(() => {
+    if (!open) return;
+    const q = query.trim();
+    // Same rule as the sync Combobox: selected label means "show the list".
+    const searchQ =
+      selectedLabel && q.toLowerCase() === selectedLabel.toLowerCase()
+        ? ""
+        : q;
+    const t = setTimeout(() => {
+      startTransition(async () => {
+        const res = await fetch(
+          `${searchUrl}?q=${encodeURIComponent(searchQ)}&limit=20`,
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { items: Option[] };
+        // Search hits only — never inject the selected code into options.
+        setOptions(data.items);
+        setActive(0);
+      });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [query, open, searchUrl, selectedLabel]);
+
+  function pick(o: Option) {
+    setValue(o.value);
+    setSelectedOption(o);
+    setQuery(o.label);
+    setOpen(false);
+    onChange?.(o.value, o);
+  }
+
+  return (
+    <div className="relative">
+      <input type="hidden" name={name} value={value} />
+      <input
+        ref={inputRef}
+        id={id}
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        autoComplete="off"
+        disabled={disabled}
+        value={query}
+        data-testid="async-cost-search"
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          setOpen(false);
+          setQuery(selectedOption?.label ?? "");
+        }}
+        onKeyDown={(e) => {
+          if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
+            setOpen(true);
+            return;
+          }
+          if (e.key === "Escape") {
+            // Don't bubble — the plan-line form treats Escape as "cancel edit".
+            e.stopPropagation();
+            setOpen(false);
+            setQuery(selectedOption?.label ?? "");
+            return;
+          }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActive((i) => Math.min(i + 1, Math.max(0, options.length - 1)));
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((i) => Math.max(i - 1, 0));
+          }
+          if (e.key === "Enter" && options[active]) {
+            e.preventDefault();
+            pick(options[active]);
+          }
+        }}
+        className={cn(
+          "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none",
+          invalid && "border-destructive",
+        )}
+      />
+      {open && (
+        <ul
+          id={listId}
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover p-1 text-sm shadow-md"
+        >
+          {options.length === 0 ? (
+            <li className="px-2 py-1.5 text-muted-foreground">No matches</li>
+          ) : (
+            options.map((o, i) => (
+              <li
+                key={o.value}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === active}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(o);
+                }}
+                className={cn(
+                  "cursor-pointer rounded-sm px-2 py-1.5",
+                  i === active && "bg-accent",
+                )}
+              >
+                {o.label}
+                {o.hint ? (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {o.hint}
+                  </span>
+                ) : null}
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
   );
 }

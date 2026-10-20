@@ -34,9 +34,14 @@ test("job page shows budget vs earned value by cost code and tomorrow's plan", a
     .getByRole("link", { name: "Cedar Creek Bridge Replacement" })
     .click();
   await expect(page).toHaveURL(/\/app\/jobs\/25-031$/);
-  await expect(page.getByTestId("cost-table").locator("tbody tr")).toHaveCount(
-    12,
-  );
+  // Virtualized tree: assert the filter count and that leaf codes mount as rows.
+  await expect(page.getByTestId("cost-table")).toContainText("12 shown");
+  await expect(
+    page.getByTestId("cost-tree-row").filter({ hasText: "04-210" }),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId("cost-tree-row").filter({ hasText: "Mobilization" }),
+  ).toBeVisible();
   await expect(page.getByTestId("job-cpi")).toHaveText(/^\d\.\d\d−\$/);
   await expect(page.getByTestId("plan-card")).toContainText("Bridge Crew 2");
 });
@@ -75,9 +80,9 @@ test("a cost overrun is never green: Mobilization with CPI under 1 and lost mone
   await signIn(page, "pm");
   await page.goto("/app/jobs/25-031");
   const mob = page
-    .getByTestId("cost-table")
-    .locator("tbody tr")
+    .getByTestId("cost-tree-row")
     .filter({ hasText: "Mobilization" });
+  await expect(mob).toBeVisible();
   const cell = mob.locator("[data-status]");
   // Seed builds forward from invoices (not target CPI 0.98); overrun must stay amber.
   await expect(cell).toHaveAttribute("data-status", "watch");
