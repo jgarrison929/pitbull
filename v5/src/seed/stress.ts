@@ -1,5 +1,5 @@
 // Stress WBS: 10 divisions × 10 groups × 100 leaves = 10,000 leaf cost codes (+ 110 summaries).
-// Used by the perf harness and (when V5_SEED_STRESS=1) e2e sandboxes.
+// Used by the perf harness, optional V5_SEED_STRESS=1 local seed, and ensureStressJob (e2e).
 import type { costItems, dailyPlanLines, dailyPlans, jobs } from "@/db/schema";
 import { plannedValueCents } from "@/lib/ev";
 import { seedId } from "./index";

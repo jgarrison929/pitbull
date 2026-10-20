@@ -139,7 +139,11 @@ export function Combobox({
 
 /** The one way to render a coded field: a select for short lists, a searchable combobox for long ones. */
 export function ChoiceField(
-  props: React.ComponentProps<typeof Combobox> & { searchUrl?: string },
+  props: React.ComponentProps<typeof Combobox> & {
+    searchUrl?: string;
+    /** Label for the current value when it is outside `options` — never merged into the list. */
+    selectedOption?: Option;
+  },
 ) {
   if (props.searchUrl)
     return <AsyncCombobox {...props} searchUrl={props.searchUrl} />;
@@ -166,29 +170,39 @@ export function ChoiceField(
  * only listed values can be chosen (same allow-list rule as Combobox).
  * Opening with the selected label searches with an empty q so the job's
  * codes appear — never `q=<full selected label>` → "No matches".
+ *
+ * The current pick lives in `selectedOption` for the field label only.
+ * Search results are never prepended with the selected code (Enter / first
+ * option must reflect the query ranking, not the prior pick).
  */
 export function AsyncCombobox({
   id,
   name,
   options: initial,
   defaultValue,
+  selectedOption: selectedOptionProp,
   onChange,
   disabled,
   invalid,
   describedBy,
   searchUrl,
-}: React.ComponentProps<typeof Combobox> & { searchUrl: string }) {
+}: React.ComponentProps<typeof Combobox> & {
+  searchUrl: string;
+  selectedOption?: Option;
+}) {
   const listId = useId();
   const [value, setValue] = useState(defaultValue);
-  const selected0 = initial.find((o) => o.value === value);
-  const [query, setQuery] = useState(selected0?.label ?? "");
+  const [selectedOption, setSelectedOption] = useState<Option | undefined>(
+    () =>
+      selectedOptionProp ?? initial.find((o) => o.value === defaultValue),
+  );
+  const [query, setQuery] = useState(selectedOption?.label ?? "");
   const [options, setOptions] = useState(initial);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
-  const selected = options.find((o) => o.value === value) ?? selected0;
-  const selectedLabel = selected?.label ?? selected0?.label ?? "";
+  const selectedLabel = selectedOption?.label ?? "";
 
   useEffect(() => {
     if (!open) return;
@@ -205,24 +219,17 @@ export function AsyncCombobox({
         );
         if (!res.ok) return;
         const data = (await res.json()) as { items: Option[] };
-        // Keep the selected option in the list so the label never blanks after search.
-        setOptions((prev) => {
-          const keep =
-            prev.find((o) => o.value === value) ??
-            initial.find((o) => o.value === value);
-          if (keep && !data.items.some((i) => i.value === keep.value)) {
-            return [keep, ...data.items];
-          }
-          return data.items;
-        });
+        // Search hits only — never inject the selected code into options.
+        setOptions(data.items);
         setActive(0);
       });
     }, 150);
     return () => clearTimeout(t);
-  }, [query, open, searchUrl, selectedLabel, value, initial]);
+  }, [query, open, searchUrl, selectedLabel]);
 
   function pick(o: Option) {
     setValue(o.value);
+    setSelectedOption(o);
     setQuery(o.label);
     setOpen(false);
     onChange?.(o.value, o);
@@ -251,7 +258,7 @@ export function AsyncCombobox({
         onFocus={() => setOpen(true)}
         onBlur={() => {
           setOpen(false);
-          setQuery(selected?.label ?? "");
+          setQuery(selectedOption?.label ?? "");
         }}
         onKeyDown={(e) => {
           if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
@@ -262,7 +269,7 @@ export function AsyncCombobox({
             // Don't bubble — the plan-line form treats Escape as "cancel edit".
             e.stopPropagation();
             setOpen(false);
-            setQuery(selected?.label ?? "");
+            setQuery(selectedOption?.label ?? "");
             return;
           }
           if (e.key === "ArrowDown") {

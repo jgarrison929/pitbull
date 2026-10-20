@@ -5,13 +5,15 @@ import {
 } from "@/seed/stress";
 
 /**
- * Requires V5_SEED_STRESS=1 on the Next server (playwright webServer sets it).
- * Covers Pitbull #647 follow-ups on the real 10k job.
+ * Seeds the 10k stress job into the current sandbox via ensure-stress
+ * (not V5_SEED_STRESS on the shared webServer — that slows every Reset demo).
  */
-async function signIn(page: Page, role: string) {
+async function signInWithStress(page: Page, role: string) {
   await page.goto("/login");
   await page.getByTestId(`role-${role}`).click();
   await expect(page).toHaveURL(/\/app$/);
+  const res = await page.request.post("/api/demo/ensure-stress");
+  expect(res.ok()).toBeTruthy();
 }
 
 const outsideLine = (page: Page) =>
@@ -22,7 +24,7 @@ const outsideLine = (page: Page) =>
 test("99-010: cost code label is present for a line outside the first-40 slice", async ({
   page,
 }) => {
-  await signIn(page, "foreman");
+  await signInWithStress(page, "foreman");
   await page.goto(`/app/jobs/${STRESS_JOB_NUMBER}`);
   await expect(page.getByTestId("cost-tree-row").first()).toBeVisible({
     timeout: 30_000,
@@ -42,7 +44,7 @@ test("99-010: cost code label is present for a line outside the first-40 slice",
 test("99-010: typing a code prefix ranks that branch first", async ({
   page,
 }) => {
-  await signIn(page, "foreman");
+  await signInWithStress(page, "foreman");
   await page.goto(`/app/jobs/${STRESS_JOB_NUMBER}`);
   const line = outsideLine(page);
   await line.getByTestId("edit-line").click();

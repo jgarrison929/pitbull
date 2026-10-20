@@ -14,10 +14,8 @@ export default defineConfig({
     url: `http://localhost:${port}/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: {
-      ...process.env,
-      // Seed the 10k stress job into every e2e sandbox (stress-typeahead.spec.ts).
-      V5_SEED_STRESS: "1",
-    },
+    // Do NOT set V5_SEED_STRESS here — that injects 10k codes into every
+    // sandbox and makes login "Reset demo" exceed the default expect timeout.
+    // stress-typeahead.spec.ts seeds via POST /api/demo/ensure-stress.
   },
 });

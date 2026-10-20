@@ -93,20 +93,18 @@ function LineForm({
       line.unit ??
       "",
   );
-  // Same pattern as unit: the selected code's label must survive outside the
-  // first-40 initial options, or AsyncCombobox opens blank.
-  const codeOptions = (() => {
-    if (costItems.some((c) => c.value === line.costItemId)) return costItems;
-    return [
-      {
+  // Label for the current code when it sits outside the first-40 slice.
+  // Never merge into `options` — that would put the prior pick first on Enter.
+  const selectedCodeOption: Option | undefined = costItems.some(
+    (c) => c.value === line.costItemId,
+  )
+    ? undefined
+    : {
         value: line.costItemId,
         label: `${line.code} ${line.description}`,
         hint: line.unit,
         unit: line.unit,
-      },
-      ...costItems,
-    ];
-  })();
+      };
   const [workers, setWorkers] = useState(String(line.workers));
   const [hours, setHours] = useState(String(line.hoursTenths / 10));
   const [manHours, setManHours] = useState(
@@ -160,7 +158,8 @@ function LineForm({
           <ChoiceField
             id={id("costItemId")}
             name="costItemId"
-            options={codeOptions}
+            options={costItems}
+            selectedOption={selectedCodeOption}
             defaultValue={line.costItemId}
             onChange={(_value, option) => {
               const next = option?.unit ?? option?.hint;

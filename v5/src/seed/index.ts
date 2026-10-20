@@ -738,7 +738,9 @@ export function seed(companyId: string, today: Date): SeedRows {
     });
   }
 
-  // Optional 10k WBS for e2e / local stress (keeps default sandbox fast).
+  // Optional 10k WBS for local/perf only. Do not set V5_SEED_STRESS on the
+  // Playwright webServer — e2e stress specs call ensureStressJob instead so
+  // default sandboxes and Reset demo stay fast.
   if (process.env.V5_SEED_STRESS === "1") {
     const stress = seedStressJob(companyId, today);
     out.jobs.push(stress.job);
