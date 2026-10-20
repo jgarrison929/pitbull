@@ -618,13 +618,21 @@ async function resolveMilestone(
   const ref = (opts.lineRef ?? "").toLowerCase();
   // Prefer the longest milestone name contained in the prompt so
   // "Mobilization complete" wins over "Mobilization in".
-  const named = rows
+  const named = [...rows]
     .filter((r) => ref.includes(r.name.toLowerCase()))
     .sort((a, b) => b.name.length - a.name.length);
   if (named.length >= 1) {
-    const best = named[0].name.toLowerCase();
-    const exact = named.filter((r) => r.name.toLowerCase() === best);
+    // Drop shorter names that are substrings of the best match's name
+    // (e.g. keep only "Mobilization complete", not also "Mobilization in"
+    // when only the longer phrase appears — already filtered — or when both
+    // appear, keep the longest unique name).
+    const bestName = named[0].name.toLowerCase();
+    const exact = named.filter((r) => r.name.toLowerCase() === bestName);
     if (exact.length === 1) return exact[0];
+    if (exact.length > 1)
+      return {
+        summary: `Which milestone? ${exact.map((m) => `${m.code} ${m.name}`).join("; ")}.`,
+      };
   }
   const byCode = opts.costCode
     ? rows.filter((r) => r.code === opts.costCode)
@@ -666,11 +674,29 @@ export async function run(
   const def = actions[action];
   const allowed = !def.roles || def.roles.includes(user.role);
   // A named job that isn't in this sandbox is refused here, so no action can swap in another job.
-  const unknown = args.job && !(await resolveJob(user, args.job));
+  // Exception: PM%/milestone prompts often lead with a cost code (08-100). If that token
+  // isn't a job and no separate costCode was supplied, reinterpret it as the cost code.
+  let effectiveArgs = args;
+  if (
+    (action === "costItem.setPmPercent" ||
+      action === "costItem.setMilestone") &&
+    args.job &&
+    !args.costCode &&
+    !(await resolveJob(user, args.job))
+  ) {
+    effectiveArgs = {
+      ...args,
+      job: undefined,
+      costCode: args.job,
+      lineRef: args.lineRef ?? args.job,
+    };
+  }
+  const unknown =
+    effectiveArgs.job && !(await resolveJob(user, effectiveArgs.job));
   const result: ActionResult = unknown
-    ? await unknownJob(user, args.job!)
+    ? await unknownJob(user, effectiveArgs.job!)
     : allowed
-      ? await def.run(user, args)
+      ? await def.run(user, effectiveArgs)
       : {
           summary: `${def.title} needs ${def.roles!.map((r) => roleNames[r]).join(" or ")}. You are signed in as ${roleNames[user.role]}. Switch role to try it.`,
         };

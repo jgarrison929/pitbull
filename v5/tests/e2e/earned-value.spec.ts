@@ -18,16 +18,31 @@ test("foreman reports quantity; after PM locks claim, job earned and CPI move", 
   const earnedBefore = (await page.getByTestId("job-earned").textContent())!;
   const cpiBefore = (await page.getByTestId("job-cpi").textContent())!;
 
-  // Boost the pour quantity on tomorrow's draft plan.
+  // Boost the pour quantity on tomorrow's draft plan (foreman actuals).
   await pourLine(page).getByTestId("edit-line").click();
   const form = pourLine(page).getByTestId("line-form");
   await form.getByLabel(/Quantity/).fill("120");
   await form.getByRole("button", { name: "Save" }).click();
   await expect(form).toBeHidden();
 
+  // Must submit before report — report is hidden on drafts and refused by the action.
+  await expect(page.getByTestId("report-work")).toHaveCount(0);
+  await page.getByTestId("submit-plan").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "submitted",
+  );
+
   // Plan ≠ actual: report the day's work to post hours/qty (submit alone does not).
+  // Live installed goes pending; earned stays on the locked claim until PM locks.
+  const earnedAfterReport = (
+    await page.getByTestId("job-earned").textContent()
+  )!;
+  expect(earnedAfterReport).toBe(earnedBefore);
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("job-actual")).toBeVisible();
+  await expect(page.getByTestId("pending-04-210")).toBeVisible();
+  await expect(page.getByTestId("job-earned")).toHaveText(earnedBefore);
 
   // Switch to PM and lock the open period claim so installed qty drives EV.
   await page.goto("/login");
