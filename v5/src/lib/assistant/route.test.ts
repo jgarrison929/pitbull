@@ -57,6 +57,15 @@ describe("assistant router", () => {
       },
     ],
     [
+      "we tied 9000 LB with 45 hours on the cage for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ qty: 9000, manHours: 45 }],
+        lineRef: "we tied 9000 LB with 45 hours on the cage for Cedar Creek",
+      },
+    ],
+    [
       "Lock the progress claim on 25-031",
       "progressClaim.lock",
       { job: "25-031" },

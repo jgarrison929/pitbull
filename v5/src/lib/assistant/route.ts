@@ -197,7 +197,9 @@ const n = String.raw`(\d[\d,]*(?:\.\d+)?)`;
 export function parseReportActuals(prompt: string): ReportActualArg[] {
   const text = prompt.toLowerCase();
   if (
-    !/\b(pour|poured|report|reported|work|worked|post|posted)\b/.test(text)
+    !/\b(pour|poured|report|reported|work|worked|post|posted|tied|tie|placed|installed|laid)\b/.test(
+      text,
+    )
   )
     return [];
   const code = prompt.match(/\b(\d{2}-\d{3})\b/)?.[1];

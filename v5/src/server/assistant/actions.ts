@@ -450,9 +450,11 @@ export const actions: Record<ActionName, ActionDef> = {
             job: j.job.number,
           };
         }
+        // Present-but-invalid (blank / Infinity) must not fall back to the plan.
         const manHours =
           a.manHours !== undefined ? Number(a.manHours) : line.manHours;
-        const qtyVal = a.qty !== undefined ? Number(a.qty) : line.qtyMilli / 1000;
+        const qtyVal =
+          a.qty !== undefined ? Number(a.qty) : line.qtyMilli / 1000;
         if (
           !Number.isFinite(manHours) ||
           manHours < REPORT_LIMITS.manHours.min ||
@@ -460,8 +462,12 @@ export const actions: Record<ActionName, ActionDef> = {
         ) {
           const msg = `Man-hours must be from ${REPORT_LIMITS.manHours.min} to ${REPORT_LIMITS.manHours.max}.`;
           const errors: Record<string, string> = { manHours: msg };
+          const got =
+            a.manHours !== undefined && !Number.isFinite(Number(a.manHours))
+              ? "blank or non-numeric"
+              : String(a.manHours);
           return {
-            summary: `${msg} (got ${a.manHours}).`,
+            summary: `${msg} (got ${got}).`,
             href: jobHref(j),
             job: j.job.number,
             errors,
@@ -474,8 +480,12 @@ export const actions: Record<ActionName, ActionDef> = {
         ) {
           const msg = `Quantity must be from ${REPORT_LIMITS.qty.min} to ${REPORT_LIMITS.qty.max}.`;
           const errors: Record<string, string> = { qty: msg };
+          const got =
+            a.qty !== undefined && !Number.isFinite(Number(a.qty))
+              ? "blank or non-numeric"
+              : String(a.qty);
           return {
-            summary: `${msg} (got ${a.qty}).`,
+            summary: `${msg} (got ${got}).`,
             href: jobHref(j),
             job: j.job.number,
             errors,

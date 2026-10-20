@@ -41,21 +41,23 @@ function argsFromForm(formData: FormData): JobArgs {
   };
   const completeRaw = str("complete");
   // Report form: actualMh[<lineId>] / actualQty[<lineId>]
+  // Empty or non-finite values are kept (as NaN) so the action can reject them —
+  // never drop the key and silently fall back to the plan.
   const actuals: NonNullable<JobArgs["actuals"]> = [];
   const mhByLine = new Map<string, number>();
   const qtyByLine = new Map<string, number>();
   for (const [key, value] of formData.entries()) {
-    if (typeof value !== "string" || !value) continue;
+    if (typeof value !== "string") continue;
     const mh = key.match(/^actualMh\[([^\]]+)\]$/);
     if (mh) {
-      const n = Number(value.replace(/,/g, ""));
-      if (Number.isFinite(n)) mhByLine.set(mh[1], n);
+      const raw = value.trim().replace(/,/g, "");
+      mhByLine.set(mh[1], raw === "" ? Number.NaN : Number(raw));
       continue;
     }
     const q = key.match(/^actualQty\[([^\]]+)\]$/);
     if (q) {
-      const n = Number(value.replace(/,/g, ""));
-      if (Number.isFinite(n)) qtyByLine.set(q[1], n);
+      const raw = value.trim().replace(/,/g, "");
+      qtyByLine.set(q[1], raw === "" ? Number.NaN : Number(raw));
     }
   }
   const lineIds = new Set([...mhByLine.keys(), ...qtyByLine.keys()]);

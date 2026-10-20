@@ -63,8 +63,9 @@ export async function getReportedActualsForPlan(
     const hours = e.hoursTenths ?? 0;
     const cur = out[e.sourcePlanLineId] ?? { manHours: 0, qtyMilli: 0 };
     if (e.note === "reported-qty") {
+      // Marker persists even at 0 milli so a rain-day report prefills zeros.
       cur.qtyMilli = hours;
-    } else if (e.kind === "labor") {
+    } else if (e.kind === "labor" || e.note === "reported-mh") {
       cur.manHours = hours / 10;
     }
     out[e.sourcePlanLineId] = cur;
@@ -131,21 +132,21 @@ export async function postDailyReport(
           ),
         );
 
+      // Always persist a labor row (incl. 0 MH) so prefill can show zeros after a
+      // rain-day report — otherwise the form falls back to the plan on reload.
       const amount = laborCents(manHours, DEFAULT_LABOR_RATE_CENTS);
-      if (amount > 0) {
-        await tx.insert(costEntries).values({
-          id: randomUUID(),
-          companyId,
-          costItemId: item.id,
-          kind: "labor",
-          hoursTenths: Math.round(manHours * 10),
-          rateCents: DEFAULT_LABOR_RATE_CENTS,
-          amountCents: amount,
-          note: `Reported: ${line.activity}`,
-          sourcePlanLineId: line.id,
-          at: now,
-        });
-      }
+      await tx.insert(costEntries).values({
+        id: randomUUID(),
+        companyId,
+        costItemId: item.id,
+        kind: "labor",
+        hoursTenths: Math.round(manHours * 10),
+        rateCents: DEFAULT_LABOR_RATE_CENTS,
+        amountCents: amount,
+        note: manHours > 0 ? `Reported: ${line.activity}` : "reported-mh",
+        sourcePlanLineId: line.id,
+        at: now,
+      });
       postedMh += manHours;
 
       // Replace installed qty for this plan line (incl. reporting 0): always
@@ -165,21 +166,19 @@ export async function postDailyReport(
               ),
             );
         }
-        if (qtyMilli > 0) {
-          // Qty marker: amountCents=0 so it never inflates AC; hoursTenths holds milli-qty.
-          await tx.insert(costEntries).values({
-            id: randomUUID(),
-            companyId,
-            costItemId: item.id,
-            kind: "other",
-            hoursTenths: qtyMilli,
-            amountCents: 0,
-            note: "reported-qty",
-            sourcePlanLineId: line.id,
-            at: now,
-          });
-          postedQtyLines += 1;
-        }
+        // Qty marker always written (incl. 0) so getReportedActuals sees the report.
+        await tx.insert(costEntries).values({
+          id: randomUUID(),
+          companyId,
+          costItemId: item.id,
+          kind: "other",
+          hoursTenths: qtyMilli,
+          amountCents: 0,
+          note: "reported-qty",
+          sourcePlanLineId: line.id,
+          at: now,
+        });
+        if (qtyMilli > 0) postedQtyLines += 1;
       }
 
       await refreshCostItemActuals(tx, companyId, item.id, now);

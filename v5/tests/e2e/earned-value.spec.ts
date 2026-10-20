@@ -158,3 +158,79 @@ test("report rejects negative man-hours", async ({ page }) => {
   // AC unchanged — negative must not wipe labor.
   await expect(page.getByTestId("job-actual")).toHaveText(actualBefore!);
 });
+
+test("a 0 MH / 0 qty report persists and does not revert to the plan", async ({
+  page,
+}) => {
+  await signIn(page, "foreman");
+  await page.goto("/app/jobs/25-031");
+  await page.getByTestId("submit-plan").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "submitted",
+  );
+  await page.getByTestId("report-mh-04-210").fill("0");
+  await page.getByTestId("report-qty-04-210").fill("0");
+  await page.getByTestId("report-work").click();
+  await expect(page.getByTestId("report-summary")).toBeVisible();
+  // Prefill shows zeros + Last report — not plan 60 / 42.
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("0");
+  await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
+  await expect(page.getByTestId("report-last-04-210")).toContainText(/0/);
+
+  await page.reload();
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("0");
+  await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
+  await expect(page.getByTestId("report-last-04-210")).toContainText(/0/);
+
+  // Untouched resubmit must not post plan 60 MH / +42 CY for the pour.
+  const actualAfterZero = await actualCents(page);
+  await page.getByTestId("report-work").click();
+  await expect(page.getByTestId("report-summary")).toBeVisible();
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("0");
+  await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
+  // Idempotent zeros — AC must not jump by the pour's plan 60×$85.
+  expect(await actualCents(page)).toBe(actualAfterZero);
+});
+
+test("blank or non-finite report fields are rejected, not replaced by the plan", async ({
+  page,
+}) => {
+  await signIn(page, "foreman");
+  await page.goto("/app/jobs/25-031");
+  await page.getByTestId("submit-plan").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "submitted",
+  );
+
+  await page.getByTestId("report-mh-04-210").fill("80");
+  await page.getByTestId("report-qty-04-210").fill("38");
+  await page.getByTestId("report-work").click();
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
+  const actualAfter80 = await actualCents(page);
+
+  await page.getByTestId("report-work-form").evaluate((f) =>
+    f.setAttribute("novalidate", ""),
+  );
+  // Blank MH must error — not silently post plan 60 and drop AC by $1,700.
+  await page.getByTestId("report-mh-04-210").fill("");
+  await page.getByTestId("report-qty-04-210").fill("38");
+  await page.getByTestId("report-work").click();
+  await expect(page.getByTestId("report-summary")).toContainText(/Man-hours/i);
+  expect(await actualCents(page)).toBe(actualAfter80);
+  await page.reload();
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
+
+  // Non-finite (1e309 → Infinity) same rejection.
+  await page.getByTestId("report-work-form").evaluate((f) =>
+    f.setAttribute("novalidate", ""),
+  );
+  await page.getByTestId("report-mh-04-210").fill("1e309");
+  await page.getByTestId("report-qty-04-210").fill("38");
+  await page.getByTestId("report-work").click();
+  await expect(page.getByTestId("report-summary")).toContainText(/Man-hours/i);
+  expect(await actualCents(page)).toBe(actualAfter80);
+  await page.reload();
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
+});
