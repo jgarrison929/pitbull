@@ -7,7 +7,7 @@ import {
   LayoutDashboard,
   Sparkles,
 } from "lucide-react";
-import { HealthPill } from "@/components/app/format";
+import { StatusPill } from "@/components/app/format";
 import { LocalTime } from "@/components/app/local-time";
 import { NavLink } from "@/components/app/nav-link";
 import { cn } from "@/lib/utils";
@@ -227,7 +227,7 @@ async function JobStrip() {
               CPI {p.cpi.toFixed(2)} · SPI {p.spi.toFixed(2)}
             </span>
           </span>
-          <HealthPill value={p.status} />
+          <StatusPill value={p.status} varianceCents={p.costVarianceCents} />
         </NavLink>
       ))}
     </nav>

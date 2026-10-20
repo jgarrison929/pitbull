@@ -58,6 +58,8 @@ type ItemSpec = {
   mh: number; // budgeted man-hours per unit
 };
 
+const COUNTED = new Set(["EA", "MO"]);
+
 const item = (
   code: string,
   description: string,
@@ -364,7 +366,11 @@ export function seed(companyId: string, today: Date): SeedRows {
       contractCents: cents(j.contract),
     });
     for (const s of j.items) {
-      const earned = cents(s.budget * s.pct);
+      // Counted units (each, months) are installed in whole numbers; earned follows the installed count.
+      const installed = COUNTED.has(s.unit)
+        ? Math.round(s.qty * s.pct)
+        : s.qty * s.pct;
+      const earned = cents((s.budget * installed) / s.qty);
       out.costItems.push({
         id: id(`cost:${j.key}:${s.code}`),
         companyId,
@@ -373,7 +379,7 @@ export function seed(companyId: string, today: Date): SeedRows {
         description: s.description,
         unit: s.unit,
         budgetQtyMilli: toMilli(s.qty),
-        installedQtyMilli: toMilli(s.qty * s.pct),
+        installedQtyMilli: toMilli(installed),
         budgetCents: cents(s.budget),
         plannedCents: Math.min(cents(s.budget), Math.round(earned / s.spi)),
         actualCents: Math.round(earned / s.cpi),

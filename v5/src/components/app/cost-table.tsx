@@ -1,10 +1,12 @@
 import type { CostLine } from "@/lib/ev";
 import { pct, qty, rollup } from "@/lib/ev";
 import { cn } from "@/lib/utils";
-import { IndexValue, Money, Progress } from "./format";
+import { Money, Progress, StatusIndex } from "./format";
+import { varianceStatus } from "@/lib/status";
 import { Td, Th } from "./page";
 
-const hot = (l: CostLine) => l.cpi !== null && l.cpi < 0.8;
+const hot = (l: CostLine) =>
+  varianceStatus(l.cpi, l.varianceCents) === "at-risk";
 
 /** Budget vs earned value by cost code. A table from md up; stacked rows on phones, so nothing scrolls sideways. */
 export function CostTable({ lines }: { lines: CostLine[] }) {
@@ -20,8 +22,7 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
             <Th right>Budget</Th>
             <Th right>Earned</Th>
             <Th right>Actual</Th>
-            <Th right>Variance</Th>
-            <Th right>CPI</Th>
+            <Th right>CPI · variance</Th>
           </tr>
         </thead>
         <tbody>
@@ -63,10 +64,7 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
                 <Money cents={l.actualCents} />
               </Td>
               <Td right>
-                <Money cents={l.varianceCents} signed />
-              </Td>
-              <Td right>
-                <IndexValue value={l.cpi} />
+                <StatusIndex index={l.cpi} varianceCents={l.varianceCents} />
               </Td>
             </tr>
           ))}
@@ -86,10 +84,7 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
               <Money cents={t.actualCents} />
             </Td>
             <Td right>
-              <Money cents={t.costVarianceCents} signed />
-            </Td>
-            <Td right>
-              <IndexValue value={t.cpi} />
+              <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
             </Td>
           </tr>
         </tfoot>
@@ -111,7 +106,7 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
                 </span>
                 <span className="font-medium">{l.description}</span>
               </div>
-              <IndexValue value={l.cpi} />
+              <StatusIndex index={l.cpi} varianceCents={l.varianceCents} />
             </div>
             <div className="flex items-center gap-2">
               <Progress value={l.percent} className="flex-1" />
@@ -129,19 +124,17 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
                 <Money cents={l.actualCents} />
               </div>
               <div className="text-right">
-                <div className="text-muted-foreground">Variance</div>
-                <Money cents={l.varianceCents} signed />
+                <div className="text-muted-foreground">Budget</div>
+                <Money cents={l.budgetCents} />
               </div>
             </div>
           </li>
         ))}
         <li className="flex items-center justify-between py-3 text-sm font-medium">
           <span>Job total · {pct(t.percent)}</span>
-          <span className="flex gap-3">
-            <Money cents={t.costVarianceCents} signed />
-            <span>
-              CPI <IndexValue value={t.cpi} />
-            </span>
+          <span>
+            CPI{" "}
+            <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
           </span>
         </li>
       </ul>

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Assistant } from "@/components/app/assistant";
 import { DataSource } from "@/components/app/shell";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
-import { IndexValue, Money } from "@/components/app/format";
+import { Money, StatusIndex } from "@/components/app/format";
 import { PortfolioTable } from "@/components/app/portfolio-table";
 import { usdShort } from "@/lib/ev";
 import { getPortfolio } from "@/server/data";
@@ -40,14 +40,24 @@ async function Portfolio() {
         />
         <Kpi
           label="Portfolio CPI"
-          value={<IndexValue value={totals.cpi} />}
-          sub="earned ÷ actual cost"
+          value={
+            <StatusIndex
+              index={totals.cpi}
+              varianceCents={totals.costVarianceCents}
+            />
+          }
+          sub="earned ÷ actual · cost variance"
           testId="kpi-cpi"
         />
         <Kpi
           label="Portfolio SPI"
-          value={<IndexValue value={totals.spi} />}
-          sub="earned ÷ planned"
+          value={
+            <StatusIndex
+              index={totals.spi}
+              varianceCents={totals.scheduleVarianceCents}
+            />
+          }
+          sub="earned ÷ planned · schedule variance"
           testId="kpi-spi"
         />
       </KpiStrip>

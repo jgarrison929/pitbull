@@ -15,8 +15,12 @@ export type CostLineInput = {
 export type CostLine<T extends CostLineInput = CostLineInput> = T & {
   percent: number;
   earnedCents: number;
+  /** Cost variance: earned minus actual. */
   varianceCents: number;
+  /** Schedule variance: earned minus planned. */
+  scheduleVarianceCents: number;
   cpi: number | null;
+  spi: number | null;
 };
 
 export function costLine<T extends CostLineInput>(c: T): CostLine<T> {
@@ -28,7 +32,9 @@ export function costLine<T extends CostLineInput>(c: T): CostLine<T> {
     percent,
     earnedCents,
     varianceCents: earnedCents - c.actualCents,
+    scheduleVarianceCents: earnedCents - c.plannedCents,
     cpi: c.actualCents === 0 ? null : earnedCents / c.actualCents,
+    spi: c.plannedCents === 0 ? null : earnedCents / c.plannedCents,
   };
 }
 
@@ -38,6 +44,7 @@ export type Rollup = {
   earnedCents: number;
   actualCents: number;
   costVarianceCents: number;
+  scheduleVarianceCents: number;
   percent: number;
   cpi: number;
   spi: number;
@@ -59,19 +66,12 @@ export function rollup(lines: CostLine[]): Rollup {
     earnedCents,
     actualCents,
     costVarianceCents: earnedCents - actualCents,
+    scheduleVarianceCents: earnedCents - plannedCents,
     percent: budgetCents === 0 ? 0 : earnedCents / budgetCents,
     cpi,
     spi: plannedCents === 0 ? 1 : earnedCents / plannedCents,
     eacCents: Math.round(budgetCents / cpi),
   };
-}
-
-export type Health = "on-track" | "watch" | "at-risk";
-/** Thresholds on the worse of CPI and SPI. */
-export function health(index: number): Health {
-  if (index >= 0.98) return "on-track";
-  if (index >= 0.93) return "watch";
-  return "at-risk";
 }
 
 export const usdShort = (cents: number) => {

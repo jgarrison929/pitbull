@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { costLine, health, rollup, usdShort } from "./ev";
+import { costLine, rollup } from "./ev";
 
 const base = {
   code: "x",
@@ -45,14 +45,5 @@ describe("earned value", () => {
     expect(r.cpi).toBeCloseTo(0.8);
     expect(r.spi).toBeCloseTo(1.2);
     expect(r.eacCents).toBe(17_500_000);
-  });
-
-  it("grades health on the index", () => {
-    expect([health(1.01), health(0.95), health(0.9)]).toEqual([
-      "on-track",
-      "watch",
-      "at-risk",
-    ]);
-    expect(usdShort(-64_900_000)).toBe("−$649K");
   });
 });
