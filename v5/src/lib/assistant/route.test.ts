@@ -66,6 +66,33 @@ describe("assistant router", () => {
       },
     ],
     [
+      "we worked -5 hours on the pour for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ manHours: -5 }],
+        lineRef: "we worked -5 hours on the pour for Cedar Creek",
+      },
+    ],
+    [
+      "we worked NaN hours on the pour for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ manHours: Number.NaN }],
+        lineRef: "we worked NaN hours on the pour for Cedar Creek",
+      },
+    ],
+    [
+      "we worked Infinity hours on the pour for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ manHours: Number.NaN }],
+        lineRef: "we worked Infinity hours on the pour for Cedar Creek",
+      },
+    ],
+    [
       "Lock the progress claim on 25-031",
       "progressClaim.lock",
       { job: "25-031" },

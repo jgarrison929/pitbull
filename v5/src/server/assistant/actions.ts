@@ -10,7 +10,11 @@ import {
   jobs,
   users,
 } from "@/db/schema";
-import type { ActionName, JobArgs } from "@/lib/assistant/route";
+import type {
+  ActionName,
+  JobArgs,
+  ReportActualArg,
+} from "@/lib/assistant/route";
 import { qty, usdShort } from "@/lib/ev";
 import {
   applyLineInput,
@@ -25,6 +29,7 @@ import {
   type JobDetail,
 } from "@/server/data";
 import {
+  getReportedActualsForPlan,
   lockProgressClaim,
   postDailyReport,
   setMilestoneComplete,
@@ -420,11 +425,19 @@ export const actions: Record<ActionName, ActionDef> = {
           href: jobHref(j),
           job: j.job.number,
         };
+      const last = await getReportedActualsForPlan(user.companyId, plan.id);
       const byLineId: Record<
         string,
         { manHours: number; qtyMilli: number }
       > = {};
-      for (const a of actuals ?? []) {
+
+      // No per-line numbers ("Report today's work"): every line = last report ?? plan.
+      const entries: ReportActualArg[] =
+        actuals && actuals.length
+          ? actuals
+          : plan.lines.map((l) => ({ lineId: l.id }));
+
+      for (const a of entries) {
         let line = a.lineId
           ? plan.lines.find((l) => l.id === a.lineId)
           : a.costCode
@@ -450,11 +463,17 @@ export const actions: Record<ActionName, ActionDef> = {
             job: j.job.number,
           };
         }
-        // Present-but-invalid (blank / Infinity) must not fall back to the plan.
+        const prior = last[line.id];
+        // Spoken field wins; else last report; else plan. Never wipe an unspoken
+        // field back to the plan when a prior report exists.
         const manHours =
-          a.manHours !== undefined ? Number(a.manHours) : line.manHours;
+          a.manHours !== undefined
+            ? Number(a.manHours)
+            : (prior?.manHours ?? line.manHours);
         const qtyVal =
-          a.qty !== undefined ? Number(a.qty) : line.qtyMilli / 1000;
+          a.qty !== undefined
+            ? Number(a.qty)
+            : (prior?.qtyMilli ?? line.qtyMilli) / 1000;
         if (
           !Number.isFinite(manHours) ||
           manHours < REPORT_LIMITS.manHours.min ||

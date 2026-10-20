@@ -267,3 +267,90 @@ test("blank or non-finite report fields are rejected, not replaced by the plan",
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
   expect(await actualCents(page)).toBe(actualAfter80);
 });
+
+test("assistant updates one line without wiping other lines' last reports", async ({
+  page,
+}) => {
+  await signIn(page, "foreman");
+  await page.goto("/app/jobs/25-031");
+  await page.getByTestId("submit-plan").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "submitted",
+  );
+
+  // Screen: three lines at non-plan values (incl. rain-day zeros on the pour).
+  await page.getByTestId("report-mh-04-210").fill("0");
+  await page.getByTestId("report-qty-04-210").fill("0");
+  await page.getByTestId("report-mh-04-310").fill("50");
+  await page.getByTestId("report-qty-04-310").fill("9000");
+  await page.getByTestId("report-mh-07-410").fill("12");
+  await page.getByTestId("report-qty-07-410").fill("1");
+  await page.getByTestId("report-work").click();
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("0");
+  await expect(page.getByTestId("report-mh-04-310")).toHaveValue("50");
+  await expect(page.getByTestId("report-mh-07-410")).toHaveValue("12");
+
+  const rail = page.getByTestId("assistant-rail");
+  const before = await rail.getByTestId("action-run").count();
+  // Hours only on the pour — must not reset pour qty to 42 or cage/dewatering.
+  await rail
+    .getByTestId("assistant-input")
+    .fill("we worked 70 hours on the pour for Cedar Creek");
+  await rail.getByRole("button", { name: "Send" }).click();
+  await expect(rail.getByTestId("action-run")).toHaveCount(before + 1);
+  const run = rail.getByTestId("action-run").last();
+  await expect(run).toHaveAttribute("data-action", "dailyReport.post");
+  await expect(run.getByTestId("action-summary")).toContainText(/70/);
+
+  await page.reload();
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("70");
+  await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
+  await expect(page.getByTestId("report-mh-04-310")).toHaveValue("50");
+  await expect(page.getByTestId("report-qty-04-310")).toHaveValue("9000");
+  await expect(page.getByTestId("report-mh-07-410")).toHaveValue("12");
+  await expect(page.getByTestId("report-qty-07-410")).toHaveValue("1");
+
+  // Cage-only update must not wipe the pour's 70 / 0 back to plan 60 / 42.
+  await rail
+    .getByTestId("assistant-input")
+    .fill("we tied 9000 LB with 45 hours on the cage for Cedar Creek");
+  await rail.getByRole("button", { name: "Send" }).click();
+  await expect(rail.getByTestId("action-run").last()).toHaveAttribute(
+    "data-action",
+    "dailyReport.post",
+  );
+  await page.reload();
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("70");
+  await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
+  await expect(page.getByTestId("report-mh-04-310")).toHaveValue("45");
+  await expect(page.getByTestId("report-qty-04-310")).toHaveValue("9000");
+  await expect(page.getByTestId("report-mh-07-410")).toHaveValue("12");
+});
+
+test("assistant rejects negative man-hours", async ({ page }) => {
+  await signIn(page, "foreman");
+  await page.goto("/app/jobs/25-031");
+  await page.getByTestId("submit-plan").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "submitted",
+  );
+  const actualBefore = await actualCents(page);
+  const rail = page.getByTestId("assistant-rail");
+  const before = await rail.getByTestId("action-run").count();
+  await rail
+    .getByTestId("assistant-input")
+    .fill("we worked -5 hours on the pour for Cedar Creek");
+  await rail.getByRole("button", { name: "Send" }).click();
+  await expect(rail.getByTestId("action-run")).toHaveCount(before + 1);
+  const run = rail.getByTestId("action-run").last();
+  await expect(run).toHaveAttribute("data-action", "dailyReport.post");
+  await expect(run.getByTestId("action-summary")).toContainText(
+    /Man-hours must be from/i,
+  );
+  expect(await actualCents(page)).toBe(actualBefore);
+  await page.reload();
+  // No report posted — form still shows plan defaults.
+  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("60");
+});

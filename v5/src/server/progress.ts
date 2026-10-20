@@ -78,6 +78,9 @@ export async function getReportedActualsForPlan(
  * quantity into installed (units method). The submitted plan is not modified.
  * Idempotent: re-reporting the same plan replaces prior entries for those lines.
  * Entries are dated `now` (report day), not the plan date.
+ *
+ * Only lines present in `actuals` are rewritten. Unmentioned lines keep their
+ * last report (assistant one-line updates must not wipe the rest of the crew).
  */
 export async function postDailyReport(
   companyId: string,
@@ -86,6 +89,10 @@ export async function postDailyReport(
   now = new Date(),
 ) {
   const db = requireDb();
+  const namedIds = Object.keys(actuals);
+  if (!namedIds.length) {
+    return { postedMh: 0, postedQtyLines: 0, lines: 0 };
+  }
   return db.transaction(async (tx) => {
     const lines = await tx
       .select({
@@ -98,6 +105,7 @@ export async function postDailyReport(
         and(
           eq(dailyPlanLines.companyId, companyId),
           eq(dailyPlanLines.planId, planId),
+          inArray(dailyPlanLines.id, namedIds),
         ),
       );
 
@@ -105,10 +113,9 @@ export async function postDailyReport(
     let postedQtyLines = 0;
 
     for (const { line, item } of lines) {
-      const planMh = (line.workers * line.hoursTenths) / 10;
-      const actual = actuals[line.id];
-      const manHours = actual?.manHours ?? planMh;
-      const qtyMilli = actual?.qtyMilli ?? line.qtyMilli;
+      const actual = actuals[line.id]!;
+      const manHours = actual.manHours;
+      const qtyMilli = actual.qtyMilli;
 
       const prior = await tx
         .select()

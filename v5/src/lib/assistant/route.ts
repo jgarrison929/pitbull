@@ -37,7 +37,7 @@ export type JobArgs = {
   reason?: string;
   milestoneId?: string;
   complete?: boolean;
-  /** dailyReport.post: optional per-line actuals (defaults = plan). */
+  /** dailyReport.post: optional per-line actuals (defaults = last report, else plan). */
   actuals?: ReportActualArg[];
 };
 export type Intent = { action: ActionName; args: JobArgs };
@@ -188,30 +188,39 @@ function hasCostCodeContext(text: string) {
     /\b(\d{1,3}(?:\.\d)?\s*%|percent|complete|progress)\b/.test(text);
 }
 
-const n = String.raw`(\d[\d,]*(?:\.\d+)?)`;
+/** Optional leading minus so "-5 hours" stays negative (and is rejected), not "5". */
+const n = String.raw`(-?\d[\d,]*(?:\.\d+)?)`;
+const reportVerb =
+  /\b(pour|poured|report|reported|work|worked|post|posted|tied|tie|placed|installed|laid)\b/;
+const qtyUnit = String.raw`(?:cy|lb|lbs|lf|ea|days?|sf|sy|tons?|mo)`;
+const mhUnit = String.raw`(?:man[- ]?hours?|mh|hours?|hrs?)`;
 
 /**
  * "we poured 38 CY with 72 hours on 04-210" → one actuals entry.
  * Also "report 70 MH and 40 CY on 04-210", or "… on the pour" (no code — action matches line).
+ * Keeps a leading minus; NaN/Infinity become non-finite so the action can refuse them.
  */
 export function parseReportActuals(prompt: string): ReportActualArg[] {
   const text = prompt.toLowerCase();
-  if (
-    !/\b(pour|poured|report|reported|work|worked|post|posted|tied|tie|placed|installed|laid)\b/.test(
-      text,
-    )
-  )
-    return [];
+  if (!reportVerb.test(text)) return [];
   const code = prompt.match(/\b(\d{2}-\d{3})\b/)?.[1];
-  const qtyMatch = text.match(
-    new RegExp(`${n}\\s*(?:cy|lb|lbs|lf|ea|days?|sf|sy|tons?|mo)\\b`),
-  );
+  const entry: ReportActualArg = {};
+  if (code) entry.costCode = code;
+
+  // "NaN hours" / "Infinity CY" — route to dailyReport.post with a clear error.
+  if (/\bnan\b/.test(text) || /\binfinity\b/.test(text)) {
+    if (new RegExp(`\\b(?:nan|infinity)\\s*${mhUnit}\\b`).test(text))
+      entry.manHours = Number.NaN;
+    if (new RegExp(`\\b(?:nan|infinity)\\s*${qtyUnit}\\b`).test(text))
+      entry.qty = Number.NaN;
+    if (entry.manHours !== undefined || entry.qty !== undefined) return [entry];
+  }
+
+  const qtyMatch = text.match(new RegExp(`${n}\\s*${qtyUnit}\\b`));
   const mhMatch =
     text.match(new RegExp(`${n}\\s*(?:man[- ]?hours?|mh)\\b`)) ??
     text.match(new RegExp(`${n}\\s*(?:hours?|hrs?)\\b`));
   if (!qtyMatch && !mhMatch) return [];
-  const entry: ReportActualArg = {};
-  if (code) entry.costCode = code;
   if (qtyMatch) entry.qty = Number(qtyMatch[1].replace(/,/g, ""));
   if (mhMatch) entry.manHours = Number(mhMatch[1].replace(/,/g, ""));
   return [entry];
