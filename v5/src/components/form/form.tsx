@@ -77,7 +77,13 @@ export function TextArea({
   return <textarea rows={2} {...p} className={cn(control, className)} />;
 }
 
-export type Option = { value: string; label: string; hint?: string };
+export type Option = {
+  value: string;
+  label: string;
+  hint?: string;
+  /** Cost-code unit when the option carries one (async search / plan editor). */
+  unit?: string;
+};
 
 /** A native select, for short coded lists. */
 export function Select({

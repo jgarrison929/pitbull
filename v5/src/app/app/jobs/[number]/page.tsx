@@ -44,12 +44,23 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   const canReport = actions["dailyReport.post"].roles?.includes(user.role);
   const canLock = actions["progressClaim.lock"].roles?.includes(user.role);
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
-  // The cost code list comes from this job's cost items in Postgres; the server checks it again.
-  const costItems = p.lines.map((l) => ({
+  // Initial combobox options: first leaves only. Large WBS uses server search.
+  const costItems = p.lines.slice(0, 40).map((l) => ({
     value: l.id,
     label: `${l.code} ${l.description}`,
     hint: l.unit,
     unit: l.unit,
+  }));
+  const byId = new Map(p.lines.map((l) => [l.id, l]));
+  const nodes = p.items.map((i) => ({
+    id: i.id,
+    code: i.code,
+    description: i.description,
+    unit: i.unit,
+    depth: i.depth,
+    isLeaf: i.isLeaf,
+    path: i.path,
+    line: i.isLeaf ? byId.get(i.id) : undefined,
   }));
   return (
     <>
@@ -121,6 +132,11 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           key={plan.id}
           plan={plan}
           costItems={canEdit ? costItems : undefined}
+          searchUrl={
+            canEdit
+              ? `/app/jobs/${p.job.number}/cost-items/search`
+              : undefined
+          }
           actions={
             <div className="flex flex-wrap gap-2">
               {plan.status === "draft" &&
@@ -172,7 +188,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         title="Budget vs earned value by cost code"
         meta="Earned uses the locked claim (claimed installed for units). Live installs above that show as pending until the PM locks. CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never green."
       >
-        <CostTable lines={p.lines} />
+        <CostTable nodes={nodes} lines={p.lines} />
       </Section>
       <Section
         title="Changes on this job"

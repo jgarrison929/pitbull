@@ -1,6 +1,15 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m1.2",
+    date: "2026-10-20",
+    items: [
+      "Cost codes are a searchable WBS tree with SQL leaf roll-ups, sized for 10,000 codes per job.",
+      "Job cost table is virtualized; plan-line cost codes search the server instead of shipping the full list.",
+      "Typeahead opens with an empty search so job codes appear; quantity unit comes from the picked option; perf:cost-codes measures concurrent HTTP search at 5 and 10 users.",
+    ],
+  },
+  {
     version: "5.0.0-m1.1",
     date: "2026-10-20",
     items: [
