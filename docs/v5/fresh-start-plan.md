@@ -106,7 +106,7 @@ Why it beats keeping .NET 10 + Next.js for this goal:
 
 When to keep .NET instead: if Joshua wants the old C# domain code ported as-is, or needs .NET for a specific enterprise integration. Neither is needed for 5.0.0, and the old code isn't being reused verbatim (section 8). The repo, Railway and Postgres stay the same.
 
-Supporting choices: Auth.js-free custom session (signed httpOnly cookie, users table, role on membership). Demo login is a role-card server action, so no rate-limited password flow. Tenancy is a `company_id` on every row, enforced in one data-access module (and Postgres RLS later if needed). Migrations: drizzle-kit, run on deploy. Jobs: none in 5.0.0 apart from the sandbox expiry sweep (a Railway cron service or on-login cleanup).
+Supporting choices: Auth.js-free custom session (an httpOnly cookie holds a random token, and Postgres stores only its SHA-256 hash with an expiry; users table, role on membership). Demo login is a role-card server action, so no rate-limited password flow. Tenancy is a `company_id` on every row, enforced in one data-access module (and Postgres RLS later if needed). Migrations: drizzle-kit, run on deploy. Jobs: none in 5.0.0 apart from the sandbox expiry sweep (built as on-login cleanup).
 
 ## 6. UI approach
 
