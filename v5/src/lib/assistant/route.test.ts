@@ -36,7 +36,61 @@ describe("assistant router", () => {
     [
       "Report today's work on Cedar Creek",
       "dailyReport.post",
-      { job: "25-031" },
+      { job: "25-031", lineRef: "Report today's work on Cedar Creek" },
+    ],
+    [
+      "we poured 38 CY with 72 hours on 04-210",
+      "dailyReport.post",
+      {
+        actuals: [{ costCode: "04-210", qty: 38, manHours: 72 }],
+        lineRef: "we poured 38 CY with 72 hours on 04-210",
+      },
+    ],
+    [
+      "we poured 38 CY with 72 hours on the pour for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ qty: 38, manHours: 72 }],
+        lineRef:
+          "we poured 38 CY with 72 hours on the pour for Cedar Creek",
+      },
+    ],
+    [
+      "we tied 9000 LB with 45 hours on the cage for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ qty: 9000, manHours: 45 }],
+        lineRef: "we tied 9000 LB with 45 hours on the cage for Cedar Creek",
+      },
+    ],
+    [
+      "we worked -5 hours on the pour for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ manHours: -5 }],
+        lineRef: "we worked -5 hours on the pour for Cedar Creek",
+      },
+    ],
+    [
+      "we worked NaN hours on the pour for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ manHours: Number.NaN }],
+        lineRef: "we worked NaN hours on the pour for Cedar Creek",
+      },
+    ],
+    [
+      "we worked Infinity hours on the pour for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ manHours: Number.NaN }],
+        lineRef: "we worked Infinity hours on the pour for Cedar Creek",
+      },
     ],
     [
       "Lock the progress claim on 25-031",

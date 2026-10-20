@@ -103,7 +103,10 @@ export function Money({
         : ""
     : "";
   return (
-    <span className={cn("whitespace-nowrap tabular-nums", tone)}>
+    <span
+      className={cn("whitespace-nowrap tabular-nums", tone)}
+      data-cents={cents}
+    >
       {signed && cents > 0 ? "+" : ""}
       {usdShort(cents)}
     </span>

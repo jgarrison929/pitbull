@@ -1,6 +1,14 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m1.3",
+    date: "2026-10-20",
+    items: [
+      "Report day's work takes per-line actual man-hours and quantity (defaults = last report, else plan). The submitted plan is unchanged.",
+      "Actuals are dated today (America/Los_Angeles) and are idempotent, including a rain-day 0/0 report. Enter them on screen or via the assistant.",
+    ],
+  },
+  {
     version: "5.0.0-m1.2",
     date: "2026-10-20",
     items: [

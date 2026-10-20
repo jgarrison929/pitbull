@@ -20,6 +20,7 @@ export function PlanCard({
   actions,
   costItems,
   searchUrl,
+  report,
 }: {
   plan: Plan;
   actions?: React.ReactNode;
@@ -27,6 +28,8 @@ export function PlanCard({
   costItems?: (Option & { unit: string })[];
   /** Server typeahead for large WBS. */
   searchUrl?: string;
+  /** After submit: enter actual MH/qty without changing the plan. */
+  report?: React.ReactNode;
 }) {
   const manHours = plan.lines.reduce((s, l) => s + l.manHours, 0);
   const draft = plan.status === "draft";
@@ -79,6 +82,14 @@ export function PlanCard({
         ))}
       </ul>
       <Footer plan={plan} manHours={manHours} actions={actions} />
+      {report ? (
+        <div className="border-t px-4 py-3" data-testid="report-panel">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Report day&apos;s work — actuals (plan stays as submitted)
+          </h3>
+          {report}
+        </div>
+      ) : null}
     </section>
   );
 }
