@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { requireDb, type Db } from "@/db";
 import {
   costEntries,
@@ -22,18 +22,78 @@ import {
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
+/** Per-line actuals for a daily report. Omitted lines fall back to the plan. */
+export type ReportLineActual = {
+  manHours: number;
+  qtyMilli: number;
+};
+
 /**
- * Foreman's daily report: post hours × rate into cost_entries and quantity into
- * installed (units method). Plan submit must NOT call this — a submitted plan is
- * still a plan; actuals land only when the crew reports the day's work.
+ * Last posted report values per plan line (from cost_entries), if any.
+ * Used to pre-fill the report form so a second click cannot silently revert to plan.
+ */
+export async function getReportedActualsForPlan(
+  companyId: string,
+  planId: string,
+): Promise<Record<string, ReportLineActual>> {
+  const db = requireDb();
+  const lines = await db
+    .select({ id: dailyPlanLines.id })
+    .from(dailyPlanLines)
+    .where(
+      and(
+        eq(dailyPlanLines.companyId, companyId),
+        eq(dailyPlanLines.planId, planId),
+      ),
+    );
+  if (!lines.length) return {};
+  const ids = lines.map((l) => l.id);
+  const entries = await db
+    .select()
+    .from(costEntries)
+    .where(
+      and(
+        eq(costEntries.companyId, companyId),
+        inArray(costEntries.sourcePlanLineId, ids),
+      ),
+    );
+  const out: Record<string, ReportLineActual> = {};
+  for (const e of entries) {
+    if (!e.sourcePlanLineId) continue;
+    const hours = e.hoursTenths ?? 0;
+    const cur = out[e.sourcePlanLineId] ?? { manHours: 0, qtyMilli: 0 };
+    if (e.note === "reported-qty") {
+      // Marker persists even at 0 milli so a rain-day report prefills zeros.
+      cur.qtyMilli = hours;
+    } else if (e.kind === "labor" || e.note === "reported-mh") {
+      cur.manHours = hours / 10;
+    }
+    out[e.sourcePlanLineId] = cur;
+  }
+  return out;
+}
+
+/**
+ * Foreman's daily report: post *actual* hours × rate into cost_entries and
+ * quantity into installed (units method). The submitted plan is not modified.
+ * Idempotent: re-reporting the same plan replaces prior entries for those lines.
+ * Entries are dated `now` (report day), not the plan date.
+ *
+ * Only lines present in `actuals` are rewritten. Unmentioned lines keep their
+ * last report (assistant one-line updates must not wipe the rest of the crew).
  */
 export async function postDailyReport(
   companyId: string,
   planId: string,
+  actuals: Record<string, ReportLineActual> = {},
   now = new Date(),
 ) {
   const db = requireDb();
-  await db.transaction(async (tx) => {
+  const namedIds = Object.keys(actuals);
+  if (!namedIds.length) {
+    return { postedMh: 0, postedQtyLines: 0, lines: 0 };
+  }
+  return db.transaction(async (tx) => {
     const lines = await tx
       .select({
         line: dailyPlanLines,
@@ -45,10 +105,18 @@ export async function postDailyReport(
         and(
           eq(dailyPlanLines.companyId, companyId),
           eq(dailyPlanLines.planId, planId),
+          inArray(dailyPlanLines.id, namedIds),
         ),
       );
 
+    let postedMh = 0;
+    let postedQtyLines = 0;
+
     for (const { line, item } of lines) {
+      const actual = actuals[line.id]!;
+      const manHours = actual.manHours;
+      const qtyMilli = actual.qtyMilli;
+
       const prior = await tx
         .select()
         .from(costEntries)
@@ -71,37 +139,27 @@ export async function postDailyReport(
           ),
         );
 
-      const manHours = (line.workers * line.hoursTenths) / 10;
+      // Always persist a labor row (incl. 0 MH) so prefill can show zeros after a
+      // rain-day report — otherwise the form falls back to the plan on reload.
       const amount = laborCents(manHours, DEFAULT_LABOR_RATE_CENTS);
-      if (amount > 0) {
-        await tx.insert(costEntries).values({
-          id: randomUUID(),
-          companyId,
-          costItemId: item.id,
-          kind: "labor",
-          hoursTenths: Math.round(manHours * 10),
-          rateCents: DEFAULT_LABOR_RATE_CENTS,
-          amountCents: amount,
-          note: `Reported: ${line.activity}`,
-          sourcePlanLineId: line.id,
-          at: now,
-        });
-      }
+      await tx.insert(costEntries).values({
+        id: randomUUID(),
+        companyId,
+        costItemId: item.id,
+        kind: "labor",
+        hoursTenths: Math.round(manHours * 10),
+        rateCents: DEFAULT_LABOR_RATE_CENTS,
+        amountCents: amount,
+        note: manHours > 0 ? `Reported: ${line.activity}` : "reported-mh",
+        sourcePlanLineId: line.id,
+        at: now,
+      });
+      postedMh += manHours;
 
-      if (item.evMethod === "units" && line.qtyMilli > 0) {
-        // Qty marker: amountCents=0 so it never inflates AC; hoursTenths holds milli-qty.
-        await tx.insert(costEntries).values({
-          id: randomUUID(),
-          companyId,
-          costItemId: item.id,
-          kind: "other",
-          hoursTenths: line.qtyMilli,
-          amountCents: 0,
-          note: "reported-qty",
-          sourcePlanLineId: line.id,
-          at: now,
-        });
-        const delta = line.qtyMilli - prevQty;
+      // Replace installed qty for this plan line (incl. reporting 0): always
+      // apply delta = new − prior so re-reports never double-add.
+      if (item.evMethod === "units") {
+        const delta = qtyMilli - prevQty;
         if (delta !== 0) {
           await tx
             .update(costItems)
@@ -115,10 +173,25 @@ export async function postDailyReport(
               ),
             );
         }
+        // Qty marker always written (incl. 0) so getReportedActuals sees the report.
+        await tx.insert(costEntries).values({
+          id: randomUUID(),
+          companyId,
+          costItemId: item.id,
+          kind: "other",
+          hoursTenths: qtyMilli,
+          amountCents: 0,
+          note: "reported-qty",
+          sourcePlanLineId: line.id,
+          at: now,
+        });
+        if (qtyMilli > 0) postedQtyLines += 1;
       }
 
       await refreshCostItemActuals(tx, companyId, item.id, now);
     }
+
+    return { postedMh, postedQtyLines, lines: lines.length };
   });
 }
 

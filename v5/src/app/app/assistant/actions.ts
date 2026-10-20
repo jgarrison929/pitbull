@@ -40,6 +40,36 @@ function argsFromForm(formData: FormData): JobArgs {
     return typeof v === "string" && v ? v : undefined;
   };
   const completeRaw = str("complete");
+  // Report form: actualMh[<lineId>] / actualQty[<lineId>]
+  // Empty or non-finite values are kept (as NaN) so the action can reject them —
+  // never drop the key and silently fall back to the plan.
+  const actuals: NonNullable<JobArgs["actuals"]> = [];
+  const mhByLine = new Map<string, number>();
+  const qtyByLine = new Map<string, number>();
+  for (const [key, value] of formData.entries()) {
+    if (typeof value !== "string") continue;
+    const mh = key.match(/^actualMh\[([^\]]+)\]$/);
+    if (mh) {
+      const raw = value.trim().replace(/,/g, "");
+      mhByLine.set(mh[1], raw === "" ? Number.NaN : Number(raw));
+      continue;
+    }
+    const q = key.match(/^actualQty\[([^\]]+)\]$/);
+    if (q) {
+      const raw = value.trim().replace(/,/g, "");
+      qtyByLine.set(q[1], raw === "" ? Number.NaN : Number(raw));
+    }
+  }
+  const lineIds = new Set([...mhByLine.keys(), ...qtyByLine.keys()]);
+  for (const lineId of lineIds) {
+    // Number inputs omit empty values from FormData. A present sibling without
+    // its pair must not fall back to the plan — mark the missing side invalid.
+    actuals.push({
+      lineId,
+      manHours: mhByLine.has(lineId) ? mhByLine.get(lineId) : Number.NaN,
+      qty: qtyByLine.has(lineId) ? qtyByLine.get(lineId) : Number.NaN,
+    });
+  }
   return {
     job: str("job"),
     lineId: str("lineId"),
@@ -52,6 +82,7 @@ function argsFromForm(formData: FormData): JobArgs {
       completeRaw === undefined
         ? undefined
         : completeRaw === "true" || completeRaw === "1",
+    ...(actuals.length ? { actuals } : {}),
   };
 }
 
