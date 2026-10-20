@@ -14,6 +14,16 @@ export type ActionName =
   | "costItem.setPmPercent"
   | "costItem.setMilestone";
 
+/** Per-line actuals for dailyReport.post (screen form or assistant). */
+export type ReportActualArg = {
+  /** Plan line id when known (screen). */
+  lineId?: string;
+  /** Cost code when spoken (assistant). */
+  costCode?: string;
+  manHours?: number;
+  qty?: number;
+};
+
 export type JobArgs = {
   job?: string;
   /** dailyPlan.updateLine: the line by id (screens) or by words (assistant), and the change. */
@@ -27,6 +37,8 @@ export type JobArgs = {
   reason?: string;
   milestoneId?: string;
   complete?: boolean;
+  /** dailyReport.post: optional per-line actuals (defaults = plan). */
+  actuals?: ReportActualArg[];
 };
 export type Intent = { action: ActionName; args: JobArgs };
 
@@ -103,11 +115,26 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
     has(/\b(progress|claim|earned|period)\b/)
   )
     return { action: "progressClaim.lock", args };
+  // "Report today's work" / "we poured 38 CY with 72 hours on 04-210"
+  const reportActuals = parseReportActuals(prompt);
   if (
-    has(/\b(report|posted|post)\b/) &&
-    has(/\b(day|daily|work|hours|quantity|qty)\b/)
-  )
-    return { action: "dailyReport.post", args };
+    (has(/\b(report|posted|post)\b/) &&
+      has(/\b(day|daily|work|hours|quantity|qty)\b/)) ||
+    reportActuals.length > 0
+  ) {
+    // Only a known job name/number — never a cost code mistaken for a job.
+    const known =
+      findJob(prompt, jobs)?.number ??
+      codesIn(prompt).find((c) => jobs.some((j) => j.number === c));
+    return {
+      action: "dailyReport.post",
+      args: {
+        ...(known ? { job: known } : {}),
+        ...(reportActuals.length ? { actuals: reportActuals } : {}),
+        lineRef: prompt,
+      },
+    };
+  }
   if (has(/\b(submit|send|file)\b/) && has(/\b(plan|it|tomorrow)\b/))
     return { action: "dailyPlan.submit", args };
   // "set 08-100 to 50% …" / "set traffic control to 55% on 25-031 because …"
@@ -162,6 +189,31 @@ function hasCostCodeContext(text: string) {
 }
 
 const n = String.raw`(\d[\d,]*(?:\.\d+)?)`;
+
+/**
+ * "we poured 38 CY with 72 hours on 04-210" → one actuals entry.
+ * Also "report 70 MH and 40 CY on 04-210".
+ */
+export function parseReportActuals(prompt: string): ReportActualArg[] {
+  const text = prompt.toLowerCase();
+  if (
+    !/\b(pour|poured|report|reported|work|worked|post|posted)\b/.test(text)
+  )
+    return [];
+  const code = prompt.match(/\b(\d{2}-\d{3})\b/)?.[1];
+  if (!code) return [];
+  const qtyMatch = text.match(
+    new RegExp(`${n}\\s*(?:cy|lb|lbs|lf|ea|days?|sf|sy|tons?|mo)\\b`),
+  );
+  const mhMatch =
+    text.match(new RegExp(`${n}\\s*(?:man[- ]?hours?|mh)\\b`)) ??
+    text.match(new RegExp(`${n}\\s*(?:hours?|hrs?)\\b`));
+  if (!qtyMatch && !mhMatch) return [];
+  const entry: ReportActualArg = { costCode: code };
+  if (qtyMatch) entry.qty = Number(qtyMatch[1].replace(/,/g, ""));
+  if (mhMatch) entry.manHours = Number(mhMatch[1].replace(/,/g, ""));
+  return [entry];
+}
 
 /** "change the pour to 80 man-hours", "set the cage to 5 workers", "note on the pour: crane at 6". */
 export function parseChange(prompt: string): LineInput | null {

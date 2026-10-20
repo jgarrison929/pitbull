@@ -36,7 +36,15 @@ describe("assistant router", () => {
     [
       "Report today's work on Cedar Creek",
       "dailyReport.post",
-      { job: "25-031" },
+      { job: "25-031", lineRef: "Report today's work on Cedar Creek" },
+    ],
+    [
+      "we poured 38 CY with 72 hours on 04-210",
+      "dailyReport.post",
+      {
+        actuals: [{ costCode: "04-210", qty: 38, manHours: 72 }],
+        lineRef: "we poured 38 CY with 72 hours on 04-210",
+      },
     ],
     [
       "Lock the progress claim on 25-031",

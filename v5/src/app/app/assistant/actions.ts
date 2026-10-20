@@ -40,6 +40,32 @@ function argsFromForm(formData: FormData): JobArgs {
     return typeof v === "string" && v ? v : undefined;
   };
   const completeRaw = str("complete");
+  // Report form: actualMh[<lineId>] / actualQty[<lineId>]
+  const actuals: NonNullable<JobArgs["actuals"]> = [];
+  const mhByLine = new Map<string, number>();
+  const qtyByLine = new Map<string, number>();
+  for (const [key, value] of formData.entries()) {
+    if (typeof value !== "string" || !value) continue;
+    const mh = key.match(/^actualMh\[([^\]]+)\]$/);
+    if (mh) {
+      const n = Number(value.replace(/,/g, ""));
+      if (Number.isFinite(n)) mhByLine.set(mh[1], n);
+      continue;
+    }
+    const q = key.match(/^actualQty\[([^\]]+)\]$/);
+    if (q) {
+      const n = Number(value.replace(/,/g, ""));
+      if (Number.isFinite(n)) qtyByLine.set(q[1], n);
+    }
+  }
+  const lineIds = new Set([...mhByLine.keys(), ...qtyByLine.keys()]);
+  for (const lineId of lineIds) {
+    actuals.push({
+      lineId,
+      manHours: mhByLine.get(lineId),
+      qty: qtyByLine.get(lineId),
+    });
+  }
   return {
     job: str("job"),
     lineId: str("lineId"),
@@ -52,6 +78,7 @@ function argsFromForm(formData: FormData): JobArgs {
       completeRaw === undefined
         ? undefined
         : completeRaw === "true" || completeRaw === "1",
+    ...(actuals.length ? { actuals } : {}),
   };
 }
 

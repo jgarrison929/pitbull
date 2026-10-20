@@ -22,18 +22,26 @@ import {
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
+/** Per-line actuals for a daily report. Omitted lines fall back to the plan. */
+export type ReportLineActual = {
+  manHours: number;
+  qtyMilli: number;
+};
+
 /**
- * Foreman's daily report: post hours × rate into cost_entries and quantity into
- * installed (units method). Plan submit must NOT call this — a submitted plan is
- * still a plan; actuals land only when the crew reports the day's work.
+ * Foreman's daily report: post *actual* hours × rate into cost_entries and
+ * quantity into installed (units method). The submitted plan is not modified.
+ * Idempotent: re-reporting the same plan replaces prior entries for those lines.
+ * Entries are dated `now` (report day), not the plan date.
  */
 export async function postDailyReport(
   companyId: string,
   planId: string,
+  actuals: Record<string, ReportLineActual> = {},
   now = new Date(),
 ) {
   const db = requireDb();
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const lines = await tx
       .select({
         line: dailyPlanLines,
@@ -48,7 +56,15 @@ export async function postDailyReport(
         ),
       );
 
+    let postedMh = 0;
+    let postedQtyLines = 0;
+
     for (const { line, item } of lines) {
+      const planMh = (line.workers * line.hoursTenths) / 10;
+      const actual = actuals[line.id];
+      const manHours = actual?.manHours ?? planMh;
+      const qtyMilli = actual?.qtyMilli ?? line.qtyMilli;
+
       const prior = await tx
         .select()
         .from(costEntries)
@@ -71,7 +87,6 @@ export async function postDailyReport(
           ),
         );
 
-      const manHours = (line.workers * line.hoursTenths) / 10;
       const amount = laborCents(manHours, DEFAULT_LABOR_RATE_CENTS);
       if (amount > 0) {
         await tx.insert(costEntries).values({
@@ -87,21 +102,22 @@ export async function postDailyReport(
           at: now,
         });
       }
+      postedMh += manHours;
 
-      if (item.evMethod === "units" && line.qtyMilli > 0) {
+      if (item.evMethod === "units" && qtyMilli > 0) {
         // Qty marker: amountCents=0 so it never inflates AC; hoursTenths holds milli-qty.
         await tx.insert(costEntries).values({
           id: randomUUID(),
           companyId,
           costItemId: item.id,
           kind: "other",
-          hoursTenths: line.qtyMilli,
+          hoursTenths: qtyMilli,
           amountCents: 0,
           note: "reported-qty",
           sourcePlanLineId: line.id,
           at: now,
         });
-        const delta = line.qtyMilli - prevQty;
+        const delta = qtyMilli - prevQty;
         if (delta !== 0) {
           await tx
             .update(costItems)
@@ -115,10 +131,13 @@ export async function postDailyReport(
               ),
             );
         }
+        postedQtyLines += 1;
       }
 
       await refreshCostItemActuals(tx, companyId, item.id, now);
     }
+
+    return { postedMh, postedQtyLines, lines: lines.length };
   });
 }
 

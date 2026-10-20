@@ -19,14 +19,23 @@ export function PlanCard({
   plan,
   actions,
   costItems,
+<<<<<<< HEAD
   searchUrl,
+=======
+  report,
+>>>>>>> 0cf2851a (feat(v5): report day's work with editable actual hours and qty)
 }: {
   plan: Plan;
   actions?: React.ReactNode;
   /** This job's cost items. Pass them only when the viewer may edit this plan's lines. */
   costItems?: (Option & { unit: string })[];
+<<<<<<< HEAD
   /** Server typeahead for large WBS. */
   searchUrl?: string;
+=======
+  /** After submit: enter actual MH/qty without changing the plan. */
+  report?: React.ReactNode;
+>>>>>>> 0cf2851a (feat(v5): report day's work with editable actual hours and qty)
 }) {
   const manHours = plan.lines.reduce((s, l) => s + l.manHours, 0);
   const draft = plan.status === "draft";
@@ -79,6 +88,14 @@ export function PlanCard({
         ))}
       </ul>
       <Footer plan={plan} manHours={manHours} actions={actions} />
+      {report ? (
+        <div className="border-t px-4 py-3" data-testid="report-panel">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Report day&apos;s work — actuals (plan stays as submitted)
+          </h3>
+          {report}
+        </div>
+      ) : null}
     </section>
   );
 }

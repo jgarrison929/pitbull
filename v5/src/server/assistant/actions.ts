@@ -396,21 +396,65 @@ export const actions: Record<ActionName, ActionDef> = {
   "dailyReport.post": {
     title: "Report a day's work",
     roles: ["foreman", "superintendent"],
-    async run(user, { job }) {
+    async run(user, { job, actuals }) {
       const found = await resolvePlan(user, job);
       if (!found) return { summary: "There is no crew plan to report against." };
       const { plan, job: j } = found;
       if (plan.status !== "submitted")
         return {
-          summary: `Submit ${plan.crew}'s plan first — I won't report against a draft. Edit the lines to the foreman's actual numbers, submit, then report.`,
+          summary: `Submit ${plan.crew}'s plan first — I won't report against a draft. After submit, enter actual hours and quantities on the report (the plan stays as planned).`,
           href: jobHref(j),
           job: j.job.number,
         };
-      // Posts the current plan-line numbers (foreman edits), not a blind copy of seed defaults.
-      await postDailyReport(user.companyId, plan.id);
-      const mh = plan.lines.reduce((s, l) => s + l.manHours, 0);
+      const byLineId: Record<
+        string,
+        { manHours: number; qtyMilli: number }
+      > = {};
+      for (const a of actuals ?? []) {
+        const line = a.lineId
+          ? plan.lines.find((l) => l.id === a.lineId)
+          : a.costCode
+            ? plan.lines.find((l) => l.code === a.costCode)
+            : undefined;
+        if (!line) continue;
+        byLineId[line.id] = {
+          manHours:
+            a.manHours !== undefined && Number.isFinite(a.manHours)
+              ? a.manHours
+              : line.manHours,
+          qtyMilli:
+            a.qty !== undefined && Number.isFinite(a.qty)
+              ? Math.round(a.qty * 1000)
+              : line.qtyMilli,
+        };
+      }
+      const now = new Date();
+      const result = await postDailyReport(
+        user.companyId,
+        plan.id,
+        byLineId,
+        now,
+      );
+      const reportDay = day(now.toISOString().slice(0, 10));
+      const diffs = Object.entries(byLineId)
+        .map(([id, a]) => {
+          const line = plan.lines.find((l) => l.id === id)!;
+          const parts: string[] = [];
+          if (a.manHours !== line.manHours)
+            parts.push(`${a.manHours} MH (plan ${line.manHours})`);
+          if (a.qtyMilli !== line.qtyMilli)
+            parts.push(
+              `${qty(a.qtyMilli)} ${line.unit} (plan ${qty(line.qtyMilli)})`,
+            );
+          return parts.length ? `${line.code}: ${parts.join(", ")}` : null;
+        })
+        .filter(Boolean);
       return {
-        summary: `Reported ${plan.crew}'s work on ${j.job.shortName} (${day(plan.planDate)}): ${mh} man-hours posted to actuals; quantities posted to installed (pending until the PM locks).`,
+        summary:
+          `Reported ${plan.crew}'s work on ${j.job.shortName} for ${reportDay}: ` +
+          `${result.postedMh} man-hours to actuals` +
+          (diffs.length ? ` — ${diffs.join("; ")}` : " (as planned)") +
+          `; quantities pending until the PM locks.`,
         href: jobHref(j),
         job: j.job.number,
       };
