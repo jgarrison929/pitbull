@@ -85,4 +85,21 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
     const next = await sandboxForVisitor(visitor, new Date(Date.now() + 5000));
     expect(next).toBe(ids.at(-1));
   });
+
+  it("parallel sign-ins never create more than the cap", async () => {
+    const visitor = `race-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const now = new Date();
+    // Many concurrent callers; without the advisory lock this over-creates.
+    const ids = await Promise.all(
+      Array.from({ length: 12 }, () => sandboxForVisitor(visitor, now)),
+    );
+    const unique = [...new Set(ids)];
+    created.push(...unique);
+    expect(unique.length).toBe(MAX_SANDBOXES_PER_VISITOR);
+    const live = await db!
+      .select({ id: companies.id })
+      .from(companies)
+      .where(eq(companies.visitorHash, visitor));
+    expect(live.length).toBe(MAX_SANDBOXES_PER_VISITOR);
+  });
 });
