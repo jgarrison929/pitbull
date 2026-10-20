@@ -290,42 +290,45 @@ test("assistant updates one line without wiping other lines' last reports", asyn
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("0");
   await expect(page.getByTestId("report-mh-04-310")).toHaveValue("50");
   await expect(page.getByTestId("report-mh-07-410")).toHaveValue("12");
+  await expect(page.getByTestId("report-summary")).toBeVisible();
 
   const rail = page.getByTestId("assistant-rail");
+  // Wait for the screen-report run to land in the rail before counting.
+  // data-action is on the action-run node itself (not a descendant).
+  await expect(
+    rail.locator(
+      '[data-testid="action-run"][data-action="dailyReport.post"]',
+    ),
+  ).toHaveCount(1, { timeout: 15_000 });
   const before = await rail.getByTestId("action-run").count();
+
   // Hours only on the pour — must not reset pour qty to 42 or cage/dewatering.
   await rail
     .getByTestId("assistant-input")
     .fill("we worked 70 hours on the pour for Cedar Creek");
   await rail.getByRole("button", { name: "Send" }).click();
   await expect(rail.getByTestId("action-run")).toHaveCount(before + 1);
-  const run = rail.getByTestId("action-run").last();
-  await expect(run).toHaveAttribute("data-action", "dailyReport.post");
-  await expect(run.getByTestId("action-summary")).toContainText(/70/);
-
-  await page.reload();
-  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("70");
-  await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
-  await expect(page.getByTestId("report-mh-04-310")).toHaveValue("50");
-  await expect(page.getByTestId("report-qty-04-310")).toHaveValue("9000");
-  await expect(page.getByTestId("report-mh-07-410")).toHaveValue("12");
-  await expect(page.getByTestId("report-qty-07-410")).toHaveValue("1");
+  const pourRun = rail.getByTestId("action-run").nth(before);
+  await expect(pourRun).toHaveAttribute("data-action", "dailyReport.post");
+  await expect(pourRun.getByTestId("action-summary")).toContainText(/70/);
 
   // Cage-only update must not wipe the pour's 70 / 0 back to plan 60 / 42.
   await rail
     .getByTestId("assistant-input")
     .fill("we tied 9000 LB with 45 hours on the cage for Cedar Creek");
   await rail.getByRole("button", { name: "Send" }).click();
-  await expect(rail.getByTestId("action-run").last()).toHaveAttribute(
-    "data-action",
-    "dailyReport.post",
-  );
+  await expect(rail.getByTestId("action-run")).toHaveCount(before + 2);
+  const cageRun = rail.getByTestId("action-run").nth(before + 1);
+  await expect(cageRun).toHaveAttribute("data-action", "dailyReport.post");
+  await expect(cageRun.getByTestId("action-summary")).toContainText(/45/);
+
   await page.reload();
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("70");
   await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
   await expect(page.getByTestId("report-mh-04-310")).toHaveValue("45");
   await expect(page.getByTestId("report-qty-04-310")).toHaveValue("9000");
   await expect(page.getByTestId("report-mh-07-410")).toHaveValue("12");
+  await expect(page.getByTestId("report-qty-07-410")).toHaveValue("1");
 });
 
 test("assistant rejects negative man-hours", async ({ page }) => {
