@@ -25,8 +25,9 @@ test("foreman reports quantity; after PM locks claim, job earned and CPI move", 
   await form.getByRole("button", { name: "Save" }).click();
   await expect(form).toBeHidden();
 
-  await page.getByTestId("submit-plan").click();
-  await expect(page.getByTestId("submit-plan")).toHaveCount(0);
+  // Plan ≠ actual: report the day's work to post hours/qty (submit alone does not).
+  await page.getByTestId("report-work").click();
+  await expect(page.getByTestId("job-actual")).toBeVisible();
 
   // Switch to PM and lock the open period claim so installed qty drives EV.
   await page.goto("/login");
@@ -34,8 +35,10 @@ test("foreman reports quantity; after PM locks claim, job earned and CPI move", 
   await expect(page).toHaveURL(/\/app$/);
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("lock-claim")).toBeVisible();
+  await expect(page.getByTestId("lock-claim")).toContainText("Period 2");
   await page.getByTestId("lock-claim").click();
-  await expect(page.getByTestId("lock-claim")).toHaveCount(0);
+  // Next draft opens after lock — button remains for Period 3.
+  await expect(page.getByTestId("lock-claim")).toContainText("Period 3");
 
   // Derivation is visible per line.
   await expect(page.getByTestId("earn-derivation").first()).toBeVisible();

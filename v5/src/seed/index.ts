@@ -1,6 +1,6 @@
 // Deterministic demo seed: (companyId, today) -> rows. The same function seeds CI, staging and each visitor sandbox.
 // Fictional company, people and jobs. Dates are relative to `today` so the demo never looks stale.
-// EV is built forward: cost entries → AC, time-phased dates → PV, locked progress claims → EV.
+// EV is built forward: cost entries → AC, schedule dates → PV, locked progress claims → EV.
 import { createHash } from "node:crypto";
 import type {
   companies,
@@ -58,6 +58,13 @@ export const seedUsers = [
   },
 ] as const;
 
+/** Round-dollar material / equipment invoice posted on a past date. */
+type InvoiceSpec = {
+  dollars: number;
+  note: string;
+  daysAgo: number;
+};
+
 type ItemSpec = {
   code: string;
   description: string;
@@ -65,10 +72,14 @@ type ItemSpec = {
   qty: number;
   budget: number; // dollars
   pct: number; // physical percent complete (drives the locked claim)
-  cpi: number; // earned / actual → sizes the cost entry
-  spi: number; // earned / planned → sizes the time-phased dates
+  startAgo: number; // days before today planned work started
+  spanDays: number; // planned duration in days
   mh: number; // budgeted man-hours per unit
   method?: EvMethod;
+  /** Extra material / equipment invoices. When omitted, a default material row is generated. */
+  invoices?: InvoiceSpec[];
+  /** Override crew hours; default is mh × installed qty. */
+  laborHours?: number;
 };
 
 const COUNTED = new Set(["EA", "MO"]);
@@ -80,10 +91,11 @@ const item = (
   qty: number,
   budget: number,
   pct: number,
-  cpi = 1,
-  spi = 1,
+  startAgo: number,
+  spanDays: number,
   mh = 0,
   method?: EvMethod,
+  invoices?: InvoiceSpec[],
 ): ItemSpec => ({
   code,
   description,
@@ -91,10 +103,11 @@ const item = (
   qty,
   budget,
   pct,
-  cpi,
-  spi,
+  startAgo,
+  spanDays,
   mh,
   method,
+  invoices,
 });
 
 /** Pick a measurement method from the work type when the spec does not name one. */
@@ -110,6 +123,76 @@ function methodOf(s: ItemSpec): EvMethod {
   return "units";
 }
 
+const cents = (dollars: number) => Math.round(dollars * 100);
+const toMilli = (n: number) => Math.round(n * 1000);
+const roundDollarCents = (dollars: number) => Math.round(dollars) * 100;
+
+type CostDraft = {
+  kind: "labor" | "other";
+  hoursTenths?: number;
+  rateCents?: number;
+  amountCents: number;
+  note: string;
+  daysAgo: number;
+};
+
+/**
+ * Forward cost drafts: crew-day labor at DEFAULT_LABOR_RATE_CENTS plus round-dollar invoices.
+ * AC is the sum of drafts — never earned÷CPI.
+ */
+function draftCosts(s: ItemSpec, installed: number): CostDraft[] {
+  if (s.pct <= 0) return [];
+  const drafts: CostDraft[] = [];
+  const laborHours = s.laborHours ?? (s.mh > 0 ? s.mh * installed : 0);
+  if (laborHours > 0) {
+    const hoursTenths = Math.max(1, Math.round(laborHours * 10));
+    drafts.push({
+      kind: "labor",
+      hoursTenths,
+      rateCents: DEFAULT_LABOR_RATE_CENTS,
+      amountCents: Math.round((hoursTenths / 10) * DEFAULT_LABOR_RATE_CENTS),
+      note: "Crew labor",
+      daysAgo: Math.max(1, Math.min(s.startAgo, Math.floor(s.startAgo * 0.35) || 1)),
+    });
+  }
+
+  if (s.invoices?.length) {
+    for (const inv of s.invoices) {
+      if (inv.dollars === 0) continue;
+      drafts.push({
+        kind: "other",
+        amountCents: roundDollarCents(inv.dollars),
+        note: inv.note,
+        daysAgo: Math.max(0, inv.daysAgo),
+      });
+    }
+    return drafts;
+  }
+
+  // Default material: round dollars near physical % of budget, minus any labor already posted.
+  const fairDollars = Math.round(s.budget * s.pct);
+  const laborDollars = Math.round(
+    (drafts.reduce((a, d) => a + d.amountCents, 0) || 0) / 100,
+  );
+  const materialDollars = Math.max(0, fairDollars - laborDollars);
+  if (materialDollars > 0) {
+    drafts.push({
+      kind: "other",
+      amountCents: roundDollarCents(materialDollars),
+      note: "Material / subcontract to date",
+      daysAgo: Math.max(1, Math.min(s.startAgo, Math.floor(s.startAgo * 0.5) || 1)),
+    });
+  } else if (drafts.length === 0 && fairDollars > 0) {
+    drafts.push({
+      kind: "other",
+      amountCents: roundDollarCents(fairDollars),
+      note: "Material / subcontract to date",
+      daysAgo: Math.max(1, Math.min(s.startAgo, 7)),
+    });
+  }
+  return drafts;
+}
+
 const jobSpecs = [
   {
     key: "sr99",
@@ -120,29 +203,12 @@ const jobSpecs = [
     pmName: "Dana Whitfield",
     finishDays: 300,
     contract: 48_600_000,
+    // Schedule on track (startAgo/span ≈ pct); actuals near earned via default material sizing.
     items: [
-      item("02-100", "Mobilization", "LS", 1, 1_900_000, 1, 1.02),
-      item(
-        "03-200",
-        "Roadway excavation",
-        "CY",
-        182_000,
-        4_550_000,
-        0.92,
-        1.08,
-        1.02,
-      ),
-      item(
-        "03-520",
-        "Embankment in place",
-        "CY",
-        240_000,
-        3_840_000,
-        0.85,
-        1.05,
-        1.01,
-      ),
-      item("04-450", "Drilled shafts, 60 in", "LF", 2_600, 4_940_000, 1, 1.03),
+      item("02-100", "Mobilization", "LS", 1, 1_900_000, 1, 150, 150),
+      item("03-200", "Roadway excavation", "CY", 182_000, 4_550_000, 0.92, 184, 200),
+      item("03-520", "Embankment in place", "CY", 240_000, 3_840_000, 0.85, 170, 200),
+      item("04-450", "Drilled shafts, 60 in", "LF", 2_600, 4_940_000, 1, 210, 210),
       item(
         "05-110",
         "Bridge substructure concrete",
@@ -150,43 +216,16 @@ const jobSpecs = [
         3_900,
         5_460_000,
         0.88,
-        1.02,
-        1.02,
+        176,
+        200,
       ),
-      item(
-        "05-130",
-        "Precast girders, set",
-        "EA",
-        64,
-        6_080_000,
-        0.5,
-        1.06,
-        1.0,
-      ),
-      item(
-        "06-200",
-        "Bridge deck concrete",
-        "CY",
-        2_700,
-        3_510_000,
-        0.3,
-        1.0,
-        0.98,
-      ),
-      item(
-        "07-300",
-        "Storm drain, 18-48 in",
-        "LF",
-        9_800,
-        2_940_000,
-        0.72,
-        1.04,
-        1.02,
-      ),
-      item("08-400", "HMA paving", "TON", 41_000, 4_100_000, 0.35, 1.05, 1.0),
-      item("09-100", "Traffic control", "MO", 30, 1_380_000, 0.6, 1.02, 1.0),
-      item("09-600", "Signals & lighting", "LS", 1, 2_200_000, 0.4, 1.01, 0.97),
-      item("09-800", "Sign structures", "EA", 18, 2_300_000, 0.55, 1.07, 1.04),
+      item("05-130", "Precast girders, set", "EA", 64, 6_080_000, 0.5, 100, 200),
+      item("06-200", "Bridge deck concrete", "CY", 2_700, 3_510_000, 0.3, 60, 200),
+      item("07-300", "Storm drain, 18-48 in", "LF", 9_800, 2_940_000, 0.72, 144, 200),
+      item("08-400", "HMA paving", "TON", 41_000, 4_100_000, 0.35, 70, 200),
+      item("09-100", "Traffic control", "MO", 30, 1_380_000, 0.6, 120, 200),
+      item("09-600", "Signals & lighting", "LS", 1, 2_200_000, 0.4, 80, 200),
+      item("09-800", "Sign structures", "EA", 18, 2_300_000, 0.55, 110, 200),
     ],
   },
   {
@@ -198,9 +237,16 @@ const jobSpecs = [
     pmName: "Marcus Lee",
     finishDays: 390,
     contract: 14_600_000,
+    // Schedule on track; generous equipment/material invoices push actuals above earned.
     items: [
-      item("02-100", "Mobilization", "LS", 1, 640_000, 1, 0.98),
-      item("02-220", "Clearing & grubbing", "AC", 4.2, 96_000, 1, 1.09),
+      item("02-100", "Mobilization", "LS", 1, 640_000, 1, 140, 140, 0, undefined, [
+        { dollars: 420_000, note: "Mobilization package — crane & yard", daysAgo: 100 },
+        { dollars: 245_000, note: "Temp facilities & barges", daysAgo: 80 },
+      ]),
+      item("02-220", "Clearing & grubbing", "AC", 4.2, 96_000, 1, 130, 130, 0, undefined, [
+        { dollars: 72_000, note: "Clearing subcontract", daysAgo: 110 },
+        { dollars: 38_000, note: "Haul-off & disposal", daysAgo: 95 },
+      ]),
       item(
         "03-310",
         "Structure excavation",
@@ -208,8 +254,14 @@ const jobSpecs = [
         6_800,
         418_000,
         0.9,
-        0.93,
-        1.02,
+        180,
+        200,
+        0,
+        undefined,
+        [
+          { dollars: 280_000, note: "Excavator & trucking", daysAgo: 60 },
+          { dollars: 165_000, note: "Spoils disposal", daysAgo: 40 },
+        ],
       ),
       item(
         "03-450",
@@ -218,10 +270,19 @@ const jobSpecs = [
         1_440,
         3_240_000,
         0.75,
-        0.93,
-        1.0,
+        150,
+        200,
+        0,
+        undefined,
+        [
+          { dollars: 1_850_000, note: "Shaft drill & casing", daysAgo: 70 },
+          { dollars: 920_000, note: "Concrete & slurry", daysAgo: 45 },
+        ],
       ),
-      item("04-110", "Footing concrete", "CY", 1_150, 1_035_000, 1, 1.03),
+      item("04-110", "Footing concrete", "CY", 1_150, 1_035_000, 1, 160, 160, 0, undefined, [
+        { dollars: 620_000, note: "Footing concrete supply", daysAgo: 90 },
+        { dollars: 480_000, note: "Formwork & pump", daysAgo: 70 },
+      ]),
       item(
         "04-210",
         "Pier column concrete",
@@ -229,9 +290,14 @@ const jobSpecs = [
         620,
         868_000,
         0.4,
-        0.94,
-        1.0,
+        80,
+        200,
         1.6,
+        undefined,
+        [
+          { dollars: 310_000, note: "Column forms & bracing", daysAgo: 35 },
+          { dollars: 195_000, note: "Concrete supply — pier pours", daysAgo: 20 },
+        ],
       ),
       item(
         "04-310",
@@ -240,12 +306,17 @@ const jobSpecs = [
         412_000,
         906_400,
         0.45,
-        0.95,
-        1.02,
+        90,
+        200,
         0.0055,
+        undefined,
+        [
+          { dollars: 380_000, note: "Rebar mill delivery", daysAgo: 50 },
+          { dollars: 210_000, note: "Tie wire & accessories", daysAgo: 30 },
+        ],
       ),
-      item("05-120", "Precast girders, set", "EA", 28, 2_380_000, 0),
-      item("06-200", "Deck concrete", "CY", 1_380, 1_518_000, 0),
+      item("05-120", "Precast girders, set", "EA", 28, 2_380_000, 0, 0, 180),
+      item("06-200", "Deck concrete", "CY", 1_380, 1_518_000, 0, 0, 160),
       item(
         "07-410",
         "Cofferdam & dewatering",
@@ -253,11 +324,32 @@ const jobSpecs = [
         220,
         1_150_000,
         0.7,
-        0.68,
-        1.06,
+        154,
+        220,
         12,
+        undefined,
+        [
+          { dollars: 520_000, note: "Sheet pile rental", daysAgo: 80 },
+          { dollars: 410_000, note: "Pump package & fuel", daysAgo: 40 },
+          { dollars: 280_000, note: "Emergency flood watch overtime", daysAgo: 15 },
+        ],
       ),
-      item("08-100", "Traffic control", "MO", 24, 432_000, 0.375, 0.89, 1.0),
+      item(
+        "08-100",
+        "Traffic control",
+        "MO",
+        24,
+        432_000,
+        0.375,
+        75,
+        200,
+        0,
+        undefined,
+        [
+          { dollars: 210_000, note: "TCP devices & flagging", daysAgo: 40 },
+          { dollars: 95_000, note: "Night shift premium", daysAgo: 20 },
+        ],
+      ),
       item(
         "09-500",
         "Erosion control & SWPPP",
@@ -265,8 +357,14 @@ const jobSpecs = [
         1,
         214_000,
         0.45,
-        0.86,
-        1.0,
+        90,
+        200,
+        0,
+        undefined,
+        [
+          { dollars: 145_000, note: "SWPPP install & maintenance", daysAgo: 55 },
+          { dollars: 72_000, note: "Storm repair extras", daysAgo: 25 },
+        ],
       ),
     ],
   },
@@ -279,79 +377,17 @@ const jobSpecs = [
     pmName: "Priya Natarajan",
     finishDays: 160,
     contract: 9_800_000,
+    // Behind schedule: startAgo/span >> pct so PV >> earned; actuals near earned (default material).
     items: [
-      item("02-100", "Mobilization", "LS", 1, 420_000, 1, 1.0),
-      item(
-        "03-210",
-        "Trench excavation",
-        "CY",
-        21_000,
-        840_000,
-        0.9,
-        1.03,
-        0.9,
-      ),
-      item(
-        "07-120",
-        "Culvert, 72 in RCP",
-        "LF",
-        1_900,
-        2_470_000,
-        0.82,
-        1.02,
-        0.86,
-      ),
-      item(
-        "07-150",
-        "Culvert lining, CIPP",
-        "LF",
-        3_400,
-        1_700_000,
-        0.78,
-        1.01,
-        0.85,
-      ),
-      item(
-        "07-300",
-        "Catch basins & inlets",
-        "EA",
-        46,
-        690_000,
-        0.8,
-        0.99,
-        0.88,
-      ),
-      item(
-        "07-500",
-        "Headwalls & wingwalls",
-        "EA",
-        12,
-        960_000,
-        0.75,
-        1.0,
-        0.87,
-      ),
-      item(
-        "08-200",
-        "Pavement restoration",
-        "SY",
-        14_000,
-        700_000,
-        0.6,
-        1.02,
-        0.86,
-      ),
-      item("09-100", "Traffic control", "MO", 16, 520_000, 0.85, 1.0, 0.92),
-      item(
-        "09-500",
-        "Erosion control & SWPPP",
-        "LS",
-        1,
-        400_000,
-        0.8,
-        1.01,
-        0.9,
-      ),
+      item("02-100", "Mobilization", "LS", 1, 420_000, 1, 100, 100),
+      item("03-210", "Trench excavation", "CY", 21_000, 840_000, 0.9, 152, 160),
+      item("07-120", "Culvert, 72 in RCP", "LF", 1_900, 2_470_000, 0.82, 148, 160),
+      item("07-150", "Culvert lining, CIPP", "LF", 3_400, 1_700_000, 0.78, 145, 160),
+      item("07-300", "Catch basins & inlets", "EA", 46, 690_000, 0.8, 144, 160),
+      item("07-500", "Headwalls & wingwalls", "EA", 12, 960_000, 0.75, 140, 160),
+      item("08-200", "Pavement restoration", "SY", 14_000, 700_000, 0.6, 130, 160),
+      item("09-100", "Traffic control", "MO", 16, 520_000, 0.85, 145, 160),
+      item("09-500", "Erosion control & SWPPP", "LS", 1, 400_000, 0.8, 140, 160),
     ],
   },
 ];
@@ -369,18 +405,6 @@ export type SeedRows = {
   dailyPlans: Insert<typeof dailyPlans>[];
   dailyPlanLines: Insert<typeof dailyPlanLines>[];
 };
-
-const cents = (dollars: number) => Math.round(dollars * 100);
-const toMilli = (n: number) => Math.round(n * 1000);
-
-/** Dates whose linear PV equals `fraction` of budget as of `today`. */
-function datesForFraction(today: Date, fraction: number, spanDays = 200) {
-  const f = Math.max(0, Math.min(1, fraction));
-  const elapsed = Math.round(f * spanDays);
-  const start = addDays(today, -elapsed);
-  const finish = addDays(start, spanDays);
-  return { start: isoDate(start), finish: isoDate(finish) };
-}
 
 export function seed(companyId: string, today: Date): SeedRows {
   const id = (key: string) => seedId(companyId, key);
@@ -443,13 +467,12 @@ export function seed(companyId: string, today: Date): SeedRows {
         ? Math.round(s.qty * s.pct)
         : s.qty * s.pct;
       const installedMilli = toMilli(installed);
-      const earned = Math.round((budgetCents * targetPctMilli) / 1000);
-      const actualCents = s.cpi === 0 ? 0 : Math.round(earned / s.cpi);
-      const plannedTarget =
-        s.spi === 0 ? 0 : Math.min(budgetCents, Math.round(earned / s.spi));
-      const pvFraction = budgetCents === 0 ? 0 : plannedTarget / budgetCents;
-      const { start, finish } = datesForFraction(today, pvFraction);
+      const start = isoDate(addDays(today, -s.startAgo));
+      const finish = isoDate(addDays(today, -s.startAgo + s.spanDays));
       const plannedCents = plannedValueCents(budgetCents, start, finish, today);
+
+      const costDrafts = draftCosts(s, installed);
+      const actualCents = costDrafts.reduce((a, d) => a + d.amountCents, 0);
 
       let milestoneCompleteWeightMilli = 0;
       const milestones: {
@@ -552,47 +575,19 @@ export function seed(companyId: string, today: Date): SeedRows {
         budgetMhPerUnitMilli: toMilli(s.mh),
       });
 
-      if (actualCents > 0) {
-        // Prefer a labor-shaped entry when we have MH; otherwise a single "other" cost row.
-        const mhBudget = s.mh * installed;
-        if (mhBudget > 0) {
-          const hoursTenths = Math.max(1, Math.round(mhBudget * 10));
-          const labor = Math.round((hoursTenths / 10) * DEFAULT_LABOR_RATE_CENTS);
-          out.costEntries.push({
-            id: id(`ce:${j.key}:${s.code}:labor`),
-            companyId,
-            costItemId,
-            kind: "labor",
-            hoursTenths,
-            rateCents: DEFAULT_LABOR_RATE_CENTS,
-            amountCents: labor,
-            note: "Seeded crew labor",
-            at: today,
-          });
-          const other = actualCents - labor;
-          if (other !== 0) {
-            out.costEntries.push({
-              id: id(`ce:${j.key}:${s.code}:other`),
-              companyId,
-              costItemId,
-              kind: "other",
-              amountCents: other,
-              note: other > 0 ? "Seeded material / equipment" : "Seeded credit",
-              at: today,
-            });
-          }
-        } else {
-          out.costEntries.push({
-            id: id(`ce:${j.key}:${s.code}:other`),
-            companyId,
-            costItemId,
-            kind: "other",
-            amountCents: actualCents,
-            note: "Seeded cost to date",
-            at: today,
-          });
-        }
-      }
+      costDrafts.forEach((d, i) => {
+        out.costEntries.push({
+          id: id(`ce:${j.key}:${s.code}:${i}`),
+          companyId,
+          costItemId,
+          kind: d.kind,
+          hoursTenths: d.hoursTenths,
+          rateCents: d.rateCents,
+          amountCents: d.amountCents,
+          note: d.note,
+          at: addDays(today, -d.daysAgo),
+        });
+      });
 
       out.progressClaimLines.push({
         id: id(`claim-line:${j.key}:${s.code}`),
@@ -664,13 +659,13 @@ export function seed(companyId: string, today: Date): SeedRows {
     }),
   );
 
-  // Open draft claim on Cedar so the PM can lock after the foreman reports tomorrow's work.
+  // Draft claim on Cedar so the PM can lock after the foreman reports tomorrow's work.
   const draftClaimId = id("claim:cedar:period-2");
   out.progressClaims.push({
     id: draftClaimId,
     companyId,
     jobId: id("job:cedar"),
-    periodLabel: "Period 2 (open)",
+    periodLabel: "Period 2",
     status: "draft",
     lockedAt: null,
     lockedById: null,

@@ -109,9 +109,21 @@ export function laborCents(manHours: number, rateCentsPerHour: number) {
   return Math.round(manHours * rateCentsPerHour);
 }
 
+/**
+ * Earned value in cents. Units method uses exact installed/budget quantities
+ * (not percent rounded to 0.1%) so 290/620 of $868,000 = $406,000 not $406,224.
+ * Milestones and PM percent use the locked claim weight / logged percent.
+ */
+export function earnedCentsOf(c: CostLineInput): number {
+  if (c.evMethod === "units" && c.budgetQtyMilli > 0) {
+    return Math.round((c.budgetCents * c.installedQtyMilli) / c.budgetQtyMilli);
+  }
+  return Math.round((c.budgetCents * c.claimedPercentMilli) / 1000);
+}
+
 export function costLine<T extends CostLineInput>(c: T): CostLine<T> {
-  const percent = c.claimedPercentMilli / 1000;
-  const earnedCents = Math.round(c.budgetCents * percent);
+  const earnedCents = earnedCentsOf(c);
+  const percent = c.budgetCents === 0 ? 0 : earnedCents / c.budgetCents;
   return {
     ...c,
     percent,

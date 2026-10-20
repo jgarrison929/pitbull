@@ -1,22 +1,41 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { requireDb } from "@/db";
 import {
+  costItemMilestones,
   costItems,
   dailyPlanLines,
   dailyPlans,
   jobs,
+  pmPercentLogs,
   users,
 } from "@/db/schema";
-import { costLine, rollup } from "@/lib/ev";
+import { costLine, plannedValueCents, rollup } from "@/lib/ev";
 import { overallStatus } from "@/lib/status";
 
 // The tenant boundary: every read takes the signed-in user's companyId and filters on it.
 
+/** PV advances by calendar date — recompute as-of today on every read. */
+function lineAsOfToday(
+  item: typeof costItems.$inferSelect,
+  asOf: Date,
+) {
+  return costLine({
+    ...item,
+    plannedCents: plannedValueCents(
+      item.budgetCents,
+      item.plannedStartOn,
+      item.plannedFinishOn,
+      asOf,
+    ),
+  });
+}
+
 /** Cached per request, so the job strip and the page share one read. */
 export const getPortfolio = cache(async function getPortfolio(
   companyId: string,
+  asOf = new Date(),
 ) {
   const db = requireDb();
   const [jobRows, itemRows] = await Promise.all([
@@ -32,7 +51,9 @@ export const getPortfolio = cache(async function getPortfolio(
       .orderBy(asc(costItems.code)),
   ]);
   const portfolio = jobRows.map((job) => {
-    const lines = itemRows.filter((i) => i.jobId === job.id).map(costLine);
+    const lines = itemRows
+      .filter((i) => i.jobId === job.id)
+      .map((i) => lineAsOfToday(i, asOf));
     const r = rollup(lines);
     return { job, lines, ...r, status: overallStatus(r) };
   });
@@ -96,5 +117,70 @@ export function planLine(
     plannedRate: planned,
     budgetRate: budget,
     withinRate: budget === 0 || planned <= budget * 1.05,
+  };
+}
+
+/** Milestones + latest PM percent logs for on-screen EV method controls. */
+export async function getJobEvControls(companyId: string, jobId: string) {
+  const db = requireDb();
+  const milestones = await db
+    .select({
+      id: costItemMilestones.id,
+      costItemId: costItemMilestones.costItemId,
+      code: costItems.code,
+      name: costItemMilestones.name,
+      weightMilli: costItemMilestones.weightMilli,
+      complete: costItemMilestones.complete,
+    })
+    .from(costItemMilestones)
+    .innerJoin(costItems, eq(costItems.id, costItemMilestones.costItemId))
+    .where(
+      and(
+        eq(costItemMilestones.companyId, companyId),
+        eq(costItems.jobId, jobId),
+      ),
+    )
+    .orderBy(asc(costItems.code), asc(costItemMilestones.sort));
+
+  const pmItems = await db
+    .select({
+      costItemId: costItems.id,
+      code: costItems.code,
+      description: costItems.description,
+    })
+    .from(costItems)
+    .where(
+      and(
+        eq(costItems.companyId, companyId),
+        eq(costItems.jobId, jobId),
+        eq(costItems.evMethod, "pm_percent"),
+      ),
+    )
+    .orderBy(asc(costItems.code));
+
+  const logs = await db
+    .select()
+    .from(pmPercentLogs)
+    .where(eq(pmPercentLogs.companyId, companyId))
+    .orderBy(desc(pmPercentLogs.at));
+
+  return {
+    milestones,
+    pmItems: pmItems.map((p) => {
+      const latest = logs.find(
+        (l) => l.costItemId === p.costItemId && !l.reason.includes("milestone"),
+      );
+      // Prefer a real percent log (reason not a milestone toggle audit).
+      const pctLog = logs.find(
+        (l) =>
+          l.costItemId === p.costItemId &&
+          l.percentMilli > 0 &&
+          !/\(complete:|\(open:/.test(l.reason),
+      );
+      return {
+        ...p,
+        percentMilli: (pctLog ?? latest)?.percentMilli ?? 0,
+      };
+    }),
   };
 }

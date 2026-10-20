@@ -95,6 +95,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Drizzle schema sync check
+        run: npm run drizzle:check
+
       - name: Prepare database (pre-deploy step)
         run: npm run db:prepare
 

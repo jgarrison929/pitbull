@@ -22,10 +22,11 @@ import {
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 /**
- * After a crew plan is submitted: post quantity into installed (units method) and
- * labor hours × rate into cost_entries, then refresh denormalized actuals.
+ * Foreman's daily report: post hours × rate into cost_entries and quantity into
+ * installed (units method). Plan submit must NOT call this — a submitted plan is
+ * still a plan; actuals land only when the crew reports the day's work.
  */
-export async function postSubmittedPlan(
+export async function postDailyReport(
   companyId: string,
   planId: string,
   now = new Date(),
@@ -45,20 +46,33 @@ export async function postSubmittedPlan(
           eq(dailyPlanLines.planId, planId),
         ),
       );
+
     for (const { line, item } of lines) {
+      const prior = await tx
+        .select()
+        .from(costEntries)
+        .where(
+          and(
+            eq(costEntries.companyId, companyId),
+            eq(costEntries.sourcePlanLineId, line.id),
+          ),
+        );
+      const prevQty = Number(
+        prior.find((p) => p.note === "reported-qty")?.hoursTenths ?? 0,
+      );
+
+      await tx
+        .delete(costEntries)
+        .where(
+          and(
+            eq(costEntries.companyId, companyId),
+            eq(costEntries.sourcePlanLineId, line.id),
+          ),
+        );
+
       const manHours = (line.workers * line.hoursTenths) / 10;
       const amount = laborCents(manHours, DEFAULT_LABOR_RATE_CENTS);
       if (amount > 0) {
-        // Replace any prior post from this plan line so re-seed/reset stays clean;
-        // submit is one-shot today, but keep the idempotent key.
-        await tx
-          .delete(costEntries)
-          .where(
-            and(
-              eq(costEntries.companyId, companyId),
-              eq(costEntries.sourcePlanLineId, line.id),
-            ),
-          );
         await tx.insert(costEntries).values({
           id: randomUUID(),
           companyId,
@@ -67,21 +81,41 @@ export async function postSubmittedPlan(
           hoursTenths: Math.round(manHours * 10),
           rateCents: DEFAULT_LABOR_RATE_CENTS,
           amountCents: amount,
-          note: `Posted from ${line.activity}`,
+          note: `Reported: ${line.activity}`,
           sourcePlanLineId: line.id,
           at: now,
         });
       }
+
       if (item.evMethod === "units" && line.qtyMilli > 0) {
-        await tx
-          .update(costItems)
-          .set({
-            installedQtyMilli: sql`${costItems.installedQtyMilli} + ${line.qtyMilli}`,
-          })
-          .where(
-            and(eq(costItems.id, item.id), eq(costItems.companyId, companyId)),
-          );
+        // Qty marker: amountCents=0 so it never inflates AC; hoursTenths holds milli-qty.
+        await tx.insert(costEntries).values({
+          id: randomUUID(),
+          companyId,
+          costItemId: item.id,
+          kind: "other",
+          hoursTenths: line.qtyMilli,
+          amountCents: 0,
+          note: "reported-qty",
+          sourcePlanLineId: line.id,
+          at: now,
+        });
+        const delta = line.qtyMilli - prevQty;
+        if (delta !== 0) {
+          await tx
+            .update(costItems)
+            .set({
+              installedQtyMilli: sql`${costItems.installedQtyMilli} + ${delta}`,
+            })
+            .where(
+              and(
+                eq(costItems.id, item.id),
+                eq(costItems.companyId, companyId),
+              ),
+            );
+        }
       }
+
       await refreshCostItemActuals(tx, companyId, item.id, now);
     }
   });
@@ -128,8 +162,7 @@ async function refreshCostItemActuals(
 
 /**
  * Lock the open draft progress claim for a job: snapshot each line's percent from
- * its EV method, mark the claim locked, and copy those percents onto cost_items
- * (locked claims drive earned value).
+ * its EV method, mark the claim locked, copy onto cost_items, and open the next draft.
  */
 export async function lockProgressClaim(
   companyId: string,
@@ -172,7 +205,6 @@ export async function lockProgressClaim(
       .where(eq(pmPercentLogs.companyId, companyId))
       .orderBy(desc(pmPercentLogs.at));
 
-    // Ensure claim lines exist for every cost item on the job.
     const existing = await tx
       .select()
       .from(progressClaimLines)
@@ -251,16 +283,46 @@ export async function lockProgressClaim(
       .set({ status: "locked", lockedAt: now, lockedById: userId })
       .where(eq(progressClaims.id, claim.id));
 
+    const nextLabel = nextPeriodLabel(claim.periodLabel);
+    const nextId = randomUUID();
+    await tx.insert(progressClaims).values({
+      id: nextId,
+      companyId,
+      jobId,
+      periodLabel: nextLabel,
+      status: "draft",
+      lockedAt: null,
+      lockedById: null,
+    });
+    for (const item of items) {
+      await tx.insert(progressClaimLines).values({
+        id: randomUUID(),
+        companyId,
+        claimId: nextId,
+        costItemId: item.id,
+        claimedPercentMilli: item.claimedPercentMilli,
+        installedQtyMilli: item.installedQtyMilli,
+        derivation: "Draft — will refresh from field on lock",
+      });
+    }
+
     return {
       ok: true as const,
       claimId: claim.id,
       periodLabel: claim.periodLabel,
+      nextPeriodLabel: nextLabel,
       lines: items.length,
     };
   });
 }
 
-/** True when this company still has a draft claim on the job (for UI). */
+function nextPeriodLabel(current: string) {
+  const m = current.match(/Period\s+(\d+)/i);
+  const n = m ? Number(m[1]) + 1 : 2;
+  return `Period ${n}`;
+}
+
+/** Draft claim on the job, if any (for Lock button). */
 export async function draftClaimForJob(companyId: string, jobId: string) {
   const db = requireDb();
   const [row] = await db
@@ -275,4 +337,93 @@ export async function draftClaimForJob(companyId: string, jobId: string) {
     )
     .limit(1);
   return row ?? null;
+}
+
+/** Record a PM percent-complete entry (who/why). Latest log is the working percent. */
+export async function setPmPercent(
+  companyId: string,
+  costItemId: string,
+  userId: string,
+  percentMilli: number,
+  reason: string,
+  now = new Date(),
+) {
+  const db = requireDb();
+  const clamped = Math.max(0, Math.min(1000, Math.round(percentMilli)));
+  const why = reason.trim();
+  if (!why) return { ok: false as const, reason: "need-reason" as const };
+  const [item] = await db
+    .select()
+    .from(costItems)
+    .where(
+      and(eq(costItems.id, costItemId), eq(costItems.companyId, companyId)),
+    );
+  if (!item) return { ok: false as const, reason: "not-found" as const };
+  if (item.evMethod !== "pm_percent")
+    return { ok: false as const, reason: "wrong-method" as const };
+  await db.insert(pmPercentLogs).values({
+    id: randomUUID(),
+    companyId,
+    costItemId,
+    userId,
+    percentMilli: clamped,
+    reason: why,
+    at: now,
+  });
+  return {
+    ok: true as const,
+    percentMilli: clamped,
+    code: item.code,
+    description: item.description,
+  };
+}
+
+/** Set a milestone complete/open and record who/why on the item's log. */
+export async function setMilestoneComplete(
+  companyId: string,
+  milestoneId: string,
+  complete: boolean,
+  userId: string,
+  reason?: string,
+) {
+  const db = requireDb();
+  const [row] = await db
+    .select({
+      ms: costItemMilestones,
+      item: costItems,
+    })
+    .from(costItemMilestones)
+    .innerJoin(costItems, eq(costItems.id, costItemMilestones.costItemId))
+    .where(
+      and(
+        eq(costItemMilestones.id, milestoneId),
+        eq(costItemMilestones.companyId, companyId),
+      ),
+    );
+  if (!row) return { ok: false as const, reason: "not-found" as const };
+  if (row.item.evMethod !== "milestones")
+    return { ok: false as const, reason: "wrong-method" as const };
+  await db
+    .update(costItemMilestones)
+    .set({ complete })
+    .where(eq(costItemMilestones.id, milestoneId));
+  const why =
+    (reason?.trim() ||
+      (complete ? "Marked complete" : "Marked incomplete")) +
+    ` (${complete ? "complete" : "open"}: ${row.ms.name})`;
+  await db.insert(pmPercentLogs).values({
+    id: randomUUID(),
+    companyId,
+    costItemId: row.item.id,
+    userId,
+    percentMilli: 0,
+    reason: why,
+    at: new Date(),
+  });
+  return {
+    ok: true as const,
+    code: row.item.code,
+    name: row.ms.name,
+    complete,
+  };
 }

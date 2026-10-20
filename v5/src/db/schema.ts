@@ -110,9 +110,9 @@ export const costItems = pgTable(
     code: text("code").notNull(),
     description: text("description").notNull(),
     unit: text("unit").notNull(),
-    evMethod: evMethodEnum("ev_method").notNull(),
+    evMethod: evMethodEnum("ev_method").notNull().default("units"),
     budgetQtyMilli: milli("budget_qty_milli"),
-    /** Installed quantity posted from submitted foreman reports (units method). */
+    /** Installed quantity posted from foreman daily reports (units method). */
     installedQtyMilli: milli("installed_qty_milli"),
     budgetCents: money("budget_cents"),
     /** Planned start/finish for linear time-phased PV. */
@@ -120,15 +120,15 @@ export const costItems = pgTable(
     plannedFinishOn: date("planned_finish_on").notNull(),
     /**
      * Denormalized planned value to date (from planned_start/finish).
-     * Recomputed when the as-of date or dates change; not a free-hand input.
+     * Reads recompute as-of today; submit/lock also refresh the stored value.
      */
     plannedCents: money("planned_cents"),
     /** Denormalized sum of cost_entries for this item. */
     actualCents: money("actual_cents"),
-    /** Locked claim percent (thousandths). Drives earned value. */
-    claimedPercentMilli: milli("claimed_percent_milli"),
+    /** Locked claim percent (thousandths). Display/snapshot; units earn from qty. */
+    claimedPercentMilli: milli("claimed_percent_milli").default(0),
     /** Human-readable how the locked percent was derived. */
-    earnDerivation: text("earn_derivation").notNull(),
+    earnDerivation: text("earn_derivation").notNull().default(""),
     /** Budgeted man-hours per unit, in thousandths. */
     budgetMhPerUnitMilli: milli("budget_mh_per_unit_milli"),
   },

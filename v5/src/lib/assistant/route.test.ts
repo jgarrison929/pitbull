@@ -34,6 +34,16 @@ describe("assistant router", () => {
     ["send the plan for cedar", "dailyPlan.submit", { job: "25-031" }],
     ["submit the plan for 99-999", "dailyPlan.submit", { job: "99-999" }],
     [
+      "Report today's work on Cedar Creek",
+      "dailyReport.post",
+      { job: "25-031" },
+    ],
+    [
+      "Lock the progress claim on 25-031",
+      "progressClaim.lock",
+      { job: "25-031" },
+    ],
+    [
       "change the pour to 80 man-hours",
       "dailyPlan.updateLine",
       {

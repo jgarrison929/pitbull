@@ -4,9 +4,9 @@ export const changelog = [
     version: "5.0.0-m1.1",
     date: "2026-10-20",
     items: [
-      "Earned value is real: units complete, weighted milestones, or PM percent with a who/why log.",
-      "Actuals come from cost entries (foreman hours × rate); planned value from time-phased dates; locked progress claims drive EV.",
-      "Job cost table shows how each line's earned percent was derived. PM can lock the open period claim.",
+      "Earned value is real: units complete, weighted milestones, or PM percent with a who/why log — all enterable on screen and via the assistant.",
+      "Seed builds AC from dated labor/invoices and PV from schedule dates (no CPI/SPI back-solve). Plan submit ≠ actuals; report the day's work to post.",
+      "Units earn from exact installed/budget qty. Locking a period opens the next draft. PV advances as of today on every read.",
     ],
   },
   {

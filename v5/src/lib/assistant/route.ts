@@ -9,7 +9,10 @@ export type ActionName =
   | "dailyPlan.show"
   | "dailyPlan.submit"
   | "dailyPlan.updateLine"
-  | "progressClaim.lock";
+  | "dailyReport.post"
+  | "progressClaim.lock"
+  | "costItem.setPmPercent"
+  | "costItem.setMilestone";
 
 export type JobArgs = {
   job?: string;
@@ -17,6 +20,13 @@ export type JobArgs = {
   lineId?: string;
   lineRef?: string;
   change?: LineInput;
+  /** costItem.setPmPercent / setMilestone */
+  costItemId?: string;
+  costCode?: string;
+  percent?: string;
+  reason?: string;
+  milestoneId?: string;
+  complete?: boolean;
 };
 export type Intent = { action: ActionName; args: JobArgs };
 
@@ -58,8 +68,46 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
     has(/\b(progress|claim|earned|period)\b/)
   )
     return { action: "progressClaim.lock", args };
+  if (
+    has(/\b(report|posted|post)\b/) &&
+    has(/\b(day|daily|work|hours|quantity|qty)\b/)
+  )
+    return { action: "dailyReport.post", args };
   if (has(/\b(submit|send|file)\b/) && has(/\b(plan|it|tomorrow)\b/))
     return { action: "dailyPlan.submit", args };
+  // "set traffic control to 50% because …" / "mark mobilization complete"
+  const pmPct = text.match(
+    /\b(?:set|log|record)\b.{0,40}\b(\d{1,3}(?:\.\d)?)\s*%/,
+  );
+  if (pmPct && has(/\b(percent|%|complete|progress)\b/)) {
+    const reason =
+      prompt.match(/\b(?:because|reason|:)\s*(.+)$/i)?.[1]?.trim() ?? "";
+    return {
+      action: "costItem.setPmPercent",
+      args: {
+        ...args,
+        costCode: prompt.match(/\b\d{2}-\d{3}\b/)?.[0],
+        lineRef: prompt,
+        percent: pmPct[1],
+        reason,
+      },
+    };
+  }
+  if (
+    has(/\b(milestone|mobilization)\b/) &&
+    has(/\b(complete|done|finish|open|incomplete)\b/)
+  ) {
+    return {
+      action: "costItem.setMilestone",
+      args: {
+        ...args,
+        lineRef: prompt,
+        complete: !has(/\b(open|incomplete|uncheck|clear)\b/),
+        reason:
+          prompt.match(/\b(?:because|reason|:)\s*(.+)$/i)?.[1]?.trim() ?? "",
+      },
+    };
+  }
   if (has(/\b(plan|tomorrow|crew|schedule)\b/))
     return { action: "dailyPlan.show", args };
   if (job && has(/\b(cost|variance|over|overrun|budget|why|losing|money)\b/))
@@ -104,4 +152,6 @@ export const examples = [
   "Show tomorrow's plan for Cedar Creek",
   "Change the pour to 80 man-hours",
   "Submit tomorrow's plan",
+  "Report today's work on Cedar Creek",
+  "Lock the progress claim on 25-031",
 ];

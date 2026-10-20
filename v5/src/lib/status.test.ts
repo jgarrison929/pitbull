@@ -68,7 +68,16 @@ describe("roll-ups equal the sum of their lines, for the seed", () => {
   );
   const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
   const jobs = rows.jobs.map((j) => {
-    const lines = rows.costItems.filter((c) => c.jobId === j.id).map(costLine);
+    const lines = rows.costItems
+      .filter((c) => c.jobId === j.id)
+      .map((c) =>
+        costLine({
+          ...c,
+          claimedPercentMilli: c.claimedPercentMilli ?? 0,
+          earnDerivation: c.earnDerivation ?? "",
+          evMethod: c.evMethod ?? "units",
+        }),
+      );
     return { j, lines, r: rollup(lines) };
   });
 

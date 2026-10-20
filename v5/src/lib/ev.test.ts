@@ -91,6 +91,22 @@ describe("planned value", () => {
   });
 });
 
+describe("earned value from exact quantities", () => {
+  // 290 of 620 CY on $868,000 → $406,000 exactly (not 46.8% → $406,224).
+  it("units earn from installed/budget, not 0.1% rounded percent", () => {
+    const pour = costLine({
+      ...base,
+      budgetQtyMilli: 620_000,
+      installedQtyMilli: 290_000,
+      budgetCents: 86_800_000,
+      plannedCents: 86_800_000,
+      actualCents: 40_000_000,
+      claimedPercentMilli: 468, // would wrongly yield $406,224 if used alone
+    });
+    expect(pour.earnedCents).toBe(40_600_000);
+  });
+});
+
 describe("earned value from locked claim percent", () => {
   // Hand-computed: locked 60% on a $100,000 line earns $60,000; $75,000 spent gives CPI 0.80.
   const a = costLine({
