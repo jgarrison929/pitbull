@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, eq, isNotNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, lt, sql } from "drizzle-orm";
 import { requireDb, type Db } from "@/db";
 import {
   actionRuns,
@@ -14,6 +14,8 @@ import {
 import { seed, type SeedRows } from "@/seed";
 
 export const SANDBOX_TTL_MS = 24 * 60 * 60 * 1000;
+/** Live sandboxes one browser may hold. Past the cap, signing in reuses the newest one. */
+export const MAX_SANDBOXES_PER_VISITOR = 3;
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -40,18 +42,37 @@ export async function sweepExpiredSandboxes(now = new Date()) {
   return gone.length;
 }
 
+/**
+ * The sandbox a signed-out visitor gets: a new one while they are under the cap,
+ * otherwise their most recently seeded live one.
+ */
+export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
+  const db = requireDb();
+  const live = await db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(
+      and(eq(companies.visitorHash, visitorHash), gt(companies.expiresAt, now)),
+    )
+    .orderBy(desc(companies.seededAt));
+  if (live.length >= MAX_SANDBOXES_PER_VISITOR) return live[0].id;
+  return createSandbox(now, visitorHash);
+}
+
 /** Creates a new visitor sandbox cloned from the seed. */
-export async function createSandbox(now = new Date()) {
+export async function createSandbox(
+  now = new Date(),
+  visitorHash: string | null = null,
+) {
   const db = requireDb();
   const companyId = randomUUID();
   const rows = seed(companyId, now);
   await db.transaction(async (tx) => {
-    await tx
-      .insert(companies)
-      .values({
-        ...rows.company,
-        expiresAt: new Date(now.getTime() + SANDBOX_TTL_MS),
-      });
+    await tx.insert(companies).values({
+      ...rows.company,
+      visitorHash,
+      expiresAt: new Date(now.getTime() + SANDBOX_TTL_MS),
+    });
     await tx.insert(users).values(rows.users);
     await insertWork(tx, rows);
   });

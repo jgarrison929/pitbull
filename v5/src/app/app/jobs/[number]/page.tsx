@@ -9,7 +9,8 @@ import { pct, usdShort } from "@/lib/ev";
 import { getJob, getPlansForJob } from "@/server/data";
 import { requireUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
-import { actions } from "@/server/assistant/actions";
+import { actions, jobChanges } from "@/server/assistant/actions";
+import { LocalTime } from "@/components/app/local-time";
 
 export default function JobPage({ params }: PageProps<"/app/jobs/[number]">) {
   return (
@@ -31,7 +32,18 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   const user = await requireUser();
   const p = await getJob(user.companyId, number);
   if (!p) notFound();
-  const plans = await getPlansForJob(user.companyId, p.job.id);
+  const [plans, changes] = await Promise.all([
+    getPlansForJob(user.companyId, p.job.id),
+    jobChanges(user.companyId, p.job.number),
+  ]);
+  const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
+  // The cost code list comes from this job's cost items in Postgres; the server checks it again.
+  const costItems = p.lines.map((l) => ({
+    value: l.id,
+    label: `${l.code} ${l.description}`,
+    hint: l.unit,
+    unit: l.unit,
+  }));
   return (
     <>
       <PageHeader
@@ -70,6 +82,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         <PlanCard
           key={plan.id}
           plan={plan}
+          costItems={canEdit ? costItems : undefined}
           actions={
             plan.status === "draft" &&
             actions["dailyPlan.submit"].roles?.includes(user.role) ? (
@@ -94,6 +107,27 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         meta="Rows under CPI 0.80 are tinted"
       >
         <CostTable lines={p.lines} />
+      </Section>
+      <Section
+        title="Changes on this job"
+        meta="Every edit and submit, by anyone in this sandbox"
+      >
+        {changes.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-muted-foreground">
+            No changes yet.
+          </p>
+        ) : (
+          <ul className="divide-y px-4 text-sm" data-testid="job-changes">
+            {changes.map((c) => (
+              <li key={c.id} className="py-2">
+                <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
+                <span className="text-xs text-muted-foreground">
+                  <LocalTime iso={c.createdAt} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
       <DataSource />
     </>

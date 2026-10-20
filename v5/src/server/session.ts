@@ -11,6 +11,9 @@ import { seedId } from "@/seed";
 import { SANDBOX_TTL_MS } from "./sandbox";
 
 export const SESSION_COOKIE = "pcs_session";
+/** A long-lived random id per browser. Only its hash reaches the database. */
+export const VISITOR_COOKIE = "pcs_visitor";
+const VISITOR_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export type Role = (typeof users.$inferSelect)["role"];
 
 const hash = (token: string) =>
@@ -100,4 +103,21 @@ export async function endSession() {
       .delete(sessions)
       .where(eq(sessions.id, hash(token)));
   jar.delete(SESSION_COOKIE);
+}
+
+/** This browser's visitor hash, setting the cookie on first sign-in. Call only from a server action. */
+export async function visitorHash(now = new Date()) {
+  const jar = await cookies();
+  let token = jar.get(VISITOR_COOKIE)?.value;
+  if (!token) {
+    token = randomBytes(32).toString("base64url");
+    jar.set(VISITOR_COOKIE, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      expires: new Date(now.getTime() + VISITOR_TTL_MS),
+    });
+  }
+  return hash(token);
 }

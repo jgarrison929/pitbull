@@ -50,3 +50,20 @@ test("switching roles keeps the sandbox, a new visitor gets a new one, reset res
   );
   await expect(page.getByTestId("sandbox-id")).toHaveText(sandbox!);
 });
+
+test("a visitor who keeps signing out gets at most 3 sandboxes", async ({
+  page,
+}) => {
+  const ids: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    await page.goto("/login");
+    await page.getByTestId("role-pm").click();
+    await expect(page).toHaveURL(/\/app$/);
+    ids.push((await page.getByTestId("sandbox-id").textContent())!.trim());
+    await page.getByTestId("user-menu").click();
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/login$/);
+  }
+  expect(new Set(ids.slice(0, 3)).size).toBe(3);
+  expect(ids[3]).toBe(ids[2]);
+});

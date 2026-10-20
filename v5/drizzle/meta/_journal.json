@@ -8,6 +8,20 @@
       "when": 1792371387317,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792374351590,
+      "tag": "0001_sandbox_visitor",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792374587128,
+      "tag": "0002_plan_line_notes",
+      "breakpoints": true
     }
   ]
 }

@@ -32,6 +32,37 @@ describe("assistant router", () => {
     ],
     ["Submit tomorrow's plan", "dailyPlan.submit", {}],
     ["send the plan for cedar", "dailyPlan.submit", { job: "25-031" }],
+    ["submit the plan for 99-999", "dailyPlan.submit", { job: "99-999" }],
+    [
+      "change the pour to 80 man-hours",
+      "dailyPlan.updateLine",
+      {
+        lineRef: "change the pour to 80 man-hours",
+        change: { manHours: "80" },
+      },
+    ],
+    [
+      "set 04-310 to 5 workers",
+      "dailyPlan.updateLine",
+      { lineRef: "set 04-310 to 5 workers", change: { workers: "5" } },
+    ],
+    [
+      "make the cage 9,000 lb on cedar",
+      "dailyPlan.updateLine",
+      {
+        job: "25-031",
+        lineRef: "make the cage 9,000 lb on cedar",
+        change: { qty: "9,000" },
+      },
+    ],
+    [
+      "add a note to the pour: crane at 6am",
+      "dailyPlan.updateLine",
+      {
+        lineRef: "add a note to the pour: crane at 6am",
+        change: { notes: "crane at 6am" },
+      },
+    ],
   ])("%s → %s", (prompt, action, args) => {
     expect(route(prompt, jobs)).toEqual({ action, args });
   });

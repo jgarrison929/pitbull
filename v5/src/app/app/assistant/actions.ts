@@ -47,3 +47,43 @@ export async function runAction(formData: FormData) {
   );
   revalidatePath("/app", "layout");
 }
+
+export type SaveLineState = {
+  errors?: Record<string, string>;
+  savedAt?: number;
+};
+
+const LINE_FIELDS = [
+  "costItemId",
+  "activity",
+  "location",
+  "qty",
+  "workers",
+  "hours",
+  "manHours",
+  "notes",
+] as const;
+
+/** The plan line form. It posts to the same dailyPlan.updateLine action the assistant uses. */
+export async function saveLine(
+  _prev: SaveLineState,
+  formData: FormData,
+): Promise<SaveLineState> {
+  const user = await requireUser();
+  const lineId = String(formData.get("lineId") ?? "");
+  const change: Record<string, string> = {};
+  for (const f of LINE_FIELDS) {
+    const v = formData.get(f);
+    if (typeof v === "string") change[f] = v;
+  }
+  const label = String(formData.get("label") ?? "plan line").slice(0, 120);
+  const { result } = await run(
+    user,
+    `Edit ${label} (screen)`,
+    "dailyPlan.updateLine",
+    { lineId, change },
+  );
+  revalidatePath("/app", "layout");
+  if (result.errors) return { errors: result.errors };
+  return { savedAt: Date.now() };
+}
