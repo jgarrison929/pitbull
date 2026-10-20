@@ -112,8 +112,13 @@ export const costItems = pgTable(
     unit: text("unit").notNull(),
     evMethod: evMethodEnum("ev_method").notNull().default("units"),
     budgetQtyMilli: milli("budget_qty_milli"),
-    /** Installed quantity posted from foreman daily reports (units method). */
+    /** Live installed quantity from foreman daily reports (units method). Pending until PM lock. */
     installedQtyMilli: milli("installed_qty_milli"),
+    /**
+     * Installed quantity frozen on the last locked claim. Units EV uses this, not live installed.
+     * Live qty above this is shown as pending until the next lock.
+     */
+    claimedInstalledQtyMilli: milli("claimed_installed_qty_milli").default(0),
     budgetCents: money("budget_cents"),
     /** Planned start/finish for linear time-phased PV. */
     plannedStartOn: date("planned_start_on").notNull(),
@@ -125,7 +130,7 @@ export const costItems = pgTable(
     plannedCents: money("planned_cents"),
     /** Denormalized sum of cost_entries for this item. */
     actualCents: money("actual_cents"),
-    /** Locked claim percent (thousandths). Display/snapshot; units earn from qty. */
+    /** Locked claim percent (thousandths). Display/snapshot; units earn from claimed qty. */
     claimedPercentMilli: milli("claimed_percent_milli").default(0),
     /** Human-readable how the locked percent was derived. */
     earnDerivation: text("earn_derivation").notNull().default(""),
@@ -192,6 +197,28 @@ export const pmPercentLogs = pgTable(
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("pm_percent_logs_item_idx").on(t.costItemId, t.at)],
+);
+
+/** Who/why audit when a weighted milestone is marked complete or reopened. */
+export const milestoneLogs = pgTable(
+  "milestone_logs",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    milestoneId: uuid("milestone_id")
+      .notNull()
+      .references(() => costItemMilestones.id, { onDelete: "cascade" }),
+    costItemId: uuid("cost_item_id")
+      .notNull()
+      .references(() => costItems.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    complete: boolean("complete").notNull(),
+    reason: text("reason").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("milestone_logs_item_idx").on(t.costItemId, t.at)],
 );
 
 /** Period progress claim. Locked claims drive earned value; billing comes after 5.0. */

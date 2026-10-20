@@ -167,19 +167,11 @@ export async function getJobEvControls(companyId: string, jobId: string) {
   return {
     milestones,
     pmItems: pmItems.map((p) => {
-      const latest = logs.find(
-        (l) => l.costItemId === p.costItemId && !l.reason.includes("milestone"),
-      );
-      // Prefer a real percent log (reason not a milestone toggle audit).
-      const pctLog = logs.find(
-        (l) =>
-          l.costItemId === p.costItemId &&
-          l.percentMilli > 0 &&
-          !/\(complete:|\(open:/.test(l.reason),
-      );
+      // Latest PM percent log wins, including an explicit 0% entry.
+      const latest = logs.find((l) => l.costItemId === p.costItemId);
       return {
         ...p,
-        percentMilli: (pctLog ?? latest)?.percentMilli ?? 0,
+        percentMilli: latest?.percentMilli ?? 0,
       };
     }),
   };

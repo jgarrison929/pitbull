@@ -50,8 +50,8 @@ export function EvMethodControls({
         <section className="rounded-xl border p-4">
           <h3 className="text-sm font-semibold">Milestones</h3>
           <p className="mb-3 text-xs text-muted-foreground">
-            Mark weighted milestones complete. Who/why is recorded on the item
-            log.
+            Mark weighted milestones complete. Who/why is stored on the
+            milestone log (not the PM percent log).
           </p>
           <ul className="divide-y">
             {milestones.map((m) => (

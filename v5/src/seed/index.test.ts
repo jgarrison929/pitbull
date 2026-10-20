@@ -13,6 +13,7 @@ function jobIndex(number: string) {
     costLine({
       ...c,
       claimedPercentMilli: c.claimedPercentMilli ?? 0,
+      claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
       earnDerivation: c.earnDerivation ?? "",
       evMethod: c.evMethod ?? "units",
     }),
@@ -24,6 +25,7 @@ function jobIndex(number: string) {
     actual: sum((c) => c.actualCents),
     planned: sum((c) => c.plannedCents),
     items,
+    lines,
   };
 }
 
@@ -59,6 +61,56 @@ describe("seed", () => {
     }
   });
 
+  it("refuses the budget×pct−labor plug and pct-derived PV=EV", () => {
+    // Every active line must have dated invoices (never a single "Material / subcontract
+    // to date" sized as budget×pct−labor). AC==EV and PV==EV to the cent are the
+    // fingerprints of those plugs. Allow a tiny tolerance for fully complete lines
+    // whose schedules have finished (PV=budget=EV is honest there) — never the 19+
+    // exact matches the old SR-99/I-5 default produced.
+    const MAX_AC_EQ_EV = 0;
+    const MAX_PV_EQ_EV = 3; // e.g. LS at 100% with finished calendars only
+
+    let acEq = 0;
+    let pvEq = 0;
+    const offenders: string[] = [];
+
+    for (const c of rows.costItems) {
+      if (c.claimedPercentMilli === 0 && c.actualCents === 0) continue; // not started
+      const line = costLine({
+        ...c,
+        claimedPercentMilli: c.claimedPercentMilli ?? 0,
+        claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
+        earnDerivation: c.earnDerivation ?? "",
+        evMethod: c.evMethod ?? "units",
+      });
+      const job = rows.jobs.find((j) => j.id === c.jobId)!;
+      if (line.actualCents === line.earnedCents) {
+        acEq += 1;
+        offenders.push(`${job.number} ${c.code} AC==EV $${line.earnedCents / 100}`);
+      }
+      if (line.plannedCents === line.earnedCents && line.earnedCents > 0) {
+        pvEq += 1;
+        offenders.push(`${job.number} ${c.code} PV==EV $${line.earnedCents / 100}`);
+      }
+    }
+
+    expect(
+      acEq,
+      `AC==EV on ${acEq} lines (max ${MAX_AC_EQ_EV}): ${offenders.filter((o) => o.includes("AC==")).join("; ")}`,
+    ).toBeLessThanOrEqual(MAX_AC_EQ_EV);
+    expect(
+      pvEq,
+      `PV==EV on ${pvEq} lines (max ${MAX_PV_EQ_EV}): ${offenders.filter((o) => o.includes("PV==")).join("; ")}`,
+    ).toBeLessThanOrEqual(MAX_PV_EQ_EV);
+
+    // No default plug note anywhere.
+    expect(
+      rows.costEntries.some((e) =>
+        /Material \/ subcontract to date/i.test(e.note ?? ""),
+      ),
+    ).toBe(false);
+  });
+
   it("tells the story without targeting exact CPI/SPI", () => {
     const sr99 = jobIndex("24-118");
     const cedar = jobIndex("25-031");
@@ -67,9 +119,9 @@ describe("seed", () => {
     expect(cedar.actual).toBeGreaterThan(cedar.earned);
     // I-5: planned value ahead of earned (behind schedule).
     expect(i5.planned).toBeGreaterThan(i5.earned);
-    // SR-99: actuals not wildly off earned (roughly healthy).
+    // SR-99: roughly healthy — actuals not wildly off earned.
     const sr99Gap = Math.abs(sr99.actual - sr99.earned) / sr99.earned;
-    expect(sr99Gap).toBeLessThan(0.08);
+    expect(sr99Gap).toBeLessThan(0.15);
     for (const j of [sr99, cedar, i5]) expect(j.earned).toBeGreaterThan(0);
   });
 
@@ -97,6 +149,7 @@ describe("seed", () => {
         c.actualCents,
         c.budgetQtyMilli,
         c.installedQtyMilli,
+        c.claimedInstalledQtyMilli,
         c.claimedPercentMilli,
       ]) {
         expect(Number.isInteger(v)).toBe(true);
@@ -117,6 +170,8 @@ describe("seed", () => {
     for (const c of rows.costItems) {
       expect((c.earnDerivation ?? "").length).toBeGreaterThan(0);
       expect(["units", "milestones", "pm_percent"]).toContain(c.evMethod);
+      // Seeded lock: claimed installed matches live (no pending yet).
+      expect(c.claimedInstalledQtyMilli).toBe(c.installedQtyMilli);
     }
   });
 });

@@ -11,6 +11,7 @@ import {
   dailyPlanLines,
   dailyPlans,
   jobs,
+  milestoneLogs,
   pmPercentLogs,
   progressClaimLines,
   progressClaims,
@@ -33,6 +34,8 @@ async function insertWork(tx: Tx, rows: SeedRows) {
     await tx.insert(costEntries).values(rows.costEntries);
   if (rows.pmPercentLogs.length)
     await tx.insert(pmPercentLogs).values(rows.pmPercentLogs);
+  if (rows.milestoneLogs.length)
+    await tx.insert(milestoneLogs).values(rows.milestoneLogs);
   if (rows.progressClaims.length)
     await tx.insert(progressClaims).values(rows.progressClaims);
   if (rows.progressClaimLines.length)

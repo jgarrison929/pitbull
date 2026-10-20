@@ -5,8 +5,9 @@ export const changelog = [
     date: "2026-10-20",
     items: [
       "Earned value is real: units complete, weighted milestones, or PM percent with a who/why log — all enterable on screen and via the assistant.",
-      "Seed builds AC from dated labor/invoices and PV from schedule dates (no CPI/SPI back-solve). Plan submit ≠ actuals; report the day's work to post.",
-      "Units earn from exact installed/budget qty. Locking a period opens the next draft. PV advances as of today on every read.",
+      "Seed builds AC from dated labor/invoices on every job (no budget×pct plug) and PV from schedules fixed independently of progress.",
+      "Units EV uses locked claimed installed qty; live installs show as pending until the PM locks. Report day's work requires a submitted plan.",
+      "Assistant resolves job vs cost code for PM % and milestones. Milestone who/why lives on its own log.",
     ],
   },
   {

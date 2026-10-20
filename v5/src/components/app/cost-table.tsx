@@ -1,5 +1,5 @@
 import type { CostLine } from "@/lib/ev";
-import { pct, qty, rollup } from "@/lib/ev";
+import { pct, pendingInstalledQtyMilli, qty, rollup } from "@/lib/ev";
 import { cn } from "@/lib/utils";
 import { Money, Progress, StatusIndex } from "./format";
 import { varianceStatus } from "@/lib/status";
@@ -7,6 +7,29 @@ import { Td, Th } from "./page";
 
 const hot = (l: CostLine) =>
   varianceStatus(l.cpi, l.varianceCents) === "at-risk";
+
+/** Claimed installed drives the number; live above that is pending until lock. */
+function InstalledCell({ l }: { l: CostLine }) {
+  const pending = pendingInstalledQtyMilli(l);
+  const claimed =
+    l.evMethod === "units" ? l.claimedInstalledQtyMilli : l.installedQtyMilli;
+  return (
+    <div
+      className="whitespace-nowrap text-xs tabular-nums text-muted-foreground"
+      data-testid={`installed-${l.code}`}
+    >
+      <div>
+        {qty(claimed)} / {qty(l.budgetQtyMilli)} {l.unit}
+        {l.evMethod === "units" ? " claimed" : ""}
+      </div>
+      {pending > 0 && (
+        <div className="text-amber-700 dark:text-amber-400" data-testid={`pending-${l.code}`}>
+          +{qty(pending)} pending
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Budget vs earned value by cost code. A table from md up; stacked rows on phones, so nothing scrolls sideways. */
 export function CostTable({ lines }: { lines: CostLine[] }) {
@@ -48,11 +71,8 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
                   {l.earnDerivation || `${l.evMethod} method`}
                 </div>
               </Td>
-              <Td
-                right
-                className="whitespace-nowrap text-xs tabular-nums text-muted-foreground"
-              >
-                {qty(l.installedQtyMilli)} / {qty(l.budgetQtyMilli)} {l.unit}
+              <Td right>
+                <InstalledCell l={l} />
               </Td>
               <Td>
                 <div className="flex items-center gap-2">
@@ -124,10 +144,18 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
             </div>
             <div className="flex items-center gap-2">
               <Progress value={l.percent} className="flex-1" />
-              <span className="w-24 text-right text-xs tabular-nums text-muted-foreground">
+              <span className="w-28 text-right text-xs tabular-nums text-muted-foreground">
                 {pct(l.percent)} of {qty(l.budgetQtyMilli)} {l.unit}
               </span>
             </div>
+            {pendingInstalledQtyMilli(l) > 0 && (
+              <div
+                className="text-xs text-amber-700 dark:text-amber-400"
+                data-testid={`pending-${l.code}`}
+              >
+                +{qty(pendingInstalledQtyMilli(l))} {l.unit} pending lock
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div>
                 <div className="text-muted-foreground">Earned</div>

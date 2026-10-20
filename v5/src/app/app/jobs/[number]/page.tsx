@@ -138,7 +138,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
                   </button>
                 </form>
               ) : null}
-              {canReport ? (
+              {canReport && plan.status === "submitted" ? (
                 <form action={runAction}>
                   <input type="hidden" name="action" value="dailyReport.post" />
                   <input type="hidden" name="job" value={p.job.number} />
@@ -170,7 +170,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       ) : null}
       <Section
         title="Budget vs earned value by cost code"
-        meta="Each line shows how its locked earned percent was derived (units, milestones, or PM percent). CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never green."
+        meta="Earned uses the locked claim (claimed installed for units). Live installs above that show as pending until the PM locks. CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never green."
       >
         <CostTable lines={p.lines} />
       </Section>

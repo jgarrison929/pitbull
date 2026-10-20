@@ -1,6 +1,8 @@
 // Deterministic demo seed: (companyId, today) -> rows. The same function seeds CI, staging and each visitor sandbox.
 // Fictional company, people and jobs. Dates are relative to `today` so the demo never looks stale.
 // EV is built forward: cost entries → AC, schedule dates → PV, locked progress claims → EV.
+// Every material row is an explicit dated invoice — never budget×pct−labor. Schedules are fixed
+// independently of physical % so PV is not forced equal to EV.
 import { createHash } from "node:crypto";
 import type {
   companies,
@@ -10,6 +12,7 @@ import type {
   dailyPlanLines,
   dailyPlans,
   jobs,
+  milestoneLogs,
   pmPercentLogs,
   progressClaimLines,
   progressClaims,
@@ -72,12 +75,14 @@ type ItemSpec = {
   qty: number;
   budget: number; // dollars
   pct: number; // physical percent complete (drives the locked claim)
-  startAgo: number; // days before today planned work started
-  spanDays: number; // planned duration in days
+  /** Days before today planned work started — chosen independently of pct. */
+  startAgo: number;
+  /** Planned duration in days — chosen independently of pct. */
+  spanDays: number;
   mh: number; // budgeted man-hours per unit
   method?: EvMethod;
-  /** Extra material / equipment invoices. When omitted, a default material row is generated. */
-  invoices?: InvoiceSpec[];
+  /** Explicit material / equipment invoices. Required when pct > 0. */
+  invoices: InvoiceSpec[];
   /** Override crew hours; default is mh × installed qty. */
   laborHours?: number;
 };
@@ -93,9 +98,9 @@ const item = (
   pct: number,
   startAgo: number,
   spanDays: number,
-  mh = 0,
+  mh: number,
+  invoices: InvoiceSpec[],
   method?: EvMethod,
-  invoices?: InvoiceSpec[],
 ): ItemSpec => ({
   code,
   description,
@@ -137,11 +142,16 @@ type CostDraft = {
 };
 
 /**
- * Forward cost drafts: crew-day labor at DEFAULT_LABOR_RATE_CENTS plus round-dollar invoices.
- * AC is the sum of drafts — never earned÷CPI.
+ * Forward cost drafts: crew-day labor at DEFAULT_LABOR_RATE_CENTS plus dated invoices.
+ * AC is the sum of drafts — never earned÷CPI and never budget×pct−labor.
  */
 function draftCosts(s: ItemSpec, installed: number): CostDraft[] {
   if (s.pct <= 0) return [];
+  if (!s.invoices.length) {
+    throw new Error(
+      `seed: ${s.code} has progress but no invoices — refuse the AC=EV plug`,
+    );
+  }
   const drafts: CostDraft[] = [];
   const laborHours = s.laborHours ?? (s.mh > 0 ? s.mh * installed : 0);
   if (laborHours > 0) {
@@ -152,42 +162,20 @@ function draftCosts(s: ItemSpec, installed: number): CostDraft[] {
       rateCents: DEFAULT_LABOR_RATE_CENTS,
       amountCents: Math.round((hoursTenths / 10) * DEFAULT_LABOR_RATE_CENTS),
       note: "Crew labor",
-      daysAgo: Math.max(1, Math.min(s.startAgo, Math.floor(s.startAgo * 0.35) || 1)),
+      daysAgo: Math.max(
+        1,
+        Math.min(s.startAgo, Math.floor(s.startAgo * 0.35) || 1),
+      ),
     });
   }
 
-  if (s.invoices?.length) {
-    for (const inv of s.invoices) {
-      if (inv.dollars === 0) continue;
-      drafts.push({
-        kind: "other",
-        amountCents: roundDollarCents(inv.dollars),
-        note: inv.note,
-        daysAgo: Math.max(0, inv.daysAgo),
-      });
-    }
-    return drafts;
-  }
-
-  // Default material: round dollars near physical % of budget, minus any labor already posted.
-  const fairDollars = Math.round(s.budget * s.pct);
-  const laborDollars = Math.round(
-    (drafts.reduce((a, d) => a + d.amountCents, 0) || 0) / 100,
-  );
-  const materialDollars = Math.max(0, fairDollars - laborDollars);
-  if (materialDollars > 0) {
+  for (const inv of s.invoices) {
+    if (inv.dollars === 0) continue;
     drafts.push({
       kind: "other",
-      amountCents: roundDollarCents(materialDollars),
-      note: "Material / subcontract to date",
-      daysAgo: Math.max(1, Math.min(s.startAgo, Math.floor(s.startAgo * 0.5) || 1)),
-    });
-  } else if (drafts.length === 0 && fairDollars > 0) {
-    drafts.push({
-      kind: "other",
-      amountCents: roundDollarCents(fairDollars),
-      note: "Material / subcontract to date",
-      daysAgo: Math.max(1, Math.min(s.startAgo, 7)),
+      amountCents: roundDollarCents(inv.dollars),
+      note: inv.note,
+      daysAgo: Math.max(0, inv.daysAgo),
     });
   }
   return drafts;
@@ -203,12 +191,24 @@ const jobSpecs = [
     pmName: "Dana Whitfield",
     finishDays: 300,
     contract: 48_600_000,
-    // Schedule on track (startAgo/span ≈ pct); actuals near earned via default material sizing.
+    // Healthy-ish job: invoices near but not equal to earned; schedules not pct-derived.
     items: [
-      item("02-100", "Mobilization", "LS", 1, 1_900_000, 1, 150, 150),
-      item("03-200", "Roadway excavation", "CY", 182_000, 4_550_000, 0.92, 184, 200),
-      item("03-520", "Embankment in place", "CY", 240_000, 3_840_000, 0.85, 170, 200),
-      item("04-450", "Drilled shafts, 60 in", "LF", 2_600, 4_940_000, 1, 210, 210),
+      item("02-100", "Mobilization", "LS", 1, 1_900_000, 1, 160, 180, 0, [
+        { dollars: 1_120_000, note: "Yard setup & crane pad", daysAgo: 140 },
+        { dollars: 710_000, note: "Temp offices & utilities", daysAgo: 100 },
+      ]),
+      item("03-200", "Roadway excavation", "CY", 182_000, 4_550_000, 0.92, 200, 240, 0.012, [
+        { dollars: 2_400_000, note: "Mass excavate subcontract", daysAgo: 90 },
+        { dollars: 1_650_000, note: "Haul & disposal", daysAgo: 45 },
+      ]),
+      item("03-520", "Embankment in place", "CY", 240_000, 3_840_000, 0.85, 175, 220, 0.008, [
+        { dollars: 1_900_000, note: "Borrow & place", daysAgo: 80 },
+        { dollars: 1_250_000, note: "Compaction package", daysAgo: 35 },
+      ]),
+      item("04-450", "Drilled shafts, 60 in", "LF", 2_600, 4_940_000, 1, 220, 250, 0.4, [
+        { dollars: 2_800_000, note: "Shaft drill & casing", daysAgo: 120 },
+        { dollars: 1_900_000, note: "Concrete & slurry", daysAgo: 60 },
+      ]),
       item(
         "05-110",
         "Bridge substructure concrete",
@@ -216,16 +216,42 @@ const jobSpecs = [
         3_900,
         5_460_000,
         0.88,
-        176,
-        200,
+        190,
+        230,
+        1.2,
+        [
+          { dollars: 2_900_000, note: "Substructure forms", daysAgo: 100 },
+          { dollars: 1_800_000, note: "Concrete supply", daysAgo: 40 },
+        ],
       ),
-      item("05-130", "Precast girders, set", "EA", 64, 6_080_000, 0.5, 100, 200),
-      item("06-200", "Bridge deck concrete", "CY", 2_700, 3_510_000, 0.3, 60, 200),
-      item("07-300", "Storm drain, 18-48 in", "LF", 9_800, 2_940_000, 0.72, 144, 200),
-      item("08-400", "HMA paving", "TON", 41_000, 4_100_000, 0.35, 70, 200),
-      item("09-100", "Traffic control", "MO", 30, 1_380_000, 0.6, 120, 200),
-      item("09-600", "Signals & lighting", "LS", 1, 2_200_000, 0.4, 80, 200),
-      item("09-800", "Sign structures", "EA", 18, 2_300_000, 0.55, 110, 200),
+      item("05-130", "Precast girders, set", "EA", 64, 6_080_000, 0.5, 90, 220, 8, [
+        { dollars: 2_400_000, note: "Girder fabrication", daysAgo: 70 },
+        { dollars: 980_000, note: "Set & diaphragm work", daysAgo: 25 },
+      ]),
+      item("06-200", "Bridge deck concrete", "CY", 2_700, 3_510_000, 0.3, 50, 200, 1.4, [
+        { dollars: 720_000, note: "Deck forms & screed", daysAgo: 30 },
+        { dollars: 410_000, note: "Deck concrete pours", daysAgo: 12 },
+      ]),
+      item("07-300", "Storm drain, 18-48 in", "LF", 9_800, 2_940_000, 0.72, 130, 210, 0.15, [
+        { dollars: 1_450_000, note: "Pipe supply", daysAgo: 85 },
+        { dollars: 780_000, note: "Install crew subcontract", daysAgo: 40 },
+      ]),
+      item("08-400", "HMA paving", "TON", 41_000, 4_100_000, 0.35, 55, 200, 0.05, [
+        { dollars: 980_000, note: "Asphalt plant tickets", daysAgo: 28 },
+        { dollars: 520_000, note: "Paving train", daysAgo: 14 },
+      ]),
+      item("09-100", "Traffic control", "MO", 30, 1_380_000, 0.6, 100, 220, 0, [
+        { dollars: 520_000, note: "TCP devices & flagging", daysAgo: 60 },
+        { dollars: 290_000, note: "Night premium shifts", daysAgo: 25 },
+      ]),
+      item("09-600", "Signals & lighting", "LS", 1, 2_200_000, 0.4, 70, 200, 0, [
+        { dollars: 610_000, note: "Signal cabinets & poles", daysAgo: 45 },
+        { dollars: 340_000, note: "Lighting conduit", daysAgo: 20 },
+      ]),
+      item("09-800", "Sign structures", "EA", 18, 2_300_000, 0.55, 95, 210, 12, [
+        { dollars: 880_000, note: "Sign structure fab", daysAgo: 55 },
+        { dollars: 420_000, note: "Erect & foundations", daysAgo: 22 },
+      ]),
     ],
   },
   {
@@ -237,13 +263,13 @@ const jobSpecs = [
     pmName: "Marcus Lee",
     finishDays: 390,
     contract: 14_600_000,
-    // Schedule on track; generous equipment/material invoices push actuals above earned.
+    // Over cost: generous equipment/material invoices. Schedules independent of pct.
     items: [
-      item("02-100", "Mobilization", "LS", 1, 640_000, 1, 140, 140, 0, undefined, [
+      item("02-100", "Mobilization", "LS", 1, 640_000, 1, 150, 170, 0, [
         { dollars: 420_000, note: "Mobilization package — crane & yard", daysAgo: 100 },
         { dollars: 245_000, note: "Temp facilities & barges", daysAgo: 80 },
       ]),
-      item("02-220", "Clearing & grubbing", "AC", 4.2, 96_000, 1, 130, 130, 0, undefined, [
+      item("02-220", "Clearing & grubbing", "AC", 4.2, 96_000, 1, 140, 160, 0, [
         { dollars: 72_000, note: "Clearing subcontract", daysAgo: 110 },
         { dollars: 38_000, note: "Haul-off & disposal", daysAgo: 95 },
       ]),
@@ -254,10 +280,9 @@ const jobSpecs = [
         6_800,
         418_000,
         0.9,
-        180,
-        200,
+        165,
+        210,
         0,
-        undefined,
         [
           { dollars: 280_000, note: "Excavator & trucking", daysAgo: 60 },
           { dollars: 165_000, note: "Spoils disposal", daysAgo: 40 },
@@ -270,16 +295,15 @@ const jobSpecs = [
         1_440,
         3_240_000,
         0.75,
-        150,
-        200,
+        140,
+        210,
         0,
-        undefined,
         [
           { dollars: 1_850_000, note: "Shaft drill & casing", daysAgo: 70 },
           { dollars: 920_000, note: "Concrete & slurry", daysAgo: 45 },
         ],
       ),
-      item("04-110", "Footing concrete", "CY", 1_150, 1_035_000, 1, 160, 160, 0, undefined, [
+      item("04-110", "Footing concrete", "CY", 1_150, 1_035_000, 1, 170, 190, 0, [
         { dollars: 620_000, note: "Footing concrete supply", daysAgo: 90 },
         { dollars: 480_000, note: "Formwork & pump", daysAgo: 70 },
       ]),
@@ -290,10 +314,9 @@ const jobSpecs = [
         620,
         868_000,
         0.4,
-        80,
-        200,
+        95,
+        210,
         1.6,
-        undefined,
         [
           { dollars: 310_000, note: "Column forms & bracing", daysAgo: 35 },
           { dollars: 195_000, note: "Concrete supply — pier pours", daysAgo: 20 },
@@ -306,17 +329,16 @@ const jobSpecs = [
         412_000,
         906_400,
         0.45,
-        90,
-        200,
+        105,
+        210,
         0.0055,
-        undefined,
         [
           { dollars: 380_000, note: "Rebar mill delivery", daysAgo: 50 },
           { dollars: 210_000, note: "Tie wire & accessories", daysAgo: 30 },
         ],
       ),
-      item("05-120", "Precast girders, set", "EA", 28, 2_380_000, 0, 0, 180),
-      item("06-200", "Deck concrete", "CY", 1_380, 1_518_000, 0, 0, 160),
+      item("05-120", "Precast girders, set", "EA", 28, 2_380_000, 0, 0, 180, 0, []),
+      item("06-200", "Deck concrete", "CY", 1_380, 1_518_000, 0, 0, 160, 0, []),
       item(
         "07-410",
         "Cofferdam & dewatering",
@@ -324,10 +346,9 @@ const jobSpecs = [
         220,
         1_150_000,
         0.7,
-        154,
-        220,
+        130,
+        230,
         12,
-        undefined,
         [
           { dollars: 520_000, note: "Sheet pile rental", daysAgo: 80 },
           { dollars: 410_000, note: "Pump package & fuel", daysAgo: 40 },
@@ -341,10 +362,9 @@ const jobSpecs = [
         24,
         432_000,
         0.375,
-        75,
-        200,
+        85,
+        210,
         0,
-        undefined,
         [
           { dollars: 210_000, note: "TCP devices & flagging", daysAgo: 40 },
           { dollars: 95_000, note: "Night shift premium", daysAgo: 20 },
@@ -357,10 +377,9 @@ const jobSpecs = [
         1,
         214_000,
         0.45,
-        90,
-        200,
+        100,
+        210,
         0,
-        undefined,
         [
           { dollars: 145_000, note: "SWPPP install & maintenance", daysAgo: 55 },
           { dollars: 72_000, note: "Storm repair extras", daysAgo: 25 },
@@ -377,17 +396,44 @@ const jobSpecs = [
     pmName: "Priya Natarajan",
     finishDays: 160,
     contract: 9_800_000,
-    // Behind schedule: startAgo/span >> pct so PV >> earned; actuals near earned (default material).
+    // Behind schedule: calendars well ahead of physical % (PV >> EV). Dated invoices ≠ earned.
     items: [
-      item("02-100", "Mobilization", "LS", 1, 420_000, 1, 100, 100),
-      item("03-210", "Trench excavation", "CY", 21_000, 840_000, 0.9, 152, 160),
-      item("07-120", "Culvert, 72 in RCP", "LF", 1_900, 2_470_000, 0.82, 148, 160),
-      item("07-150", "Culvert lining, CIPP", "LF", 3_400, 1_700_000, 0.78, 145, 160),
-      item("07-300", "Catch basins & inlets", "EA", 46, 690_000, 0.8, 144, 160),
-      item("07-500", "Headwalls & wingwalls", "EA", 12, 960_000, 0.75, 140, 160),
-      item("08-200", "Pavement restoration", "SY", 14_000, 700_000, 0.6, 130, 160),
-      item("09-100", "Traffic control", "MO", 16, 520_000, 0.85, 145, 160),
-      item("09-500", "Erosion control & SWPPP", "LS", 1, 400_000, 0.8, 140, 160),
+      item("02-100", "Mobilization", "LS", 1, 420_000, 1, 110, 130, 0, [
+        { dollars: 250_000, note: "Mobilization — yard & trailers", daysAgo: 90 },
+        { dollars: 145_000, note: "Temp access & staging", daysAgo: 70 },
+      ]),
+      item("03-210", "Trench excavation", "CY", 21_000, 840_000, 0.9, 155, 165, 0.1, [
+        { dollars: 480_000, note: "Trench excavate & shoring", daysAgo: 50 },
+        { dollars: 220_000, note: "Spoils haul", daysAgo: 25 },
+      ]),
+      item("07-120", "Culvert, 72 in RCP", "LF", 1_900, 2_470_000, 0.82, 150, 165, 0.8, [
+        { dollars: 1_350_000, note: "RCP supply", daysAgo: 70 },
+        { dollars: 620_000, note: "Install & bedding", daysAgo: 30 },
+      ]),
+      item("07-150", "Culvert lining, CIPP", "LF", 3_400, 1_700_000, 0.78, 148, 165, 0.3, [
+        { dollars: 900_000, note: "CIPP liner material", daysAgo: 55 },
+        { dollars: 410_000, note: "Cure crew", daysAgo: 20 },
+      ]),
+      item("07-300", "Catch basins & inlets", "EA", 46, 690_000, 0.8, 145, 165, 6, [
+        { dollars: 340_000, note: "Precast basins", daysAgo: 60 },
+        { dollars: 210_000, note: "Set & connect", daysAgo: 28 },
+      ]),
+      item("07-500", "Headwalls & wingwalls", "EA", 12, 960_000, 0.75, 142, 165, 18, [
+        { dollars: 480_000, note: "Headwall forms & rebar", daysAgo: 55 },
+        { dollars: 250_000, note: "Concrete pours", daysAgo: 22 },
+      ]),
+      item("08-200", "Pavement restoration", "SY", 14_000, 700_000, 0.6, 135, 165, 0.08, [
+        { dollars: 280_000, note: "Base & binder", daysAgo: 40 },
+        { dollars: 160_000, note: "Surface course", daysAgo: 15 },
+      ]),
+      item("09-100", "Traffic control", "MO", 16, 520_000, 0.85, 140, 165, 0, [
+        { dollars: 280_000, note: "TCP devices & flagging", daysAgo: 50 },
+        { dollars: 150_000, note: "Night closures", daysAgo: 18 },
+      ]),
+      item("09-500", "Erosion control & SWPPP", "LS", 1, 400_000, 0.8, 138, 165, 0, [
+        { dollars: 210_000, note: "SWPPP install", daysAgo: 65 },
+        { dollars: 115_000, note: "Maintenance & repairs", daysAgo: 25 },
+      ]),
     ],
   },
 ];
@@ -400,6 +446,7 @@ export type SeedRows = {
   costItemMilestones: Insert<typeof costItemMilestones>[];
   costEntries: Insert<typeof costEntries>[];
   pmPercentLogs: Insert<typeof pmPercentLogs>[];
+  milestoneLogs: Insert<typeof milestoneLogs>[];
   progressClaims: Insert<typeof progressClaims>[];
   progressClaimLines: Insert<typeof progressClaimLines>[];
   dailyPlans: Insert<typeof dailyPlans>[];
@@ -428,6 +475,7 @@ export function seed(companyId: string, today: Date): SeedRows {
     costItemMilestones: [],
     costEntries: [],
     pmPercentLogs: [],
+    milestoneLogs: [],
     progressClaims: [],
     progressClaimLines: [],
     dailyPlans: [],
@@ -532,7 +580,6 @@ export function seed(companyId: string, today: Date): SeedRows {
         pmPercentMilli,
         milestones,
       });
-      // For units, snap follows installed; for others, follow the target pct via milestones/PM log.
       const claimedPercentMilli =
         method === "units" ? snap.percentMilli : targetPctMilli;
       const derivation =
@@ -555,6 +602,8 @@ export function seed(companyId: string, today: Date): SeedRows {
               }`;
 
       const costItemId = id(`cost:${j.key}:${s.code}`);
+      const claimedInstalled =
+        method === "units" ? installedMilli : 0;
       out.costItems.push({
         id: costItemId,
         companyId,
@@ -564,7 +613,8 @@ export function seed(companyId: string, today: Date): SeedRows {
         unit: s.unit,
         evMethod: method,
         budgetQtyMilli: toMilli(s.qty),
-        installedQtyMilli: method === "units" ? installedMilli : 0,
+        installedQtyMilli: claimedInstalled,
+        claimedInstalledQtyMilli: claimedInstalled,
         budgetCents,
         plannedStartOn: start,
         plannedFinishOn: finish,
@@ -595,7 +645,7 @@ export function seed(companyId: string, today: Date): SeedRows {
         claimId,
         costItemId,
         claimedPercentMilli,
-        installedQtyMilli: method === "units" ? installedMilli : 0,
+        installedQtyMilli: claimedInstalled,
         derivation,
       });
     }

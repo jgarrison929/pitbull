@@ -178,6 +178,64 @@ for (const role of ["executive", "pm", "superintendent", "foreman"]) {
   });
 }
 
+test("PM percent by cost code or job name + description", async ({ page }) => {
+  await signIn(page, "pm");
+  const rail = page.getByTestId("assistant-rail");
+
+  // Cost code alone must not be read as a job number.
+  const byCode = await ask(
+    rail,
+    "Set 08-100 to 50% complete because field walk confirmed devices",
+  );
+  await expect(byCode).toHaveAttribute("data-action", "costItem.setPmPercent");
+  await expect(byCode.getByTestId("action-summary")).toContainText(
+    /Logged PM percent on 08-100/,
+  );
+  await expect(byCode.getByTestId("action-summary")).toContainText("50%");
+
+  // Job number + description (not “Cedar Creek traffic control” only).
+  const byJob = await ask(
+    rail,
+    "Set traffic control to 55% complete on 25-031 because night shift premium",
+  );
+  await expect(byJob).toHaveAttribute("data-action", "costItem.setPmPercent");
+  await expect(byJob.getByTestId("action-summary")).toContainText(
+    /Logged PM percent on 08-100/,
+  );
+  await expect(byJob.getByTestId("action-summary")).toContainText("55%");
+});
+
+test("milestone by name on a named job, not every mobilization match", async ({
+  page,
+}) => {
+  await signIn(page, "pm");
+  const rail = page.getByTestId("assistant-rail");
+
+  const reopen = await ask(
+    rail,
+    "Mark Mobilization complete milestone open on 25-031 because punch list open",
+  );
+  await expect(reopen).toHaveAttribute("data-action", "costItem.setMilestone");
+  await expect(reopen.getByTestId("action-summary")).toContainText(
+    /Reopened milestone “Mobilization complete”/,
+  );
+  await expect(reopen.getByTestId("action-summary")).not.toContainText(
+    "Which milestone?",
+  );
+
+  const complete = await ask(
+    rail,
+    "Complete milestone Mobilization complete on Cedar Creek because punch list closed",
+  );
+  await expect(complete).toHaveAttribute(
+    "data-action",
+    "costItem.setMilestone",
+  );
+  await expect(complete.getByTestId("action-summary")).toContainText(
+    /Completed milestone “Mobilization complete”/,
+  );
+});
+
 test("a job number that isn't in the sandbox is refused, not swapped for another job", async ({
   page,
 }) => {

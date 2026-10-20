@@ -12,6 +12,7 @@ describe("status rule", () => {
       unit: "LS",
       budgetQtyMilli: 1000,
       installedQtyMilli: 1000,
+      claimedInstalledQtyMilli: 0,
       budgetCents: 64_000_000,
       plannedCents: 64_000_000,
       actualCents: 65_300_000,
@@ -74,6 +75,7 @@ describe("roll-ups equal the sum of their lines, for the seed", () => {
         costLine({
           ...c,
           claimedPercentMilli: c.claimedPercentMilli ?? 0,
+          claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
           earnDerivation: c.earnDerivation ?? "",
           evMethod: c.evMethod ?? "units",
         }),

@@ -93,17 +93,32 @@ describe("planned value", () => {
 
 describe("earned value from exact quantities", () => {
   // 290 of 620 CY on $868,000 → $406,000 exactly (not 46.8% → $406,224).
-  it("units earn from installed/budget, not 0.1% rounded percent", () => {
+  it("units earn from claimed installed/budget, not 0.1% rounded percent", () => {
     const pour = costLine({
       ...base,
       budgetQtyMilli: 620_000,
       installedQtyMilli: 290_000,
+      claimedInstalledQtyMilli: 290_000,
       budgetCents: 86_800_000,
       plannedCents: 86_800_000,
       actualCents: 40_000_000,
       claimedPercentMilli: 468, // would wrongly yield $406,224 if used alone
     });
     expect(pour.earnedCents).toBe(40_600_000);
+  });
+
+  it("live installed above the claim does not raise earned until lock", () => {
+    const pour = costLine({
+      ...base,
+      budgetQtyMilli: 620_000,
+      installedQtyMilli: 290_000, // live after report
+      claimedInstalledQtyMilli: 248_000, // still Period 1 lock
+      budgetCents: 86_800_000,
+      plannedCents: 34_720_000,
+      actualCents: 53_872_800,
+      claimedPercentMilli: 400,
+    });
+    expect(pour.earnedCents).toBe(34_720_000);
   });
 });
 
@@ -113,6 +128,7 @@ describe("earned value from locked claim percent", () => {
     ...base,
     budgetQtyMilli: 1_000_000,
     installedQtyMilli: 600_000,
+    claimedInstalledQtyMilli: 600_000,
     budgetCents: 10_000_000,
     plannedCents: 5_000_000,
     actualCents: 7_500_000,
@@ -122,6 +138,7 @@ describe("earned value from locked claim percent", () => {
     ...base,
     budgetQtyMilli: 2_000,
     installedQtyMilli: 0,
+    claimedInstalledQtyMilli: 0,
     budgetCents: 4_000_000,
     plannedCents: 0,
     actualCents: 0,

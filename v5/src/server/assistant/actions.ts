@@ -388,10 +388,17 @@ export const actions: Record<ActionName, ActionDef> = {
       const found = await resolvePlan(user, job);
       if (!found) return { summary: "There is no crew plan to report against." };
       const { plan, job: j } = found;
+      if (plan.status !== "submitted")
+        return {
+          summary: `Submit ${plan.crew}'s plan first — I won't report against a draft. Edit the lines to the foreman's actual numbers, submit, then report.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      // Posts the current plan-line numbers (foreman edits), not a blind copy of seed defaults.
       await postDailyReport(user.companyId, plan.id);
       const mh = plan.lines.reduce((s, l) => s + l.manHours, 0);
       return {
-        summary: `Reported ${plan.crew}'s work on ${j.job.shortName} (${day(plan.planDate)}): ${mh} man-hours posted to actuals; quantities posted to installed.`,
+        summary: `Reported ${plan.crew}'s work on ${j.job.shortName} (${day(plan.planDate)}): ${mh} man-hours posted to actuals; quantities posted to installed (pending until the PM locks).`,
         href: jobHref(j),
         job: j.job.number,
       };
@@ -470,10 +477,14 @@ export const actions: Record<ActionName, ActionDef> = {
   "costItem.setMilestone": {
     title: "Set a milestone complete",
     roles: ["pm", "superintendent", "executive"],
-    async run(user, { job, milestoneId, lineRef, complete, reason }) {
+    async run(user, { job, milestoneId, costCode, lineRef, complete, reason }) {
       let id = milestoneId;
       if (!id) {
-        const found = await resolveMilestone(user, { job, lineRef });
+        const found = await resolveMilestone(user, {
+          job,
+          costCode,
+          lineRef,
+        });
         if ("summary" in found) return found;
         id = found.id;
       }
@@ -512,6 +523,7 @@ async function resolveCostItem(
         code: costItems.code,
         jobNumber: jobs.number,
         method: costItems.evMethod,
+        description: costItems.description,
       })
       .from(costItems)
       .innerJoin(jobs, eq(jobs.id, costItems.jobId))
@@ -528,10 +540,13 @@ async function resolveCostItem(
       };
     return row;
   }
+  // Prefer an explicit costCode; never treat the job number as the cost code.
+  const jobNumber = opts.job;
   const code =
     opts.costCode ??
-    opts.lineRef?.match(/\b(\d{2}-\d{3})\b/)?.[1] ??
-    undefined;
+    [...(opts.lineRef ?? "").matchAll(/\b(\d{2}-\d{3})\b/g)]
+      .map((m) => m[1])
+      .find((c) => c !== jobNumber);
   const j = opts.job ? await resolveJob(user, opts.job) : undefined;
   const rows = await db
     .select({
@@ -547,30 +562,40 @@ async function resolveCostItem(
       and(
         eq(costItems.companyId, user.companyId),
         j ? eq(costItems.jobId, j.job.id) : undefined,
-        opts.method ? eq(costItems.evMethod, opts.method as "pm_percent") : undefined,
+        opts.method
+          ? eq(costItems.evMethod, opts.method as "pm_percent")
+          : undefined,
       ),
     );
   const match = code
     ? rows.filter((r) => r.code === code)
-    : rows.filter((r) =>
-        (opts.lineRef ?? "")
-          .toLowerCase()
-          .includes(r.description.toLowerCase().split(/\s+/)[0] ?? ""),
-      );
+    : rows.filter((r) => {
+        const desc = r.description.toLowerCase();
+        const ref = (opts.lineRef ?? "").toLowerCase();
+        // Prefer a multi-word description match (e.g. "traffic control").
+        return (
+          ref.includes(desc) ||
+          desc
+            .split(/\s+/)
+            .filter((w) => w.length > 3)
+            .every((w) => ref.includes(w))
+        );
+      });
+  // Without a job, a cost-code match across jobs still needs disambiguation.
   if (match.length === 1) return match[0];
   if (match.length > 1)
     return {
-      summary: `Which cost code? ${match.map((m) => m.code).join(", ")}.`,
+      summary: `Which cost code? ${match.map((m) => `${m.code} on ${m.jobNumber}`).join(", ")}.`,
     };
   return {
     summary:
-      "Which cost code should I update? Name the code (for example 08-100).",
+      "Which cost code should I update? Name the code (for example 08-100) and the job.",
   };
 }
 
 async function resolveMilestone(
   user: CurrentUser,
-  opts: { job?: string; lineRef?: string },
+  opts: { job?: string; costCode?: string; lineRef?: string },
 ) {
   const db = requireDb();
   const j = opts.job ? await resolveJob(user, opts.job) : undefined;
@@ -587,21 +612,30 @@ async function resolveMilestone(
       and(
         eq(costItemMilestones.companyId, user.companyId),
         j ? eq(costItems.jobId, j.job.id) : undefined,
+        opts.costCode ? eq(costItems.code, opts.costCode) : undefined,
       ),
     );
   const ref = (opts.lineRef ?? "").toLowerCase();
-  const match = rows.filter(
-    (r) =>
-      ref.includes(r.name.toLowerCase()) ||
-      ref.includes(r.code) ||
-      (ref.includes("mobilization") && r.name.toLowerCase().includes("mobilization")),
-  );
-  if (match.length === 1) return match[0];
-  if (match.length > 1)
+  // Prefer the longest milestone name contained in the prompt so
+  // "Mobilization complete" wins over "Mobilization in".
+  const named = rows
+    .filter((r) => ref.includes(r.name.toLowerCase()))
+    .sort((a, b) => b.name.length - a.name.length);
+  if (named.length >= 1) {
+    const best = named[0].name.toLowerCase();
+    const exact = named.filter((r) => r.name.toLowerCase() === best);
+    if (exact.length === 1) return exact[0];
+  }
+  const byCode = opts.costCode
+    ? rows.filter((r) => r.code === opts.costCode)
+    : [];
+  if (byCode.length === 1) return byCode[0];
+  if (rows.length === 1) return rows[0];
+  if (rows.length > 1)
     return {
-      summary: `Which milestone? ${match.map((m) => `${m.code} ${m.name}`).join("; ")}.`,
+      summary: `Which milestone? ${rows.map((m) => `${m.code} ${m.name}`).join("; ")}.`,
     };
-  return { summary: "Which milestone should I mark? Name it." };
+  return { summary: "Which milestone should I mark? Name it and the job." };
 }
 
 export const isActionName = (s: unknown): s is ActionName =>

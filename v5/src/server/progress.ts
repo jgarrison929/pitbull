@@ -7,6 +7,7 @@ import {
   costItemMilestones,
   costItems,
   dailyPlanLines,
+  milestoneLogs,
   pmPercentLogs,
   progressClaimLines,
   progressClaims,
@@ -267,6 +268,8 @@ export async function lockProgressClaim(
         .update(costItems)
         .set({
           claimedPercentMilli: snap.percentMilli,
+          claimedInstalledQtyMilli:
+            item.evMethod === "units" ? item.installedQtyMilli : 0,
           earnDerivation: lockedDerivation,
           plannedCents: plannedValueCents(
             item.budgetCents,
@@ -378,7 +381,7 @@ export async function setPmPercent(
   };
 }
 
-/** Set a milestone complete/open and record who/why on the item's log. */
+/** Set a milestone complete/open and record who/why on its own milestone_logs row. */
 export async function setMilestoneComplete(
   companyId: string,
   milestoneId: string,
@@ -408,15 +411,15 @@ export async function setMilestoneComplete(
     .set({ complete })
     .where(eq(costItemMilestones.id, milestoneId));
   const why =
-    (reason?.trim() ||
-      (complete ? "Marked complete" : "Marked incomplete")) +
-    ` (${complete ? "complete" : "open"}: ${row.ms.name})`;
-  await db.insert(pmPercentLogs).values({
+    reason?.trim() ||
+    (complete ? "Marked complete" : "Marked incomplete");
+  await db.insert(milestoneLogs).values({
     id: randomUUID(),
     companyId,
+    milestoneId,
     costItemId: row.item.id,
     userId,
-    percentMilli: 0,
+    complete,
     reason: why,
     at: new Date(),
   });
