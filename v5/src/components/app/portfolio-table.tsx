@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { pct } from "@/lib/ev";
 import type { PortfolioJob } from "@/server/data";
-import { HealthPill, IndexValue, Money, Progress } from "./format";
+import { Money, Progress, StatusIndex, StatusPill } from "./format";
 import { Td, Th } from "./page";
 
 export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
@@ -13,9 +13,8 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
             <Th>Job</Th>
             <Th right>Contract</Th>
             <Th>Complete</Th>
-            <Th right>Cost var.</Th>
-            <Th right>CPI</Th>
-            <Th right>SPI</Th>
+            <Th right>CPI · cost var.</Th>
+            <Th right>SPI · sched. var.</Th>
             <Th right>EAC</Th>
             <Th>Status</Th>
           </tr>
@@ -48,19 +47,22 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
                 </div>
               </Td>
               <Td right>
-                <Money cents={p.costVarianceCents} signed />
+                <StatusIndex
+                  index={p.cpi}
+                  varianceCents={p.costVarianceCents}
+                />
               </Td>
               <Td right>
-                <IndexValue value={p.cpi} />
-              </Td>
-              <Td right>
-                <IndexValue value={p.spi} />
+                <StatusIndex
+                  index={p.spi}
+                  varianceCents={p.scheduleVarianceCents}
+                />
               </Td>
               <Td right>
                 <Money cents={p.eacCents} />
               </Td>
               <Td>
-                <HealthPill value={p.status} />
+                <StatusPill value={p.status} />
               </Td>
             </tr>
           ))}
@@ -80,24 +82,26 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
                     {p.job.number} · PM {p.job.pmName}
                   </div>
                 </div>
-                <HealthPill value={p.status} />
+                <StatusPill value={p.status} />
               </div>
-              <div className="grid grid-cols-4 gap-2 text-xs">
+              <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <div className="text-muted-foreground">Done</div>
                   {pct(p.percent)}
                 </div>
                 <div>
                   <div className="text-muted-foreground">CPI</div>
-                  <IndexValue value={p.cpi} />
+                  <StatusIndex
+                    index={p.cpi}
+                    varianceCents={p.costVarianceCents}
+                  />
                 </div>
                 <div>
                   <div className="text-muted-foreground">SPI</div>
-                  <IndexValue value={p.spi} />
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Cost var.</div>
-                  <Money cents={p.costVarianceCents} signed />
+                  <StatusIndex
+                    index={p.spi}
+                    varianceCents={p.scheduleVarianceCents}
+                  />
                 </div>
               </div>
             </Link>

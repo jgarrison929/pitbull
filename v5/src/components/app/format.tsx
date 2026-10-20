@@ -1,54 +1,90 @@
 import { cn } from "@/lib/utils";
-import { idx, usdShort, type Health } from "@/lib/ev";
+import { idx, usdShort } from "@/lib/ev";
+import { varianceStatus, type Status } from "@/lib/status";
 
-const healthStyle: Record<
-  Health,
-  { label: string; tone: string; dot: string }
+const statusStyle: Record<
+  Status,
+  { label: string; tone: string; text: string; dot: string }
 > = {
   "on-track": {
     label: "On track",
     tone: "bg-positive-soft text-positive",
+    text: "text-positive",
     dot: "bg-positive",
   },
   watch: {
     label: "Watch",
     tone: "bg-caution-soft text-caution",
+    text: "text-caution",
     dot: "bg-caution",
   },
   "at-risk": {
     label: "At risk",
     tone: "bg-negative-soft text-negative",
+    text: "text-negative",
     dot: "bg-negative",
   },
 };
 
-export function HealthPill({ value }: { value: Health }) {
-  const s = healthStyle[value];
+/** A job's status. The dollar variance sits next to the color whenever it is known. */
+export function StatusPill({
+  value,
+  varianceCents,
+}: {
+  value: Status;
+  varianceCents?: number;
+}) {
+  const s = statusStyle[value];
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium",
         s.tone,
       )}
+      data-status={value}
     >
       <span className={cn("size-1.5 rounded-full", s.dot)} />
       {s.label}
+      {varianceCents !== undefined && (
+        <span className="tabular-nums">· {signedUsd(varianceCents)}</span>
+      )}
     </span>
   );
 }
 
-const indexTone = (v: number | null) =>
-  v === null
-    ? "text-muted-foreground"
-    : v >= 0.98
-      ? "text-positive"
-      : v >= 0.93
-        ? "text-caution"
-        : "text-negative";
+const signedUsd = (cents: number) =>
+  `${cents > 0 ? "+" : ""}${usdShort(cents)}`;
 
-export function IndexValue({ value }: { value: number | null }) {
+/**
+ * CPI with cost variance, or SPI with schedule variance, colored by the shared status rule.
+ * The dollar figure is always shown, so a color never stands alone.
+ */
+export function StatusIndex({
+  index,
+  varianceCents,
+  testId,
+}: {
+  index: number | null;
+  varianceCents: number;
+  testId?: string;
+}) {
+  const s = varianceStatus(index, varianceCents);
   return (
-    <span className={cn("tabular-nums", indexTone(value))}>{idx(value)}</span>
+    <span
+      className={cn(
+        "inline-flex items-baseline gap-1.5 whitespace-nowrap tabular-nums",
+        s ? statusStyle[s].text : "text-muted-foreground",
+      )}
+      data-status={s ?? "none"}
+      data-testid={testId}
+    >
+      <span data-testid={testId ? `${testId}-index` : undefined}>
+        {idx(index)}
+      </span>
+      <span className="text-[0.85em] font-normal">
+        {signedUsd(varianceCents)}
+      </span>
+    </span>
   );
 }
 

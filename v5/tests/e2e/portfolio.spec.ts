@@ -19,7 +19,7 @@ test("portfolio reads the visitor's sandbox from Postgres", async ({
   ]) {
     await expect(table.getByRole("link", { name })).toBeVisible();
   }
-  await expect(page.getByTestId("kpi-cpi")).toHaveText(/^\d\.\d\d$/);
+  await expect(page.getByTestId("kpi-cpi")).toHaveText(/^\d\.\d\d[+−]\$/);
   await expect(page.getByTestId("data-source")).toContainText(
     "Live from Postgres",
   );
@@ -37,7 +37,7 @@ test("job page shows budget vs earned value by cost code and tomorrow's plan", a
   await expect(page.getByTestId("cost-table").locator("tbody tr")).toHaveCount(
     12,
   );
-  await expect(page.getByTestId("job-cpi")).toHaveText("0.91");
+  await expect(page.getByTestId("job-cpi")).toHaveText(/^0\.91−\$644K$/);
   await expect(page.getByTestId("plan-card")).toContainText("Bridge Crew 2");
 });
 
@@ -60,9 +60,25 @@ test("on a phone the cost codes stack and nothing scrolls sideways", async ({
   await page.close();
 });
 
-test("an unknown job shows not-found, not someone else's data", async ({ page }) => {
+test("an unknown job shows not-found, not someone else's data", async ({
+  page,
+}) => {
   await signIn(page);
   await page.goto("/app/jobs/99-999");
   await expect(page.getByText("This page could not be found")).toBeVisible();
   await expect(page.getByTestId("cost-table")).toHaveCount(0);
+});
+
+test("a cost overrun is never green: Mobilization at CPI 0.98 and −$13K shows amber", async ({
+  page,
+}) => {
+  await signIn(page, "pm");
+  await page.goto("/app/jobs/25-031");
+  const mob = page
+    .getByTestId("cost-table")
+    .locator("tbody tr")
+    .filter({ hasText: "Mobilization" });
+  const cell = mob.locator("[data-status]");
+  await expect(cell).toHaveAttribute("data-status", "watch");
+  await expect(cell).toHaveText("0.98−$13K");
 });

@@ -142,7 +142,7 @@ async function flows(browser) {
     sandbox = (await page.getByTestId("sandbox-id").textContent())?.trim();
     const rows = await page.getByTestId("portfolio-table").getByTestId("job-link").filter({ visible: true }).count();
     const cpi = (await page.getByTestId("kpi-cpi").textContent())?.trim();
-    const ok = source.includes("Live from Postgres") && source.includes(sandbox) && rows === 3 && /^\d\.\d\d$/.test(cpi);
+    const ok = source.includes("Live from Postgres") && source.includes(sandbox) && rows === 3 && /^\d\.\d\d[+−]\$/.test(cpi);
     check("portfolio loads from Postgres", ok, `${rows} jobs, CPI ${cpi}, "${source.trim()}"`);
     await shot(page, "portfolio-desktop");
   });
