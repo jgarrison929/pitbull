@@ -1,9 +1,16 @@
 import "server-only";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { requireDb } from "@/db";
-import { actionRuns, dailyPlans, jobs, users } from "@/db/schema";
+import {
+  actionRuns,
+  dailyPlanLines,
+  dailyPlans,
+  jobs,
+  users,
+} from "@/db/schema";
 import type { ActionName, JobArgs } from "@/lib/assistant/route";
-import { usdShort } from "@/lib/ev";
+import { qty, usdShort } from "@/lib/ev";
+import { applyLineInput, manHoursOf, type LineValues } from "@/lib/plan-line";
 import { getPlansForJob, getPortfolio, type PortfolioJob } from "@/server/data";
 import type { CurrentUser, Role } from "@/server/session";
 
@@ -11,7 +18,14 @@ import type { CurrentUser, Role } from "@/server/session";
 // through one path, is checked against the role, and is written to action_runs.
 
 /** job is the job number the action acted on, whether the request named it or the action picked it. */
-export type ActionResult = { summary: string; href?: string; job?: string };
+export type ActionResult = {
+  summary: string;
+  href?: string;
+  job?: string;
+  /** dailyPlan.updateLine: the cost code of the line it changed, and field errors for forms. */
+  line?: string;
+  errors?: Record<string, string>;
+};
 
 type ActionDef = {
   title: string;
@@ -80,6 +94,111 @@ async function resolvePlan(user: CurrentUser, number?: string) {
 
 const jobHref = (j: PortfolioJob) => `/app/jobs/${j.job.number}`;
 
+type Plan = NonNullable<Awaited<ReturnType<typeof resolvePlan>>>["plan"];
+type Line = Plan["lines"][number];
+
+const STOP = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "lift",
+  "pier",
+  "check",
+  "watch",
+]);
+const words = (s: string) =>
+  s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !STOP.has(w));
+
+/**
+ * Which line a sentence means: a cost code in it, else the line whose activity or cost item
+ * shares the most words with it ("the pour" → 04-210 Pour Pier 3 column). Ties and misses ask.
+ */
+export function matchLine(
+  lines: Line[],
+  ref: string,
+): { line: Line } | { ask: string } {
+  const byCode = lines.filter((l) => ref.includes(l.code));
+  if (byCode.length === 1) return { line: byCode[0] };
+  const said = new Set(words(ref));
+  const scored = lines
+    .map((l) => ({
+      l,
+      score: [...new Set(words(`${l.activity} ${l.description}`))].filter((w) =>
+        said.has(w),
+      ).length,
+    }))
+    .sort((a, b) => b.score - a.score);
+  const best = scored[0];
+  if (
+    best &&
+    best.score > 0 &&
+    scored.filter((s) => s.score === best.score).length === 1
+  )
+    return { line: best.l };
+  const options = (
+    best?.score ? scored.filter((s) => s.score === best.score) : scored
+  ).map((s) => `${s.l.code} ${s.l.activity}`);
+  return { ask: `Which line do you mean? ${options.join("; ")}.` };
+}
+
+async function findLineById(user: CurrentUser, lineId: string) {
+  const [row] = await requireDb()
+    .select({ planId: dailyPlanLines.planId, jobId: dailyPlans.jobId })
+    .from(dailyPlanLines)
+    .innerJoin(dailyPlans, eq(dailyPlans.id, dailyPlanLines.planId))
+    .where(
+      and(
+        eq(dailyPlanLines.id, lineId),
+        eq(dailyPlanLines.companyId, user.companyId),
+      ),
+    )
+    .limit(1);
+  if (!row) return null;
+  const job = (await getPortfolio(user.companyId)).jobs.find(
+    (j) => j.job.id === row.jobId,
+  )!;
+  const plan = (await getPlansForJob(user.companyId, job.job.id)).find(
+    (p) => p.id === row.planId,
+  )!;
+  return { job, plan, line: plan.lines.find((l) => l.id === lineId)! };
+}
+
+function describeChange(
+  before: Line,
+  after: LineValues,
+  unit: string,
+  code: string,
+) {
+  const out: string[] = [];
+  if (after.costItemId !== before.costItemId)
+    out.push(`cost code ${before.code} → ${code}`);
+  const mhBefore = manHoursOf(before);
+  const mhAfter = manHoursOf(after);
+  if (
+    mhAfter !== mhBefore ||
+    after.workers !== before.workers ||
+    after.hoursTenths !== before.hoursTenths
+  )
+    out.push(
+      `man-hours ${mhBefore} → ${mhAfter} (${after.workers} workers × ${after.hoursTenths / 10} h)`,
+    );
+  if (after.qtyMilli !== before.qtyMilli)
+    out.push(
+      `quantity ${qty(before.qtyMilli)} → ${qty(after.qtyMilli)} ${unit}`,
+    );
+  if (after.activity !== before.activity)
+    out.push(`activity "${after.activity}"`);
+  if (after.location !== before.location)
+    out.push(`location "${after.location}"`);
+  if (after.notes !== before.notes)
+    out.push(after.notes ? `note "${after.notes}"` : "note cleared");
+  return out;
+}
+
 export const actions: Record<ActionName, ActionDef> = {
   "portfolio.summary": {
     title: "Portfolio summary",
@@ -145,6 +264,84 @@ export const actions: Record<ActionName, ActionDef> = {
       };
     },
   },
+  "dailyPlan.updateLine": {
+    title: "Change a plan line",
+    roles: ["foreman", "superintendent"],
+    async run(user, { job, lineId, lineRef, change }) {
+      if (!change)
+        return {
+          summary:
+            "What should change? Say a number with its unit, like 80 man-hours.",
+        };
+      let found: { job: PortfolioJob; plan: Plan; line: Line } | null = null;
+      if (lineId) {
+        found = await findLineById(user, lineId);
+        if (!found)
+          return {
+            summary: "That plan line isn't in this sandbox.",
+            errors: { form: "That plan line isn't in this sandbox." },
+          };
+      } else {
+        const p = await resolvePlan(user, job);
+        if (!p) return { summary: "There is no crew plan to change." };
+        const m = matchLine(p.plan.lines, lineRef ?? "");
+        if ("ask" in m)
+          return {
+            summary: m.ask,
+            href: jobHref(p.job),
+            job: p.job.job.number,
+          };
+        found = { ...p, line: m.line };
+      }
+      const { job: j, plan, line } = found;
+      const where = { href: jobHref(j), job: j.job.number, line: line.code };
+      if (plan.status !== "draft") {
+        const msg = `${plan.crew}'s plan for ${day(plan.planDate)} is submitted, so its lines are locked.`;
+        return { summary: msg, errors: { form: msg }, ...where };
+      }
+      const result = applyLineInput(
+        {
+          costItemId: line.costItemId,
+          activity: line.activity,
+          location: line.location,
+          qtyMilli: line.qtyMilli,
+          workers: line.workers,
+          hoursTenths: line.hoursTenths,
+          notes: line.notes,
+        },
+        change,
+        j.lines.map((l) => l.id),
+      );
+      if (result.errors)
+        return {
+          summary: `Not changed. ${Object.values(result.errors).join(" ")}`,
+          errors: result.errors,
+          ...where,
+        };
+      const v = result.values;
+      const item = j.lines.find((l) => l.id === v.costItemId)!;
+      const changes = describeChange(line, v, item.unit, item.code);
+      if (!changes.length)
+        return {
+          summary: `${line.code} ${line.activity} already has those values.`,
+          ...where,
+        };
+      await requireDb()
+        .update(dailyPlanLines)
+        .set(v)
+        .where(
+          and(
+            eq(dailyPlanLines.id, line.id),
+            eq(dailyPlanLines.companyId, user.companyId),
+          ),
+        );
+      return {
+        summary: `Changed ${item.code} ${v.activity} on ${plan.crew}'s plan: ${changes.join("; ")}.`,
+        ...where,
+        line: item.code,
+      };
+    },
+  },
   "dailyPlan.submit": {
     title: "Submit a crew plan",
     roles: ["foreman", "superintendent"],
@@ -183,6 +380,8 @@ export const isActionName = (s: unknown): s is ActionName =>
 export type RunArgs = {
   requested: string | null;
   job: string | null;
+  /** Cost code of the plan line an edit touched. */
+  line?: string;
   href?: string;
 };
 
@@ -223,21 +422,33 @@ export async function run(
       args: {
         requested: args.job ?? null,
         job: result.job ?? null,
+        ...(result.line ? { line: result.line } : {}),
         ...(result.href ? { href: result.href } : {}),
       } satisfies RunArgs,
       summary: result.summary,
     })
     .returning();
-  return row;
+  return { ...row, result };
 }
 
-/** The latest runs in this sandbox, oldest first, for the assistant transcript. */
-export async function recentRuns(companyId: string, limit = 30) {
+/**
+ * One person's conversation: their latest runs, oldest first. Filtered here on the server by
+ * the signed-in user, so switching roles starts fresh and nothing leaks through a reload.
+ */
+export async function recentRuns(
+  user: Pick<CurrentUser, "companyId" | "userId">,
+  limit = 30,
+) {
   const rows = await requireDb()
     .select({ run: actionRuns, userName: users.name, role: users.role })
     .from(actionRuns)
     .innerJoin(users, eq(users.id, actionRuns.userId))
-    .where(eq(actionRuns.companyId, companyId))
+    .where(
+      and(
+        eq(actionRuns.companyId, user.companyId),
+        eq(actionRuns.userId, user.userId),
+      ),
+    )
     .orderBy(desc(actionRuns.createdAt))
     .limit(limit);
   return rows.reverse().map(({ run, userName, role }) => ({
@@ -252,3 +463,37 @@ export async function recentRuns(companyId: string, limit = 30) {
   }));
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
+
+const WRITES: ActionName[] = ["dailyPlan.updateLine", "dailyPlan.submit"];
+
+/** The audit trail for one job: every change anyone in this sandbox made, newest first. */
+export async function jobChanges(
+  companyId: string,
+  jobNumber: string,
+  limit = 20,
+) {
+  const rows = await requireDb()
+    .select({ run: actionRuns, userName: users.name, role: users.role })
+    .from(actionRuns)
+    .innerJoin(users, eq(users.id, actionRuns.userId))
+    .where(
+      and(
+        eq(actionRuns.companyId, companyId),
+        sql`${actionRuns.args}->>'job' = ${jobNumber}`,
+        sql`${actionRuns.action} in (${sql.join(
+          WRITES.map((w) => sql`${w}`),
+          sql`, `,
+        )})`,
+      ),
+    )
+    .orderBy(desc(actionRuns.createdAt))
+    .limit(limit);
+  return rows.map(({ run, userName, role }) => ({
+    id: run.id,
+    action: run.action,
+    summary: run.summary,
+    createdAt: run.createdAt.toISOString(),
+    userName,
+    role,
+  }));
+}

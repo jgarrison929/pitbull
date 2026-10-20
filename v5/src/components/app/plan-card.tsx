@@ -1,4 +1,6 @@
 import type { getPlansForJob } from "@/server/data";
+import { PlanLineEditor } from "@/components/app/plan-line-editor";
+import type { Option } from "@/components/form/form";
 import { qty } from "@/lib/ev";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +18,12 @@ const day = (iso: string) =>
 export function PlanCard({
   plan,
   actions,
+  costItems,
 }: {
   plan: Plan;
   actions?: React.ReactNode;
+  /** This job's cost items. Pass them only when the viewer may edit this plan's lines. */
+  costItems?: (Option & { unit: string })[];
 }) {
   const manHours = plan.lines.reduce((s, l) => s + l.manHours, 0);
   const draft = plan.status === "draft";
@@ -52,52 +57,88 @@ export function PlanCard({
         {plan.lines.map((l) => (
           <li
             key={l.id}
-            className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 py-2.5 text-sm"
+            className="py-2.5 text-sm"
+            data-testid="plan-line"
+            data-code={l.code}
           >
-            <div className="min-w-0">
-              <div className="font-medium">
-                <span className="mr-2 font-mono text-xs text-muted-foreground">
-                  {l.code}
-                </span>
-                {l.activity}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {l.location} · {l.description}
-              </div>
-            </div>
-            <div className="text-right tabular-nums">
-              {qty(l.qtyMilli)} {l.unit}
-            </div>
-            <div className="col-span-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-              <span>
-                {l.workers} {l.workers === 1 ? "worker" : "workers"} ×{" "}
-                {l.hoursTenths / 10} h ={" "}
-                <span className="font-medium text-foreground">
-                  {l.manHours} MH
-                </span>
-              </span>
-              <span
-                className={l.withinRate ? "text-positive" : "text-negative"}
-              >
-                {l.withinRate ? "Within" : "Over"} budget rate (
-                {l.plannedRate.toPrecision(2)} vs {l.budgetRate} MH/{l.unit})
-              </span>
-            </div>
+            {costItems && draft ? (
+              <PlanLineEditor line={l} costItems={costItems}>
+                <LineView l={l} />
+              </PlanLineEditor>
+            ) : (
+              <LineView l={l} />
+            )}
           </li>
         ))}
       </ul>
-      <footer className="flex flex-wrap items-center gap-2 border-t px-4 py-3 text-xs">
-        {plan.equipment.map((e) => (
-          <span
-            key={e.name}
-            className="rounded-md border bg-background px-2 py-1"
-          >
-            {e.name} <span className="text-muted-foreground">{e.hours} h</span>
-          </span>
-        ))}
-        <span className="font-medium tabular-nums">{manHours} MH</span>
-        {actions && <div className="ml-auto flex gap-2">{actions}</div>}
-      </footer>
+      <Footer plan={plan} manHours={manHours} actions={actions} />
     </section>
+  );
+}
+
+function LineView({ l }: { l: Plan["lines"][number] }) {
+  return (
+    <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+      <div className="min-w-0">
+        <div className="font-medium">
+          <span className="mr-2 font-mono text-xs text-muted-foreground">
+            {l.code}
+          </span>
+          {l.activity}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {l.location} · {l.description}
+        </div>
+      </div>
+      <div className="text-right tabular-nums">
+        {qty(l.qtyMilli)} {l.unit}
+      </div>
+      <div className="col-span-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+        <span>
+          {l.workers} {l.workers === 1 ? "worker" : "workers"} ×{" "}
+          {l.hoursTenths / 10} h ={" "}
+          <span className="font-medium text-foreground">
+            <span data-testid="line-mh">{l.manHours}</span> MH
+          </span>
+        </span>
+        <span className={l.withinRate ? "text-positive" : "text-negative"}>
+          {l.withinRate ? "Within" : "Over"} budget rate (
+          {l.plannedRate.toPrecision(2)} vs {l.budgetRate} MH/{l.unit})
+        </span>
+      </div>
+      {l.notes && (
+        <p
+          className="col-span-2 text-xs text-muted-foreground"
+          data-testid="line-notes"
+        >
+          Note: {l.notes}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Footer({
+  plan,
+  manHours,
+  actions,
+}: {
+  plan: Plan;
+  manHours: number;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <footer className="flex flex-wrap items-center gap-2 border-t px-4 py-3 text-xs">
+      {plan.equipment.map((e) => (
+        <span
+          key={e.name}
+          className="rounded-md border bg-background px-2 py-1"
+        >
+          {e.name} <span className="text-muted-foreground">{e.hours} h</span>
+        </span>
+      ))}
+      <span className="font-medium tabular-nums">{manHours} MH</span>
+      {actions && <div className="ml-auto flex gap-2">{actions}</div>}
+    </footer>
   );
 }
