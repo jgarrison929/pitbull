@@ -1,6 +1,6 @@
 ---
 name: verify-v5
-description: Prove a deployed Pitbull v5 app serves the expected commit with a healthy database and that the real flows work. Checks /health and /status, then logs in with a role card, confirms the portfolio reads Postgres, runs one assistant action, resets the sandbox, and checks the phone views. Saves JSON and desktop and mobile screenshots as evidence. Use after a v5 merge to confirm staging deployed it, or against a local `npm start`. Works on macOS, Linux and Windows.
+description: Prove a deployed Pitbull v5 app serves the expected commit with a healthy database and that the real flows work. Checks /health and /status, then logs in with a role card, confirms the portfolio reads Postgres, runs one assistant action, edits a plan line on screen and through the assistant, checks that switching roles starts a fresh chat, resets the sandbox, and checks the phone views. Saves JSON and desktop and mobile screenshots as evidence. Use after a v5 merge to confirm staging deployed it, or against a local `npm start`. Works on macOS, Linux and Windows.
 ---
 
 # Verify v5
@@ -16,6 +16,9 @@ One command proves a v5 deployment. It passes only when every check below passes
 | sandbox reset reseeds | As the foreman, "Submit tomorrow's plan" submits the Cedar Creek plan. Reset demo then brings it back to draft, changes the seeded time, clears the transcript, and keeps the same sandbox id. |
 | signed out, /app redirects to /login | A browser with no session asking for a job page lands on `/login`. |
 | an unknown job number is refused | Right after the reset, "Submit the plan for 99-999" is refused by name and Cedar Creek's draft stays a draft. |
+| pour 60 → 80 on screen | As the foreman, editing the 04-210 pour line to 80 man-hours saves it, a reload still shows 80, and the run is logged as `dailyPlan.updateLine` with "man-hours 60 → 80". |
+| pour 60 → 80 through the assistant | After a reset, "Change the pour to 80 man-hours" in the rail runs `dailyPlan.updateLine`, and a reload of the job page shows 80. |
+| switching roles starts a fresh chat | Signed in as the PM, the rail shows none of the foreman's runs, the job's "Changes" list still shows Luis Ortega's edit, and back as the foreman the run is still there. |
 | phone: foreman lands on chat | At 390px the foreman starts in the chat view and "Show tomorrow's plan" runs `dailyPlan.show`. |
 | phone: cost codes do not scroll sideways | At 390px the job page shows the stacked cost list and the page is no wider than the screen. |
 
