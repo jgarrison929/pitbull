@@ -116,6 +116,15 @@ async function flows(browser) {
   };
   const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 
+  await step("signed out, /app redirects to /login", async () => {
+    const anon = await browser.newContext();
+    const p = await anon.newPage();
+    await p.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
+    const where = new URL(p.url()).pathname;
+    check("signed out, /app redirects to /login", where === "/login", p.url());
+    await anon.close();
+  });
+
   const desk = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await desk.newPage();
   let sandbox;
@@ -166,6 +175,65 @@ async function flows(browser) {
     const after = await page.getByTestId("plan-card").getAttribute("data-status", { timeout: T });
     const ok = action === "dailyPlan.submit" && submitted === "submitted" && after === "draft" && reseeded !== seeded && runs === 0 && same === sandbox;
     check("sandbox reset reseeds", ok, `${action}: plan ${submitted} → ${after}, seeded ${seeded} → ${reseeded}, runs ${runs}, sandbox ${sandbox} → ${same}`);
+  });
+  await step("an unknown job number is refused", async () => {
+    // The sandbox was just reset, so Cedar Creek's plan is a draft that a wrong match would submit.
+    const run = await ask(page.getByTestId("assistant-rail"), "Submit the plan for 99-999");
+    const summary = (await run.getByTestId("action-summary").textContent())?.trim();
+    await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
+    const status = await page.getByTestId("plan-card").getAttribute("data-status", { timeout: T });
+    check("an unknown job number is refused", summary?.includes("There is no job 99-999") && status === "draft", `${summary} (Cedar plan ${status})`);
+  });
+  const pour = () => page.locator('[data-testid="plan-line"][data-code="04-210"]');
+  const pourMh = async () => (await pour().getByTestId("line-mh").textContent({ timeout: T }))?.trim();
+  const resetDemo = async () => {
+    await page.getByTestId("user-menu").click();
+    await page.getByRole("button", { name: "Reset demo" }).click();
+    await page.waitForURL(/reset=1/, { timeout: T });
+  };
+  await step("foreman changes the pour 60 → 80 on screen and it persists", async () => {
+    await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
+    const before = await pourMh();
+    await pour().getByTestId("edit-line").click();
+    const form = pour().getByTestId("line-form");
+    await form.getByLabel("Man-hours").fill("80");
+    await form.getByRole("button", { name: "Save" }).click();
+    await form.waitFor({ state: "hidden", timeout: T });
+    await page.reload({ waitUntil: "networkidle" });
+    const after = await pourMh();
+    const run = page.getByTestId("assistant-rail").getByTestId("action-run").last();
+    await run.waitFor({ timeout: T });
+    const action = await run.getAttribute("data-action");
+    const summary = (await run.getByTestId("action-summary").textContent())?.trim();
+    const ok = before === "60" && after === "80" && action === "dailyPlan.updateLine" && summary?.includes("man-hours 60 → 80");
+    check("foreman changes the pour 60 → 80 on screen and it persists", ok, `${before} → ${after} after reload, ${action}: ${summary}`);
+  });
+  await step("foreman changes the pour 60 → 80 through the assistant and it persists", async () => {
+    await resetDemo();
+    await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
+    const before = await pourMh();
+    const run = await ask(page.getByTestId("assistant-rail"), "Change the pour to 80 man-hours");
+    const action = await run.getAttribute("data-action");
+    const summary = (await run.getByTestId("action-summary").textContent())?.trim();
+    await page.reload({ waitUntil: "networkidle" });
+    const after = await pourMh();
+    const ok = before === "60" && after === "80" && action === "dailyPlan.updateLine" && summary?.includes("man-hours 60 → 80");
+    check("foreman changes the pour 60 → 80 through the assistant and it persists", ok, `${before} → ${after} after reload, ${action}: ${summary}`);
+  });
+  await step("switching roles starts a fresh chat and keeps the audit trail", async () => {
+    // The foreman just changed the pour through the rail; the PM must not see that chat.
+    await signIn(page, "pm");
+    const rail = page.getByTestId("assistant-rail");
+    await rail.getByTestId("assistant-input").waitFor({ timeout: T });
+    const pmRuns = await rail.getByTestId("action-run").count();
+    await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
+    const changes = (await page.getByTestId("job-changes").textContent({ timeout: T })) ?? "";
+    const audited = changes.includes("Luis Ortega") && changes.includes("man-hours 60 → 80");
+    await signIn(page, "foreman");
+    await rail.getByTestId("assistant-input").waitFor({ timeout: T });
+    const foremanRuns = await rail.getByTestId("action-run").filter({ hasText: "Change the pour to 80 man-hours" }).count();
+    const ok = pmRuns === 0 && audited && foremanRuns === 1;
+    check("switching roles starts a fresh chat and keeps the audit trail", ok, `PM rail runs ${pmRuns}, job changes list the foreman's edit ${audited}, foreman rail still has it ${foremanRuns}`);
   });
   await desk.close();
 
