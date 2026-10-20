@@ -192,7 +192,7 @@ const n = String.raw`(\d[\d,]*(?:\.\d+)?)`;
 
 /**
  * "we poured 38 CY with 72 hours on 04-210" → one actuals entry.
- * Also "report 70 MH and 40 CY on 04-210".
+ * Also "report 70 MH and 40 CY on 04-210", or "… on the pour" (no code — action matches line).
  */
 export function parseReportActuals(prompt: string): ReportActualArg[] {
   const text = prompt.toLowerCase();
@@ -201,7 +201,6 @@ export function parseReportActuals(prompt: string): ReportActualArg[] {
   )
     return [];
   const code = prompt.match(/\b(\d{2}-\d{3})\b/)?.[1];
-  if (!code) return [];
   const qtyMatch = text.match(
     new RegExp(`${n}\\s*(?:cy|lb|lbs|lf|ea|days?|sf|sy|tons?|mo)\\b`),
   );
@@ -209,7 +208,8 @@ export function parseReportActuals(prompt: string): ReportActualArg[] {
     text.match(new RegExp(`${n}\\s*(?:man[- ]?hours?|mh)\\b`)) ??
     text.match(new RegExp(`${n}\\s*(?:hours?|hrs?)\\b`));
   if (!qtyMatch && !mhMatch) return [];
-  const entry: ReportActualArg = { costCode: code };
+  const entry: ReportActualArg = {};
+  if (code) entry.costCode = code;
   if (qtyMatch) entry.qty = Number(qtyMatch[1].replace(/,/g, ""));
   if (mhMatch) entry.manHours = Number(mhMatch[1].replace(/,/g, ""));
   return [entry];

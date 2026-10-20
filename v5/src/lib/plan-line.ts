@@ -9,6 +9,12 @@ export const LIMITS = {
   notes: { max: 500 },
 } as const;
 
+/** Daily report allows 0 MH / 0 qty; rejects negatives and extremes. */
+export const REPORT_LIMITS = {
+  manHours: { min: 0, max: 1200 },
+  qty: { min: 0, max: 10_000_000 },
+} as const;
+
 /** Values as the form or the assistant sends them. Every field is optional; omitted fields keep their value. */
 export type LineInput = {
   costItemId?: string;

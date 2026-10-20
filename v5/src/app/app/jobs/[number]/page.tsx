@@ -9,7 +9,10 @@ import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { pct, usdShort } from "@/lib/ev";
 import { getJob, getJobEvControls, getPlansForJob } from "@/server/data";
-import { draftClaimForJob } from "@/server/progress";
+import {
+  draftClaimForJob,
+  getReportedActualsForPlan,
+} from "@/server/progress";
 import { requireUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
 import { actions, jobChanges } from "@/server/assistant/actions";
@@ -41,6 +44,19 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     draftClaimForJob(user.companyId, p.job.id),
     getJobEvControls(user.companyId, p.job.id),
   ]);
+  const reportedByPlan = Object.fromEntries(
+    await Promise.all(
+      plans
+        .filter((pl) => pl.status === "submitted")
+        .map(async (pl) => [
+          pl.id,
+          await getReportedActualsForPlan(user.companyId, pl.id),
+        ]),
+    ),
+  ) as Record<
+    string,
+    Awaited<ReturnType<typeof getReportedActualsForPlan>>
+  >;
   const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
   const canReport = actions["dailyReport.post"].roles?.includes(user.role);
   const canLock = actions["progressClaim.lock"].roles?.includes(user.role);
@@ -161,14 +177,19 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
             canReport && plan.status === "submitted" ? (
               <ReportWorkForm
                 jobNumber={p.job.number}
-                lines={plan.lines.map((l) => ({
-                  id: l.id,
-                  code: l.code,
-                  activity: l.activity,
-                  unit: l.unit,
-                  manHours: l.manHours,
-                  qtyMilli: l.qtyMilli,
-                }))}
+                lines={plan.lines.map((l) => {
+                  const reported = reportedByPlan[plan.id]?.[l.id];
+                  return {
+                    id: l.id,
+                    code: l.code,
+                    activity: l.activity,
+                    unit: l.unit,
+                    manHours: l.manHours,
+                    qtyMilli: l.qtyMilli,
+                    reportedManHours: reported?.manHours,
+                    reportedQtyMilli: reported?.qtyMilli,
+                  };
+                })}
               />
             ) : undefined
           }

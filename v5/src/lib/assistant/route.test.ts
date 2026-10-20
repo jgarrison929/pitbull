@@ -47,6 +47,16 @@ describe("assistant router", () => {
       },
     ],
     [
+      "we poured 38 CY with 72 hours on the pour for Cedar Creek",
+      "dailyReport.post",
+      {
+        job: "25-031",
+        actuals: [{ qty: 38, manHours: 72 }],
+        lineRef:
+          "we poured 38 CY with 72 hours on the pour for Cedar Creek",
+      },
+    ],
+    [
       "Lock the progress claim on 25-031",
       "progressClaim.lock",
       { job: "25-031" },

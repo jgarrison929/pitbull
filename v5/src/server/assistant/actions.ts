@@ -12,7 +12,12 @@ import {
 } from "@/db/schema";
 import type { ActionName, JobArgs } from "@/lib/assistant/route";
 import { qty, usdShort } from "@/lib/ev";
-import { applyLineInput, manHoursOf, type LineValues } from "@/lib/plan-line";
+import {
+  applyLineInput,
+  manHoursOf,
+  REPORT_LIMITS,
+  type LineValues,
+} from "@/lib/plan-line";
 import {
   getJob,
   getPlansForJob,
@@ -53,6 +58,15 @@ const day = (iso: string) =>
     month: "short",
     day: "numeric",
     timeZone: "UTC",
+  });
+
+/** Calendar day in job local time (America/Los_Angeles) — not UTC. */
+const localDay = (at: Date) =>
+  at.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "America/Los_Angeles",
   });
 
 async function resolveJob(user: CurrentUser, number?: string) {
@@ -316,7 +330,7 @@ export const actions: Record<ActionName, ActionDef> = {
       const { job: j, plan, line } = found;
       const where = { href: jobHref(j), job: j.job.number, line: line.code };
       if (plan.status !== "draft") {
-        const msg = `${plan.crew}'s plan for ${day(plan.planDate)} is submitted, so its lines are locked.`;
+        const msg = `${plan.crew}'s plan for ${day(plan.planDate)} is submitted, so its lines are locked. Use Report day's work (or ask me to report actual hours and quantities) — the plan stays as planned.`;
         return { summary: msg, errors: { form: msg }, ...where };
       }
       const result = applyLineInput(
@@ -396,13 +410,13 @@ export const actions: Record<ActionName, ActionDef> = {
   "dailyReport.post": {
     title: "Report a day's work",
     roles: ["foreman", "superintendent"],
-    async run(user, { job, actuals }) {
+    async run(user, { job, actuals, lineRef }) {
       const found = await resolvePlan(user, job);
       if (!found) return { summary: "There is no crew plan to report against." };
       const { plan, job: j } = found;
       if (plan.status !== "submitted")
         return {
-          summary: `Submit ${plan.crew}'s plan first — I won't report against a draft. After submit, enter actual hours and quantities on the report (the plan stays as planned).`,
+          summary: `Submit ${plan.crew}'s plan first — I won't report against a draft. Then use Report day's work (or ask me) to post actual hours and quantities; the plan stays as planned.`,
           href: jobHref(j),
           job: j.job.number,
         };
@@ -411,21 +425,65 @@ export const actions: Record<ActionName, ActionDef> = {
         { manHours: number; qtyMilli: number }
       > = {};
       for (const a of actuals ?? []) {
-        const line = a.lineId
+        let line = a.lineId
           ? plan.lines.find((l) => l.id === a.lineId)
           : a.costCode
             ? plan.lines.find((l) => l.code === a.costCode)
             : undefined;
-        if (!line) continue;
+        if (!line && !a.lineId && !a.costCode) {
+          // "we poured 38 CY … on the pour" — resolve by activity words.
+          const m = matchLine(plan.lines, lineRef ?? "");
+          if ("ask" in m)
+            return {
+              summary: m.ask,
+              href: jobHref(j),
+              job: j.job.number,
+            };
+          line = m.line;
+        }
+        if (!line) {
+          return {
+            summary: a.costCode
+              ? `No plan line for cost code ${a.costCode} on ${j.job.shortName}.`
+              : "Which line should I report? Name the cost code or activity.",
+            href: jobHref(j),
+            job: j.job.number,
+          };
+        }
+        const manHours =
+          a.manHours !== undefined ? Number(a.manHours) : line.manHours;
+        const qtyVal = a.qty !== undefined ? Number(a.qty) : line.qtyMilli / 1000;
+        if (
+          !Number.isFinite(manHours) ||
+          manHours < REPORT_LIMITS.manHours.min ||
+          manHours > REPORT_LIMITS.manHours.max
+        ) {
+          const msg = `Man-hours must be from ${REPORT_LIMITS.manHours.min} to ${REPORT_LIMITS.manHours.max}.`;
+          const errors: Record<string, string> = { manHours: msg };
+          return {
+            summary: `${msg} (got ${a.manHours}).`,
+            href: jobHref(j),
+            job: j.job.number,
+            errors,
+          };
+        }
+        if (
+          !Number.isFinite(qtyVal) ||
+          qtyVal < REPORT_LIMITS.qty.min ||
+          qtyVal > REPORT_LIMITS.qty.max
+        ) {
+          const msg = `Quantity must be from ${REPORT_LIMITS.qty.min} to ${REPORT_LIMITS.qty.max}.`;
+          const errors: Record<string, string> = { qty: msg };
+          return {
+            summary: `${msg} (got ${a.qty}).`,
+            href: jobHref(j),
+            job: j.job.number,
+            errors,
+          };
+        }
         byLineId[line.id] = {
-          manHours:
-            a.manHours !== undefined && Number.isFinite(a.manHours)
-              ? a.manHours
-              : line.manHours,
-          qtyMilli:
-            a.qty !== undefined && Number.isFinite(a.qty)
-              ? Math.round(a.qty * 1000)
-              : line.qtyMilli,
+          manHours,
+          qtyMilli: Math.round(qtyVal * 1000),
         };
       }
       const now = new Date();
@@ -435,7 +493,7 @@ export const actions: Record<ActionName, ActionDef> = {
         byLineId,
         now,
       );
-      const reportDay = day(now.toISOString().slice(0, 10));
+      const reportDay = localDay(now);
       const diffs = Object.entries(byLineId)
         .map(([id, a]) => {
           const line = plan.lines.find((l) => l.id === id)!;

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { runActionState, type ActionState } from "@/app/app/assistant/actions";
 import { qty } from "@/lib/ev";
+import { REPORT_LIMITS } from "@/lib/plan-line";
 
 export type ReportLine = {
   id: string;
@@ -12,11 +13,14 @@ export type ReportLine = {
   /** Planned man-hours (workers × hours). */
   manHours: number;
   qtyMilli: number;
+  /** Last reported values for this plan line, when a report exists. */
+  reportedManHours?: number | null;
+  reportedQtyMilli?: number | null;
 };
 
 /**
- * After a plan is submitted, the foreman enters actual MH and quantity per line
- * (defaults = plan). The submitted plan is not changed.
+ * After a plan is submitted, the foreman enters actual MH and quantity per line.
+ * Defaults = last report for that line, else the plan. The submitted plan is unchanged.
  */
 export function ReportWorkForm({
   jobNumber,
@@ -29,8 +33,16 @@ export function ReportWorkForm({
     runActionState,
     {},
   );
+  // Remount after report so defaultValues pick up server-rendered reported values.
+  const formKey = lines
+    .map(
+      (l) =>
+        `${l.id}:${l.reportedManHours ?? ""}:${l.reportedQtyMilli ?? ""}`,
+    )
+    .join("|");
   return (
     <form
+      key={formKey}
       action={action}
       className="flex w-full flex-col gap-2"
       data-testid="report-work-form"
@@ -39,52 +51,64 @@ export function ReportWorkForm({
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="label" value="Report day's work" />
       <ul className="divide-y rounded-md border bg-background text-xs">
-        {lines.map((l) => (
-          <li
-            key={l.id}
-            className="grid gap-2 px-3 py-2 sm:grid-cols-[1fr_6rem_6rem] sm:items-end"
-            data-testid={`report-line-${l.code}`}
-          >
-            <div className="min-w-0">
-              <div className="font-medium text-foreground">
-                <span className="mr-1 font-mono text-muted-foreground">
-                  {l.code}
-                </span>
-                {l.activity}
+        {lines.map((l) => {
+          const mh = l.reportedManHours ?? l.manHours;
+          const qtyMilli = l.reportedQtyMilli ?? l.qtyMilli;
+          const hasReport = l.reportedManHours != null || l.reportedQtyMilli != null;
+          return (
+            <li
+              key={l.id}
+              className="grid gap-2 px-3 py-2 sm:grid-cols-[1fr_6rem_6rem] sm:items-end"
+              data-testid={`report-line-${l.code}`}
+            >
+              <div className="min-w-0">
+                <div className="font-medium text-foreground">
+                  <span className="mr-1 font-mono text-muted-foreground">
+                    {l.code}
+                  </span>
+                  {l.activity}
+                </div>
+                <div className="text-muted-foreground">
+                  Plan {l.manHours} MH · {qty(l.qtyMilli)} {l.unit}
+                  {hasReport ? (
+                    <span data-testid={`report-last-${l.code}`}>
+                      {" "}
+                      · Last report {mh} MH · {qty(qtyMilli)} {l.unit}
+                    </span>
+                  ) : null}
+                </div>
               </div>
-              <div className="text-muted-foreground">
-                Plan {l.manHours} MH · {qty(l.qtyMilli)} {l.unit}
-              </div>
-            </div>
-            <label className="flex flex-col gap-0.5">
-              Actual MH
-              <input
-                name={`actualMh[${l.id}]`}
-                type="number"
-                min={0}
-                max={1200}
-                step={0.1}
-                defaultValue={l.manHours}
-                required
-                className="rounded-md border bg-background px-2 py-1 text-sm tabular-nums"
-                data-testid={`report-mh-${l.code}`}
-              />
-            </label>
-            <label className="flex flex-col gap-0.5">
-              Actual {l.unit}
-              <input
-                name={`actualQty[${l.id}]`}
-                type="number"
-                min={0}
-                step={0.001}
-                defaultValue={l.qtyMilli / 1000}
-                required
-                className="rounded-md border bg-background px-2 py-1 text-sm tabular-nums"
-                data-testid={`report-qty-${l.code}`}
-              />
-            </label>
-          </li>
-        ))}
+              <label className="flex flex-col gap-0.5">
+                Actual MH
+                <input
+                  name={`actualMh[${l.id}]`}
+                  type="number"
+                  min={REPORT_LIMITS.manHours.min}
+                  max={REPORT_LIMITS.manHours.max}
+                  step={0.1}
+                  defaultValue={mh}
+                  required
+                  className="rounded-md border bg-background px-2 py-1 text-sm tabular-nums"
+                  data-testid={`report-mh-${l.code}`}
+                />
+              </label>
+              <label className="flex flex-col gap-0.5">
+                Actual {l.unit}
+                <input
+                  name={`actualQty[${l.id}]`}
+                  type="number"
+                  min={REPORT_LIMITS.qty.min}
+                  max={REPORT_LIMITS.qty.max}
+                  step={0.001}
+                  defaultValue={qtyMilli / 1000}
+                  required
+                  className="rounded-md border bg-background px-2 py-1 text-sm tabular-nums"
+                  data-testid={`report-qty-${l.code}`}
+                />
+              </label>
+            </li>
+          );
+        })}
       </ul>
       <button
         type="submit"
