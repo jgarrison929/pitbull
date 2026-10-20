@@ -85,4 +85,19 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
     const next = await sandboxForVisitor(visitor, new Date(Date.now() + 5000));
     expect(next).toBe(ids.at(-1));
   });
+
+  it("holds the cap when one visitor signs in many times at once", async () => {
+    const visitor = `race-${Date.now()}`;
+    const now = new Date();
+    const ids = await Promise.all(
+      Array.from({ length: 8 }, () => sandboxForVisitor(visitor, now)),
+    );
+    const live = await db!
+      .select({ id: companies.id })
+      .from(companies)
+      .where(eq(companies.visitorHash, visitor));
+    created.push(...live.map((r) => r.id));
+    expect(live).toHaveLength(MAX_SANDBOXES_PER_VISITOR);
+    expect(new Set(ids).size).toBeLessThanOrEqual(MAX_SANDBOXES_PER_VISITOR);
+  });
 });

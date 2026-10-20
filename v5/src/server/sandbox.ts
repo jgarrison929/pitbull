@@ -45,18 +45,40 @@ export async function sweepExpiredSandboxes(now = new Date()) {
 /**
  * The sandbox a signed-out visitor gets: a new one while they are under the cap,
  * otherwise their most recently seeded live one.
+ * A transaction-scoped advisory lock on the visitor makes the count and the insert one step,
+ * so parallel sign-ins from one browser cannot pass the cap together.
  */
 export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
-  const db = requireDb();
-  const live = await db
-    .select({ id: companies.id })
-    .from(companies)
-    .where(
-      and(eq(companies.visitorHash, visitorHash), gt(companies.expiresAt, now)),
-    )
-    .orderBy(desc(companies.seededAt));
-  if (live.length >= MAX_SANDBOXES_PER_VISITOR) return live[0].id;
-  return createSandbox(now, visitorHash);
+  return requireDb().transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`sandbox-visitor:${visitorHash}`}, 0))`,
+    );
+    const live = await tx
+      .select({ id: companies.id })
+      .from(companies)
+      .where(
+        and(
+          eq(companies.visitorHash, visitorHash),
+          gt(companies.expiresAt, now),
+        ),
+      )
+      .orderBy(desc(companies.seededAt));
+    if (live.length >= MAX_SANDBOXES_PER_VISITOR) return live[0].id;
+    return insertSandbox(tx, now, visitorHash);
+  });
+}
+
+async function insertSandbox(tx: Tx, now: Date, visitorHash: string | null) {
+  const companyId = randomUUID();
+  const rows = seed(companyId, now);
+  await tx.insert(companies).values({
+    ...rows.company,
+    visitorHash,
+    expiresAt: new Date(now.getTime() + SANDBOX_TTL_MS),
+  });
+  await tx.insert(users).values(rows.users);
+  await insertWork(tx, rows);
+  return companyId;
 }
 
 /** Creates a new visitor sandbox cloned from the seed. */
@@ -64,19 +86,7 @@ export async function createSandbox(
   now = new Date(),
   visitorHash: string | null = null,
 ) {
-  const db = requireDb();
-  const companyId = randomUUID();
-  const rows = seed(companyId, now);
-  await db.transaction(async (tx) => {
-    await tx.insert(companies).values({
-      ...rows.company,
-      visitorHash,
-      expiresAt: new Date(now.getTime() + SANDBOX_TTL_MS),
-    });
-    await tx.insert(users).values(rows.users);
-    await insertWork(tx, rows);
-  });
-  return companyId;
+  return requireDb().transaction((tx) => insertSandbox(tx, now, visitorHash));
 }
 
 /** Puts a sandbox back to the seed. Users and sessions survive, so the visitor stays signed in. */
