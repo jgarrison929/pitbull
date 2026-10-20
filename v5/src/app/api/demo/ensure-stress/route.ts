@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { requireDb } from "@/db";
 import { companies } from "@/db/schema";
-import { requireUser } from "@/server/session";
+import { getCurrentUser } from "@/server/session";
 import { ensureStressJob } from "@/server/sandbox";
 
 /**
@@ -10,7 +10,10 @@ import { ensureStressJob } from "@/server/sandbox";
  * so default demo seed / Reset demo stay fast (no V5_SEED_STRESS on webServer).
  */
 export async function POST() {
-  const user = await requireUser();
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   const db = requireDb();
   const [company] = await db
     .select({ isSandbox: companies.isSandbox })
