@@ -42,16 +42,27 @@ export async function sweepExpiredSandboxes(now = new Date()) {
   return gone.length;
 }
 
+/** How long a visitor may wait for another sign-in's advisory lock before failing. */
+export const SANDBOX_LOCK_TIMEOUT = "5s";
+
 /**
  * The sandbox a signed-out visitor gets: a new one while they are under the cap,
  * otherwise their most recently seeded live one.
  *
  * Count and insert run in one transaction under pg_advisory_xact_lock(hashtext(visitor)),
  * so parallel sign-ins from the same browser cannot over-create past the cap.
+ *
+ * Everything under the lock uses only `tx` (this connection). Do not call
+ * requireDb()/getDb() inside — a second pool checkout while holding the advisory
+ * lock can deadlock the pool when other sessions wait on the same lock.
  */
 export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
   const db = requireDb();
   return db.transaction(async (tx) => {
+    // Fail fast if another sign-in holds the lock too long (transaction-local).
+    await tx.execute(
+      sql`select set_config('lock_timeout', ${SANDBOX_LOCK_TIMEOUT}, true)`,
+    );
     // Transaction-scoped lock keyed by visitor hash; released on commit/rollback.
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtext(${visitorHash}))`,
@@ -67,6 +78,7 @@ export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
       )
       .orderBy(desc(companies.seededAt));
     if (live.length >= MAX_SANDBOXES_PER_VISITOR) return live[0].id;
+    // seed() is pure in-memory; insertSandbox writes only through tx.
     return insertSandbox(tx, now, visitorHash);
   });
 }
