@@ -205,12 +205,21 @@ export function AsyncCombobox({
         );
         if (!res.ok) return;
         const data = (await res.json()) as { items: Option[] };
-        setOptions(data.items);
+        // Keep the selected option in the list so the label never blanks after search.
+        setOptions((prev) => {
+          const keep =
+            prev.find((o) => o.value === value) ??
+            initial.find((o) => o.value === value);
+          if (keep && !data.items.some((i) => i.value === keep.value)) {
+            return [keep, ...data.items];
+          }
+          return data.items;
+        });
         setActive(0);
       });
     }, 150);
     return () => clearTimeout(t);
-  }, [query, open, searchUrl, selectedLabel]);
+  }, [query, open, searchUrl, selectedLabel, value, initial]);
 
   function pick(o: Option) {
     setValue(o.value);

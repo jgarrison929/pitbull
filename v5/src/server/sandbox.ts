@@ -27,7 +27,11 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 async function insertWork(tx: Tx, rows: SeedRows) {
   await tx.insert(jobs).values(rows.jobs);
-  await tx.insert(costItems).values(rows.costItems);
+  // Chunk large WBS inserts (10k stress leaves) so one statement stays under PG limits.
+  const CHUNK = 500;
+  for (let i = 0; i < rows.costItems.length; i += CHUNK) {
+    await tx.insert(costItems).values(rows.costItems.slice(i, i + CHUNK));
+  }
   if (rows.costItemMilestones.length)
     await tx.insert(costItemMilestones).values(rows.costItemMilestones);
   if (rows.costEntries.length)

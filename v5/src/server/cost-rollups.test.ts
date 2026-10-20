@@ -97,6 +97,17 @@ describe.skipIf(!db)("SQL roll-up matches leaf sum on stress job", () => {
     expect(searchMs).toBeLessThan(300);
     expect(found.some((r) => r.code === "01-01-001")).toBe(true);
 
+    // Prefix-first: "07-03" must surface 07-03-xxx, not only 01-07-030… via %q%.
+    const branch = await searchCostItems(
+      companyId,
+      stress.job.id!,
+      "07-03",
+      20,
+    );
+    expect(branch.length).toBeGreaterThan(0);
+    expect(branch.every((r) => r.code.startsWith("07-03"))).toBe(true);
+    expect(branch.some((r) => r.code === "07-03-001")).toBe(true);
+
     const path = await pathRollupSql(companyId, stress.job.id!, "/01/", today);
     expect(path.budgetCents).toBe(
       leaves

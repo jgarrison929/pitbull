@@ -188,7 +188,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         title="Budget vs earned value by cost code"
         meta="Earned uses the locked claim (claimed installed for units). Live installs above that show as pending until the PM locks. CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never green."
       >
-        <CostTable nodes={nodes} lines={p.lines} />
+        <CostTable nodes={nodes} />
       </Section>
       <Section
         title="Changes on this job"

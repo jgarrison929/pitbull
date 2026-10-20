@@ -52,13 +52,15 @@ function InstalledCell({ l }: { l: CostLine }) {
  */
 export function CostTable({
   nodes,
-  lines,
 }: {
-  /** Full WBS ordered by path (summaries + leaves). */
+  /** Full WBS ordered by path (summaries + leaves). Leaf EV lives on node.line. */
   nodes: WbsNode[];
-  /** Leaf EV lines — used for the job-total footer. */
-  lines: CostLine[];
 }) {
+  // Roll up from nodes only — avoid a second 10k-line props list on the RSC payload.
+  const lines = useMemo(
+    () => nodes.flatMap((n) => (n.line ? [n.line] : [])),
+    [nodes],
+  );
   const t = rollup(lines);
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());

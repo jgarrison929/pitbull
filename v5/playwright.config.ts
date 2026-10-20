@@ -13,6 +13,11 @@ export default defineConfig({
     command: `npm run start -- -p ${port}`,
     url: `http://localhost:${port}/health`,
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 120_000,
+    env: {
+      ...process.env,
+      // Seed the 10k stress job into every e2e sandbox (stress-typeahead.spec.ts).
+      V5_SEED_STRESS: "1",
+    },
   },
 });

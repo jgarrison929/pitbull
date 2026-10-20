@@ -20,6 +20,8 @@ export type EditableLine = {
   id: string;
   costItemId: string;
   code: string;
+  /** Cost-item description — used for the selected label when outside the initial slice. */
+  description: string;
   activity: string;
   location: string;
   qtyMilli: number;
@@ -91,6 +93,20 @@ function LineForm({
       line.unit ??
       "",
   );
+  // Same pattern as unit: the selected code's label must survive outside the
+  // first-40 initial options, or AsyncCombobox opens blank.
+  const codeOptions = (() => {
+    if (costItems.some((c) => c.value === line.costItemId)) return costItems;
+    return [
+      {
+        value: line.costItemId,
+        label: `${line.code} ${line.description}`,
+        hint: line.unit,
+        unit: line.unit,
+      },
+      ...costItems,
+    ];
+  })();
   const [workers, setWorkers] = useState(String(line.workers));
   const [hours, setHours] = useState(String(line.hoursTenths / 10));
   const [manHours, setManHours] = useState(
@@ -144,7 +160,7 @@ function LineForm({
           <ChoiceField
             id={id("costItemId")}
             name="costItemId"
-            options={costItems}
+            options={codeOptions}
             defaultValue={line.costItemId}
             onChange={(_value, option) => {
               const next = option?.unit ?? option?.hint;

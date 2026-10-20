@@ -24,6 +24,7 @@ import {
   snapshotClaimPercent,
   type EvMethod,
 } from "@/lib/ev";
+import { seedStressJob } from "./stress";
 
 export const SEED_COMPANY_NAME = "Summit Highway & Bridge";
 
@@ -735,6 +736,15 @@ export function seed(companyId: string, today: Date): SeedRows {
       installedQtyMilli: itemRow.installedQtyMilli,
       derivation: "Draft — will refresh from field on lock",
     });
+  }
+
+  // Optional 10k WBS for e2e / local stress (keeps default sandbox fast).
+  if (process.env.V5_SEED_STRESS === "1") {
+    const stress = seedStressJob(companyId, today);
+    out.jobs.push(stress.job);
+    out.costItems.push(...stress.costItems);
+    out.dailyPlans.push(...stress.dailyPlans);
+    out.dailyPlanLines.push(...stress.dailyPlanLines);
   }
 
   return out;

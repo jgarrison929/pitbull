@@ -1,6 +1,6 @@
 // Stress WBS: 10 divisions × 10 groups × 100 leaves = 10,000 leaf cost codes (+ 110 summaries).
-// Used by the perf harness; not part of the default demo sandbox (keeps sign-in fast).
-import type { costItems, jobs } from "@/db/schema";
+// Used by the perf harness and (when V5_SEED_STRESS=1) e2e sandboxes.
+import type { costItems, dailyPlanLines, dailyPlans, jobs } from "@/db/schema";
 import { plannedValueCents } from "@/lib/ev";
 import { seedId } from "./index";
 
@@ -12,16 +12,23 @@ const addDays = (d: Date, n: number) =>
 
 export const STRESS_JOB_NUMBER = "99-010";
 export const STRESS_LEAF_COUNT = 10_000;
+/** Outside the first-40 typeahead slice (01-01-001…); used by e2e. */
+export const STRESS_OUTSIDE_SLICE_CODE = "05-05-050";
 
 export type StressRows = {
   job: Insert<typeof jobs>;
   costItems: Insert<typeof costItems>[];
+  dailyPlans: Insert<typeof dailyPlans>[];
+  dailyPlanLines: Insert<typeof dailyPlanLines>[];
 };
 
 /**
  * Builds one hierarchical job with exactly STRESS_LEAF_COUNT leaves under
  * 10 × 10 summary nodes. Money fields are tiny deterministic stubs so roll-ups
  * stay cheap to reason about in perf tests.
+ *
+ * Includes a draft foreman plan with a line on STRESS_OUTSIDE_SLICE_CODE so e2e
+ * can open the typeahead past the first-40 initial options.
  */
 export function seedStressJob(companyId: string, today: Date): StressRows {
   const id = (key: string) => seedId(companyId, key);
@@ -29,6 +36,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
   const start = isoDate(addDays(today, -100));
   const finish = isoDate(addDays(today, 100));
   const items: Insert<typeof costItems>[] = [];
+  let outsideLeafId: string | null = null;
 
   for (let d = 0; d < 10; d++) {
     const divCode = `${String(d + 1).padStart(2, "0")}`;
@@ -48,7 +56,6 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
       evMethod: "units",
       budgetQtyMilli: 0,
       installedQtyMilli: 0,
-
       claimedInstalledQtyMilli: 0,
       budgetCents: 0,
       plannedStartOn: start,
@@ -77,7 +84,6 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         evMethod: "units",
         budgetQtyMilli: 0,
         installedQtyMilli: 0,
-
         claimedInstalledQtyMilli: 0,
         budgetCents: 0,
         plannedStartOn: start,
@@ -93,6 +99,9 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         const leafId = id(`stress:leaf:${leafCode}`);
         const budgetCents = 100_00 + ((d * 1000 + g * 100 + L) % 500) * 100;
         const claimedPercentMilli = (L * 7 + g * 3 + d) % 1000;
+        // Distinct unit on one leaf so e2e can assert unit-from-pick past slice 40.
+        const unit = leafCode === "08-04-077" ? "LF" : "CY";
+        if (leafCode === STRESS_OUTSIDE_SLICE_CODE) outsideLeafId = leafId;
         items.push({
           id: leafId,
           companyId,
@@ -103,11 +112,10 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
           isLeaf: true,
           code: leafCode,
           description: `Leaf ${leafCode} activity`,
-          unit: "CY",
+          unit,
           evMethod: "units",
           budgetQtyMilli: 1_000_000,
           installedQtyMilli: claimedPercentMilli * 1000,
-
           claimedInstalledQtyMilli: claimedPercentMilli * 1000,
           budgetCents,
           plannedStartOn: start,
@@ -124,6 +132,13 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
     }
   }
 
+  if (!outsideLeafId) {
+    throw new Error(`stress seed missing ${STRESS_OUTSIDE_SLICE_CODE}`);
+  }
+
+  const planId = id("plan:stress:draft");
+  const planDate = isoDate(addDays(today, 1));
+
   return {
     job: {
       id: jobId,
@@ -137,5 +152,33 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
       contractCents: 50_000_000_00,
     },
     costItems: items,
+    dailyPlans: [
+      {
+        id: planId,
+        companyId,
+        jobId,
+        crew: "Stress Crew",
+        foremanId: id("user:foreman"),
+        planDate,
+        status: "draft",
+        weather: "Clear",
+        equipment: [],
+      },
+    ],
+    dailyPlanLines: [
+      {
+        id: id("plan-line:stress:outside"),
+        companyId,
+        planId,
+        costItemId: outsideLeafId,
+        activity: "Stress pour outside first-40 slice",
+        location: "Area 5",
+        qtyMilli: 10_000,
+        workers: 4,
+        hoursTenths: 80,
+        sort: 0,
+        notes: "",
+      },
+    ],
   };
 }

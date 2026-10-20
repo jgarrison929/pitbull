@@ -185,7 +185,10 @@ export async function searchCostItems(
       .orderBy(costItems.code)
       .limit(limit);
   }
-  const pattern = `%${q.replace(/[%_]/g, "")}%`;
+  const safe = q.replace(/[%_]/g, "");
+  const contains = `%${safe}%`;
+  const prefix = `${safe}%`;
+  // Prefix matches first so "07-03" surfaces 07-03-xxx, not 01-07-030… via %q%.
   return db
     .select({
       id: costItems.id,
@@ -198,8 +201,11 @@ export async function searchCostItems(
       sql`${costItems.companyId} = ${companyId}
         and ${costItems.jobId} = ${jobId}
         and ${costItems.isLeaf} = true
-        and (${costItems.code} ilike ${pattern} or ${costItems.description} ilike ${pattern})`,
+        and (${costItems.code} ilike ${contains} or ${costItems.description} ilike ${contains})`,
     )
-    .orderBy(costItems.code)
+    .orderBy(
+      sql`(${costItems.code} ilike ${prefix}) desc`,
+      costItems.code,
+    )
     .limit(limit);
 }

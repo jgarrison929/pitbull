@@ -69,6 +69,8 @@ test("the cost code field lists this job's real codes and the server rejects any
   await pourLine(page).getByTestId("edit-line").click();
   const form = pourLine(page).getByTestId("line-form");
   const code = form.getByTestId("async-cost-search");
+  // Selected label comes from the line itself — never blank when outside first-40.
+  await expect(code).toHaveValue(/04-210 Pier column concrete/);
   // Wait for the settled open-search response — buggy code searches the full
   // selected label and lands on "No matches" after the 150ms debounce.
   const openSearch = page.waitForResponse(
@@ -88,6 +90,20 @@ test("the cost code field lists this job's real codes and the server rejects any
   ).toHaveCount(1);
   // Quantity unit comes from the line / picked option, not only the first-40 slice.
   await expect(form.getByText(/Quantity \(CY\)/)).toBeVisible();
+  // Prefix-first: "04-2" should keep 04-210 near the top, not drown in mid-code hits.
+  const prefixSearch = page.waitForResponse(
+    (r) =>
+      r.url().includes("/cost-items/search") &&
+      r.ok() &&
+      (new URL(r.url()).searchParams.get("q") ?? "") === "04-2",
+  );
+  await code.fill("04-2");
+  const prefixBody = await prefixSearch.then((r) => r.json());
+  expect(
+    (prefixBody.items as { label: string }[]).some((i) =>
+      i.label.startsWith("04-2"),
+    ),
+  ).toBe(true);
   const filterSearch = page.waitForResponse(
     (r) =>
       r.url().includes("/cost-items/search") &&

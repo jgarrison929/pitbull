@@ -7,6 +7,7 @@ export const changelog = [
       "Cost codes are a searchable WBS tree with SQL leaf roll-ups, sized for 10,000 codes per job.",
       "Job cost table is virtualized; plan-line cost codes search the server instead of shipping the full list.",
       "Typeahead opens with an empty search so job codes appear; quantity unit comes from the picked option; perf:cost-codes measures concurrent HTTP search at 5 and 10 users.",
+      "Selected cost-code label resolves from the line when outside the first-40 options; prefix search ranks matching codes ahead of substring hits.",
     ],
   },
   {
