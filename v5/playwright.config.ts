@@ -16,6 +16,12 @@ export default defineConfig({
     timeout: 120_000,
     // Do NOT set V5_SEED_STRESS here — that injects 10k codes into every
     // sandbox and makes login "Reset demo" exceed the default expect timeout.
-    // stress-typeahead.spec.ts seeds via POST /api/demo/ensure-stress.
+    // stress-typeahead.spec.ts seeds via POST /api/demo/ensure-stress
+    // (gated; 404 unless this flag is set).
+    env: {
+      ...process.env,
+      V5_ALLOW_ENSURE_STRESS: "1",
+    },
   },
 });
+
