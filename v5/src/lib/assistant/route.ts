@@ -8,7 +8,11 @@ export type ActionName =
   | "job.costVariance"
   | "dailyPlan.show"
   | "dailyPlan.submit"
-  | "dailyPlan.updateLine";
+  | "dailyPlan.updateLine"
+  | "dailyReport.post"
+  | "progressClaim.lock"
+  | "costItem.setPmPercent"
+  | "costItem.setMilestone";
 
 export type JobArgs = {
   job?: string;
@@ -16,6 +20,13 @@ export type JobArgs = {
   lineId?: string;
   lineRef?: string;
   change?: LineInput;
+  /** costItem.setPmPercent / setMilestone */
+  costItemId?: string;
+  costCode?: string;
+  percent?: string;
+  reason?: string;
+  milestoneId?: string;
+  complete?: boolean;
 };
 export type Intent = { action: ActionName; args: JobArgs };
 
@@ -35,12 +46,47 @@ export function findJob(prompt: string, jobs: JobRef[]) {
   return jobs.find((j) => aliases(j).some((a) => p.includes(a)));
 }
 
+/** Every NN-NNN token in the prompt (job numbers and cost codes share the shape). */
+export function codesIn(prompt: string): string[] {
+  return [...prompt.matchAll(/\b(\d{2}-\d{3})\b/g)].map((m) => m[1]);
+}
+
+/**
+ * Resolve job vs cost-code when both look like NN-NNN.
+ * Prefer a known job name/number; remaining codes are cost codes.
+ */
+export function resolveJobAndCostCode(
+  prompt: string,
+  jobs: JobRef[],
+): { job?: string; costCode?: string } {
+  const known = findJob(prompt, jobs)?.number;
+  const codes = codesIn(prompt);
+  const jobFromCode = codes.find((c) => jobs.some((j) => j.number === c));
+  const job = known ?? jobFromCode;
+  const costCode = codes.find((c) => c !== job);
+  return { ...(job ? { job } : {}), ...(costCode ? { costCode } : {}) };
+}
+
 export function route(prompt: string, jobs: JobRef[]): Intent | null {
   const text = prompt.toLowerCase();
   // A job number that isn't in this sandbox still goes to the action, which refuses it.
   const job =
-    findJob(prompt, jobs)?.number ?? prompt.match(/\b\d{2}-\d{3}\b/)?.[0];
-  const args: JobArgs = job ? { job } : {};
+    findJob(prompt, jobs)?.number ??
+    codesIn(prompt).find((c) => jobs.some((j) => j.number === c)) ??
+    // Unknown NN-NNN only when it is the sole candidate and not clearly a cost-code context.
+    undefined;
+  const unknownJobCode = codesIn(prompt).find(
+    (c) => !jobs.some((j) => j.number === c),
+  );
+  // For generic job-scoped actions, keep prior "first code" behavior via known job or first code.
+  const jobArg =
+    job ??
+    (unknownJobCode &&
+    !hasCostCodeContext(text) &&
+    codesIn(prompt).length === 1
+      ? unknownJobCode
+      : undefined);
+  const args: JobArgs = jobArg ? { job: jobArg } : {};
   const has = (re: RegExp) => re.test(text);
 
   const change = parseChange(prompt);
@@ -52,16 +98,67 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
       args: { ...(known ? { job: known } : {}), lineRef: prompt, change },
     };
   }
+  if (
+    has(/\b(lock|claim)\b/) &&
+    has(/\b(progress|claim|earned|period)\b/)
+  )
+    return { action: "progressClaim.lock", args };
+  if (
+    has(/\b(report|posted|post)\b/) &&
+    has(/\b(day|daily|work|hours|quantity|qty)\b/)
+  )
+    return { action: "dailyReport.post", args };
   if (has(/\b(submit|send|file)\b/) && has(/\b(plan|it|tomorrow)\b/))
     return { action: "dailyPlan.submit", args };
+  // "set 08-100 to 50% …" / "set traffic control to 55% on 25-031 because …"
+  const pmPct = text.match(
+    /\b(?:set|log|record)\b.{0,80}\b(\d{1,3}(?:\.\d)?)\s*%/,
+  );
+  // "%" is non-word, so don't wrap it in \b — "50%" must still count as a percent cue.
+  if (pmPct && /(?:\bpercent\b|%|\bcomplete\b|\bprogress\b)/.test(text)) {
+    const reason =
+      prompt.match(/\b(?:because|reason|:)\s*(.+)$/i)?.[1]?.trim() ?? "";
+    const resolved = resolveJobAndCostCode(prompt, jobs);
+    return {
+      action: "costItem.setPmPercent",
+      args: {
+        ...resolved,
+        lineRef: prompt,
+        percent: pmPct[1],
+        reason,
+      },
+    };
+  }
+  if (
+    has(/\b(milestone|mobilization)\b/) &&
+    has(/\b(complete|done|finish|open|incomplete|reopen)\b/)
+  ) {
+    const resolved = resolveJobAndCostCode(prompt, jobs);
+    return {
+      action: "costItem.setMilestone",
+      args: {
+        ...resolved,
+        lineRef: prompt,
+        complete: !has(/\b(open|incomplete|uncheck|clear|reopen)\b/),
+        reason:
+          prompt.match(/\b(?:because|reason|:)\s*(.+)$/i)?.[1]?.trim() ?? "",
+      },
+    };
+  }
   if (has(/\b(plan|tomorrow|crew|schedule)\b/))
     return { action: "dailyPlan.show", args };
-  if (job && has(/\b(cost|variance|over|overrun|budget|why|losing|money)\b/))
+  if (jobArg && has(/\b(cost|variance|over|overrun|budget|why|losing|money)\b/))
     return { action: "job.costVariance", args };
   if (has(/\b(portfolio|summary|summarize|risk|jobs|status|how)\b/))
     return { action: "portfolio.summary", args: {} };
-  if (job) return { action: "job.costVariance", args };
+  if (jobArg) return { action: "job.costVariance", args };
   return null;
+}
+
+/** Phrases that mean an NN-NNN token is a cost code, not a job. */
+function hasCostCodeContext(text: string) {
+  return /\b(set|log|record|code|line|cost code)\b/.test(text) &&
+    /\b(\d{1,3}(?:\.\d)?\s*%|percent|complete|progress)\b/.test(text);
 }
 
 const n = String.raw`(\d[\d,]*(?:\.\d+)?)`;
@@ -98,4 +195,6 @@ export const examples = [
   "Show tomorrow's plan for Cedar Creek",
   "Change the pour to 80 man-hours",
   "Submit tomorrow's plan",
+  "Report today's work on Cedar Creek",
+  "Lock the progress claim on 25-031",
 ];

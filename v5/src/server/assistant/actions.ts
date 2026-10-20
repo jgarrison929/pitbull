@@ -3,6 +3,8 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { requireDb } from "@/db";
 import {
   actionRuns,
+  costItemMilestones,
+  costItems,
   dailyPlanLines,
   dailyPlans,
   jobs,
@@ -12,6 +14,12 @@ import type { ActionName, JobArgs } from "@/lib/assistant/route";
 import { qty, usdShort } from "@/lib/ev";
 import { applyLineInput, manHoursOf, type LineValues } from "@/lib/plan-line";
 import { getPlansForJob, getPortfolio, type PortfolioJob } from "@/server/data";
+import {
+  lockProgressClaim,
+  postDailyReport,
+  setMilestoneComplete,
+  setPmPercent,
+} from "@/server/progress";
 import type { CurrentUser, Role } from "@/server/session";
 
 // The typed actions. The assistant and on-screen buttons both call run(), so every change goes
@@ -364,15 +372,279 @@ export const actions: Record<ActionName, ActionDef> = {
             eq(dailyPlans.companyId, user.companyId),
           ),
         );
+      // Plan ≠ actual: submit only commits the plan. Actuals come from dailyReport.post.
       const mh = plan.lines.reduce((s, l) => s + l.manHours, 0);
       return {
-        summary: `Submitted ${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName}: ${plan.lines.length} activities, ${mh} man-hours.`,
+        summary: `Submitted ${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName}: ${plan.lines.length} activities, ${mh} man-hours. Planned only — report the day's work to post actuals.`,
         href: jobHref(j),
         job: j.job.number,
       };
     },
   },
+  "dailyReport.post": {
+    title: "Report a day's work",
+    roles: ["foreman", "superintendent"],
+    async run(user, { job }) {
+      const found = await resolvePlan(user, job);
+      if (!found) return { summary: "There is no crew plan to report against." };
+      const { plan, job: j } = found;
+      if (plan.status !== "submitted")
+        return {
+          summary: `Submit ${plan.crew}'s plan first — I won't report against a draft. Edit the lines to the foreman's actual numbers, submit, then report.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      // Posts the current plan-line numbers (foreman edits), not a blind copy of seed defaults.
+      await postDailyReport(user.companyId, plan.id);
+      const mh = plan.lines.reduce((s, l) => s + l.manHours, 0);
+      return {
+        summary: `Reported ${plan.crew}'s work on ${j.job.shortName} (${day(plan.planDate)}): ${mh} man-hours posted to actuals; quantities posted to installed (pending until the PM locks).`,
+        href: jobHref(j),
+        job: j.job.number,
+      };
+    },
+  },
+  "progressClaim.lock": {
+    title: "Lock a progress claim",
+    roles: ["pm", "executive"],
+    async run(user, { job }) {
+      if (!job)
+        return {
+          summary:
+            "Which job's progress claim should I lock? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      const result = await lockProgressClaim(
+        user.companyId,
+        j.job.id,
+        user.userId,
+      );
+      if (!result.ok)
+        return {
+          summary: `There is no open draft progress claim on ${j.job.shortName} to lock.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      return {
+        summary: `Locked ${result.periodLabel} on ${j.job.shortName}: ${result.lines} cost codes. ${result.nextPeriodLabel} is now open as a draft.`,
+        href: jobHref(j),
+        job: j.job.number,
+      };
+    },
+  },
+  "costItem.setPmPercent": {
+    title: "Log PM percent complete",
+    roles: ["pm", "superintendent", "executive"],
+    async run(user, { job, costItemId, costCode, lineRef, percent, reason }) {
+      const pct = Number(String(percent ?? "").replace(/,/g, ""));
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100)
+        return {
+          summary:
+            "What percent should I log? Say a number like 45% and a reason.",
+        };
+      const why = (reason ?? "").trim();
+      if (!why)
+        return {
+          summary:
+            "I need a reason for the PM percent log (who/why). Add “because …”.",
+        };
+      const item = await resolveCostItem(user, {
+        job,
+        costItemId,
+        costCode,
+        lineRef,
+        method: "pm_percent",
+      });
+      if ("summary" in item) return item;
+      const result = await setPmPercent(
+        user.companyId,
+        item.id,
+        user.userId,
+        Math.round(pct * 10),
+        why,
+      );
+      if (!result.ok)
+        return { summary: "Could not log that PM percent on this cost code." };
+      return {
+        summary: `Logged PM percent on ${result.code} ${result.description}: ${result.percentMilli / 10}% — ${why}.`,
+        href: `/app/jobs/${item.jobNumber}`,
+        job: item.jobNumber,
+        line: result.code,
+      };
+    },
+  },
+  "costItem.setMilestone": {
+    title: "Set a milestone complete",
+    roles: ["pm", "superintendent", "executive"],
+    async run(user, { job, milestoneId, costCode, lineRef, complete, reason }) {
+      let id = milestoneId;
+      if (!id) {
+        const found = await resolveMilestone(user, {
+          job,
+          costCode,
+          lineRef,
+        });
+        if ("summary" in found) return found;
+        id = found.id;
+      }
+      const result = await setMilestoneComplete(
+        user.companyId,
+        id,
+        complete !== false,
+        user.userId,
+        reason,
+      );
+      if (!result.ok)
+        return { summary: "That milestone isn't on this job." };
+      return {
+        summary: `${result.complete ? "Completed" : "Reopened"} milestone “${result.name}” on ${result.code}.`,
+        line: result.code,
+      };
+    },
+  },
 };
+
+async function resolveCostItem(
+  user: CurrentUser,
+  opts: {
+    job?: string;
+    costItemId?: string;
+    costCode?: string;
+    lineRef?: string;
+    method?: string;
+  },
+) {
+  const db = requireDb();
+  if (opts.costItemId) {
+    const [row] = await db
+      .select({
+        id: costItems.id,
+        code: costItems.code,
+        jobNumber: jobs.number,
+        method: costItems.evMethod,
+        description: costItems.description,
+      })
+      .from(costItems)
+      .innerJoin(jobs, eq(jobs.id, costItems.jobId))
+      .where(
+        and(
+          eq(costItems.id, opts.costItemId),
+          eq(costItems.companyId, user.companyId),
+        ),
+      );
+    if (!row) return { summary: "That cost item isn't in this sandbox." };
+    if (opts.method && row.method !== opts.method)
+      return {
+        summary: `${row.code} uses the ${row.method} method, not ${opts.method}.`,
+      };
+    return row;
+  }
+  // Prefer an explicit costCode; never treat the job number as the cost code.
+  const jobNumber = opts.job;
+  const code =
+    opts.costCode ??
+    [...(opts.lineRef ?? "").matchAll(/\b(\d{2}-\d{3})\b/g)]
+      .map((m) => m[1])
+      .find((c) => c !== jobNumber);
+  const j = opts.job ? await resolveJob(user, opts.job) : undefined;
+  const rows = await db
+    .select({
+      id: costItems.id,
+      code: costItems.code,
+      jobNumber: jobs.number,
+      method: costItems.evMethod,
+      description: costItems.description,
+    })
+    .from(costItems)
+    .innerJoin(jobs, eq(jobs.id, costItems.jobId))
+    .where(
+      and(
+        eq(costItems.companyId, user.companyId),
+        j ? eq(costItems.jobId, j.job.id) : undefined,
+        opts.method
+          ? eq(costItems.evMethod, opts.method as "pm_percent")
+          : undefined,
+      ),
+    );
+  const match = code
+    ? rows.filter((r) => r.code === code)
+    : rows.filter((r) => {
+        const desc = r.description.toLowerCase();
+        const ref = (opts.lineRef ?? "").toLowerCase();
+        // Prefer a multi-word description match (e.g. "traffic control").
+        return (
+          ref.includes(desc) ||
+          desc
+            .split(/\s+/)
+            .filter((w) => w.length > 3)
+            .every((w) => ref.includes(w))
+        );
+      });
+  // Without a job, a cost-code match across jobs still needs disambiguation.
+  if (match.length === 1) return match[0];
+  if (match.length > 1)
+    return {
+      summary: `Which cost code? ${match.map((m) => `${m.code} on ${m.jobNumber}`).join(", ")}.`,
+    };
+  return {
+    summary:
+      "Which cost code should I update? Name the code (for example 08-100) and the job.",
+  };
+}
+
+async function resolveMilestone(
+  user: CurrentUser,
+  opts: { job?: string; costCode?: string; lineRef?: string },
+) {
+  const db = requireDb();
+  const j = opts.job ? await resolveJob(user, opts.job) : undefined;
+  const rows = await db
+    .select({
+      id: costItemMilestones.id,
+      name: costItemMilestones.name,
+      code: costItems.code,
+      complete: costItemMilestones.complete,
+    })
+    .from(costItemMilestones)
+    .innerJoin(costItems, eq(costItems.id, costItemMilestones.costItemId))
+    .where(
+      and(
+        eq(costItemMilestones.companyId, user.companyId),
+        j ? eq(costItems.jobId, j.job.id) : undefined,
+        opts.costCode ? eq(costItems.code, opts.costCode) : undefined,
+      ),
+    );
+  const ref = (opts.lineRef ?? "").toLowerCase();
+  // Prefer the longest milestone name contained in the prompt so
+  // "Mobilization complete" wins over "Mobilization in".
+  const named = [...rows]
+    .filter((r) => ref.includes(r.name.toLowerCase()))
+    .sort((a, b) => b.name.length - a.name.length);
+  if (named.length >= 1) {
+    // Drop shorter names that are substrings of the best match's name
+    // (e.g. keep only "Mobilization complete", not also "Mobilization in"
+    // when only the longer phrase appears — already filtered — or when both
+    // appear, keep the longest unique name).
+    const bestName = named[0].name.toLowerCase();
+    const exact = named.filter((r) => r.name.toLowerCase() === bestName);
+    if (exact.length === 1) return exact[0];
+    if (exact.length > 1)
+      return {
+        summary: `Which milestone? ${exact.map((m) => `${m.code} ${m.name}`).join("; ")}.`,
+      };
+  }
+  const byCode = opts.costCode
+    ? rows.filter((r) => r.code === opts.costCode)
+    : [];
+  if (byCode.length === 1) return byCode[0];
+  if (rows.length === 1) return rows[0];
+  if (rows.length > 1)
+    return {
+      summary: `Which milestone? ${rows.map((m) => `${m.code} ${m.name}`).join("; ")}.`,
+    };
+  return { summary: "Which milestone should I mark? Name it and the job." };
+}
 
 export const isActionName = (s: unknown): s is ActionName =>
   typeof s === "string" && Object.hasOwn(actions, s);
@@ -402,11 +674,29 @@ export async function run(
   const def = actions[action];
   const allowed = !def.roles || def.roles.includes(user.role);
   // A named job that isn't in this sandbox is refused here, so no action can swap in another job.
-  const unknown = args.job && !(await resolveJob(user, args.job));
+  // Exception: PM%/milestone prompts often lead with a cost code (08-100). If that token
+  // isn't a job and no separate costCode was supplied, reinterpret it as the cost code.
+  let effectiveArgs = args;
+  if (
+    (action === "costItem.setPmPercent" ||
+      action === "costItem.setMilestone") &&
+    args.job &&
+    !args.costCode &&
+    !(await resolveJob(user, args.job))
+  ) {
+    effectiveArgs = {
+      ...args,
+      job: undefined,
+      costCode: args.job,
+      lineRef: args.lineRef ?? args.job,
+    };
+  }
+  const unknown =
+    effectiveArgs.job && !(await resolveJob(user, effectiveArgs.job));
   const result: ActionResult = unknown
-    ? await unknownJob(user, args.job!)
+    ? await unknownJob(user, effectiveArgs.job!)
     : allowed
-      ? await def.run(user, args)
+      ? await def.run(user, effectiveArgs)
       : {
           summary: `${def.title} needs ${def.roles!.map((r) => roleNames[r]).join(" or ")}. You are signed in as ${roleNames[user.role]}. Switch role to try it.`,
         };
@@ -464,7 +754,14 @@ export async function recentRuns(
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
 
-const WRITES: ActionName[] = ["dailyPlan.updateLine", "dailyPlan.submit"];
+const WRITES: ActionName[] = [
+  "dailyPlan.updateLine",
+  "dailyPlan.submit",
+  "dailyReport.post",
+  "progressClaim.lock",
+  "costItem.setPmPercent",
+  "costItem.setMilestone",
+];
 
 /** The audit trail for one job: every change anyone in this sandbox made, newest first. */
 export async function jobChanges(

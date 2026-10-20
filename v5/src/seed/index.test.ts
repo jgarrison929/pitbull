@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { costLine, plannedValueCents } from "@/lib/ev";
 import { seed, seedId } from "./index";
 
 const company = "00000000-0000-4000-8000-000000000001";
@@ -8,16 +9,23 @@ const rows = seed(company, today);
 function jobIndex(number: string) {
   const job = rows.jobs.find((j) => j.number === number)!;
   const items = rows.costItems.filter((c) => c.jobId === job.id);
-  const sum = (f: (c: (typeof items)[number]) => number) =>
-    items.reduce((s, c) => s + f(c), 0);
-  const ev = sum((c) =>
-    Math.round((c.budgetCents * c.installedQtyMilli) / c.budgetQtyMilli),
+  const lines = items.map((c) =>
+    costLine({
+      ...c,
+      claimedPercentMilli: c.claimedPercentMilli ?? 0,
+      claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
+      earnDerivation: c.earnDerivation ?? "",
+      evMethod: c.evMethod ?? "units",
+    }),
   );
+  const sum = (f: (c: (typeof lines)[number]) => number) =>
+    lines.reduce((s, c) => s + f(c), 0);
   return {
-    ev,
-    cpi: ev / sum((c) => c.actualCents),
-    spi: ev / sum((c) => c.plannedCents),
+    earned: sum((c) => c.earnedCents),
+    actual: sum((c) => c.actualCents),
+    planned: sum((c) => c.plannedCents),
     items,
+    lines,
   };
 }
 
@@ -34,16 +42,87 @@ describe("seed", () => {
     expect(other.jobs[0].id).not.toBe(rows.jobs[0].id);
   });
 
-  it("tells the story: SR-99 on track, Cedar Creek over cost, I-5 behind schedule", () => {
+  it("builds actuals from cost entries and planned from schedule dates", () => {
+    const byItem = new Map<string, number>();
+    for (const e of rows.costEntries) {
+      expect(e.at).toBeTruthy();
+      byItem.set(e.costItemId, (byItem.get(e.costItemId) ?? 0) + e.amountCents);
+    }
+    for (const c of rows.costItems) {
+      expect(byItem.get(c.id) ?? 0).toBe(c.actualCents);
+      expect(c.plannedCents).toBe(
+        plannedValueCents(
+          c.budgetCents,
+          c.plannedStartOn,
+          c.plannedFinishOn,
+          today,
+        ),
+      );
+    }
+  });
+
+  it("refuses the budget×pct−labor plug and pct-derived PV=EV", () => {
+    // Every active line must have dated invoices (never a single "Material / subcontract
+    // to date" sized as budget×pct−labor). AC==EV and PV==EV to the cent are the
+    // fingerprints of those plugs. Allow a tiny tolerance for fully complete lines
+    // whose schedules have finished (PV=budget=EV is honest there) — never the 19+
+    // exact matches the old SR-99/I-5 default produced.
+    const MAX_AC_EQ_EV = 0;
+    const MAX_PV_EQ_EV = 3; // e.g. LS at 100% with finished calendars only
+
+    let acEq = 0;
+    let pvEq = 0;
+    const offenders: string[] = [];
+
+    for (const c of rows.costItems) {
+      if (c.claimedPercentMilli === 0 && c.actualCents === 0) continue; // not started
+      const line = costLine({
+        ...c,
+        claimedPercentMilli: c.claimedPercentMilli ?? 0,
+        claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
+        earnDerivation: c.earnDerivation ?? "",
+        evMethod: c.evMethod ?? "units",
+      });
+      const job = rows.jobs.find((j) => j.id === c.jobId)!;
+      if (line.actualCents === line.earnedCents) {
+        acEq += 1;
+        offenders.push(`${job.number} ${c.code} AC==EV $${line.earnedCents / 100}`);
+      }
+      if (line.plannedCents === line.earnedCents && line.earnedCents > 0) {
+        pvEq += 1;
+        offenders.push(`${job.number} ${c.code} PV==EV $${line.earnedCents / 100}`);
+      }
+    }
+
+    expect(
+      acEq,
+      `AC==EV on ${acEq} lines (max ${MAX_AC_EQ_EV}): ${offenders.filter((o) => o.includes("AC==")).join("; ")}`,
+    ).toBeLessThanOrEqual(MAX_AC_EQ_EV);
+    expect(
+      pvEq,
+      `PV==EV on ${pvEq} lines (max ${MAX_PV_EQ_EV}): ${offenders.filter((o) => o.includes("PV==")).join("; ")}`,
+    ).toBeLessThanOrEqual(MAX_PV_EQ_EV);
+
+    // No default plug note anywhere.
+    expect(
+      rows.costEntries.some((e) =>
+        /Material \/ subcontract to date/i.test(e.note ?? ""),
+      ),
+    ).toBe(false);
+  });
+
+  it("tells the story without targeting exact CPI/SPI", () => {
     const sr99 = jobIndex("24-118");
     const cedar = jobIndex("25-031");
     const i5 = jobIndex("24-077");
-    expect(Math.min(sr99.cpi, sr99.spi)).toBeGreaterThanOrEqual(0.98);
-    expect(cedar.cpi).toBeLessThan(0.93);
-    expect(cedar.spi).toBeGreaterThanOrEqual(0.98);
-    expect(i5.spi).toBeLessThan(0.93);
-    expect(i5.cpi).toBeGreaterThanOrEqual(0.98);
-    for (const j of [sr99, cedar, i5]) expect(j.ev).toBeGreaterThan(0);
+    // Cedar: actuals clearly above earned (over cost).
+    expect(cedar.actual).toBeGreaterThan(cedar.earned);
+    // I-5: planned value ahead of earned (behind schedule).
+    expect(i5.planned).toBeGreaterThan(i5.earned);
+    // SR-99: roughly healthy — actuals not wildly off earned.
+    const sr99Gap = Math.abs(sr99.actual - sr99.earned) / sr99.earned;
+    expect(sr99Gap).toBeLessThan(0.15);
+    for (const j of [sr99, cedar, i5]) expect(j.earned).toBeGreaterThan(0);
   });
 
   it("has tomorrow's draft plan for the foreman, on real cost items", () => {
@@ -70,9 +149,29 @@ describe("seed", () => {
         c.actualCents,
         c.budgetQtyMilli,
         c.installedQtyMilli,
+        c.claimedInstalledQtyMilli,
+        c.claimedPercentMilli,
       ]) {
         expect(Number.isInteger(v)).toBe(true);
       }
+    }
+  });
+
+  it("keeps locked Period 1, draft Period 2, milestones and PM logs", () => {
+    expect(rows.costEntries.length).toBeGreaterThan(0);
+    expect(rows.progressClaims.some((c) => c.status === "locked")).toBe(true);
+    expect(
+      rows.progressClaims.some(
+        (c) => c.status === "draft" && c.periodLabel === "Period 2",
+      ),
+    ).toBe(true);
+    expect(rows.costItemMilestones.length).toBeGreaterThan(0);
+    expect(rows.pmPercentLogs.length).toBeGreaterThan(0);
+    for (const c of rows.costItems) {
+      expect((c.earnDerivation ?? "").length).toBeGreaterThan(0);
+      expect(["units", "milestones", "pm_percent"]).toContain(c.evMethod);
+      // Seeded lock: claimed installed matches live (no pending yet).
+      expect(c.claimedInstalledQtyMilli).toBe(c.installedQtyMilli);
     }
   });
 });

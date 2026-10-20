@@ -22,6 +22,20 @@
       "when": 1792374587128,
       "tag": "0002_plan_line_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792504283733,
+      "tag": "0003_real_earned_value",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792511272233,
+      "tag": "0004_claimed_installed_and_milestone_logs",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,14 @@ export const roleEnum = pgEnum("role", [
   "foreman",
 ]);
 export const planStatusEnum = pgEnum("plan_status", ["draft", "submitted"]);
+/** How a cost item earns: units installed, weighted milestones, or a PM percent with a log. */
+export const evMethodEnum = pgEnum("ev_method", [
+  "units",
+  "milestones",
+  "pm_percent",
+]);
+export const claimStatusEnum = pgEnum("claim_status", ["draft", "locked"]);
+export const costEntryKindEnum = pgEnum("cost_entry_kind", ["labor", "other"]);
 
 export const companies = pgTable(
   "companies",
@@ -102,16 +110,152 @@ export const costItems = pgTable(
     code: text("code").notNull(),
     description: text("description").notNull(),
     unit: text("unit").notNull(),
+    evMethod: evMethodEnum("ev_method").notNull().default("units"),
     budgetQtyMilli: milli("budget_qty_milli"),
+    /** Live installed quantity from foreman daily reports (units method). Pending until PM lock. */
     installedQtyMilli: milli("installed_qty_milli"),
+    /**
+     * Installed quantity frozen on the last locked claim. Units EV uses this, not live installed.
+     * Live qty above this is shown as pending until the next lock.
+     */
+    claimedInstalledQtyMilli: milli("claimed_installed_qty_milli").default(0),
     budgetCents: money("budget_cents"),
-    /** Planned value to date. Linear until the schedule module lands (5.1). */
+    /** Planned start/finish for linear time-phased PV. */
+    plannedStartOn: date("planned_start_on").notNull(),
+    plannedFinishOn: date("planned_finish_on").notNull(),
+    /**
+     * Denormalized planned value to date (from planned_start/finish).
+     * Reads recompute as-of today; submit/lock also refresh the stored value.
+     */
     plannedCents: money("planned_cents"),
+    /** Denormalized sum of cost_entries for this item. */
     actualCents: money("actual_cents"),
+    /** Locked claim percent (thousandths). Display/snapshot; units earn from claimed qty. */
+    claimedPercentMilli: milli("claimed_percent_milli").default(0),
+    /** Human-readable how the locked percent was derived. */
+    earnDerivation: text("earn_derivation").notNull().default(""),
     /** Budgeted man-hours per unit, in thousandths. */
     budgetMhPerUnitMilli: milli("budget_mh_per_unit_milli"),
   },
   (t) => [index("cost_items_job_idx").on(t.jobId)],
+);
+
+/** Weighted milestones for cost items that earn by milestone completion. */
+export const costItemMilestones = pgTable(
+  "cost_item_milestones",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    costItemId: uuid("cost_item_id")
+      .notNull()
+      .references(() => costItems.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Share of earnable percent, in thousandths (500 = 50%). Weights on one item sum to 1000. */
+    weightMilli: milli("weight_milli"),
+    complete: boolean("complete").notNull().default(false),
+    sort: integer("sort").notNull().default(0),
+  },
+  (t) => [index("cost_item_milestones_item_idx").on(t.costItemId)],
+);
+
+/** Actual cost rows: labor (hours × rate) and other costs. Source of AC. */
+export const costEntries = pgTable(
+  "cost_entries",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    costItemId: uuid("cost_item_id")
+      .notNull()
+      .references(() => costItems.id, { onDelete: "cascade" }),
+    kind: costEntryKindEnum("kind").notNull(),
+    /** Man-hours in tenths, when kind = labor. */
+    hoursTenths: integer("hours_tenths"),
+    rateCents: integer("rate_cents"),
+    amountCents: money("amount_cents"),
+    note: text("note").notNull().default(""),
+    /** Plan line that posted this labor row, when applicable. */
+    sourcePlanLineId: uuid("source_plan_line_id"),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("cost_entries_item_idx").on(t.costItemId)],
+);
+
+/** Who/why log for PM percent-complete method. Latest entry is the working percent. */
+export const pmPercentLogs = pgTable(
+  "pm_percent_logs",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    costItemId: uuid("cost_item_id")
+      .notNull()
+      .references(() => costItems.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    percentMilli: milli("percent_milli"),
+    reason: text("reason").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("pm_percent_logs_item_idx").on(t.costItemId, t.at)],
+);
+
+/** Who/why audit when a weighted milestone is marked complete or reopened. */
+export const milestoneLogs = pgTable(
+  "milestone_logs",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    milestoneId: uuid("milestone_id")
+      .notNull()
+      .references(() => costItemMilestones.id, { onDelete: "cascade" }),
+    costItemId: uuid("cost_item_id")
+      .notNull()
+      .references(() => costItems.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    complete: boolean("complete").notNull(),
+    reason: text("reason").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("milestone_logs_item_idx").on(t.costItemId, t.at)],
+);
+
+/** Period progress claim. Locked claims drive earned value; billing comes after 5.0. */
+export const progressClaims = pgTable(
+  "progress_claims",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    periodLabel: text("period_label").notNull(),
+    status: claimStatusEnum("status").notNull().default("draft"),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedById: uuid("locked_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [index("progress_claims_job_idx").on(t.jobId)],
+);
+
+export const progressClaimLines = pgTable(
+  "progress_claim_lines",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    claimId: uuid("claim_id")
+      .notNull()
+      .references(() => progressClaims.id, { onDelete: "cascade" }),
+    costItemId: uuid("cost_item_id")
+      .notNull()
+      .references(() => costItems.id, { onDelete: "cascade" }),
+    claimedPercentMilli: milli("claimed_percent_milli"),
+    installedQtyMilli: milli("installed_qty_milli"),
+    derivation: text("derivation").notNull().default(""),
+  },
+  (t) => [index("progress_claim_lines_claim_idx").on(t.claimId)],
 );
 
 export const dailyPlans = pgTable(

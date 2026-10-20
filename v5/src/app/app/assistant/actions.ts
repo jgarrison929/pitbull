@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { examples, route } from "@/lib/assistant/route";
+import { examples, route, type JobArgs } from "@/lib/assistant/route";
 import { isActionName, run } from "@/server/assistant/actions";
 import { getPortfolio } from "@/server/data";
 import { requireUser } from "@/server/session";
@@ -32,20 +32,55 @@ export async function ask(
   return {};
 }
 
-/** On-screen buttons call the same typed actions as the assistant, so they share checks and the log. */
-export async function runAction(formData: FormData) {
+export type ActionState = { summary?: string };
+
+function argsFromForm(formData: FormData): JobArgs {
+  const str = (k: string) => {
+    const v = formData.get(k);
+    return typeof v === "string" && v ? v : undefined;
+  };
+  const completeRaw = str("complete");
+  return {
+    job: str("job"),
+    lineId: str("lineId"),
+    costItemId: str("costItemId"),
+    costCode: str("costCode"),
+    percent: str("percent"),
+    reason: str("reason"),
+    milestoneId: str("milestoneId"),
+    complete:
+      completeRaw === undefined
+        ? undefined
+        : completeRaw === "true" || completeRaw === "1",
+  };
+}
+
+async function executeFormAction(formData: FormData): Promise<ActionState> {
   const action = formData.get("action");
-  const job = formData.get("job");
   const label = String(formData.get("label") ?? action);
-  if (!isActionName(action)) return;
+  if (!isActionName(action)) return {};
   const user = await requireUser();
-  await run(
+  const { result } = await run(
     user,
     `${label} (button)`,
     action,
-    typeof job === "string" && job ? { job } : {},
+    argsFromForm(formData),
   );
   revalidatePath("/app", "layout");
+  return { summary: result.summary };
+}
+
+/** Plain form action for lock / submit / report buttons. */
+export async function runAction(formData: FormData): Promise<void> {
+  await executeFormAction(formData);
+}
+
+/** useActionState wrapper for PM percent / milestone forms that show a summary. */
+export async function runActionState(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return executeFormAction(formData);
 }
 
 export type SaveLineState = {

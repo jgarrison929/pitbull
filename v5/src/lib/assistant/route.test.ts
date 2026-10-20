@@ -34,6 +34,16 @@ describe("assistant router", () => {
     ["send the plan for cedar", "dailyPlan.submit", { job: "25-031" }],
     ["submit the plan for 99-999", "dailyPlan.submit", { job: "99-999" }],
     [
+      "Report today's work on Cedar Creek",
+      "dailyReport.post",
+      { job: "25-031" },
+    ],
+    [
+      "Lock the progress claim on 25-031",
+      "progressClaim.lock",
+      { job: "25-031" },
+    ],
+    [
       "change the pour to 80 man-hours",
       "dailyPlan.updateLine",
       {
@@ -61,6 +71,60 @@ describe("assistant router", () => {
       {
         lineRef: "add a note to the pour: crane at 6am",
         change: { notes: "crane at 6am" },
+      },
+    ],
+    [
+      "Set 08-100 to 50% complete because field walk",
+      "costItem.setPmPercent",
+      {
+        costCode: "08-100",
+        lineRef: "Set 08-100 to 50% complete because field walk",
+        percent: "50",
+        reason: "field walk",
+      },
+    ],
+    [
+      "Set traffic control to 55% complete on 25-031 because night shift",
+      "costItem.setPmPercent",
+      {
+        job: "25-031",
+        lineRef:
+          "Set traffic control to 55% complete on 25-031 because night shift",
+        percent: "55",
+        reason: "night shift",
+      },
+    ],
+    [
+      "Set Cedar Creek traffic control to 50% because walkthrough",
+      "costItem.setPmPercent",
+      {
+        job: "25-031",
+        lineRef:
+          "Set Cedar Creek traffic control to 50% because walkthrough",
+        percent: "50",
+        reason: "walkthrough",
+      },
+    ],
+    [
+      "Mark Mobilization complete milestone open on 25-031 because punch list",
+      "costItem.setMilestone",
+      {
+        job: "25-031",
+        lineRef:
+          "Mark Mobilization complete milestone open on 25-031 because punch list",
+        complete: false,
+        reason: "punch list",
+      },
+    ],
+    [
+      "Complete milestone Mobilization in on Cedar Creek because staged",
+      "costItem.setMilestone",
+      {
+        job: "25-031",
+        lineRef:
+          "Complete milestone Mobilization in on Cedar Creek because staged",
+        complete: true,
+        reason: "staged",
       },
     ],
   ])("%s → %s", (prompt, action, args) => {
