@@ -12,6 +12,7 @@ import type { ActionName, JobArgs } from "@/lib/assistant/route";
 import { qty, usdShort } from "@/lib/ev";
 import { applyLineInput, manHoursOf, type LineValues } from "@/lib/plan-line";
 import { getPlansForJob, getPortfolio, type PortfolioJob } from "@/server/data";
+import { lockProgressClaim, postSubmittedPlan } from "@/server/progress";
 import type { CurrentUser, Role } from "@/server/session";
 
 // The typed actions. The assistant and on-screen buttons both call run(), so every change goes
@@ -364,9 +365,44 @@ export const actions: Record<ActionName, ActionDef> = {
             eq(dailyPlans.companyId, user.companyId),
           ),
         );
+      // Hours × rate → cost_entries (AC); quantities → installed qty for units method.
+      await postSubmittedPlan(user.companyId, plan.id);
       const mh = plan.lines.reduce((s, l) => s + l.manHours, 0);
       return {
-        summary: `Submitted ${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName}: ${plan.lines.length} activities, ${mh} man-hours.`,
+        summary: `Submitted ${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName}: ${plan.lines.length} activities, ${mh} man-hours. Hours posted to actuals; quantities posted to installed.`,
+        href: jobHref(j),
+        job: j.job.number,
+      };
+    },
+  },
+  "progressClaim.lock": {
+    title: "Lock a progress claim",
+    roles: ["pm", "executive"],
+    async run(user, { job }) {
+      const j = job
+        ? await resolveJob(user, job)
+        : (await getPortfolio(user.companyId)).jobs.find((p) =>
+            p.job.number.startsWith("25-"),
+          );
+      if (job && !j) return unknownJob(user, job);
+      if (!j)
+        return {
+          summary:
+            "Which job's progress claim should I lock? Name the job number.",
+        };
+      const result = await lockProgressClaim(
+        user.companyId,
+        j.job.id,
+        user.userId,
+      );
+      if (!result.ok)
+        return {
+          summary: `There is no open draft progress claim on ${j.job.shortName} to lock.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      return {
+        summary: `Locked ${result.periodLabel} on ${j.job.shortName}: ${result.lines} cost codes. Locked claim percents now drive earned value.`,
         href: jobHref(j),
         job: j.job.number,
       };
@@ -464,7 +500,11 @@ export async function recentRuns(
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
 
-const WRITES: ActionName[] = ["dailyPlan.updateLine", "dailyPlan.submit"];
+const WRITES: ActionName[] = [
+  "dailyPlan.updateLine",
+  "dailyPlan.submit",
+  "progressClaim.lock",
+];
 
 /** The audit trail for one job: every change anyone in this sandbox made, newest first. */
 export async function jobChanges(

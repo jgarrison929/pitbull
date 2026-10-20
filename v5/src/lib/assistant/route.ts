@@ -8,7 +8,8 @@ export type ActionName =
   | "job.costVariance"
   | "dailyPlan.show"
   | "dailyPlan.submit"
-  | "dailyPlan.updateLine";
+  | "dailyPlan.updateLine"
+  | "progressClaim.lock";
 
 export type JobArgs = {
   job?: string;
@@ -52,6 +53,11 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
       args: { ...(known ? { job: known } : {}), lineRef: prompt, change },
     };
   }
+  if (
+    has(/\b(lock|claim)\b/) &&
+    has(/\b(progress|claim|earned|period)\b/)
+  )
+    return { action: "progressClaim.lock", args };
   if (has(/\b(submit|send|file)\b/) && has(/\b(plan|it|tomorrow)\b/))
     return { action: "dailyPlan.submit", args };
   if (has(/\b(plan|tomorrow|crew|schedule)\b/))

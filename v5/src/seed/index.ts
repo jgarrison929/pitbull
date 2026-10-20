@@ -1,14 +1,26 @@
 // Deterministic demo seed: (companyId, today) -> rows. The same function seeds CI, staging and each visitor sandbox.
 // Fictional company, people and jobs. Dates are relative to `today` so the demo never looks stale.
+// EV is built forward: cost entries → AC, time-phased dates → PV, locked progress claims → EV.
 import { createHash } from "node:crypto";
 import type {
   companies,
+  costEntries,
+  costItemMilestones,
   costItems,
   dailyPlanLines,
   dailyPlans,
   jobs,
+  pmPercentLogs,
+  progressClaimLines,
+  progressClaims,
   users,
 } from "@/db/schema";
+import {
+  DEFAULT_LABOR_RATE_CENTS,
+  plannedValueCents,
+  snapshotClaimPercent,
+  type EvMethod,
+} from "@/lib/ev";
 
 export const SEED_COMPANY_NAME = "Summit Highway & Bridge";
 
@@ -52,10 +64,11 @@ type ItemSpec = {
   unit: string;
   qty: number;
   budget: number; // dollars
-  pct: number; // physical percent complete
-  cpi: number; // earned / actual
-  spi: number; // earned / planned
+  pct: number; // physical percent complete (drives the locked claim)
+  cpi: number; // earned / actual → sizes the cost entry
+  spi: number; // earned / planned → sizes the time-phased dates
   mh: number; // budgeted man-hours per unit
+  method?: EvMethod;
 };
 
 const COUNTED = new Set(["EA", "MO"]);
@@ -70,7 +83,32 @@ const item = (
   cpi = 1,
   spi = 1,
   mh = 0,
-): ItemSpec => ({ code, description, unit, qty, budget, pct, cpi, spi, mh });
+  method?: EvMethod,
+): ItemSpec => ({
+  code,
+  description,
+  unit,
+  qty,
+  budget,
+  pct,
+  cpi,
+  spi,
+  mh,
+  method,
+});
+
+/** Pick a measurement method from the work type when the spec does not name one. */
+function methodOf(s: ItemSpec): EvMethod {
+  if (s.method) return s.method;
+  if (s.unit === "LS" && /mobilization/i.test(s.description))
+    return "milestones";
+  if (
+    s.unit === "LS" ||
+    /traffic control|signals|erosion|swppp/i.test(s.description)
+  )
+    return "pm_percent";
+  return "units";
+}
 
 const jobSpecs = [
   {
@@ -323,6 +361,11 @@ export type SeedRows = {
   users: Insert<typeof users>[];
   jobs: Insert<typeof jobs>[];
   costItems: Insert<typeof costItems>[];
+  costItemMilestones: Insert<typeof costItemMilestones>[];
+  costEntries: Insert<typeof costEntries>[];
+  pmPercentLogs: Insert<typeof pmPercentLogs>[];
+  progressClaims: Insert<typeof progressClaims>[];
+  progressClaimLines: Insert<typeof progressClaimLines>[];
   dailyPlans: Insert<typeof dailyPlans>[];
   dailyPlanLines: Insert<typeof dailyPlanLines>[];
 };
@@ -330,8 +373,18 @@ export type SeedRows = {
 const cents = (dollars: number) => Math.round(dollars * 100);
 const toMilli = (n: number) => Math.round(n * 1000);
 
+/** Dates whose linear PV equals `fraction` of budget as of `today`. */
+function datesForFraction(today: Date, fraction: number, spanDays = 200) {
+  const f = Math.max(0, Math.min(1, fraction));
+  const elapsed = Math.round(f * spanDays);
+  const start = addDays(today, -elapsed);
+  const finish = addDays(start, spanDays);
+  return { start: isoDate(start), finish: isoDate(finish) };
+}
+
 export function seed(companyId: string, today: Date): SeedRows {
   const id = (key: string) => seedId(companyId, key);
+  const pmId = id("user:pm");
   const out: SeedRows = {
     company: {
       id: companyId,
@@ -348,6 +401,11 @@ export function seed(companyId: string, today: Date): SeedRows {
     })),
     jobs: [],
     costItems: [],
+    costItemMilestones: [],
+    costEntries: [],
+    pmPercentLogs: [],
+    progressClaims: [],
+    progressClaimLines: [],
     dailyPlans: [],
     dailyPlanLines: [],
   };
@@ -365,25 +423,185 @@ export function seed(companyId: string, today: Date): SeedRows {
       finishOn: isoDate(addDays(today, j.finishDays)),
       contractCents: cents(j.contract),
     });
+
+    const claimId = id(`claim:${j.key}:period-1`);
+    out.progressClaims.push({
+      id: claimId,
+      companyId,
+      jobId,
+      periodLabel: "Period 1 (seeded)",
+      status: "locked",
+      lockedAt: today,
+      lockedById: pmId,
+    });
+
     for (const s of j.items) {
-      // Counted units (each, months) are installed in whole numbers; earned follows the installed count.
+      const method = methodOf(s);
+      const budgetCents = cents(s.budget);
+      const targetPctMilli = Math.round(s.pct * 1000);
       const installed = COUNTED.has(s.unit)
         ? Math.round(s.qty * s.pct)
         : s.qty * s.pct;
-      const earned = cents((s.budget * installed) / s.qty);
+      const installedMilli = toMilli(installed);
+      const earned = Math.round((budgetCents * targetPctMilli) / 1000);
+      const actualCents = s.cpi === 0 ? 0 : Math.round(earned / s.cpi);
+      const plannedTarget =
+        s.spi === 0 ? 0 : Math.min(budgetCents, Math.round(earned / s.spi));
+      const pvFraction = budgetCents === 0 ? 0 : plannedTarget / budgetCents;
+      const { start, finish } = datesForFraction(today, pvFraction);
+      const plannedCents = plannedValueCents(budgetCents, start, finish, today);
+
+      let milestoneCompleteWeightMilli = 0;
+      const milestones: {
+        name: string;
+        weightMilli: number;
+        complete: boolean;
+      }[] = [];
+      if (method === "milestones") {
+        // Two equal weights: "in" then "complete". pct 1 → both done; 0.5 → in only.
+        const inDone = s.pct >= 0.5;
+        const doneDone = s.pct >= 1;
+        milestones.push(
+          { name: "Mobilization in", weightMilli: 500, complete: inDone },
+          { name: "Mobilization complete", weightMilli: 500, complete: doneDone },
+        );
+        milestoneCompleteWeightMilli = milestones
+          .filter((m) => m.complete)
+          .reduce((a, m) => a + m.weightMilli, 0);
+        milestones.forEach((m, i) =>
+          out.costItemMilestones.push({
+            id: id(`ms:${j.key}:${s.code}:${i}`),
+            companyId,
+            costItemId: id(`cost:${j.key}:${s.code}`),
+            name: m.name,
+            weightMilli: m.weightMilli,
+            complete: m.complete,
+            sort: i,
+          }),
+        );
+      }
+
+      let pmPercentMilli = 0;
+      if (method === "pm_percent") {
+        pmPercentMilli = targetPctMilli;
+        out.pmPercentLogs.push({
+          id: id(`pmlog:${j.key}:${s.code}`),
+          companyId,
+          costItemId: id(`cost:${j.key}:${s.code}`),
+          userId: pmId,
+          percentMilli: pmPercentMilli,
+          reason:
+            s.pct >= 1
+              ? "Work complete per field walk."
+              : s.pct === 0
+                ? "Not started."
+                : "Field progress per last superintendent walkthrough.",
+          at: today,
+        });
+      }
+
+      const snap = snapshotClaimPercent({
+        method,
+        budgetQtyMilli: toMilli(s.qty),
+        installedQtyMilli: method === "units" ? installedMilli : 0,
+        unit: s.unit,
+        milestoneCompleteWeightMilli,
+        pmPercentMilli,
+        milestones,
+      });
+      // For units, snap follows installed; for others, follow the target pct via milestones/PM log.
+      const claimedPercentMilli =
+        method === "units" ? snap.percentMilli : targetPctMilli;
+      const derivation =
+        method === "units"
+          ? snap.derivation
+          : method === "milestones"
+            ? snapshotClaimPercent({
+                method,
+                budgetQtyMilli: toMilli(s.qty),
+                installedQtyMilli: 0,
+                unit: s.unit,
+                milestoneCompleteWeightMilli,
+                pmPercentMilli: 0,
+                milestones,
+              }).derivation
+            : `${snap.derivation} — Marcus Lee: ${
+                out.pmPercentLogs.find(
+                  (l) => l.id === id(`pmlog:${j.key}:${s.code}`),
+                )?.reason ?? ""
+              }`;
+
+      const costItemId = id(`cost:${j.key}:${s.code}`);
       out.costItems.push({
-        id: id(`cost:${j.key}:${s.code}`),
+        id: costItemId,
         companyId,
         jobId,
         code: s.code,
         description: s.description,
         unit: s.unit,
+        evMethod: method,
         budgetQtyMilli: toMilli(s.qty),
-        installedQtyMilli: toMilli(installed),
-        budgetCents: cents(s.budget),
-        plannedCents: Math.min(cents(s.budget), Math.round(earned / s.spi)),
-        actualCents: Math.round(earned / s.cpi),
+        installedQtyMilli: method === "units" ? installedMilli : 0,
+        budgetCents,
+        plannedStartOn: start,
+        plannedFinishOn: finish,
+        plannedCents,
+        actualCents,
+        claimedPercentMilli,
+        earnDerivation: `${derivation} (locked Period 1)`,
         budgetMhPerUnitMilli: toMilli(s.mh),
+      });
+
+      if (actualCents > 0) {
+        // Prefer a labor-shaped entry when we have MH; otherwise a single "other" cost row.
+        const mhBudget = s.mh * installed;
+        if (mhBudget > 0) {
+          const hoursTenths = Math.max(1, Math.round(mhBudget * 10));
+          const labor = Math.round((hoursTenths / 10) * DEFAULT_LABOR_RATE_CENTS);
+          out.costEntries.push({
+            id: id(`ce:${j.key}:${s.code}:labor`),
+            companyId,
+            costItemId,
+            kind: "labor",
+            hoursTenths,
+            rateCents: DEFAULT_LABOR_RATE_CENTS,
+            amountCents: labor,
+            note: "Seeded crew labor",
+            at: today,
+          });
+          const other = actualCents - labor;
+          if (other !== 0) {
+            out.costEntries.push({
+              id: id(`ce:${j.key}:${s.code}:other`),
+              companyId,
+              costItemId,
+              kind: "other",
+              amountCents: other,
+              note: other > 0 ? "Seeded material / equipment" : "Seeded credit",
+              at: today,
+            });
+          }
+        } else {
+          out.costEntries.push({
+            id: id(`ce:${j.key}:${s.code}:other`),
+            companyId,
+            costItemId,
+            kind: "other",
+            amountCents: actualCents,
+            note: "Seeded cost to date",
+            at: today,
+          });
+        }
+      }
+
+      out.progressClaimLines.push({
+        id: id(`claim-line:${j.key}:${s.code}`),
+        companyId,
+        claimId,
+        costItemId,
+        claimedPercentMilli,
+        installedQtyMilli: method === "units" ? installedMilli : 0,
+        derivation,
       });
     }
   }
@@ -445,5 +663,30 @@ export function seed(companyId: string, today: Date): SeedRows {
       sort: i,
     }),
   );
+
+  // Open draft claim on Cedar so the PM can lock after the foreman reports tomorrow's work.
+  const draftClaimId = id("claim:cedar:period-2");
+  out.progressClaims.push({
+    id: draftClaimId,
+    companyId,
+    jobId: id("job:cedar"),
+    periodLabel: "Period 2 (open)",
+    status: "draft",
+    lockedAt: null,
+    lockedById: null,
+  });
+  for (const code of ["04-210", "04-310", "07-410"]) {
+    const itemRow = out.costItems.find((c) => c.id === cost(code))!;
+    out.progressClaimLines.push({
+      id: id(`claim-line:cedar:p2:${code}`),
+      companyId,
+      claimId: draftClaimId,
+      costItemId: itemRow.id,
+      claimedPercentMilli: itemRow.claimedPercentMilli ?? 0,
+      installedQtyMilli: itemRow.installedQtyMilli,
+      derivation: "Draft — will refresh from field on lock",
+    });
+  }
+
   return out;
 }

@@ -10,8 +10,9 @@ function jobIndex(number: string) {
   const items = rows.costItems.filter((c) => c.jobId === job.id);
   const sum = (f: (c: (typeof items)[number]) => number) =>
     items.reduce((s, c) => s + f(c), 0);
+  // Locked claim percent drives earned value.
   const ev = sum((c) =>
-    Math.round((c.budgetCents * c.installedQtyMilli) / c.budgetQtyMilli),
+    Math.round((c.budgetCents * (c.claimedPercentMilli ?? 0)) / 1000),
   );
   return {
     ev,
@@ -70,9 +71,27 @@ describe("seed", () => {
         c.actualCents,
         c.budgetQtyMilli,
         c.installedQtyMilli,
+        c.claimedPercentMilli,
       ]) {
         expect(Number.isInteger(v)).toBe(true);
       }
+    }
+  });
+
+  it("builds EV forward from entries, claims and methods", () => {
+    expect(rows.costEntries.length).toBeGreaterThan(0);
+    expect(rows.progressClaims.some((c) => c.status === "locked")).toBe(true);
+    expect(rows.costItemMilestones.length).toBeGreaterThan(0);
+    expect(rows.pmPercentLogs.length).toBeGreaterThan(0);
+    const byItem = new Map<string, number>();
+    for (const e of rows.costEntries) {
+      byItem.set(e.costItemId, (byItem.get(e.costItemId) ?? 0) + e.amountCents);
+    }
+    for (const c of rows.costItems) {
+      if (c.actualCents === 0) continue;
+      expect(byItem.get(c.id) ?? 0).toBe(c.actualCents);
+      expect(c.earnDerivation.length).toBeGreaterThan(0);
+      expect(["units", "milestones", "pm_percent"]).toContain(c.evMethod);
     }
   });
 });

@@ -34,11 +34,19 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
                 hot(l) && "bg-negative-soft/60",
               )}
             >
-              <Td className="whitespace-nowrap">
-                <span className="mr-2 font-mono text-xs text-muted-foreground">
-                  {l.code}
-                </span>
-                <span className="font-medium">{l.description}</span>
+              <Td>
+                <div className="whitespace-nowrap">
+                  <span className="mr-2 font-mono text-xs text-muted-foreground">
+                    {l.code}
+                  </span>
+                  <span className="font-medium">{l.description}</span>
+                </div>
+                <div
+                  className="mt-0.5 text-xs text-muted-foreground"
+                  data-testid="earn-derivation"
+                >
+                  {l.earnDerivation || `${l.evMethod} method`}
+                </div>
               </Td>
               <Td
                 right
@@ -105,6 +113,12 @@ export function CostTable({ lines }: { lines: CostLine[] }) {
                   {l.code}
                 </span>
                 <span className="font-medium">{l.description}</span>
+                <div
+                  className="mt-0.5 text-xs font-normal text-muted-foreground"
+                  data-testid="earn-derivation"
+                >
+                  {l.earnDerivation || `${l.evMethod} method`}
+                </div>
               </div>
               <StatusIndex index={l.cpi} varianceCents={l.varianceCents} />
             </div>

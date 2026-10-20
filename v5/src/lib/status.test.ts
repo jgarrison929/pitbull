@@ -16,6 +16,9 @@ describe("status rule", () => {
       plannedCents: 64_000_000,
       actualCents: 65_300_000,
       budgetMhPerUnitMilli: 0,
+      claimedPercentMilli: 1000,
+      evMethod: "milestones",
+      earnDerivation: "weighted milestones: both complete",
     });
     expect(mob.varianceCents).toBe(-1_300_000);
     expect(mob.cpi).toBeCloseTo(0.98, 2);
@@ -106,7 +109,9 @@ describe("roll-ups equal the sum of their lines, for the seed", () => {
         expect(l.earnedCents).toBeLessThanOrEqual(l.budgetCents);
         expect(l.plannedCents).toBeLessThanOrEqual(l.budgetCents);
         expect(l.actualCents).toBeGreaterThanOrEqual(0);
-        if (l.installedQtyMilli === 0) expect(l.actualCents).toBe(0);
+        // Installed qty only tracks the units method; milestones/PM % can have actuals with 0 installed.
+        if (l.evMethod === "units" && l.installedQtyMilli === 0)
+          expect(l.claimedPercentMilli).toBe(0);
         if (l.unit === "EA" || l.unit === "MO")
           expect(l.installedQtyMilli % 1000).toBe(0);
       }

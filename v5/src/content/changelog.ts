@@ -1,6 +1,15 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m1.1",
+    date: "2026-10-20",
+    items: [
+      "Earned value is real: units complete, weighted milestones, or PM percent with a who/why log.",
+      "Actuals come from cost entries (foreman hours × rate); planned value from time-phased dates; locked progress claims drive EV.",
+      "Job cost table shows how each line's earned percent was derived. PM can lock the open period claim.",
+    ],
+  },
+  {
     version: "5.0.0-m1",
     date: "2026-10-18",
     items: [

@@ -5,10 +5,15 @@ import { requireDb, type Db } from "@/db";
 import {
   actionRuns,
   companies,
+  costEntries,
+  costItemMilestones,
   costItems,
   dailyPlanLines,
   dailyPlans,
   jobs,
+  pmPercentLogs,
+  progressClaimLines,
+  progressClaims,
   users,
 } from "@/db/schema";
 import { seed, type SeedRows } from "@/seed";
@@ -22,6 +27,16 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 async function insertWork(tx: Tx, rows: SeedRows) {
   await tx.insert(jobs).values(rows.jobs);
   await tx.insert(costItems).values(rows.costItems);
+  if (rows.costItemMilestones.length)
+    await tx.insert(costItemMilestones).values(rows.costItemMilestones);
+  if (rows.costEntries.length)
+    await tx.insert(costEntries).values(rows.costEntries);
+  if (rows.pmPercentLogs.length)
+    await tx.insert(pmPercentLogs).values(rows.pmPercentLogs);
+  if (rows.progressClaims.length)
+    await tx.insert(progressClaims).values(rows.progressClaims);
+  if (rows.progressClaimLines.length)
+    await tx.insert(progressClaimLines).values(rows.progressClaimLines);
   await tx.insert(dailyPlans).values(rows.dailyPlans);
   await tx.insert(dailyPlanLines).values(rows.dailyPlanLines);
 }
