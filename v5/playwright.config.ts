@@ -7,7 +7,17 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: process.env.CI ? [["list"], ["github"]] : "list",
-  use: { baseURL: `http://localhost:${port}`, trace: "retain-on-failure" },
+  expect: {
+    toHaveScreenshot: {
+      // Same Linux Chromium as CI; small tolerance for antialias noise.
+      maxDiffPixelRatio: 0.02,
+      animations: "disabled",
+    },
+  },
+  use: {
+    baseURL: `http://localhost:${port}`,
+    trace: "retain-on-failure",
+  },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: `npm run start -- -p ${port}`,
