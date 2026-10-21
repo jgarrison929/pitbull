@@ -18,6 +18,7 @@ import {
   users,
 } from "@/db/schema";
 import { seed, type SeedRows } from "@/seed";
+import { seedActionHistory } from "@/seed/history";
 import { seedStressJob, STRESS_JOB_NUMBER } from "@/seed/stress";
 
 export const SANDBOX_TTL_MS = 24 * 60 * 60 * 1000;
@@ -81,7 +82,7 @@ export const SANDBOX_LOCK_TIMEOUT = "5s";
  */
 export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
   const db = requireDb();
-  return db.transaction(async (tx) => {
+  const companyId = await db.transaction(async (tx) => {
     // Fail fast if another sign-in holds the lock too long (transaction-local).
     await tx.execute(
       sql`select set_config('lock_timeout', ${SANDBOX_LOCK_TIMEOUT}, true)`,
@@ -104,6 +105,20 @@ export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
     // seed() is pure in-memory; insertSandbox writes only through tx.
     return insertSandbox(tx, now, visitorHash);
   });
+  // Typed-action history must run after the insert tx commits (run() uses its own connection).
+  await ensureSeedHistory(companyId, now);
+  return companyId;
+}
+
+/** Runs seedActionHistory once per sandbox (skip when reusing a capped visitor sandbox). */
+async function ensureSeedHistory(companyId: string, now: Date) {
+  const db = requireDb();
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(actionRuns)
+    .where(eq(actionRuns.companyId, companyId));
+  if ((row?.n ?? 0) > 0) return;
+  await seedActionHistory(companyId, now);
 }
 
 async function insertSandbox(
@@ -129,7 +144,11 @@ export async function createSandbox(
   visitorHash: string | null = null,
 ) {
   const db = requireDb();
-  return db.transaction(async (tx) => insertSandbox(tx, now, visitorHash));
+  const companyId = await db.transaction(async (tx) =>
+    insertSandbox(tx, now, visitorHash),
+  );
+  await seedActionHistory(companyId, now);
+  return companyId;
 }
 
 /** Puts a sandbox back to the seed. Users and sessions survive, so the visitor stays signed in. */
@@ -145,6 +164,7 @@ export async function resetSandbox(companyId: string, now = new Date()) {
       .set({ seededAt: now })
       .where(eq(companies.id, companyId));
   });
+  await seedActionHistory(companyId, now);
 }
 
 export async function countRows(companyId: string) {

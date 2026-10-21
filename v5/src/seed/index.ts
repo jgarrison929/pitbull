@@ -497,15 +497,17 @@ export function seed(companyId: string, today: Date): SeedRows {
       contractCents: cents(j.contract),
     });
 
+    // Period 1 starts as a draft. seedActionHistory locks it through the real
+    // progressClaim.lock action so every job's change list has a real audit row.
     const claimId = id(`claim:${j.key}:period-1`);
     out.progressClaims.push({
       id: claimId,
       companyId,
       jobId,
-      periodLabel: "Period 1 (seeded)",
-      status: "locked",
-      lockedAt: today,
-      lockedById: pmId,
+      periodLabel: "Period 1",
+      status: "draft",
+      lockedAt: null,
+      lockedById: null,
     });
 
     for (const s of j.items) {
@@ -626,7 +628,8 @@ export function seed(companyId: string, today: Date): SeedRows {
         plannedCents,
         actualCents,
         claimedPercentMilli,
-        earnDerivation: `${derivation} (locked Period 1)`,
+        // Claimed % matches field state so the upcoming Period 1 lock is a no-op on numbers.
+        earnDerivation: derivation,
         budgetMhPerUnitMilli: toMilli(s.mh),
       });
 
@@ -714,29 +717,8 @@ export function seed(companyId: string, today: Date): SeedRows {
     }),
   );
 
-  // Draft claim on Cedar so the PM can lock after the foreman reports tomorrow's work.
-  const draftClaimId = id("claim:cedar:period-2");
-  out.progressClaims.push({
-    id: draftClaimId,
-    companyId,
-    jobId: id("job:cedar"),
-    periodLabel: "Period 2",
-    status: "draft",
-    lockedAt: null,
-    lockedById: null,
-  });
-  for (const code of ["04-210", "04-310", "07-410"]) {
-    const itemRow = out.costItems.find((c) => c.id === cost(code))!;
-    out.progressClaimLines.push({
-      id: id(`claim-line:cedar:p2:${code}`),
-      companyId,
-      claimId: draftClaimId,
-      costItemId: itemRow.id,
-      claimedPercentMilli: itemRow.claimedPercentMilli ?? 0,
-      installedQtyMilli: itemRow.installedQtyMilli,
-      derivation: "Draft — will refresh from field on lock",
-    });
-  }
+  // Period 2 (and later) drafts are created when seedActionHistory locks Period 1
+  // through progressClaim.lock — same path as a live PM lock.
 
   // Optional 10k WBS for local/perf only. Do not set V5_SEED_STRESS on the
   // Playwright webServer — e2e stress specs call ensureStressJob instead so

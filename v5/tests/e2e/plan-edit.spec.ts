@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** Seeded typed-action history (seedActionHistory): foreman plan note + PM lock × 3 jobs. */
+const SEED_FOREMAN_RUNS = 1;
+const SEED_PM_RUNS = 3;
+
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
   await page.getByTestId(`role-${role}`).click();
@@ -183,9 +187,20 @@ test("a foreman's line edit is in the job's changes for the PM, not in the PM's 
   await signIn(page, "pm");
   const rail = page.getByTestId("assistant-rail");
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
-  await expect(rail.getByTestId("action-run")).toHaveCount(0);
+  // PM chat has seed locks only — never the foreman's pour edit.
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
+  await expect(
+    rail
+      .getByTestId("action-run")
+      .filter({ hasText: "Change the pour to 80 man-hours" }),
+  ).toHaveCount(0);
   await page.reload();
-  await expect(rail.getByTestId("action-run")).toHaveCount(0);
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
+  await expect(
+    rail
+      .getByTestId("action-run")
+      .filter({ hasText: "Change the pour to 80 man-hours" }),
+  ).toHaveCount(0);
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("job-changes")).toContainText("Luis Ortega");
   await expect(page.getByTestId("job-changes")).toContainText(
@@ -193,8 +208,12 @@ test("a foreman's line edit is in the job's changes for the PM, not in the PM's 
   );
 
   await signIn(page, "foreman");
-  await expect(rail.getByTestId("action-run")).toHaveCount(1);
-  await expect(rail.getByTestId("action-run")).toContainText(
-    "Change the pour to 80 man-hours",
+  await expect(rail.getByTestId("action-run")).toHaveCount(
+    SEED_FOREMAN_RUNS + 1,
   );
+  await expect(
+    rail
+      .getByTestId("action-run")
+      .filter({ hasText: "Change the pour to 80 man-hours" }),
+  ).toHaveCount(1);
 });

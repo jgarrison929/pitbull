@@ -26,12 +26,14 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
     const id = await createSandbox();
     created.push(id);
     const expected = seed(id, new Date());
-    expect(await countRows(id)).toEqual({
+    const rows = await countRows(id);
+    expect(rows).toMatchObject({
       jobs: expected.jobs.length,
       cost_items: expected.costItems.length,
       plans: expected.dailyPlans.length,
-      runs: 0,
     });
+    // seedActionHistory: one plan edit + one lock per job
+    expect(rows.runs).toBe(1 + expected.jobs.length);
   });
 
   it("reset undoes a visitor's changes and keeps the same ids", async () => {
@@ -56,7 +58,8 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
       .from(dailyPlans)
       .where(eq(dailyPlans.id, planId));
     expect(plan.status).toBe("draft");
-    expect((await countRows(id)).runs).toBe(0);
+    // Reset clears visitor runs then re-seeds history via real typed actions.
+    expect((await countRows(id)).runs).toBe(1 + seed(id, new Date()).jobs.length);
   });
 
   it("sweeps only expired sandboxes", async () => {
