@@ -9,7 +9,7 @@ One command proves a v5 deployment. It passes only when every check below passes
 
 | Check | Passes when |
 |---|---|
-| `/health`, `/status` | Both report the expected commit, `Operational`, and Database `ok`. `/` redirects to `/login`. |
+| `/health`, `/status` | Both report the expected commit, a non-zero version, ci-gate result, last-verify field, `Operational`, and Database `ok`. `/` redirects to `/login`. |
 | login as a role card | The Project Manager card signs in as Marcus Lee. |
 | portfolio loads from Postgres | `data-source` says "Live from Postgres" with this visitor's sandbox id, the table has 3 jobs, and portfolio CPI renders. |
 | assistant runs a typed action and logs it | Asking "Why is Cedar Creek over budget?" in the rail shows `job.costVariance(25-031)`, and the run is still there after a reload (it lives in `action_runs`). |

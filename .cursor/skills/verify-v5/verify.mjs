@@ -82,6 +82,8 @@ try {
     health: await text("health-status"),
     version: await text("status-version"),
     commit: await text("status-commit"),
+    ciGate: await text("status-ci-gate"),
+    lastVerify: await text("status-last-verify"),
     built: await text("status-built"),
     database: await text("status-database"),
   };
@@ -90,6 +92,21 @@ try {
   check("/status shows Operational", status.health === "Operational", status.health);
   check("/status commit matches", status.commit === expected, status.commit);
   check("/status database ok", status.database === "ok", status.database);
+  check(
+    "/status shows version",
+    Boolean(status.version) && status.version !== "0.0.0",
+    status.version,
+  );
+  check(
+    "/status shows ci-gate",
+    ["pass", "fail", "pending", "unknown"].includes(status.ciGate ?? ""),
+    status.ciGate,
+  );
+  check(
+    "/status shows last-verify field",
+    Boolean(status.lastVerify),
+    status.lastVerify,
+  );
   await page.close();
   await flows(browser);
 } finally {
@@ -225,15 +242,19 @@ async function flows(browser) {
     await signIn(page, "pm");
     const rail = page.getByTestId("assistant-rail");
     await rail.getByTestId("assistant-input").waitFor({ timeout: T });
-    const pmRuns = await rail.getByTestId("action-run").count();
+    const pmPourRuns = await rail
+      .getByTestId("action-run")
+      .filter({ hasText: "Change the pour to 80 man-hours" })
+      .count();
     await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
     const changes = (await page.getByTestId("job-changes").textContent({ timeout: T })) ?? "";
     const audited = changes.includes("Luis Ortega") && changes.includes("man-hours 60 → 80");
     await signIn(page, "foreman");
     await rail.getByTestId("assistant-input").waitFor({ timeout: T });
     const foremanRuns = await rail.getByTestId("action-run").filter({ hasText: "Change the pour to 80 man-hours" }).count();
-    const ok = pmRuns === 0 && audited && foremanRuns === 1;
-    check("switching roles starts a fresh chat and keeps the audit trail", ok, `PM rail runs ${pmRuns}, job changes list the foreman's edit ${audited}, foreman rail still has it ${foremanRuns}`);
+    // PM may have other seed runs in the rail; the pour edit must not appear there.
+    const ok = pmPourRuns === 0 && audited && foremanRuns === 1;
+    check("switching roles starts a fresh chat and keeps the audit trail", ok, `PM pour-edit runs ${pmPourRuns}, job changes list the foreman's edit ${audited}, foreman rail still has it ${foremanRuns}`);
   });
   await desk.close();
 
@@ -262,8 +283,34 @@ async function flows(browser) {
 }
 
 const passed = checks.every((c) => c.ok);
-const result = { url: base, expectedCommit: expected, passed, checkedAt: new Date().toISOString(), checks };
+const checkedAt = new Date().toISOString();
+const result = { url: base, expectedCommit: expected, passed, checkedAt, checks };
 writeFileSync(path.join(outDir, "result.json"), JSON.stringify(result, null, 2));
+
+// Stamp the deploy so /status can show last-verify (requires VERIFY_STAMP_TOKEN on the app).
+if (passed && process.env.VERIFY_STAMP_TOKEN) {
+  try {
+    const res = await fetch(`${base}/api/verify/stamp`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.VERIFY_STAMP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ at: checkedAt, commit: expected }),
+    });
+    const body = await res.json().catch(() => ({}));
+    console.log(
+      res.ok
+        ? `stamped last-verify ${body.lastVerifyAt ?? checkedAt}`
+        : `stamp failed HTTP ${res.status}: ${JSON.stringify(body)}`,
+    );
+  } catch (error) {
+    console.log(`stamp failed: ${error.message ?? error}`);
+  }
+} else if (passed && !process.env.VERIFY_STAMP_TOKEN) {
+  console.log("VERIFY_STAMP_TOKEN unset — /status last-verify not stamped");
+}
+
 for (const c of checks) console.log(`${c.ok ? "PASS" : "FAIL"} ${c.name} (${c.detail})`);
 console.log(`${passed ? "VERIFIED" : "NOT VERIFIED"} ${base} at ${expected}`);
 console.log(`evidence: ${path.relative(repo, outDir)}`);

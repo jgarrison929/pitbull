@@ -21,6 +21,11 @@ export default defineConfig({
     env: {
       ...process.env,
       V5_ALLOW_ENSURE_STRESS: "1",
+      // Deterministic ci-gate label in e2e (avoids live GitHub rate limits in CI).
+      CI_GATE_RESULT: process.env.CI_GATE_RESULT ?? "pass",
+      // Shape-only stamp so /status last-verify is never blank in smoke.
+      LAST_VERIFY_AT:
+        process.env.LAST_VERIFY_AT ?? "2026-10-20T17:00:00.000Z",
     },
   },
 });

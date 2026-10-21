@@ -339,3 +339,12 @@ export const actionRuns = pgTable(
   },
   (t) => [index("action_runs_company_idx").on(t.companyId, t.createdAt)],
 );
+
+/** Deploy-wide key/value (not sandbox-scoped): last verify stamp, etc. */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

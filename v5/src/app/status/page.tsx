@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { dbPing } from "@/db";
-import { getBuildInfo } from "@/lib/build-info";
+import { getDeployStatus } from "@/lib/deploy-status";
 import { checkHealth } from "@/lib/health";
 
 export const metadata: Metadata = { title: "Status · Pitbull" };
@@ -15,7 +15,9 @@ export default function StatusPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Pitbull status</CardTitle>
-          <CardDescription>Build and service health for this deployment.</CardDescription>
+          <CardDescription>
+            Build, CI gate, last verify, and database health for this deployment.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Suspense fallback={<p className="text-sm text-muted-foreground">Checking…</p>}>
@@ -27,26 +29,44 @@ export default function StatusPage() {
   );
 }
 
+function ciLabel(v: string) {
+  if (v === "pass") return "pass";
+  if (v === "fail") return "fail";
+  if (v === "pending") return "pending";
+  return "unknown";
+}
+
 async function StatusDetails() {
   await connection();
-  const build = getBuildInfo();
-  const health = await checkHealth(dbPing());
-  const rows: [string, string][] = [
-    ["Version", build.version],
-    ["Commit", build.commit],
-    ["Built", build.buildTime],
-    ["Database", health.db],
+  const [deploy, health] = await Promise.all([
+    getDeployStatus(),
+    checkHealth(dbPing()),
+  ]);
+  const rows: [string, string, string][] = [
+    ["Version", deploy.version, "status-version"],
+    ["Commit", deploy.commit, "status-commit"],
+    ["CI gate", ciLabel(deploy.ciGate), "status-ci-gate"],
+    [
+      "Last verify",
+      deploy.lastVerifyAt ?? "not recorded",
+      "status-last-verify",
+    ],
+    ["Built", deploy.buildTime, "status-built"],
+    ["Database", health.db, "status-database"],
   ];
   return (
     <div className="flex flex-col gap-4">
-      <Badge variant={health.status === "ok" ? "default" : "destructive"} data-testid="health-status">
+      <Badge
+        variant={health.status === "ok" ? "default" : "destructive"}
+        data-testid="health-status"
+      >
         {health.status === "ok" ? "Operational" : "Degraded"}
       </Badge>
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-        {rows.map(([label, value]) => (
+        {rows.map(([label, value, testId]) => (
           <div key={label} className="contents">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="font-mono" data-testid={`status-${label.toLowerCase()}`}>
+            <dd className="font-mono" data-testid={testId}>
               {value}
             </dd>
           </div>

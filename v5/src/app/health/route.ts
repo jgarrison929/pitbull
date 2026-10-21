@@ -1,13 +1,19 @@
 import { connection } from "next/server";
 import { dbPing } from "@/db";
-import { getBuildInfo } from "@/lib/build-info";
+import { getDeployStatus } from "@/lib/deploy-status";
 import { checkHealth } from "@/lib/health";
 
 export async function GET() {
   await connection();
-  const health = await checkHealth(dbPing());
+  const [health, deploy] = await Promise.all([
+    checkHealth(dbPing()),
+    getDeployStatus(),
+  ]);
   return Response.json(
-    { ...health, ...getBuildInfo() },
-    { status: health.status === "ok" ? 200 : 503, headers: { "cache-control": "no-store" } },
+    { ...health, ...deploy },
+    {
+      status: health.status === "ok" ? 200 : 503,
+      headers: { "cache-control": "no-store" },
+    },
   );
 }
