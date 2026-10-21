@@ -10,7 +10,7 @@ Grounded guide for AI coding agents working in this repo.
 
 ## What this product is
 
-Construction ERP for commercial general contractors: projects, contracts, billing (AIA), time/payroll, field PM (RFIs, submittals, schedule, daily reports), reporting, and assistive AI.
+Construction project controls platform for mid-size heavy-civil and commercial contractors (5.0.0 is rebuilt in `v5/`; see `docs/v5/fresh-start-plan.md`). The legacy 3.8.2 app described here covers projects, contracts, billing (AIA), time/payroll, field PM (RFIs, submittals, schedule, daily reports), reporting, and assistive AI.
 
 **Shape:** modular monolith — one deployable API + Next.js web app, module boundaries under `src/Modules/`.
 

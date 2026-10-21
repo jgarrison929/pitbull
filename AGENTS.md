@@ -1,6 +1,6 @@
 # Agent instructions — Pitbull Construction Solutions
 
-Construction ERP (modular monolith). Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs.
+Construction project controls platform. The active app is `v5/`; the legacy modular monolith in `src/` is frozen. Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs.
 
 Deeper orientation (settled decisions, patterns, domain glossary, anti-patterns): [`CLAUDE.md`](CLAUDE.md). Session/version rules in **this** file win on conflict.
 

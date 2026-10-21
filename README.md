@@ -6,7 +6,9 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Modular construction ERP** for commercial general contractors — projects, bids, contracts, time tracking, AIA billing, project management, financials, and AI-assisted operations in one multi-tenant platform.
+**Construction project controls platform** for mid-size heavy-civil and commercial contractors: estimate → budget → field progress → cost and earned value → change orders, on one data model.
+
+Pitbull 5.0.0 is being rebuilt in [`v5/`](v5/README.md) (plan: [`docs/v5/fresh-start-plan.md`](docs/v5/fresh-start-plan.md), status: [`docs/roadmap-5.0.0.md`](docs/roadmap-5.0.0.md)). The rest of this README describes the legacy 3.8.2 app in `src/`, which is frozen and serves the demo until cutover.
 
 **Live demo:** [https://demo.pcserp.app](https://demo.pcserp.app)
 
