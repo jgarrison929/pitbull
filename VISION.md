@@ -8,7 +8,7 @@ Construction operations still run on disconnected tools. A typical general contr
 
 **One platform. One login. One database.** Core GC workflows — preconstruction through closeout — share tenant-isolated data, consistent identity, and real-time operational metrics.
 
-Pitbull is a modular construction ERP aimed at **commercial general contractors**: managing projects, subcontractors, cost, time, compliance paperwork, and owner billing without bolting together half a dozen point solutions.
+Pitbull is a construction project controls platform aimed at **commercial general contractors**: managing projects, subcontractors, cost, time, compliance paperwork, and owner billing without bolting together half a dozen point solutions.
 
 ## Product principles
 
@@ -57,7 +57,7 @@ Authoritative sources:
 
 Continue deepening construction accounting fidelity (WIP, certified payroll, dual-book nuances), expanding workflow coverage beyond change orders and billing applications, and tightening executive metrics so every KPI answers *why* with drill-through lists.
 
-**Differentiating horizon:** Jobsite Twin — field capture and ERP truth rendered as a spatial world model so humans and agents share one map of the work (zones-first, truthful overlays, cited agent briefs). Product design: `docs/pitbull-digital-twin-spec.md`. Capture engine: `docs/mobile3.md`.
+**Differentiating horizon:** Jobsite Twin — field capture and system-of-record truth rendered as a spatial world model so humans and agents share one map of the work (zones-first, truthful overlays, cited agent briefs). Product design: `docs/pitbull-digital-twin-spec.md`. Capture engine: `docs/mobile3.md`.
 
 ---
 
