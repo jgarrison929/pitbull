@@ -7,7 +7,6 @@ import { pct, pendingInstalledQtyMilli, qty, rollup } from "@/lib/ev";
 import { cn } from "@/lib/utils";
 import { Money, Progress, StatusIndex } from "./format";
 import { varianceStatus } from "@/lib/status";
-import { Td } from "./page";
 
 export type WbsNode = {
   id: string;
@@ -124,27 +123,33 @@ export function CostTable({
           onToggle={toggle}
           collapsed={collapsed}
         />
-        <table className="w-full text-sm">
-          <tfoot>
-            <tr className="border-t-2 font-medium">
-              <Td>Job total (leaves)</Td>
-              <Td />
-              <Td className="text-xs tabular-nums">{pct(t.percent)}</Td>
-              <Td right>
-                <Money cents={t.budgetCents} />
-              </Td>
-              <Td right>
-                <Money cents={t.earnedCents} />
-              </Td>
-              <Td right>
-                <Money cents={t.actualCents} />
-              </Td>
-              <Td right>
-                <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
-              </Td>
-            </tr>
-          </tfoot>
-        </table>
+        <div
+          className="mt-1 flex items-center justify-between gap-3 border-t-2 py-3 text-sm font-medium"
+          data-testid="cost-job-total"
+        >
+          <span>Job total (leaves) · {pct(t.percent)}</span>
+          <span className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 tabular-nums">
+            <span>
+              <span className="mr-1 text-xs font-normal text-muted-foreground">
+                Budget
+              </span>
+              <Money cents={t.budgetCents} />
+            </span>
+            <span>
+              <span className="mr-1 text-xs font-normal text-muted-foreground">
+                Earned
+              </span>
+              <Money cents={t.earnedCents} />
+            </span>
+            <span>
+              <span className="mr-1 text-xs font-normal text-muted-foreground">
+                Actual
+              </span>
+              <Money cents={t.actualCents} />
+            </span>
+            <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+          </span>
+        </div>
       </div>
       <div className="md:hidden" data-testid="cost-list">
         <VirtualTreeMobile
@@ -182,14 +187,14 @@ function VirtualTreeDesktop({
   });
   return (
     <div>
-      <div className="grid grid-cols-[minmax(12rem,2fr)_6rem_7rem_5rem_5rem_5rem_7rem] border-b px-2 pb-2 text-xs font-medium text-muted-foreground">
+      <div className="grid grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground">
         <div>Cost code</div>
-        <div className="text-right">Installed</div>
-        <div>% complete</div>
+        <div className="whitespace-nowrap text-right">Installed</div>
+        <div className="whitespace-nowrap text-right">% complete</div>
         <div className="text-right">Budget</div>
         <div className="text-right">Earned</div>
         <div className="text-right">Actual</div>
-        <div className="text-right">CPI · variance</div>
+        <div className="whitespace-nowrap text-right">CPI · variance</div>
       </div>
       <div
         ref={parentRef}
@@ -210,7 +215,7 @@ function VirtualTreeDesktop({
               <div
                 key={n.id}
                 className={cn(
-                  "absolute left-0 grid w-full grid-cols-[minmax(12rem,2fr)_6rem_7rem_5rem_5rem_5rem_7rem] items-center border-b px-2 text-sm",
+                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] items-center gap-x-3 border-b px-2 text-sm",
                   l && hot(l) && "bg-negative-soft/60",
                 )}
                 style={{
@@ -257,9 +262,9 @@ function VirtualTreeDesktop({
                 {l ? (
                   <>
                     <InstalledCell l={l} />
-                    <div className="flex items-center gap-2">
-                      <Progress value={l.percent} className="w-12" />
-                      <span className="w-9 text-xs tabular-nums">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Progress value={l.percent} className="w-10 shrink-0" />
+                      <span className="w-9 shrink-0 text-right text-xs tabular-nums">
                         {pct(l.percent)}
                       </span>
                     </div>

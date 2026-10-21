@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { Assistant } from "@/components/app/assistant";
-import { DataSource } from "@/components/app/shell";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { Money, StatusIndex } from "@/components/app/format";
 import { PortfolioTable } from "@/components/app/portfolio-table";
@@ -64,7 +63,6 @@ async function Portfolio() {
       <Section title="Jobs" meta="EAC assumes each job's current CPI holds">
         <PortfolioTable jobs={jobs} />
       </Section>
-      <DataSource />
     </>
   );
   if (user.role !== "foreman") return portfolio;

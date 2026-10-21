@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { CostTable } from "@/components/app/cost-table";
 import { Money, StatusIndex, StatusPill } from "@/components/app/format";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
-import { DataSource } from "@/components/app/shell";
 import { EvMethodControls } from "@/components/app/ev-method-controls";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
@@ -37,6 +36,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   const { number } = await params;
   const user = await requireUser();
   const p = await getJob(user.companyId, number);
+  // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
   if (!p) notFound();
   const [plans, changes, draftClaim, evControls] = await Promise.all([
     getPlansForJob(user.companyId, p.job.id),
@@ -198,7 +198,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       {canEvEdit ? (
         <Section
           title="Field measurement methods"
-          meta="PM percent (with who/why) and weighted milestones — every method is enterable, not seed-only."
+          meta="PM percent (with who/why) and weighted milestones — enterable on screen and via the assistant."
         >
           <EvMethodControls
             jobNumber={p.job.number}
@@ -209,13 +209,20 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       ) : null}
       <Section
         title="Budget vs earned value by cost code"
-        meta="Earned uses the locked claim (claimed installed for units). Live installs above that show as pending until the PM locks. CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never green."
+        meta={
+          <span className="block whitespace-normal">
+            Earned uses the locked claim (claimed installed for units). Live
+            installs above that show as pending until the PM locks. CPI ≥ 1.00
+            green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never
+            green.
+          </span>
+        }
       >
         <CostTable nodes={nodes} />
       </Section>
       <Section
         title="Changes on this job"
-        meta="Every edit and submit, by anyone in this sandbox"
+        meta="Every edit and submit, by anyone on this job"
       >
         {changes.length === 0 ? (
           <p className="px-4 py-3 text-sm text-muted-foreground">
@@ -234,7 +241,6 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           </ul>
         )}
       </Section>
-      <DataSource />
     </>
   );
 }
