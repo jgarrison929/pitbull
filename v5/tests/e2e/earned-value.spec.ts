@@ -18,7 +18,37 @@ async function actualCents(page: Page) {
   );
 }
 
-test("foreman reports quantity; after PM locks claim, job earned and CPI move", async ({
+/** Issue plan, report pour actuals, leave status reported (no cost post yet). */
+async function issueAndReportPour(
+  page: Page,
+  mh: string,
+  qty: string,
+) {
+  await page.getByTestId("submit-plan").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "issued",
+  );
+  await page.getByTestId("report-mh-04-210").fill(mh);
+  await page.getByTestId("report-qty-04-210").fill(qty);
+  await page.getByTestId("report-work").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "reported",
+  );
+}
+
+async function approveAsSuperintendent(page: Page) {
+  await signIn(page, "superintendent");
+  await page.goto("/app/jobs/25-031");
+  await page.getByTestId("approve-report").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "approved",
+  );
+}
+
+test("foreman reports quantity; after super approve + PM locks claim, job earned and CPI move", async ({
   page,
 }) => {
   await signIn(page, "foreman");
@@ -28,65 +58,40 @@ test("foreman reports quantity; after PM locks claim, job earned and CPI move", 
   const cpiBefore = (await page.getByTestId("job-cpi").textContent())!;
   const actualBefore = await actualCents(page);
 
-  // Plan: pour stays at seed 42 CY / 60 MH (6×10). Submit locks the plan.
   await expect(page.getByTestId("report-work")).toHaveCount(0);
-  await page.getByTestId("submit-plan").click();
-  await expect(page.getByTestId("plan-card")).toHaveAttribute(
-    "data-status",
-    "submitted",
-  );
-  // Plan lines stay at planned numbers after submit.
-  await expect(pourLine(page).getByTestId("line-mh")).toHaveText("60");
-
-  // Report with actuals that differ from the plan (38 CY, 72 MH — not 42 / 60).
-  await expect(page.getByTestId("report-work-form")).toBeVisible();
-  await page.getByTestId("report-mh-04-210").fill("72");
-  await page.getByTestId("report-qty-04-210").fill("38");
-  const earnedStill = (await page.getByTestId("job-earned").textContent())!;
-  expect(earnedStill).toBe(earnedBefore);
-
-  await page.getByTestId("report-work").click();
+  await issueAndReportPour(page, "72", "38");
   await expect(page.getByTestId("report-summary")).toContainText(/72/);
   await expect(page.getByTestId("report-summary")).toContainText(/38/);
-  // Plan MH unchanged — report does not rewrite the submitted plan.
   await expect(pourLine(page).getByTestId("line-mh")).toHaveText("60");
-  await expect(page.getByTestId("pending-04-210").first()).toBeVisible();
-  await expect(page.getByTestId("pending-04-210").first()).toContainText("38");
+
+  // Pending approval — AC and installed unchanged.
+  await expect(
+    page.getByTestId("approval-pending-04-210").first(),
+  ).toContainText("38");
+  expect(await actualCents(page)).toBe(actualBefore);
   await expect(page.getByTestId("job-earned")).toHaveText(earnedBefore);
 
-  // AC must move with reported hours (form posts every line; pour is 72 MH @ $85/h).
-  const actualAfterFirst = await actualCents(page);
-  expect(actualAfterFirst).toBeGreaterThan(actualBefore);
-  await expect(page.getByTestId("report-summary")).toContainText(/72/);
-
-  // Form shows last reported values (not plan 60 / 42).
-  await expect(page.getByTestId("report-mh-04-210")).toHaveValue("72");
-  await expect(page.getByTestId("report-qty-04-210")).toHaveValue("38");
-  await expect(page.getByTestId("report-last-04-210")).toContainText(/72/);
-
-  // Re-report different numbers — replace, don't add (idempotent).
+  // Amend while reported (still no cost post).
   await page.getByTestId("report-mh-04-210").fill("80");
   await page.getByTestId("report-qty-04-210").fill("40");
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("report-summary")).toContainText(/80/);
-  await expect(page.getByTestId("pending-04-210").first()).toContainText("40");
-  // Pending is 40, not 38+40.
-  await expect(page.getByTestId("pending-04-210").first()).not.toContainText(
-    "78",
-  );
-  // Labor replace: +8 MH on the pour → +$680 AC; qty replace does not inflate AC.
-  const actualAfterSecond = await actualCents(page);
-  expect(actualAfterSecond).toBe(actualAfterFirst + 8 * 85_00);
+  await expect(
+    page.getByTestId("approval-pending-04-210").first(),
+  ).toContainText("40");
+  expect(await actualCents(page)).toBe(actualBefore);
 
-  // Reload keeps reported values in the form.
   await page.reload();
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
   await expect(page.getByTestId("report-qty-04-210")).toHaveValue("40");
 
+  await approveAsSuperintendent(page);
+  const actualAfterApprove = await actualCents(page);
+  expect(actualAfterApprove).toBeGreaterThan(actualBefore);
+  await expect(page.getByTestId("pending-04-210").first()).toContainText("40");
+
   // Switch to PM and lock so claimed installed moves and EV updates.
-  await page.goto("/login");
-  await page.getByTestId("role-pm").click();
-  await expect(page).toHaveURL(/\/app$/);
+  await signIn(page, "pm");
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("lock-claim")).toBeVisible();
   await expect(page.getByTestId("lock-claim")).toContainText("Period 2");
@@ -101,14 +106,17 @@ test("foreman reports quantity; after PM locks claim, job earned and CPI move", 
   await expect(page.getByTestId("job-cpi")).toContainText(/\d\.\d{2}/);
 });
 
-test("assistant reports actuals that differ from the plan", async ({ page }) => {
+test("assistant reports actuals that differ from the plan (pending until approve)", async ({
+  page,
+}) => {
   await signIn(page, "foreman");
   await page.goto("/app/jobs/25-031");
   await page.getByTestId("submit-plan").click();
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
-    "submitted",
+    "issued",
   );
+  const actualBefore = await actualCents(page);
 
   const rail = page.getByTestId("assistant-rail");
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
@@ -122,11 +130,12 @@ test("assistant reports actuals that differ from the plan", async ({ page }) => 
   await expect(run).toHaveAttribute("data-action", "dailyReport.post");
   await expect(run.getByTestId("action-summary")).toContainText(/72/);
   await expect(run.getByTestId("action-summary")).toContainText(/38/);
-  // Plan still shows seed planned MH.
   await expect(pourLine(page).getByTestId("line-mh")).toHaveText("60");
-  await expect(page.getByTestId("pending-04-210").first()).toContainText("38");
+  await expect(
+    page.getByTestId("approval-pending-04-210").first(),
+  ).toContainText("38");
+  expect(await actualCents(page)).toBe(actualBefore);
 
-  // Idempotent re-report via assistant with different numbers.
   await rail
     .getByTestId("assistant-input")
     .fill("we poured 40 CY with 80 hours on the pour for Cedar Creek");
@@ -135,7 +144,10 @@ test("assistant reports actuals that differ from the plan", async ({ page }) => 
   const run2 = rail.getByTestId("action-run").last();
   await expect(run2).toHaveAttribute("data-action", "dailyReport.post");
   await expect(run2.getByTestId("action-summary")).toContainText(/80/);
-  await expect(page.getByTestId("pending-04-210").first()).toContainText("40");
+  await expect(
+    page.getByTestId("approval-pending-04-210").first(),
+  ).toContainText("40");
+  expect(await actualCents(page)).toBe(actualBefore);
 });
 
 test("report rejects negative man-hours", async ({ page }) => {
@@ -144,10 +156,9 @@ test("report rejects negative man-hours", async ({ page }) => {
   await page.getByTestId("submit-plan").click();
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
-    "submitted",
+    "issued",
   );
   const actualBefore = await page.getByTestId("job-actual").textContent();
-  // Bypass browser min so the server is what refuses.
   await page.getByTestId("report-work-form").evaluate((f) =>
     f.setAttribute("novalidate", ""),
   );
@@ -155,7 +166,6 @@ test("report rejects negative man-hours", async ({ page }) => {
   await page.getByTestId("report-qty-04-210").fill("38");
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("report-summary")).toContainText(/Man-hours/i);
-  // AC unchanged — negative must not wipe labor.
   await expect(page.getByTestId("job-actual")).toHaveText(actualBefore!);
 });
 
@@ -167,13 +177,12 @@ test("a 0 MH / 0 qty report persists and does not revert to the plan", async ({
   await page.getByTestId("submit-plan").click();
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
-    "submitted",
+    "issued",
   );
   await page.getByTestId("report-mh-04-210").fill("0");
   await page.getByTestId("report-qty-04-210").fill("0");
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("report-summary")).toBeVisible();
-  // Prefill shows zeros + Last report — not plan 60 / 42.
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("0");
   await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
   await expect(page.getByTestId("report-last-04-210")).toContainText(/0/);
@@ -183,13 +192,11 @@ test("a 0 MH / 0 qty report persists and does not revert to the plan", async ({
   await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
   await expect(page.getByTestId("report-last-04-210")).toContainText(/0/);
 
-  // Untouched resubmit must not post plan 60 MH / +42 CY for the pour.
   const actualAfterZero = await actualCents(page);
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("report-summary")).toBeVisible();
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("0");
   await expect(page.getByTestId("report-qty-04-210")).toHaveValue("0");
-  // Idempotent zeros — AC must not jump by the pour's plan 60×$85.
   expect(await actualCents(page)).toBe(actualAfterZero);
 });
 
@@ -201,7 +208,7 @@ test("blank or non-finite report fields are rejected, not replaced by the plan",
   await page.getByTestId("submit-plan").click();
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
-    "submitted",
+    "issued",
   );
 
   const actualBefore80 = await actualCents(page);
@@ -210,15 +217,12 @@ test("blank or non-finite report fields are rejected, not replaced by the plan",
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
   await expect(page.getByTestId("report-summary")).toContainText(/80/);
-  // Wait until AC moves with the 80 MH report (revalidate is async).
-  await expect
-    .poll(async () => actualCents(page))
-    .toBeGreaterThan(actualBefore80);
-  const actualAfter80 = await actualCents(page);
+  // AC must not move until approve.
+  expect(await actualCents(page)).toBe(actualBefore80);
+  await expect(
+    page.getByTestId("approval-pending-04-210").first(),
+  ).toContainText("38");
 
-  // Blank MH must error — not silently post plan 60 and drop AC by $1,700.
-  // Mutate + button click in one turn so React cannot restore defaultValue
-  // before FormData is built.
   await page.getByTestId("report-work-form").evaluate((form) => {
     const f = form as HTMLFormElement;
     f.setAttribute("novalidate", "");
@@ -239,9 +243,8 @@ test("blank or non-finite report fields are rejected, not replaced by the plan",
   await expect(page.getByTestId("report-summary")).toContainText(
     /Man-hours must be from/i,
   );
-  expect(await actualCents(page)).toBe(actualAfter80);
+  expect(await actualCents(page)).toBe(actualBefore80);
 
-  // Non-finite (1e309 → Infinity) same rejection (keep page — no reload).
   await page.getByTestId("report-work-form").evaluate((form) => {
     const f = form as HTMLFormElement;
     f.setAttribute("novalidate", "");
@@ -262,10 +265,10 @@ test("blank or non-finite report fields are rejected, not replaced by the plan",
   await expect(page.getByTestId("report-summary")).toContainText(
     /Man-hours must be from/i,
   );
-  expect(await actualCents(page)).toBe(actualAfter80);
+  expect(await actualCents(page)).toBe(actualBefore80);
   await page.reload();
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("80");
-  expect(await actualCents(page)).toBe(actualAfter80);
+  expect(await actualCents(page)).toBe(actualBefore80);
 });
 
 test("assistant updates one line without wiping other lines' last reports", async ({
@@ -276,10 +279,9 @@ test("assistant updates one line without wiping other lines' last reports", asyn
   await page.getByTestId("submit-plan").click();
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
-    "submitted",
+    "issued",
   );
 
-  // Screen: three lines at non-plan values (incl. rain-day zeros on the pour).
   await page.getByTestId("report-mh-04-210").fill("0");
   await page.getByTestId("report-qty-04-210").fill("0");
   await page.getByTestId("report-mh-04-310").fill("50");
@@ -293,8 +295,6 @@ test("assistant updates one line without wiping other lines' last reports", asyn
   await expect(page.getByTestId("report-summary")).toBeVisible();
 
   const rail = page.getByTestId("assistant-rail");
-  // Wait for the screen-report run to land in the rail before counting.
-  // data-action is on the action-run node itself (not a descendant).
   await expect(
     rail.locator(
       '[data-testid="action-run"][data-action="dailyReport.post"]',
@@ -302,7 +302,6 @@ test("assistant updates one line without wiping other lines' last reports", asyn
   ).toHaveCount(1, { timeout: 15_000 });
   const before = await rail.getByTestId("action-run").count();
 
-  // Hours only on the pour — must not reset pour qty to 42 or cage/dewatering.
   await rail
     .getByTestId("assistant-input")
     .fill("we worked 70 hours on the pour for Cedar Creek");
@@ -312,7 +311,6 @@ test("assistant updates one line without wiping other lines' last reports", asyn
   await expect(pourRun).toHaveAttribute("data-action", "dailyReport.post");
   await expect(pourRun.getByTestId("action-summary")).toContainText(/70/);
 
-  // Cage-only update must not wipe the pour's 70 / 0 back to plan 60 / 42.
   await rail
     .getByTestId("assistant-input")
     .fill("we tied 9000 LB with 45 hours on the cage for Cedar Creek");
@@ -337,7 +335,7 @@ test("assistant rejects negative man-hours", async ({ page }) => {
   await page.getByTestId("submit-plan").click();
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
-    "submitted",
+    "issued",
   );
   const actualBefore = await actualCents(page);
   const rail = page.getByTestId("assistant-rail");
@@ -354,6 +352,5 @@ test("assistant rejects negative man-hours", async ({ page }) => {
   );
   expect(await actualCents(page)).toBe(actualBefore);
   await page.reload();
-  // No report posted — form still shows plan defaults.
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("60");
 });

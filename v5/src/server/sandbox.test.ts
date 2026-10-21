@@ -43,7 +43,7 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
     const planId = seedId(id, "plan:cedar:tomorrow");
     await db!
       .update(dailyPlans)
-      .set({ status: "submitted" })
+      .set({ status: "issued" })
       .where(eq(dailyPlans.id, planId));
     await db!.insert(actionRuns).values({
       companyId: id,

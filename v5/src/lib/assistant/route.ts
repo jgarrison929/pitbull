@@ -9,6 +9,8 @@ export type ActionName =
   | "dailyPlan.show"
   | "dailyPlan.submit"
   | "dailyPlan.updateLine"
+  | "dailyPlan.approve"
+  | "dailyPlan.return"
   | "dailyReport.post"
   | "progressClaim.lock"
   | "estimate.approve"
@@ -35,6 +37,7 @@ export type JobArgs = {
   costItemId?: string;
   costCode?: string;
   percent?: string;
+  /** costItem.setPmPercent / dailyPlan.return: required who/why text. */
   reason?: string;
   milestoneId?: string;
   complete?: boolean;
@@ -124,6 +127,33 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
     return { action: "estimate.approve", args };
   // "Report today's work" / "we poured 38 CY with 72 hours on 04-210"
   const reportActuals = parseReportActuals(prompt);
+  // Approve / return before generic "report" / "post" so "approve the report" wins.
+  if (
+    has(/\b(approve|approves|approved)\b/) &&
+    has(/\b(plan|report|daily|work|timesheet)\b/)
+  ) {
+    const known =
+      findJob(prompt, jobs)?.number ??
+      codesIn(prompt).find((c) => jobs.some((j) => j.number === c));
+    return {
+      action: "dailyPlan.approve",
+      args: { ...(known ? { job: known } : {}) },
+    };
+  }
+  if (
+    has(/\b(return|reject|send back|kick back)\b/) &&
+    has(/\b(plan|report|daily|work|timesheet)\b/)
+  ) {
+    const known =
+      findJob(prompt, jobs)?.number ??
+      codesIn(prompt).find((c) => jobs.some((j) => j.number === c));
+    const reason =
+      prompt.match(/\b(?:because|reason|:)\s*(.+)$/i)?.[1]?.trim() ?? "";
+    return {
+      action: "dailyPlan.return",
+      args: { ...(known ? { job: known } : {}), reason },
+    };
+  }
   if (
     (has(/\b(report|posted|post)\b/) &&
       has(/\b(day|daily|work|hours|quantity|qty)\b/)) ||
@@ -142,7 +172,7 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
       },
     };
   }
-  if (has(/\b(submit|send|file)\b/) && has(/\b(plan|it|tomorrow)\b/))
+  if (has(/\b(submit|send|file|issue)\b/) && has(/\b(plan|it|tomorrow)\b/))
     return { action: "dailyPlan.submit", args };
   // "set 08-100 to 50% …" / "set traffic control to 55% on 25-031 because …"
   const pmPct = text.match(
@@ -266,6 +296,8 @@ export const examples = [
   "Change the pour to 80 man-hours",
   "Submit tomorrow's plan",
   "Report today's work on Cedar Creek",
+  "Approve the daily report for Cedar Creek",
+  "Return the report for Cedar Creek because Recount pour 3",
   "Lock the progress claim on 25-031",
   "Approve the estimate on Harbor Abutment",
 ];

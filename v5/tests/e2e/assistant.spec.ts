@@ -43,7 +43,7 @@ test("a foreman submits tomorrow's plan from the rail, the screen agrees, reset 
   const run = await ask(rail, "Submit tomorrow's plan");
   await expect(run).toHaveAttribute("data-action", "dailyPlan.submit");
   await expect(run.getByTestId("action-summary")).toContainText(
-    "Submitted Bridge Crew 2's plan",
+    "Issued Bridge Crew 2's plan",
   );
   // The request named no job, so the history records the one the action picked.
   await expect(run.getByTestId("action-name")).toHaveText(
@@ -53,7 +53,7 @@ test("a foreman submits tomorrow's plan from the rail, the screen agrees, reset 
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
-    "submitted",
+    "issued",
   );
 
   await page.getByTestId("user-menu").click();
@@ -97,7 +97,7 @@ test("the on-screen Submit button runs the same action and lands in the transcri
   await page.getByTestId("submit-plan").click();
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
-    "submitted",
+    "issued",
   );
   const run = page
     .getByTestId("assistant-rail")
@@ -299,7 +299,7 @@ test("each role has its own conversation; the job page keeps everyone's changes"
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("job-changes")).toContainText("Luis Ortega");
   await expect(page.getByTestId("job-changes")).toContainText(
-    "Submitted Bridge Crew 2's plan",
+    "Issued Bridge Crew 2's plan",
   );
 
   await signIn(page, "foreman");

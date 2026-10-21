@@ -29,7 +29,17 @@ export const roleEnum = pgEnum("role", [
   "superintendent",
   "foreman",
 ]);
-export const planStatusEnum = pgEnum("plan_status", ["draft", "submitted"]);
+/**
+ * Daily plan lifecycle:
+ * draft → issued (to the field) → reported (foreman actuals, pending) → approved (posts cost once).
+ * Return from reported goes back to issued with a reason; values stay filled.
+ */
+export const planStatusEnum = pgEnum("plan_status", [
+  "draft",
+  "issued",
+  "reported",
+  "approved",
+]);
 /** How a cost item earns: units installed, weighted milestones, or a PM percent with a log. */
 export const evMethodEnum = pgEnum("ev_method", [
   "units",
@@ -320,7 +330,15 @@ export const dailyPlans = pgTable(
       .$type<{ name: string; hours: number }[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    /** When the plan was issued to the field (legacy column name: submitted_at). */
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    /** Superintendent return reason; cleared on the next report. */
+    returnReason: text("return_reason"),
+    returnedAt: timestamp("returned_at", { withTimezone: true }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvedById: uuid("approved_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [index("daily_plans_company_idx").on(t.companyId)],
 );
@@ -343,6 +361,13 @@ export const dailyPlanLines = pgTable(
     hoursTenths: integer("hours_tenths").notNull(),
     notes: text("notes").notNull().default(""),
     sort: integer("sort").notNull(),
+    /**
+     * Foreman-reported quantity (milli). Null until first report.
+     * Pending until superintendent approve — does not touch installed/actual cost.
+     */
+    reportedQtyMilli: bigint("reported_qty_milli", { mode: "number" }),
+    /** Foreman-reported man-hours in tenths. Null until first report. */
+    reportedHoursTenths: integer("reported_hours_tenths"),
   },
   (t) => [index("daily_plan_lines_plan_idx").on(t.planId)],
 );

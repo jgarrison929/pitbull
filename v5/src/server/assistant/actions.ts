@@ -15,7 +15,7 @@ import type {
   JobArgs,
   ReportActualArg,
 } from "@/lib/assistant/route";
-import { qty, usdShort } from "@/lib/ev";
+import { DEFAULT_LABOR_RATE_CENTS, laborCents, qty, usdShort } from "@/lib/ev";
 import {
   applyLineInput,
   manHoursOf,
@@ -30,9 +30,11 @@ import {
 } from "@/server/data";
 import { approveEstimate } from "@/server/estimate";
 import {
+  approveDailyReport,
   getReportedActualsForPlan,
   lockProgressClaim,
   postDailyReport,
+  returnDailyReport,
   setMilestoneComplete,
   setPmPercent,
 } from "@/server/progress";
@@ -66,14 +68,20 @@ const day = (iso: string) =>
     timeZone: "UTC",
   });
 
-/** Calendar day in job local time (America/Los_Angeles) — not UTC. */
-const localDay = (at: Date) =>
-  at.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    timeZone: "America/Los_Angeles",
-  });
+const statusLabel = (status: string) => {
+  switch (status) {
+    case "draft":
+      return "a draft";
+    case "issued":
+      return "issued to the field";
+    case "reported":
+      return "reported (pending approval)";
+    case "approved":
+      return "approved";
+    default:
+      return status;
+  }
+};
 
 async function resolveJob(user: CurrentUser, number?: string) {
   if (!number) return undefined;
@@ -294,7 +302,7 @@ export const actions: Record<ActionName, ActionDef> = {
       const over = plan.lines.filter((l) => !l.withinRate);
       return {
         summary:
-          `${plan.crew} on ${j.job.shortName}, ${day(plan.planDate)}, is ${plan.status === "draft" ? "a draft" : "submitted"}. ` +
+          `${plan.crew} on ${j.job.shortName}, ${day(plan.planDate)}, is ${statusLabel(plan.status)}. ` +
           `${plan.lines.length} activities, ${mh} man-hours: ${plan.lines.map((l) => l.activity).join(", ")}. ` +
           (over.length
             ? `Over budgeted rate: ${over.map((l) => l.code).join(", ")}.`
@@ -336,7 +344,10 @@ export const actions: Record<ActionName, ActionDef> = {
       const { job: j, plan, line } = found;
       const where = { href: jobHref(j), job: j.job.number, line: line.code };
       if (plan.status !== "draft") {
-        const msg = `${plan.crew}'s plan for ${day(plan.planDate)} is submitted, so its lines are locked. Use Report day's work (or ask me to report actual hours and quantities) — the plan stays as planned.`;
+        const msg =
+          plan.status === "approved"
+            ? `${plan.crew}'s plan for ${day(plan.planDate)} is approved and locked. A correction needs a new reversing entry.`
+            : `${plan.crew}'s plan for ${day(plan.planDate)} is issued, so its lines are locked. Use Report day's work (or ask me) for actual hours and quantities — the plan stays as planned.`;
         return { summary: msg, errors: { form: msg }, ...where };
       }
       const result = applyLineInput(
@@ -383,7 +394,7 @@ export const actions: Record<ActionName, ActionDef> = {
     },
   },
   "dailyPlan.submit": {
-    title: "Submit a crew plan",
+    title: "Issue a crew plan to the field",
     roles: ["foreman", "superintendent"],
     async run(user, { job }) {
       const found = await resolvePlan(user, job);
@@ -391,23 +402,119 @@ export const actions: Record<ActionName, ActionDef> = {
       const { plan, job: j } = found;
       if (plan.status !== "draft")
         return {
-          summary: `${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName} was already submitted.`,
+          summary: `${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName} was already issued.`,
           href: jobHref(j),
           job: j.job.number,
         };
       await requireDb()
         .update(dailyPlans)
-        .set({ status: "submitted", submittedAt: sql`now()` })
+        .set({ status: "issued", submittedAt: sql`now()` })
         .where(
           and(
             eq(dailyPlans.id, plan.id),
             eq(dailyPlans.companyId, user.companyId),
           ),
         );
-      // Plan ≠ actual: submit only commits the plan. Actuals come from dailyReport.post.
+      // Plan ≠ actual: issue only commits the plan. Actuals stay pending until approve.
       const mh = plan.lines.reduce((s, l) => s + l.manHours, 0);
       return {
-        summary: `Submitted ${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName}: ${plan.lines.length} activities, ${mh} man-hours. Planned only — report the day's work to post actuals.`,
+        summary: `Issued ${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName}: ${plan.lines.length} activities, ${mh} man-hours. Planned only — report the day's work; cost posts when the superintendent approves.`,
+        href: jobHref(j),
+        job: j.job.number,
+      };
+    },
+  },
+  "dailyPlan.approve": {
+    title: "Approve a daily report",
+    roles: ["superintendent"],
+    async run(user, { job }) {
+      const found = await resolvePlan(user, job);
+      if (!found) return { summary: "There is no crew plan to approve." };
+      const { plan, job: j } = found;
+      if (plan.status === "approved") {
+        return {
+          summary: `${plan.crew}'s report for ${day(plan.planDate)} on ${j.job.shortName} is already approved — cost was not posted again.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      if (plan.status !== "reported") {
+        return {
+          summary: `Nothing to approve yet — ${plan.crew}'s plan for ${day(plan.planDate)} is ${statusLabel(plan.status)}. The foreman must report first.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      const result = await approveDailyReport(
+        user.companyId,
+        plan.id,
+        user.userId,
+      );
+      if (!result.ok) {
+        return {
+          summary: `Could not approve ${plan.crew}'s report on ${j.job.shortName}.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      if (result.already) {
+        return {
+          summary: `${plan.crew}'s report for ${day(plan.planDate)} on ${j.job.shortName} is already approved — cost was not posted again.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      return {
+        summary:
+          `Approved ${plan.crew}'s report for ${day(plan.planDate)} on ${j.job.shortName}: ` +
+          `${result.postedMh} MH / ${usdShort(result.postedCents)} actual cost` +
+          (result.postedQtyMilli
+            ? `, ${qty(result.postedQtyMilli)} installed`
+            : "") +
+          `. Entries dated ${day(result.planDate!)}.`,
+        href: jobHref(j),
+        job: j.job.number,
+      };
+    },
+  },
+  "dailyPlan.return": {
+    title: "Return a daily report",
+    roles: ["superintendent"],
+    async run(user, { job, reason }) {
+      const found = await resolvePlan(user, job);
+      if (!found) return { summary: "There is no crew plan to return." };
+      const { plan, job: j } = found;
+      const why = (reason ?? "").trim();
+      if (!why) {
+        return {
+          summary:
+            "Return needs a reason — say why (for example: Return the report because Recount pour 3).",
+          href: jobHref(j),
+          job: j.job.number,
+          errors: { reason: "A return reason is required." },
+        };
+      }
+      if (plan.status !== "reported") {
+        return {
+          summary: `Nothing to return — ${plan.crew}'s plan for ${day(plan.planDate)} is ${statusLabel(plan.status)}.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      const result = await returnDailyReport(user.companyId, plan.id, why);
+      if (!result.ok) {
+        return {
+          summary:
+            result.reason === "need-reason"
+              ? "Return needs a reason."
+              : `Could not return ${plan.crew}'s report.`,
+          href: jobHref(j),
+          job: j.job.number,
+          errors: { reason: "A return reason is required." },
+        };
+      }
+      return {
+        summary: `Returned ${plan.crew}'s report for ${day(plan.planDate)} on ${j.job.shortName}: "${why}". Values kept for the foreman — nothing posted to cost.`,
         href: jobHref(j),
         job: j.job.number,
       };
@@ -420,9 +527,16 @@ export const actions: Record<ActionName, ActionDef> = {
       const found = await resolvePlan(user, job);
       if (!found) return { summary: "There is no crew plan to report against." };
       const { plan, job: j } = found;
-      if (plan.status !== "submitted")
+      if (plan.status === "approved") {
         return {
-          summary: `Submit ${plan.crew}'s plan first — I won't report against a draft. Then use Report day's work (or ask me) to post actual hours and quantities; the plan stays as planned.`,
+          summary: `${plan.crew}'s report for ${day(plan.planDate)} is already approved and locked.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      if (plan.status !== "issued" && plan.status !== "reported")
+        return {
+          summary: `Issue ${plan.crew}'s plan first — I won't report against a draft. Then use Report day's work; cost stays pending until the superintendent approves.`,
           href: jobHref(j),
           job: j.job.number,
         };
@@ -523,7 +637,18 @@ export const actions: Record<ActionName, ActionDef> = {
         byLineId,
         now,
       );
-      const reportDay = localDay(now);
+      if (!("ok" in result) || !result.ok) {
+        return {
+          summary: `Could not save ${plan.crew}'s report on ${j.job.shortName}.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      const reportDay = day(plan.planDate);
+      const pendingCents = Object.values(byLineId).reduce(
+        (s, a) => s + laborCents(a.manHours, DEFAULT_LABOR_RATE_CENTS),
+        0,
+      );
       const diffs = Object.entries(byLineId)
         .map(([id, a]) => {
           const line = plan.lines.find((l) => l.id === id)!;
@@ -540,9 +665,9 @@ export const actions: Record<ActionName, ActionDef> = {
       return {
         summary:
           `Reported ${plan.crew}'s work on ${j.job.shortName} for ${reportDay}: ` +
-          `${result.postedMh} man-hours to actuals` +
+          `${result.postedMh} man-hours pending` +
           (diffs.length ? ` — ${diffs.join("; ")}` : " (as planned)") +
-          `; quantities pending until the PM locks.`,
+          `. ${usdShort(pendingCents)} and quantities await superintendent approval — nothing posted to actual cost yet.`,
         href: jobHref(j),
         job: j.job.number,
       };
@@ -930,6 +1055,8 @@ export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
 const WRITES: ActionName[] = [
   "dailyPlan.updateLine",
   "dailyPlan.submit",
+  "dailyPlan.approve",
+  "dailyPlan.return",
   "dailyReport.post",
   "progressClaim.lock",
   "estimate.approve",

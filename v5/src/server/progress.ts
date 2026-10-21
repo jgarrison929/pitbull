@@ -7,6 +7,7 @@ import {
   costItemMilestones,
   costItems,
   dailyPlanLines,
+  dailyPlans,
   milestoneLogs,
   pmPercentLogs,
   progressClaimLines,
@@ -30,16 +31,53 @@ export type ReportLineActual = {
 };
 
 /**
- * Last posted report values per plan line (from cost_entries), if any.
- * Used to pre-fill the report form so a second click cannot silently revert to plan.
+ * Pending (unapproved) qty and labor cents by cost item for `reported` plans on a job.
+ * Used on the job page so foreman numbers show as pending until approve.
  */
+export async function getApprovalPendingByCostItem(
+  companyId: string,
+  jobId: string,
+): Promise<Record<string, { qtyMilli: number; cents: number }>> {
+  const db = requireDb();
+  const rows = await db
+    .select({
+      costItemId: dailyPlanLines.costItemId,
+      reportedQtyMilli: dailyPlanLines.reportedQtyMilli,
+      reportedHoursTenths: dailyPlanLines.reportedHoursTenths,
+    })
+    .from(dailyPlanLines)
+    .innerJoin(dailyPlans, eq(dailyPlans.id, dailyPlanLines.planId))
+    .where(
+      and(
+        eq(dailyPlanLines.companyId, companyId),
+        eq(dailyPlans.jobId, jobId),
+        eq(dailyPlans.status, "reported"),
+      ),
+    );
+  const out: Record<string, { qtyMilli: number; cents: number }> = {};
+  for (const r of rows) {
+    const mh = (r.reportedHoursTenths ?? 0) / 10;
+    const qtyMilli = r.reportedQtyMilli ?? 0;
+    const cur = out[r.costItemId] ?? { qtyMilli: 0, cents: 0 };
+    cur.qtyMilli += qtyMilli;
+    cur.cents += laborCents(mh, DEFAULT_LABOR_RATE_CENTS);
+    out[r.costItemId] = cur;
+  }
+  return out;
+}
+
+/** Pending (unapproved) report values per plan line. */
 export async function getReportedActualsForPlan(
   companyId: string,
   planId: string,
 ): Promise<Record<string, ReportLineActual>> {
   const db = requireDb();
   const lines = await db
-    .select({ id: dailyPlanLines.id })
+    .select({
+      id: dailyPlanLines.id,
+      reportedQtyMilli: dailyPlanLines.reportedQtyMilli,
+      reportedHoursTenths: dailyPlanLines.reportedHoursTenths,
+    })
     .from(dailyPlanLines)
     .where(
       and(
@@ -47,43 +85,23 @@ export async function getReportedActualsForPlan(
         eq(dailyPlanLines.planId, planId),
       ),
     );
-  if (!lines.length) return {};
-  const ids = lines.map((l) => l.id);
-  const entries = await db
-    .select()
-    .from(costEntries)
-    .where(
-      and(
-        eq(costEntries.companyId, companyId),
-        inArray(costEntries.sourcePlanLineId, ids),
-      ),
-    );
   const out: Record<string, ReportLineActual> = {};
-  for (const e of entries) {
-    if (!e.sourcePlanLineId) continue;
-    const hours = e.hoursTenths ?? 0;
-    const cur = out[e.sourcePlanLineId] ?? { manHours: 0, qtyMilli: 0 };
-    if (e.note === "reported-qty") {
-      // Marker persists even at 0 milli so a rain-day report prefills zeros.
-      cur.qtyMilli = hours;
-    } else if (e.kind === "labor" || e.note === "reported-mh") {
-      cur.manHours = hours / 10;
-    }
-    out[e.sourcePlanLineId] = cur;
+  for (const l of lines) {
+    if (l.reportedHoursTenths == null && l.reportedQtyMilli == null) continue;
+    out[l.id] = {
+      manHours: (l.reportedHoursTenths ?? 0) / 10,
+      qtyMilli: l.reportedQtyMilli ?? 0,
+    };
   }
   return out;
 }
 
 /**
- * Foreman's daily report: post *actual* hours × rate into cost_entries and
- * quantity into installed (units method). The submitted plan is not modified.
- * Idempotent: re-reporting the same plan replaces prior entries for those lines.
- * Entries are dated `now` (report day), not the plan date.
- *
- * Only lines present in `actuals` are rewritten. Unmentioned lines keep their
- * last report (assistant one-line updates must not wipe the rest of the crew).
+ * Foreman report: store pending actuals on plan lines and move to `reported`.
+ * Does **not** write cost_entries or installed qty — that happens on approve.
+ * Allowed from `issued` (first report) or `reported` (amend before approve).
  */
-export async function postDailyReport(
+export async function submitDailyReport(
   companyId: string,
   planId: string,
   actuals: Record<string, ReportLineActual> = {},
@@ -92,10 +110,169 @@ export async function postDailyReport(
   const db = requireDb();
   const namedIds = Object.keys(actuals);
   if (!namedIds.length) {
-    return { postedMh: 0, postedQtyLines: 0, lines: 0 };
+    return { ok: false as const, reason: "no-lines" as const };
   }
   return db.transaction(async (tx) => {
+    const [plan] = await tx
+      .select()
+      .from(dailyPlans)
+      .where(
+        and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
+      );
+    if (!plan) return { ok: false as const, reason: "not-found" as const };
+    if (plan.status !== "issued" && plan.status !== "reported") {
+      return { ok: false as const, reason: "wrong-status" as const, status: plan.status };
+    }
+
     const lines = await tx
+      .select({ id: dailyPlanLines.id })
+      .from(dailyPlanLines)
+      .where(
+        and(
+          eq(dailyPlanLines.companyId, companyId),
+          eq(dailyPlanLines.planId, planId),
+          inArray(dailyPlanLines.id, namedIds),
+        ),
+      );
+
+    let reportedMh = 0;
+    let reportedQtyLines = 0;
+    for (const { id } of lines) {
+      const actual = actuals[id]!;
+      const hoursTenths = Math.round(actual.manHours * 10);
+      await tx
+        .update(dailyPlanLines)
+        .set({
+          reportedHoursTenths: hoursTenths,
+          reportedQtyMilli: actual.qtyMilli,
+        })
+        .where(
+          and(
+            eq(dailyPlanLines.id, id),
+            eq(dailyPlanLines.companyId, companyId),
+          ),
+        );
+      reportedMh += actual.manHours;
+      if (actual.qtyMilli > 0) reportedQtyLines += 1;
+    }
+
+    await tx
+      .update(dailyPlans)
+      .set({
+        status: "reported",
+        returnReason: null,
+        returnedAt: null,
+      })
+      .where(
+        and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
+      );
+
+    void now;
+    return {
+      ok: true as const,
+      reportedMh,
+      reportedQtyLines,
+      lines: lines.length,
+    };
+  });
+}
+
+/**
+ * @deprecated Use submitDailyReport — kept name for call-site clarity during M3.
+ * Does not post cost; stores pending actuals only.
+ */
+export async function postDailyReport(
+  companyId: string,
+  planId: string,
+  actuals: Record<string, ReportLineActual> = {},
+  now = new Date(),
+) {
+  const result = await submitDailyReport(companyId, planId, actuals, now);
+  if (!result.ok) {
+    return { postedMh: 0, postedQtyLines: 0, lines: 0, ...result };
+  }
+  return {
+    postedMh: result.reportedMh,
+    postedQtyLines: result.reportedQtyLines,
+    lines: result.lines,
+    ok: true as const,
+  };
+}
+
+/** Noon UTC on the plan's calendar date — cost entries carry the work day, not approve day. */
+export function planDateAsTimestamp(planDate: string): Date {
+  return new Date(`${planDate}T12:00:00.000Z`);
+}
+
+/**
+ * Superintendent approve: post pending hours/qty to cost **once**, dated by plan date.
+ * Concurrent double-approve is safe: only one transaction wins the status flip.
+ */
+export async function approveDailyReport(
+  companyId: string,
+  planId: string,
+  userId: string,
+  now = new Date(),
+) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [plan] = await tx
+      .select()
+      .from(dailyPlans)
+      .where(
+        and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
+      );
+    if (!plan) return { ok: false as const, reason: "not-found" as const };
+    if (plan.status === "approved") {
+      return {
+        ok: true as const,
+        already: true as const,
+        postedMh: 0,
+        postedCents: 0,
+        postedQtyMilli: 0,
+        lines: 0,
+      };
+    }
+    if (plan.status !== "reported") {
+      return {
+        ok: false as const,
+        reason: "wrong-status" as const,
+        status: plan.status,
+      };
+    }
+
+    // Claim the approve: only one concurrent call flips reported → approved.
+    const claimed = await tx
+      .update(dailyPlans)
+      .set({
+        status: "approved",
+        approvedAt: now,
+        approvedById: userId,
+        returnReason: null,
+        returnedAt: null,
+      })
+      .where(
+        and(
+          eq(dailyPlans.id, planId),
+          eq(dailyPlans.companyId, companyId),
+          eq(dailyPlans.status, "reported"),
+        ),
+      )
+      .returning({ id: dailyPlans.id });
+    if (!claimed.length) {
+      // Lost the race — another approve already posted.
+      return {
+        ok: true as const,
+        already: true as const,
+        postedMh: 0,
+        postedCents: 0,
+        postedQtyMilli: 0,
+        lines: 0,
+      };
+    }
+
+    const entryAt = planDateAsTimestamp(plan.planDate);
+    const rows = await tx
       .select({
         line: dailyPlanLines,
         item: costItems,
@@ -106,42 +283,34 @@ export async function postDailyReport(
         and(
           eq(dailyPlanLines.companyId, companyId),
           eq(dailyPlanLines.planId, planId),
-          inArray(dailyPlanLines.id, namedIds),
         ),
       );
 
     let postedMh = 0;
-    let postedQtyLines = 0;
+    let postedCents = 0;
+    let postedQtyMilli = 0;
+    const touchedItems = new Set<string>();
 
-    for (const { line, item } of lines) {
-      const actual = actuals[line.id]!;
-      const manHours = actual.manHours;
-      const qtyMilli = actual.qtyMilli;
+    for (const { line, item } of rows) {
+      if (line.reportedHoursTenths == null && line.reportedQtyMilli == null) {
+        continue;
+      }
+      const manHours = (line.reportedHoursTenths ?? 0) / 10;
+      const qtyMilli = line.reportedQtyMilli ?? 0;
 
+      // Guard: never double-insert for the same plan line.
       const prior = await tx
-        .select()
+        .select({ id: costEntries.id })
         .from(costEntries)
         .where(
           and(
             eq(costEntries.companyId, companyId),
             eq(costEntries.sourcePlanLineId, line.id),
           ),
-        );
-      const prevQty = Number(
-        prior.find((p) => p.note === "reported-qty")?.hoursTenths ?? 0,
-      );
+        )
+        .limit(1);
+      if (prior.length) continue;
 
-      await tx
-        .delete(costEntries)
-        .where(
-          and(
-            eq(costEntries.companyId, companyId),
-            eq(costEntries.sourcePlanLineId, line.id),
-          ),
-        );
-
-      // Always persist a labor row (incl. 0 MH) so prefill can show zeros after a
-      // rain-day report — otherwise the form falls back to the plan on reload.
       const amount = laborCents(manHours, DEFAULT_LABOR_RATE_CENTS);
       await tx.insert(costEntries).values({
         id: randomUUID(),
@@ -151,21 +320,22 @@ export async function postDailyReport(
         hoursTenths: Math.round(manHours * 10),
         rateCents: DEFAULT_LABOR_RATE_CENTS,
         amountCents: amount,
-        note: manHours > 0 ? `Reported: ${line.activity}` : "reported-mh",
+        note:
+          manHours > 0
+            ? `Approved: ${line.activity}`
+            : "approved-mh",
         sourcePlanLineId: line.id,
-        at: now,
+        at: entryAt,
       });
       postedMh += manHours;
+      postedCents += amount;
 
-      // Replace installed qty for this plan line (incl. reporting 0): always
-      // apply delta = new − prior so re-reports never double-add.
       if (item.evMethod === "units") {
-        const delta = qtyMilli - prevQty;
-        if (delta !== 0) {
+        if (qtyMilli !== 0) {
           await tx
             .update(costItems)
             .set({
-              installedQtyMilli: sql`${costItems.installedQtyMilli} + ${delta}`,
+              installedQtyMilli: sql`${costItems.installedQtyMilli} + ${qtyMilli}`,
             })
             .where(
               and(
@@ -174,7 +344,6 @@ export async function postDailyReport(
               ),
             );
         }
-        // Qty marker always written (incl. 0) so getReportedActuals sees the report.
         await tx.insert(costEntries).values({
           id: randomUUID(),
           companyId,
@@ -182,17 +351,71 @@ export async function postDailyReport(
           kind: "other",
           hoursTenths: qtyMilli,
           amountCents: 0,
-          note: "reported-qty",
+          note: "approved-qty",
           sourcePlanLineId: line.id,
-          at: now,
+          at: entryAt,
         });
-        if (qtyMilli > 0) postedQtyLines += 1;
+        postedQtyMilli += qtyMilli;
       }
 
-      await refreshCostItemActuals(tx, companyId, item.id, now);
+      touchedItems.add(item.id);
     }
 
-    return { postedMh, postedQtyLines, lines: lines.length };
+    for (const itemId of touchedItems) {
+      await refreshCostItemActuals(tx, companyId, itemId, now);
+    }
+
+    return {
+      ok: true as const,
+      already: false as const,
+      postedMh,
+      postedCents,
+      postedQtyMilli,
+      lines: rows.length,
+      planDate: plan.planDate,
+    };
+  });
+}
+
+/**
+ * Superintendent return: send reported work back to the foreman with a reason.
+ * Keeps reported values; posts nothing to cost.
+ */
+export async function returnDailyReport(
+  companyId: string,
+  planId: string,
+  reason: string,
+  now = new Date(),
+) {
+  const why = reason.trim();
+  if (!why) return { ok: false as const, reason: "need-reason" as const };
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [plan] = await tx
+      .select()
+      .from(dailyPlans)
+      .where(
+        and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
+      );
+    if (!plan) return { ok: false as const, reason: "not-found" as const };
+    if (plan.status !== "reported") {
+      return {
+        ok: false as const,
+        reason: "wrong-status" as const,
+        status: plan.status,
+      };
+    }
+    await tx
+      .update(dailyPlans)
+      .set({
+        status: "issued",
+        returnReason: why,
+        returnedAt: now,
+      })
+      .where(
+        and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
+      );
+    return { ok: true as const, returnReason: why };
   });
 }
 

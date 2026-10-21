@@ -1,6 +1,14 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m3",
+    date: "2026-10-21",
+    items: [
+      "Superintendent approve posts hours and quantity to cost once, dated by the plan date — not the report or approve day.",
+      "Foreman reports stay pending until approval; return needs a reason, keeps values, and posts nothing. Approve and return work on screen and via the assistant; both are audited.",
+    ],
+  },
+  {
     version: "5.0.0-m2.1",
     date: "2026-10-21",
     items: [
