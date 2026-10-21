@@ -4,6 +4,12 @@ import { requireDb } from "@/db";
 import { costItems } from "@/db/schema";
 import type { Rollup } from "@/lib/ev";
 
+/** Current Budget total (labor+material+equipment+sub). EV and portfolio read this. */
+const cbTotalSql = sql`(
+  ${costItems.cbLaborCents} + ${costItems.cbMaterialCents}
+  + ${costItems.cbEquipmentCents} + ${costItems.cbSubCents}
+)`;
+
 /**
  * Units earn from claimed_installed / budget_qty (main EV); milestones/PM % from
  * claimed_percent. Matches earnedCentsOf in lib/ev.
@@ -13,11 +19,11 @@ const earnedSql = sql`
   case
     when ${costItems.evMethod} = 'units' and ${costItems.budgetQtyMilli} > 0
       then round(
-        (${costItems.budgetCents}::numeric * ${costItems.claimedInstalledQtyMilli})
+        (${cbTotalSql}::numeric * ${costItems.claimedInstalledQtyMilli})
           / ${costItems.budgetQtyMilli}
       )::bigint
     else round(
-      (${costItems.budgetCents}::numeric * ${costItems.claimedPercentMilli}) / 1000
+      (${cbTotalSql}::numeric * ${costItems.claimedPercentMilli}) / 1000
     )::bigint
   end`;
 
@@ -29,12 +35,12 @@ function plannedAsOfSql(asOfIso: string) {
   return sql`
     case
       when ${costItems.plannedFinishOn} <= ${costItems.plannedStartOn}
-        then ${costItems.budgetCents}
+        then ${cbTotalSql}
       when ${asOfIso}::date <= ${costItems.plannedStartOn} then 0
       when ${asOfIso}::date >= ${costItems.plannedFinishOn}
-        then ${costItems.budgetCents}
+        then ${cbTotalSql}
       else round(
-        ${costItems.budgetCents}::numeric
+        ${cbTotalSql}::numeric
           * (${asOfIso}::date - ${costItems.plannedStartOn})::numeric
           / (${costItems.plannedFinishOn} - ${costItems.plannedStartOn})::numeric
       )::bigint
@@ -85,7 +91,7 @@ export async function jobRollupSql(
     actual_cents: number;
   }>(sql`
     select
-      coalesce(sum(${costItems.budgetCents}), 0)::bigint as budget_cents,
+      coalesce(sum(${cbTotalSql}), 0)::bigint as budget_cents,
       coalesce(sum(${planned}), 0)::bigint as planned_cents,
       coalesce(sum(${earnedSql}), 0)::bigint as earned_cents,
       coalesce(sum(${costItems.actualCents}), 0)::bigint as actual_cents
@@ -115,7 +121,7 @@ export async function pathRollupSql(
     actual_cents: number;
   }>(sql`
     select
-      coalesce(sum(${costItems.budgetCents}), 0)::bigint as budget_cents,
+      coalesce(sum(${cbTotalSql}), 0)::bigint as budget_cents,
       coalesce(sum(${planned}), 0)::bigint as planned_cents,
       coalesce(sum(${earnedSql}), 0)::bigint as earned_cents,
       coalesce(sum(${costItems.actualCents}), 0)::bigint as actual_cents
@@ -149,7 +155,7 @@ export async function portfolioRollupsSql(
   }>(sql`
     select
       ${costItems.jobId} as job_id,
-      coalesce(sum(${costItems.budgetCents}), 0)::bigint as budget_cents,
+      coalesce(sum(${cbTotalSql}), 0)::bigint as budget_cents,
       coalesce(sum(${planned}), 0)::bigint as planned_cents,
       coalesce(sum(${earnedSql}), 0)::bigint as earned_cents,
       coalesce(sum(${costItems.actualCents}), 0)::bigint as actual_cents

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { currentBudgetCents, SHB_FIXTURE } from "@/lib/budget";
 import { costLine, plannedValueCents } from "@/lib/ev";
 import { seed, seedId } from "./index";
 
@@ -6,18 +7,34 @@ const company = "00000000-0000-4000-8000-000000000001";
 const today = new Date("2026-10-19T00:00:00Z");
 const rows = seed(company, today);
 
+function asLine(c: (typeof rows.costItems)[number]) {
+  const budgetCents = currentBudgetCents({
+    cbLaborCents: c.cbLaborCents ?? 0,
+    cbMaterialCents: c.cbMaterialCents ?? 0,
+    cbEquipmentCents: c.cbEquipmentCents ?? 0,
+    cbSubCents: c.cbSubCents ?? 0,
+  });
+  return costLine({
+    code: c.code!,
+    description: c.description!,
+    unit: c.unit!,
+    budgetQtyMilli: c.budgetQtyMilli!,
+    installedQtyMilli: c.installedQtyMilli!,
+    claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
+    budgetCents,
+    plannedCents: c.plannedCents!,
+    actualCents: c.actualCents!,
+    budgetMhPerUnitMilli: c.budgetMhPerUnitMilli!,
+    claimedPercentMilli: c.claimedPercentMilli ?? 0,
+    earnDerivation: c.earnDerivation ?? "",
+    evMethod: c.evMethod ?? "units",
+  });
+}
+
 function jobIndex(number: string) {
   const job = rows.jobs.find((j) => j.number === number)!;
-  const items = rows.costItems.filter((c) => c.jobId === job.id);
-  const lines = items.map((c) =>
-    costLine({
-      ...c,
-      claimedPercentMilli: c.claimedPercentMilli ?? 0,
-      claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
-      earnDerivation: c.earnDerivation ?? "",
-      evMethod: c.evMethod ?? "units",
-    }),
-  );
+  const items = rows.costItems.filter((c) => c.jobId === job.id && c.isLeaf);
+  const lines = items.map(asLine);
   const sum = (f: (c: (typeof lines)[number]) => number) =>
     lines.reduce((s, c) => s + f(c), 0);
   return {
@@ -50,11 +67,17 @@ describe("seed", () => {
     }
     for (const c of rows.costItems) {
       expect(byItem.get(c.id) ?? 0).toBe(c.actualCents);
+      const budgetCents = currentBudgetCents({
+        cbLaborCents: c.cbLaborCents ?? 0,
+        cbMaterialCents: c.cbMaterialCents ?? 0,
+        cbEquipmentCents: c.cbEquipmentCents ?? 0,
+        cbSubCents: c.cbSubCents ?? 0,
+      });
       expect(c.plannedCents).toBe(
         plannedValueCents(
-          c.budgetCents,
-          c.plannedStartOn,
-          c.plannedFinishOn,
+          budgetCents,
+          c.plannedStartOn!,
+          c.plannedFinishOn!,
           today,
         ),
       );
@@ -75,14 +98,9 @@ describe("seed", () => {
     const offenders: string[] = [];
 
     for (const c of rows.costItems) {
+      if (!c.isLeaf) continue;
       if (c.claimedPercentMilli === 0 && c.actualCents === 0) continue; // not started
-      const line = costLine({
-        ...c,
-        claimedPercentMilli: c.claimedPercentMilli ?? 0,
-        claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
-        earnDerivation: c.earnDerivation ?? "",
-        evMethod: c.evMethod ?? "units",
-      });
+      const line = asLine(c);
       const job = rows.jobs.find((j) => j.id === c.jobId)!;
       if (line.actualCents === line.earnedCents) {
         acEq += 1;
@@ -144,7 +162,9 @@ describe("seed", () => {
   it("stores money and quantities as integers", () => {
     for (const c of rows.costItems) {
       for (const v of [
-        c.budgetCents,
+        c.cbLaborCents,
+        c.ceLaborCents,
+        c.obLaborCents,
         c.plannedCents,
         c.actualCents,
         c.budgetQtyMilli,
@@ -154,6 +174,49 @@ describe("seed", () => {
       ]) {
         expect(Number.isInteger(v)).toBe(true);
       }
+    }
+  });
+
+  it("seeds one draft estimate job with the SHB fixture totals", () => {
+    const harbor = rows.jobs.find((j) => j.number === "26-010")!;
+    expect(harbor.estimateStatus).toBe("draft");
+    const leaves = rows.costItems.filter(
+      (c) => c.jobId === harbor.id && c.isLeaf,
+    );
+    expect(leaves).toHaveLength(4);
+    const ce = leaves.reduce(
+      (s, c) =>
+        s +
+        (c.ceLaborCents ?? 0) +
+        (c.ceMaterialCents ?? 0) +
+        (c.ceEquipmentCents ?? 0) +
+        (c.ceSubCents ?? 0),
+      0,
+    );
+    const ob = leaves.reduce(
+      (s, c) =>
+        s +
+        (c.obLaborCents ?? 0) +
+        (c.obMaterialCents ?? 0) +
+        (c.obEquipmentCents ?? 0) +
+        (c.obSubCents ?? 0),
+      0,
+    );
+    expect(ce).toBe(SHB_FIXTURE.jobTotalCents);
+    expect(ob).toBe(0);
+    expect(
+      currentBudgetCents({
+        cbLaborCents: leaves[0]!.cbLaborCents ?? 0,
+        cbMaterialCents: leaves[0]!.cbMaterialCents ?? 0,
+        cbEquipmentCents: leaves[0]!.cbEquipmentCents ?? 0,
+        cbSubCents: leaves[0]!.cbSubCents ?? 0,
+      }),
+    ).toBe(0);
+    // Existing jobs stay approved with OB=CB=CE.
+    for (const n of ["24-118", "25-031", "24-077"]) {
+      expect(rows.jobs.find((j) => j.number === n)!.estimateStatus).toBe(
+        "approved",
+      );
     }
   });
 
@@ -167,6 +230,10 @@ describe("seed", () => {
     expect(rows.costItemMilestones.length).toBeGreaterThan(0);
     expect(rows.pmPercentLogs.length).toBeGreaterThan(0);
     for (const c of rows.costItems) {
+      if (!c.isLeaf) continue;
+      // Harbor draft has no locked claim yet.
+      const job = rows.jobs.find((j) => j.id === c.jobId)!;
+      if (job.estimateStatus === "draft") continue;
       expect((c.earnDerivation ?? "").length).toBeGreaterThan(0);
       expect(["units", "milestones", "pm_percent"]).toContain(c.evMethod);
       // Field installed matches claimed so the real Period 1 lock is a no-op on numbers.

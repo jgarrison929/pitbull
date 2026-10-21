@@ -1,6 +1,7 @@
 // Stress WBS: 10 divisions × 10 groups × 100 leaves = 10,000 leaf cost codes (+ 110 summaries).
 // Used by the perf harness, optional V5_SEED_STRESS=1 local seed, and ensureStressJob (e2e).
 import type { costItems, dailyPlanLines, dailyPlans, jobs } from "@/db/schema";
+import { plugLabor, valueSetColumns } from "@/lib/budget";
 import { plannedValueCents } from "@/lib/ev";
 import { seedId } from "./index";
 
@@ -37,6 +38,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
   const finish = isoDate(addDays(today, 100));
   const items: Insert<typeof costItems>[] = [];
   let outsideLeafId: string | null = null;
+  const empty = valueSetColumns(plugLabor(0), "approved");
 
   for (let d = 0; d < 10; d++) {
     const divCode = `${String(d + 1).padStart(2, "0")}`;
@@ -57,7 +59,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
       budgetQtyMilli: 0,
       installedQtyMilli: 0,
       claimedInstalledQtyMilli: 0,
-      budgetCents: 0,
+      ...empty,
       plannedStartOn: start,
       plannedFinishOn: finish,
       plannedCents: 0,
@@ -85,7 +87,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         budgetQtyMilli: 0,
         installedQtyMilli: 0,
         claimedInstalledQtyMilli: 0,
-        budgetCents: 0,
+        ...empty,
         plannedStartOn: start,
         plannedFinishOn: finish,
         plannedCents: 0,
@@ -117,7 +119,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
           budgetQtyMilli: 1_000_000,
           installedQtyMilli: claimedPercentMilli * 1000,
           claimedInstalledQtyMilli: claimedPercentMilli * 1000,
-          budgetCents,
+          ...valueSetColumns(plugLabor(budgetCents), "approved"),
           plannedStartOn: start,
           plannedFinishOn: finish,
           plannedCents: plannedValueCents(budgetCents, start, finish, today),
@@ -150,6 +152,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
       pmName: "Perf Harness",
       finishOn: isoDate(addDays(today, 200)),
       contractCents: 50_000_000_00,
+      estimateStatus: "approved",
     },
     costItems: items,
     dailyPlans: [

@@ -84,8 +84,8 @@ async function main() {
   const tSeed0 = performance.now();
   await sql`insert into companies (id, name, is_sandbox, seeded_at) values (${companyId}, ${"Perf Stress Co"}, true, ${today})`;
   await sql`
-    insert into jobs (id, company_id, number, name, short_name, owner, pm_name, finish_on, contract_cents)
-    values (${jobId}, ${companyId}, ${STRESS_JOB_NUMBER}, ${"Stress WBS — 10k cost codes"}, ${"Stress 10k"}, ${"Internal"}, ${"Perf"}, ${iso(addDays(today, 200))}, ${5_000_000_000})`;
+    insert into jobs (id, company_id, number, name, short_name, owner, pm_name, finish_on, contract_cents, estimate_status)
+    values (${jobId}, ${companyId}, ${STRESS_JOB_NUMBER}, ${"Stress WBS — 10k cost codes"}, ${"Stress 10k"}, ${"Internal"}, ${"Perf"}, ${iso(addDays(today, 200))}, ${5_000_000_000}, ${"approved"})`;
 
   const rows = [];
   for (let d = 0; d < 10; d++) {
@@ -144,6 +144,9 @@ async function main() {
     }
   }
 
+  // Current Budget = labor plug of the legacy total (cb_*); EV reads sum of cb_*.
+  const cbSql = `(cb_labor_cents + cb_material_cents + cb_equipment_cents + cb_sub_cents)`;
+
   for (let i = 0; i < rows.length; i += 200) {
     const chunk = rows.slice(i, i + 200);
     await sql.begin(async (tx) => {
@@ -153,13 +156,18 @@ async function main() {
             id, company_id, job_id, parent_id, path, depth, is_leaf,
             code, description, unit, ev_method,
             budget_qty_milli, installed_qty_milli, claimed_installed_qty_milli,
-            budget_cents,
+            ob_labor_cents, ob_material_cents, ob_equipment_cents, ob_sub_cents,
+            cb_labor_cents, cb_material_cents, cb_equipment_cents, cb_sub_cents,
+            ce_labor_cents, ce_material_cents, ce_equipment_cents, ce_sub_cents,
             planned_start_on, planned_finish_on, planned_cents, actual_cents,
             claimed_percent_milli, earn_derivation, budget_mh_per_unit_milli
           ) values (
             ${c.id}, ${companyId}, ${jobId}, ${c.parent_id}, ${c.path}, ${c.depth}, ${c.is_leaf},
             ${c.code}, ${c.description}, ${"CY"}, ${"units"},
-            ${c.qty}, ${c.installed}, ${c.installed}, ${c.budget_cents},
+            ${c.qty}, ${c.installed}, ${c.installed},
+            ${c.budget_cents}, 0, 0, 0,
+            ${c.budget_cents}, 0, 0, 0,
+            ${c.budget_cents}, 0, 0, 0,
             ${start}, ${finish}, ${Math.round(c.budget_cents / 2)},
             ${Math.round((c.budget_cents * c.claimed) / 1000 / 0.95)},
             ${c.claimed}, ${"stress"}, ${0}
@@ -178,20 +186,20 @@ async function main() {
   const rollSamples = [];
   for (let i = 0; i < 30; i++) {
     const t0 = performance.now();
-    await sql`
+    await sql.unsafe(`
       select
-        coalesce(sum(budget_cents), 0)::bigint,
+        coalesce(sum${cbSql}, 0)::bigint,
         coalesce(sum(
           case
             when ev_method = 'units' and budget_qty_milli > 0
-              then (budget_cents * claimed_installed_qty_milli) / budget_qty_milli
-            else (budget_cents * claimed_percent_milli) / 1000
+              then (${cbSql} * claimed_installed_qty_milli) / budget_qty_milli
+            else (${cbSql} * claimed_percent_milli) / 1000
           end
         ), 0)::bigint,
         coalesce(sum(actual_cents), 0)::bigint,
         coalesce(sum(planned_cents), 0)::bigint
       from cost_items
-      where job_id = ${jobId} and is_leaf = true`;
+      where job_id = '${jobId}' and is_leaf = true`);
     rollSamples.push(performance.now() - t0);
   }
 
@@ -226,20 +234,20 @@ async function main() {
     const t0 = performance.now();
     await sql`
       select * from cost_items where job_id = ${jobId} order by path`;
-    await sql`
+    await sql.unsafe(`
       select
-        coalesce(sum(budget_cents), 0)::bigint,
+        coalesce(sum${cbSql}, 0)::bigint,
         coalesce(sum(
           case
             when ev_method = 'units' and budget_qty_milli > 0
-              then (budget_cents * claimed_installed_qty_milli) / budget_qty_milli
-            else (budget_cents * claimed_percent_milli) / 1000
+              then (${cbSql} * claimed_installed_qty_milli) / budget_qty_milli
+            else (${cbSql} * claimed_percent_milli) / 1000
           end
         ), 0)::bigint,
         coalesce(sum(actual_cents), 0)::bigint,
         coalesce(sum(planned_cents), 0)::bigint
       from cost_items
-      where job_id = ${jobId} and is_leaf = true`;
+      where job_id = '${jobId}' and is_leaf = true`);
     hydrateSamples.push(performance.now() - t0);
   }
 

@@ -28,6 +28,7 @@ import {
   getPortfolio,
   type JobDetail,
 } from "@/server/data";
+import { approveEstimate } from "@/server/estimate";
 import {
   getReportedActualsForPlan,
   lockProgressClaim,
@@ -576,6 +577,35 @@ export const actions: Record<ActionName, ActionDef> = {
       };
     },
   },
+  "estimate.approve": {
+    title: "Approve estimate",
+    roles: ["pm", "executive"],
+    async run(user, { job }) {
+      if (!job)
+        return {
+          summary:
+            "Which job's estimate should I approve? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      const result = await approveEstimate(user.companyId, j.job.number);
+      if (!result.ok) {
+        return {
+          summary: result.summary,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      return {
+        summary:
+          `Approved the estimate on ${result.shortName}: Original Budget ` +
+          `${usdShort(result.originalBudgetCents)} frozen across ${result.leafCount} cost items. ` +
+          `Current Budget equals Original.`,
+        href: jobHref(j),
+        job: j.job.number,
+      };
+    },
+  },
   "costItem.setPmPercent": {
     title: "Log PM percent complete",
     roles: ["pm", "superintendent", "executive"],
@@ -902,6 +932,7 @@ const WRITES: ActionName[] = [
   "dailyPlan.submit",
   "dailyReport.post",
   "progressClaim.lock",
+  "estimate.approve",
   "costItem.setPmPercent",
   "costItem.setMilestone",
 ];

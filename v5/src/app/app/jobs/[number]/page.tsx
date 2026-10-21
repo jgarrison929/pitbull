@@ -60,7 +60,9 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
   const canReport = actions["dailyReport.post"].roles?.includes(user.role);
   const canLock = actions["progressClaim.lock"].roles?.includes(user.role);
+  const canApprove = actions["estimate.approve"].roles?.includes(user.role);
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
+  const estimateDraft = p.job.estimateStatus === "draft";
   // Initial combobox options: first leaves only. Large WBS uses server search.
   const costItems = p.lines.slice(0, 40).map((l) => ({
     value: l.id,
@@ -86,6 +88,28 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         meta={`${p.job.number} · ${p.job.owner} · PM ${p.job.pmName} · finish ${new Date(`${p.job.finishOn}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })}`}
         actions={
           <div className="flex items-center gap-2">
+            {estimateDraft && canApprove ? (
+              <form action={runAction}>
+                <input
+                  type="hidden"
+                  name="action"
+                  value="estimate.approve"
+                />
+                <input type="hidden" name="job" value={p.job.number} />
+                <input
+                  type="hidden"
+                  name="label"
+                  value="Approve estimate"
+                />
+                <button
+                  type="submit"
+                  className="rounded-md border px-3 py-1.5 text-xs font-medium"
+                  data-testid="approve-estimate"
+                >
+                  Approve estimate
+                </button>
+              </form>
+            ) : null}
             {draftClaim && canLock ? (
               <form action={runAction}>
                 <input
@@ -112,7 +136,27 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           </div>
         }
       />
+      <p
+        className="mb-3 text-xs text-muted-foreground"
+        data-testid="estimate-status"
+        data-status={p.job.estimateStatus}
+      >
+        Estimate:{" "}
+        {estimateDraft
+          ? "draft — Approve freezes Original Budget from the Current Estimate"
+          : "approved — Original Budget frozen; Current Budget equals Original until change orders"}
+      </p>
       <KpiStrip>
+        <Kpi
+          label="Current budget"
+          value={<Money cents={p.budgetCents} />}
+          sub={
+            estimateDraft
+              ? "Zero until the estimate is approved"
+              : `${pct(p.percent)} earned`
+          }
+          testId="job-budget"
+        />
         <Kpi
           label="Earned to date"
           value={<Money cents={p.earnedCents} />}

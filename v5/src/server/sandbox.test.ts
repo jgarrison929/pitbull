@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
 import { actionRuns, companies, dailyPlans } from "@/db/schema";
+import { SEED_JOB_NUMBERS } from "@/seed/history";
 import { seed, seedId } from "@/seed";
 import {
   countRows,
@@ -32,8 +33,8 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
       cost_items: expected.costItems.length,
       plans: expected.dailyPlans.length,
     });
-    // seedActionHistory: one plan edit + one lock per job
-    expect(rows.runs).toBe(1 + expected.jobs.length);
+    // seedActionHistory: one plan edit + one lock per history job (not Harbor draft).
+    expect(rows.runs).toBe(1 + SEED_JOB_NUMBERS.length);
   });
 
   it("reset undoes a visitor's changes and keeps the same ids", async () => {
@@ -59,7 +60,7 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
       .where(eq(dailyPlans.id, planId));
     expect(plan.status).toBe("draft");
     // Reset clears visitor runs then re-seeds history via real typed actions.
-    expect((await countRows(id)).runs).toBe(1 + seed(id, new Date()).jobs.length);
+    expect((await countRows(id)).runs).toBe(1 + SEED_JOB_NUMBERS.length);
   });
 
   it("sweeps only expired sandboxes", async () => {

@@ -11,6 +11,7 @@ export type ActionName =
   | "dailyPlan.updateLine"
   | "dailyReport.post"
   | "progressClaim.lock"
+  | "estimate.approve"
   | "costItem.setPmPercent"
   | "costItem.setMilestone";
 
@@ -115,6 +116,12 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
     has(/\b(progress|claim|earned|period)\b/)
   )
     return { action: "progressClaim.lock", args };
+  // "Approve the estimate on Harbor" / "approve estimate for 26-010"
+  if (
+    has(/\bapprov/) &&
+    has(/\b(estimate|budget|original)\b/)
+  )
+    return { action: "estimate.approve", args };
   // "Report today's work" / "we poured 38 CY with 72 hours on 04-210"
   const reportActuals = parseReportActuals(prompt);
   if (
@@ -260,4 +267,5 @@ export const examples = [
   "Submit tomorrow's plan",
   "Report today's work on Cedar Creek",
   "Lock the progress claim on 25-031",
+  "Approve the estimate on Harbor Abutment",
 ];

@@ -2,12 +2,26 @@ import { afterAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { companies, costItems, jobs } from "@/db/schema";
+import { currentBudgetCents } from "@/lib/budget";
 import { costLine, rollup } from "@/lib/ev";
 import { seedStressJob, STRESS_LEAF_COUNT } from "@/seed/stress";
 import { jobRollupSql, pathRollupSql, searchCostItems } from "./cost-rollups";
 
 const db = getDb();
 const created: string[] = [];
+
+const cb = (c: {
+  cbLaborCents?: number | null;
+  cbMaterialCents?: number | null;
+  cbEquipmentCents?: number | null;
+  cbSubCents?: number | null;
+}) =>
+  currentBudgetCents({
+    cbLaborCents: c.cbLaborCents ?? 0,
+    cbMaterialCents: c.cbMaterialCents ?? 0,
+    cbEquipmentCents: c.cbEquipmentCents ?? 0,
+    cbSubCents: c.cbSubCents ?? 0,
+  });
 
 describe("stress seed shape", () => {
   it("builds exactly 10k leaves under a hierarchy", () => {
@@ -29,7 +43,7 @@ describe("stress seed shape", () => {
           budgetQtyMilli: c.budgetQtyMilli!,
           installedQtyMilli: c.installedQtyMilli!,
           claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
-          budgetCents: c.budgetCents!,
+          budgetCents: cb(c),
           plannedCents: c.plannedCents!,
           actualCents: c.actualCents!,
           budgetMhPerUnitMilli: c.budgetMhPerUnitMilli!,
@@ -39,7 +53,7 @@ describe("stress seed shape", () => {
         }),
       ),
     );
-    expect(r.budgetCents).toBe(leaves.reduce((s, c) => s + c.budgetCents!, 0));
+    expect(r.budgetCents).toBe(leaves.reduce((s, c) => s + cb(c), 0));
   });
 });
 
@@ -72,14 +86,12 @@ describe.skipIf(!db)("SQL roll-up matches leaf sum on stress job", () => {
     expect(rollMs).toBeLessThan(500);
 
     const leaves = items.filter((c) => c.isLeaf);
-    expect(sqlRoll.budgetCents).toBe(
-      leaves.reduce((s, c) => s + c.budgetCents!, 0),
-    );
+    expect(sqlRoll.budgetCents).toBe(leaves.reduce((s, c) => s + cb(c), 0));
     const jsEarned = leaves.reduce(
       (s, c) =>
         s +
         Math.round(
-          (c.budgetCents! * (c.claimedInstalledQtyMilli ?? 0)) /
+          (cb(c) * (c.claimedInstalledQtyMilli ?? 0)) /
             (c.budgetQtyMilli || 1),
         ),
       0,
@@ -112,7 +124,7 @@ describe.skipIf(!db)("SQL roll-up matches leaf sum on stress job", () => {
     expect(path.budgetCents).toBe(
       leaves
         .filter((c) => c.path!.startsWith("/01/"))
-        .reduce((s, c) => s + c.budgetCents!, 0),
+        .reduce((s, c) => s + cb(c), 0),
     );
   }, 120_000);
 });
