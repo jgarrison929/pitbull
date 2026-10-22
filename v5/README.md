@@ -29,5 +29,5 @@ Staging `pitbull-web` on Railway runs this folder: Root Directory `/v5`, and `DA
 
 ## Routes
 
-- `/status`: version, commit, build time, DB health.
+- `/status`: version, commit, ci-gate result, last verify timestamp, build time, DB health.
 - `/health`: the same data as JSON. Returns 503 when a configured DB is unreachable.

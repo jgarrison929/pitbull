@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { checkHealth } from "./health";
-import { getBuildInfo } from "./build-info";
+import {
+  appVersion,
+  changelogVersion,
+  getBuildInfo,
+} from "./build-info";
 
 describe("checkHealth", () => {
   it("is ok without a database", async () => {
@@ -27,5 +31,11 @@ describe("getBuildInfo", () => {
 
   it("reports unknown when no commit is set", () => {
     expect(getBuildInfo({}).commit).toBe("unknown");
+  });
+
+  it("uses a real release version, not 0.0.0", () => {
+    expect(appVersion()).not.toBe("0.0.0");
+    expect(appVersion()).toBe(changelogVersion());
+    expect(appVersion()).toMatch(/^5\./);
   });
 });

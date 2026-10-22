@@ -1,6 +1,13 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m1.4",
+    date: "2026-10-21",
+    items: [
+      "Status and /health show the release version, deployed commit, ci-gate result for that commit, and the last verify-v5 timestamp.",
+    ],
+  },
+  {
     version: "5.0.0-m1.3",
     date: "2026-10-20",
     items: [
