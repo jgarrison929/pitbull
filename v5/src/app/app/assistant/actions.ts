@@ -109,13 +109,10 @@ function argsFromForm(formData: FormData): JobArgs {
     percent: str("percent"),
     reason: str("reason"),
     milestoneId: str("milestoneId"),
-<<<<<<< HEAD
     changeOrder: str("changeOrder"),
     title: str("title"),
     revision: str("revision"),
-=======
     csv: str("csv"),
->>>>>>> 17f6fa55 (feat(v5): estimate.importCsv typed action on the same run() path as approve)
     complete:
       completeRaw === undefined
         ? undefined

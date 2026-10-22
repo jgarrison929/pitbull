@@ -12,7 +12,7 @@ import {
   progressClaims,
   users,
 } from "@/db/schema";
-import { currentBudgetCents } from "@/lib/budget";
+import { buildWbsMoney, currentBudgetCents } from "@/lib/budget";
 import {
   costLine,
   plannedValueCents,
@@ -235,6 +235,8 @@ export async function getJob(
     job,
     items,
     lines,
+    /** Original, Current, and Estimate per WBS node and for the job, summed from leaves. */
+    money: buildWbsMoney(items),
     lockAt,
     cutoff,
     ...r,

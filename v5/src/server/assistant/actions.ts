@@ -780,6 +780,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "estimate.importCsv": {
     title: "Import estimate CSV",
+    writes: true,
     roles: ["pm", "executive"],
     async run(user, { job, csv }) {
       if (!job)
@@ -1189,25 +1190,10 @@ export async function recentRuns(
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
 
-<<<<<<< HEAD
 /** Job change feed. Derived from `writes: true`, so a new command cannot forget the list. */
 export const WRITES: ActionName[] = (Object.keys(actions) as ActionName[]).filter(
   (name) => actions[name].writes,
 );
-=======
-const WRITES: ActionName[] = [
-  "dailyPlan.updateLine",
-  "dailyPlan.submit",
-  "dailyPlan.approve",
-  "dailyPlan.return",
-  "dailyReport.post",
-  "progressClaim.lock",
-  "estimate.importCsv",
-  "estimate.approve",
-  "costItem.setPmPercent",
-  "costItem.setMilestone",
-];
->>>>>>> 17f6fa55 (feat(v5): estimate.importCsv typed action on the same run() path as approve)
 
 /** The audit trail for one job: every change anyone in this sandbox made, newest first. */
 export async function jobChanges(

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import type { ValueSet, WbsMoney } from "@/lib/budget";
 import type { CostLine } from "@/lib/ev";
 import { mh, pct, pendingInstalledQtyMilli, qty, rollup } from "@/lib/ev";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,48 @@ export type WbsNode = {
   path: string;
   /** Present for leaves; summaries omit EV fields and show rolled children via UI. */
   line?: CostLine;
+  /** Precomputed on the server; summaries carry their leaves' sums. */
+  money: WbsMoney;
 };
+
+const VALUE_SETS: Record<ValueSet, { label: string; title: string }> = {
+  ob: {
+    label: "Original",
+    title: "Original Budget: frozen when the estimate is approved",
+  },
+  cb: {
+    label: "Current",
+    title: "Current Budget: Original plus approved changes",
+  },
+  ce: { label: "Estimate", title: "Current Estimate: the imported estimate" },
+};
+
+const centsOf = (m: WbsMoney, set: ValueSet) => m[`${set}Cents`];
+
+function rowData(n: WbsNode) {
+  return {
+    "data-id": n.id,
+    "data-code": n.code,
+    "data-ob-cents": n.money.obCents,
+    "data-cb-cents": n.money.cbCents,
+    "data-ce-cents": n.money.ceCents,
+    "data-mh-milli": n.money.mhMilli,
+    "data-qty": n.money.qtyMilli ?? "",
+  };
+}
+
+function BudgetCell({ money, set }: { money: WbsMoney; set: ValueSet }) {
+  return (
+    <div className="text-right">
+      <Money cents={centsOf(money, set)} />
+      {money.mhMilli > 0 ? (
+        <div className="text-xs tabular-nums text-muted-foreground">
+          {mh(money.mhMilli)} MH
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const hot = (l: CostLine) =>
   varianceStatus(l.cpi, l.varianceCents) === "at-risk";
@@ -84,9 +126,13 @@ function InstalledCell({ l }: { l: CostLine }) {
  */
 export function CostTable({
   nodes,
+  jobMoney,
+  defaultValueSet,
 }: {
   /** Full WBS ordered by path (summaries + leaves). Leaf EV lives on node.line. */
   nodes: WbsNode[];
+  jobMoney: WbsMoney;
+  defaultValueSet: ValueSet;
 }) {
   // Roll up from nodes only — avoid a second 10k-line props list on the RSC payload.
   const lines = useMemo(
@@ -94,6 +140,7 @@ export function CostTable({
     [nodes],
   );
   const t = rollup(lines);
+  const [valueSet, setValueSet] = useState(defaultValueSet);
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
@@ -136,7 +183,7 @@ export function CostTable({
 
   return (
     <div data-testid="cost-table">
-      <div className="mb-3 flex items-center gap-2 px-1">
+      <div className="mb-3 flex flex-wrap items-center gap-2 px-1">
         <input
           type="search"
           value={q}
@@ -149,12 +196,38 @@ export function CostTable({
         <span className="text-xs text-muted-foreground tabular-nums">
           {visible.length} shown
         </span>
+        <div
+          role="radiogroup"
+          aria-label="Budget column shows"
+          className="ml-auto flex overflow-hidden rounded-md border text-xs"
+          data-testid="value-set"
+          data-set={valueSet}
+        >
+          {(Object.keys(VALUE_SETS) as ValueSet[]).map((set) => (
+            <button
+              key={set}
+              type="button"
+              role="radio"
+              aria-checked={valueSet === set}
+              title={VALUE_SETS[set].title}
+              onClick={() => setValueSet(set)}
+              className={cn(
+                "px-2.5 py-1 text-muted-foreground",
+                valueSet === set && "bg-muted font-medium text-foreground",
+              )}
+              data-testid={`value-set-${set}`}
+            >
+              {VALUE_SETS[set].label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="hidden md:block">
         <VirtualTreeDesktop
           rows={visible}
           onToggle={toggle}
           collapsed={collapsed}
+          valueSet={valueSet}
         />
         <div
           className="mt-1 flex items-center justify-between gap-3 border-t-2 py-3 text-sm font-medium"
@@ -162,12 +235,14 @@ export function CostTable({
         >
           <span>Job total (leaves) · {pct(t.percent)}</span>
           <span className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 tabular-nums">
-            <span>
-              <span className="mr-1 text-xs font-normal text-muted-foreground">
-                Budget
+            {(Object.keys(VALUE_SETS) as ValueSet[]).map((set) => (
+              <span key={set} data-testid={`cost-total-${set}`}>
+                <span className="mr-1 text-xs font-normal text-muted-foreground">
+                  {VALUE_SETS[set].label}
+                </span>
+                <Money cents={centsOf(jobMoney, set)} />
               </span>
-              <Money cents={t.budgetCents} />
-            </span>
+            ))}
             <span>
               <span className="mr-1 text-xs font-normal text-muted-foreground">
                 Earned
@@ -201,6 +276,7 @@ export function CostTable({
           rows={visible}
           onToggle={toggle}
           collapsed={collapsed}
+          valueSet={valueSet}
         />
         <div className="flex items-center justify-between border-t py-3 text-sm font-medium">
           <span>Job total · {pct(t.percent)}</span>
@@ -218,16 +294,18 @@ function VirtualTreeDesktop({
   rows,
   onToggle,
   collapsed,
+  valueSet,
 }: {
   rows: WbsNode[];
   onToggle: (id: string) => void;
   collapsed: Set<string>;
+  valueSet: ValueSet;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 44,
+    estimateSize: () => 52,
     overscan: 12,
   });
   return (
@@ -236,7 +314,9 @@ function VirtualTreeDesktop({
         <div>Cost code</div>
         <div className="whitespace-nowrap text-right">Installed</div>
         <div className="whitespace-nowrap text-right">% complete</div>
-        <div className="text-right">Budget</div>
+        <div className="text-right" title={VALUE_SETS[valueSet].title}>
+          {VALUE_SETS[valueSet].label}
+        </div>
         <div className="text-right">Earned</div>
         <div className="text-right">Actual</div>
         <div className="whitespace-nowrap text-right">CPI · variance</div>
@@ -259,16 +339,17 @@ function VirtualTreeDesktop({
             return (
               <div
                 key={n.id}
+                ref={virtualizer.measureElement}
+                data-index={v.index}
                 className={cn(
-                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] items-center gap-x-3 border-b px-2 text-sm",
+                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] items-center gap-x-3 border-b px-2 py-1.5 text-sm",
                   l && hot(l) && "bg-negative-soft/60",
                 )}
                 style={{
-                  height: v.size,
                   transform: `translateY(${v.start}px)`,
                 }}
                 data-testid="cost-tree-row"
-                data-code={n.code}
+                {...rowData(n)}
               >
                 <div
                   className="min-w-0"
@@ -321,9 +402,7 @@ function VirtualTreeDesktop({
                         {pct(l.percent)}
                       </span>
                     </div>
-                    <div className="text-right">
-                      <Money cents={l.budgetCents} />
-                    </div>
+                    <BudgetCell money={n.money} set={valueSet} />
                     <div className="text-right">
                       <Money cents={l.earnedCents} />
                     </div>
@@ -338,9 +417,11 @@ function VirtualTreeDesktop({
                     </div>
                   </>
                 ) : (
-                  <div className="col-span-6 text-xs text-muted-foreground">
-                    Summary
-                  </div>
+                  <>
+                    <div className="col-span-2" />
+                    <BudgetCell money={n.money} set={valueSet} />
+                    <div className="col-span-3" />
+                  </>
                 )}
               </div>
             );
@@ -355,10 +436,12 @@ function VirtualTreeMobile({
   rows,
   onToggle,
   collapsed,
+  valueSet,
 }: {
   rows: WbsNode[];
   onToggle: (id: string) => void;
   collapsed: Set<string>;
+  valueSet: ValueSet;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -385,17 +468,18 @@ function VirtualTreeMobile({
           return (
             <div
               key={n.id}
+              ref={virtualizer.measureElement}
+              data-index={v.index}
               className={cn(
                 "absolute left-0 w-full border-b py-2",
                 l && hot(l) && "bg-negative-soft/60",
               )}
               style={{
-                height: v.size,
                 transform: `translateY(${v.start}px)`,
                 paddingLeft: 8 + n.depth * 10,
               }}
               data-testid="cost-tree-row"
-              data-code={n.code}
+              {...rowData(n)}
             >
               <div className="flex items-baseline justify-between gap-2 pr-2">
                 <div className="min-w-0">
@@ -428,8 +512,10 @@ function VirtualTreeMobile({
                     <Money cents={l.actualCents} />
                   </div>
                   <div className="text-right">
-                    <div className="text-muted-foreground">Budget</div>
-                    <Money cents={l.budgetCents} />
+                    <div className="text-muted-foreground">
+                      {VALUE_SETS[valueSet].label}
+                    </div>
+                    <BudgetCell money={n.money} set={valueSet} />
                   </div>
                   {(l.approvalPendingQtyMilli ?? 0) > 0 ||
                   (l.approvalPendingCents ?? 0) > 0 ? (
@@ -454,7 +540,12 @@ function VirtualTreeMobile({
                   )}
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground">Summary</div>
+                <div className="mt-1 flex items-baseline justify-between gap-2 pr-2 text-xs">
+                  <span className="text-muted-foreground">
+                    {VALUE_SETS[valueSet].label}
+                  </span>
+                  <BudgetCell money={n.money} set={valueSet} />
+                </div>
               )}
             </div>
           );

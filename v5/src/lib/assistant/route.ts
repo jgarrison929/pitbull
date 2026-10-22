@@ -47,17 +47,14 @@ export type JobArgs = {
   complete?: boolean;
   /** dailyReport.post: optional per-line actuals (defaults = last report, else plan). */
   actuals?: ReportActualArg[];
-<<<<<<< HEAD
   /** changeOrder.*: "CO-001" or the change order's id (screen). */
   changeOrder?: string;
   title?: string;
   /** changeOrder.approve: the revision the screen rendered. */
   revision?: string;
   coLines?: CoLineInput[];
-=======
   /** estimate.importCsv: the file text. Only the job page's file picker sets it; chat never does. */
   csv?: string;
->>>>>>> 17f6fa55 (feat(v5): estimate.importCsv typed action on the same run() path as approve)
 };
 export type Intent = { action: ActionName; args: JobArgs };
 
