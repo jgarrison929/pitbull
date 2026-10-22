@@ -71,6 +71,36 @@ check("/health commit matches", health.body.commit === expected, health.body.com
 
 const require = createRequire(path.join(repo, "v5", "package.json"));
 const { chromium } = require("@playwright/test");
+
+/** Demo job numbers from the default seed (no V5_SEED_STRESS) — never hardcode the count. */
+function loadSeedDemoJobs() {
+  const tsx = path.join(repo, "v5", "node_modules", ".bin", "tsx");
+  const seedPath = path.join(repo, "v5", "src", "seed", "index.ts");
+  const script = `
+    import { seed } from ${JSON.stringify(seedPath)};
+    const rows = seed("00000000-0000-4000-8000-000000000099", new Date("2026-10-19T00:00:00Z"));
+    process.stdout.write(JSON.stringify(rows.jobs.map((j) => j.number)));
+  `;
+  const env = { ...process.env };
+  delete env.V5_SEED_STRESS;
+  const out = execFileSync(tsx, ["-e", script], {
+    encoding: "utf8",
+    cwd: path.join(repo, "v5"),
+    env,
+  });
+  const numbers = JSON.parse(out.trim());
+  if (!Array.isArray(numbers) || numbers.length === 0) {
+    throw new Error(`seed returned no jobs: ${out.trim()}`);
+  }
+  return numbers;
+}
+
+const seedJobNumbers = loadSeedDemoJobs();
+const expectedJobCount = seedJobNumbers.length;
+const PHONE_W = 390;
+const PHONE_H = 844;
+const PHONE_ROLES = ["pm", "foreman", "executive", "superintendent"];
+
 const browser = await chromium.launch();
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -131,7 +161,53 @@ async function flows(browser) {
     await runs.nth(before).waitFor({ timeout: T });
     return runs.nth(before);
   };
-  const overflow = (page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  /**
+   * Phone overflow must not use layout `innerWidth` alone — it can grow with wide
+   * content, hiding a 508px table inside a 390px viewport. Bound against the
+   * intended phone width and visualViewport.width (whichever is tighter).
+   */
+  const phoneLayout = (page) =>
+    page.evaluate(
+      ({ intendedW, intendedH }) => {
+        const doc = document.documentElement;
+        const body = document.body;
+        const vv = window.visualViewport;
+        const viewportW = Math.min(intendedW, vv?.width ?? intendedW);
+        const viewportH = Math.min(intendedH, vv?.height ?? intendedH);
+        const scrollWidth = Math.max(
+          doc.scrollWidth,
+          body?.scrollWidth ?? 0,
+          doc.clientWidth,
+        );
+        const nav = [...document.querySelectorAll('nav[aria-label="Main"]')].find(
+          (n) => getComputedStyle(n).position === "fixed",
+        );
+        const r = nav?.getBoundingClientRect();
+        const expectedTabs = ["Portfolio", "Assistant", "Status", "Changelog"];
+        const labels = nav
+          ? [...nav.querySelectorAll("a")].map((a) => a.textContent?.replace(/\s+/g, " ").trim() ?? "")
+          : [];
+        const tabBarOnScreen = Boolean(
+          r &&
+            r.width > 0 &&
+            r.height > 0 &&
+            r.left >= -1 &&
+            r.top >= -1 &&
+            r.right <= viewportW + 1 &&
+            r.bottom <= viewportH + 1 &&
+            expectedTabs.every((t) => labels.some((l) => l.includes(t))),
+        );
+        return {
+          scrollWidth,
+          viewportW,
+          viewportH,
+          overflowPx: scrollWidth - viewportW,
+          tabBarOnScreen,
+          labels,
+        };
+      },
+      { intendedW: PHONE_W, intendedH: PHONE_H },
+    );
 
   await step("signed out, /app redirects to /login", async () => {
     const anon = await browser.newContext();
@@ -161,8 +237,16 @@ async function flows(browser) {
     const rows = await page.getByTestId("portfolio-table").getByTestId("job-link").filter({ visible: true }).count();
     const cpi = (await page.getByTestId("kpi-cpi").textContent())?.trim();
     const noDevFooter = (await page.getByText("Live from Postgres").count()) === 0;
-    const ok = Boolean(sandbox) && rows === 3 && /^\d\.\d\d[+−]\$/.test(cpi ?? "") && noDevFooter;
-    check("portfolio loads from Postgres", ok, `${rows} jobs, CPI ${cpi}, sandbox ${sandbox}`);
+    const ok =
+      Boolean(sandbox) &&
+      rows === expectedJobCount &&
+      /^\d\.\d\d[+−]\$/.test(cpi ?? "") &&
+      noDevFooter;
+    check(
+      "portfolio loads from Postgres",
+      ok,
+      `${rows} jobs (seed expects ${expectedJobCount}: ${seedJobNumbers.join(", ")}), CPI ${cpi}, sandbox ${sandbox}`,
+    );
     await shot(page, "portfolio-desktop");
   });
 
@@ -192,8 +276,19 @@ async function flows(browser) {
     const same = (await page.getByTestId("sandbox-id").textContent())?.trim();
     await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
     const after = await page.getByTestId("plan-card").getAttribute("data-status", { timeout: T });
-    const ok = action === "dailyPlan.submit" && submitted === "submitted" && after === "draft" && reseeded !== seeded && runs === 0 && same === sandbox;
-    check("sandbox reset reseeds", ok, `${action}: plan ${submitted} → ${after}, seeded ${seeded} → ${reseeded}, runs ${runs}, sandbox ${sandbox} → ${same}`);
+    // Post #665: submit issues the plan (status "issued"); reset restores seed "draft".
+    const ok =
+      action === "dailyPlan.submit" &&
+      submitted === "issued" &&
+      after === "draft" &&
+      reseeded !== seeded &&
+      runs === 0 &&
+      same === sandbox;
+    check(
+      "sandbox reset reseeds",
+      ok,
+      `${action}: plan ${submitted} → ${after}, seeded ${seeded} → ${reseeded}, runs ${runs}, sandbox ${sandbox} → ${same}`,
+    );
   });
   await step("an unknown job number is refused", async () => {
     // The sandbox was just reset, so Cedar Creek's plan is a draft that a wrong match would submit.
@@ -277,9 +372,38 @@ async function flows(browser) {
     await mobile.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
     await mobile.getByTestId("cost-list").waitFor({ timeout: T });
     const list = await mobile.getByTestId("cost-list").isVisible();
-    const over = await overflow(mobile);
+    const layout = await phoneLayout(mobile);
     await shot(mobile, "job-mobile");
-    check("phone: cost codes do not scroll sideways", list && over <= 0, `cost-list visible ${list}, overflow ${over}px`);
+    check(
+      "phone: cost codes do not scroll sideways",
+      list && layout.overflowPx <= 0,
+      `cost-list visible ${list}, overflow ${layout.overflowPx}px (scrollWidth ${layout.scrollWidth} vs viewport ${layout.viewportW})`,
+    );
+  });
+
+  await step("phone: every role×job fits width with tab bar on screen", async () => {
+    const failures = [];
+    for (const role of PHONE_ROLES) {
+      await signIn(mobile, role);
+      for (const job of seedJobNumbers) {
+        await mobile.goto(`${base}/app/jobs/${job}`, { waitUntil: "networkidle" });
+        // Job pages always expose the cost list (or tree) once loaded; wait for main content.
+        await mobile.locator("main").waitFor({ timeout: T });
+        const layout = await phoneLayout(mobile);
+        if (layout.overflowPx > 0 || !layout.tabBarOnScreen) {
+          failures.push(
+            `${role}@${job}: overflow ${layout.overflowPx}px (scrollWidth ${layout.scrollWidth}/${layout.viewportW}), tabBar ${layout.tabBarOnScreen} [${layout.labels.join("|")}]`,
+          );
+        }
+      }
+    }
+    check(
+      "phone: every role×job fits width with tab bar on screen",
+      failures.length === 0,
+      failures.length === 0
+        ? `${PHONE_ROLES.length} roles × ${seedJobNumbers.length} jobs ok`
+        : failures.slice(0, 8).join("; "),
+    );
   });
   await phone.close();
 }

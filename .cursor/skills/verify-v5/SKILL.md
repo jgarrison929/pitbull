@@ -11,16 +11,17 @@ One command proves a v5 deployment. It passes only when every check below passes
 |---|---|
 | `/health`, `/status` | Both report the expected commit, a non-zero version, ci-gate result, last-verify field, `Operational`, and Database `ok`. `/` redirects to `/login`. |
 | login as a role card | The Project Manager card signs in as Marcus Lee. |
-| portfolio loads from Postgres | User menu shows a sandbox id, the table has 3 jobs, portfolio CPI renders, and no "Live from Postgres" footer. |
+| portfolio loads from Postgres | User menu shows a sandbox id, the table has as many jobs as the default seed (`seed()` job count — not hardcoded), portfolio CPI renders, and no "Live from Postgres" footer. |
 | assistant runs a typed action and logs it | Asking "Why is Cedar Creek over budget?" in the rail shows `job.costVariance(25-031)`, and the run is still there after a reload (it lives in `action_runs`). |
-| sandbox reset reseeds | As the foreman, "Submit tomorrow's plan" submits the Cedar Creek plan. Reset demo then brings it back to draft, changes the seeded time, clears the transcript, and keeps the same sandbox id. |
+| sandbox reset reseeds | As the foreman, "Submit tomorrow's plan" issues the Cedar Creek plan (`issued`). Reset demo then brings it back to seed `draft`, changes the seeded time, clears the transcript, and keeps the same sandbox id. |
 | signed out, /app redirects to /login | A browser with no session asking for a job page lands on `/login`. |
 | an unknown job number is refused | Right after the reset, "Submit the plan for 99-999" is refused by name and Cedar Creek's draft stays a draft. |
 | pour 60 → 80 on screen | As the foreman, editing the 04-210 pour line to 80 man-hours saves it, a reload still shows 80, and the run is logged as `dailyPlan.updateLine` with "man-hours 60 → 80". |
 | pour 60 → 80 through the assistant | After a reset, "Change the pour to 80 man-hours" in the rail runs `dailyPlan.updateLine`, and a reload of the job page shows 80. |
 | switching roles starts a fresh chat | Signed in as the PM, the rail shows none of the foreman's runs, the job's "Changes" list still shows Luis Ortega's edit, and back as the foreman the run is still there. |
 | phone: foreman lands on chat | At 390px the foreman starts in the chat view and "Show tomorrow's plan" runs `dailyPlan.show`. |
-| phone: cost codes do not scroll sideways | At 390px the job page shows the stacked cost list and the page is no wider than the screen. |
+| phone: cost codes do not scroll sideways | At 390px the job page shows the stacked cost list and `documentElement.scrollWidth` is not wider than the phone viewport (bounded by 390 / `visualViewport.width`, not layout `innerWidth` alone). |
+| phone: every role×job fits width with tab bar on screen | At 390px, for PM / foreman / executive / superintendent on every seeded job page: no horizontal overflow, and the bottom tab bar (Portfolio / Assistant / Status / Changelog) is fully on screen. |
 
 Each run signs in as a new visitor, so it gets its own sandbox and never touches anyone else's data.
 
