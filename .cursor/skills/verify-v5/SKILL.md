@@ -13,7 +13,7 @@ One command proves a v5 deployment. It passes only when every check below passes
 | login as a role card | The Project Manager card signs in as Marcus Lee. |
 | portfolio loads from Postgres | User menu shows a sandbox id, the table has as many jobs as the default seed (`seed()` job count — not hardcoded), portfolio CPI renders, and no "Live from Postgres" footer. |
 | assistant runs a typed action and logs it | Asking "Why is Cedar Creek over budget?" in the rail shows `job.costVariance(25-031)`, and the run is still there after a reload (it lives in `action_runs`). |
-| sandbox reset reseeds | As the foreman, "Submit tomorrow's plan" issues the Cedar Creek plan (`issued`). Reset demo then brings it back to seed `draft`, changes the seeded time, clears the transcript, and keeps the same sandbox id. |
+| sandbox reset reseeds | As the foreman, "Submit tomorrow's plan" issues the Cedar Creek plan (`issued`). Reset demo then brings it back to seed `draft`, changes the seeded time, drops the visitor submit from the rail (seed history may remain), and keeps the same sandbox id. |
 | signed out, /app redirects to /login | A browser with no session asking for a job page lands on `/login`. |
 | an unknown job number is refused | Right after the reset, "Submit the plan for 99-999" is refused by name and Cedar Creek's draft stays a draft. |
 | pour 60 → 80 on screen | As the foreman, editing the 04-210 pour line to 80 man-hours saves it, a reload still shows 80, and the run is logged as `dailyPlan.updateLine` with "man-hours 60 → 80". |

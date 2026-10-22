@@ -272,7 +272,11 @@ async function flows(browser) {
     await page.getByRole("button", { name: "Reset demo" }).click();
     await page.waitForURL(/reset=1/, { timeout: T });
     const reseeded = await page.getByTestId("seeded-at").getAttribute("datetime");
-    const runs = await page.getByTestId("assistant-rail").getByTestId("action-run").count();
+    const rail = page.getByTestId("assistant-rail");
+    // Visitor submit must be gone; seedActionHistory may leave the foreman's note run.
+    const submitRuns = await rail
+      .locator('[data-testid="action-run"][data-action="dailyPlan.submit"]')
+      .count();
     const same = (await page.getByTestId("sandbox-id").textContent())?.trim();
     await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" });
     const after = await page.getByTestId("plan-card").getAttribute("data-status", { timeout: T });
@@ -282,12 +286,12 @@ async function flows(browser) {
       submitted === "issued" &&
       after === "draft" &&
       reseeded !== seeded &&
-      runs === 0 &&
+      submitRuns === 0 &&
       same === sandbox;
     check(
       "sandbox reset reseeds",
       ok,
-      `${action}: plan ${submitted} → ${after}, seeded ${seeded} → ${reseeded}, runs ${runs}, sandbox ${sandbox} → ${same}`,
+      `${action}: plan ${submitted} → ${after}, seeded ${seeded} → ${reseeded}, submit runs after reset ${submitRuns}, sandbox ${sandbox} → ${same}`,
     );
   });
   await step("an unknown job number is refused", async () => {
