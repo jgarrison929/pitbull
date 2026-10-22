@@ -6,6 +6,7 @@ async function signIn(page: Page, role: string) {
   await expect(page).toHaveURL(/\/app$/);
 }
 
+/** Cutoff AC (last lock) — does not move until the next PM lock. */
 async function actualCents(page: Page) {
   return Number(
     await page
@@ -13,6 +14,13 @@ async function actualCents(page: Page) {
       .locator("[data-cents]")
       .getAttribute("data-cents"),
   );
+}
+
+/** Cost posted since last lock (approve lands here until the PM locks). */
+async function sinceLockActualCents(page: Page) {
+  const el = page.getByTestId("job-actual-since-lock").locator("[data-cents]");
+  if ((await el.count()) === 0) return 0;
+  return Number(await el.getAttribute("data-cents"));
 }
 
 /** On a phone the rail is hidden — use the assistant page. */
@@ -97,7 +105,7 @@ test.describe("superintendent approve / return", () => {
     );
     expect(await actualCents(page)).toBe(actualBefore);
 
-    // Approve on screen — cost posts once.
+    // Approve on screen — cost posts once into since-lock (cutoff AC stays put).
     await signIn(page, "superintendent");
     await page.goto("/app/jobs/25-031");
     await page.getByTestId("approve-report").click();
@@ -106,8 +114,9 @@ test.describe("superintendent approve / return", () => {
       "approved",
     );
 
-    const afterFirst = await actualCents(page);
-    expect(afterFirst).toBeGreaterThanOrEqual(actualBefore + 22 * 8500);
+    expect(await actualCents(page)).toBe(actualBefore);
+    const sinceAfterApprove = await sinceLockActualCents(page);
+    expect(sinceAfterApprove).toBeGreaterThanOrEqual(22 * 8500);
 
     await expect(page.getByTestId("approval-pending-04-210")).toHaveCount(0);
     await expect(page.getByTestId("pending-04-210").first()).toContainText(
@@ -125,7 +134,8 @@ test.describe("superintendent approve / return", () => {
       /already approved/i,
     );
     await page.goto("/app/jobs/25-031");
-    expect(await actualCents(page)).toBe(afterFirst);
+    expect(await actualCents(page)).toBe(actualBefore);
+    expect(await sinceLockActualCents(page)).toBe(sinceAfterApprove);
   });
 
   test("assistant return refuses an empty reason", async ({ page }) => {
