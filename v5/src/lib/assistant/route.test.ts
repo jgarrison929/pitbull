@@ -118,6 +118,16 @@ describe("assistant router", () => {
       { job: "25-031" },
     ],
     [
+      "Import the estimate CSV for Harbor Abutment",
+      "estimate.importCsv",
+      { job: "26-010" },
+    ],
+    [
+      "import estimate for 26-010",
+      "estimate.importCsv",
+      { job: "26-010" },
+    ],
+    [
       "Approve the estimate on Harbor Abutment",
       "estimate.approve",
       { job: "26-010" },

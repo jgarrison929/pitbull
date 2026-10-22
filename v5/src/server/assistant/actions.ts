@@ -45,6 +45,7 @@ import {
   type JobDetail,
 } from "@/server/data";
 import { approveEstimate } from "@/server/estimate";
+import { importEstimateCsv } from "@/server/estimate-import";
 import {
   approveDailyReport,
   getReportedActualsForPlan,
@@ -777,6 +778,30 @@ export const actions: Record<ActionName, ActionDef> = {
       };
     },
   },
+  "estimate.importCsv": {
+    title: "Import estimate CSV",
+    roles: ["pm", "executive"],
+    async run(user, { job, csv }) {
+      if (!job)
+        return {
+          summary: "Which job's estimate should I import? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      // No job on this result: pointing at the file picker changes nothing, so it stays off the job's audit trail.
+      if (!csv && j.job.estimateStatus === "draft")
+        return {
+          summary: `Import reads a CSV file. Open ${j.job.shortName} and choose the estimate file under Import estimate.`,
+          href: jobHref(j),
+        };
+      const result = await importEstimateCsv(
+        user.companyId,
+        j.job.number,
+        csv ?? "",
+      );
+      return { summary: result.summary, href: jobHref(j), job: j.job.number };
+    },
+  },
   "estimate.approve": {
     title: "Approve estimate",
     writes: true,
@@ -1164,10 +1189,25 @@ export async function recentRuns(
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
 
+<<<<<<< HEAD
 /** Job change feed. Derived from `writes: true`, so a new command cannot forget the list. */
 export const WRITES: ActionName[] = (Object.keys(actions) as ActionName[]).filter(
   (name) => actions[name].writes,
 );
+=======
+const WRITES: ActionName[] = [
+  "dailyPlan.updateLine",
+  "dailyPlan.submit",
+  "dailyPlan.approve",
+  "dailyPlan.return",
+  "dailyReport.post",
+  "progressClaim.lock",
+  "estimate.importCsv",
+  "estimate.approve",
+  "costItem.setPmPercent",
+  "costItem.setMilestone",
+];
+>>>>>>> 17f6fa55 (feat(v5): estimate.importCsv typed action on the same run() path as approve)
 
 /** The audit trail for one job: every change anyone in this sandbox made, newest first. */
 export async function jobChanges(
