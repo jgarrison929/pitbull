@@ -1,6 +1,7 @@
 // Maps a typed or spoken request to one typed action. Deterministic, so tests and demos are repeatable.
 // A language model can replace this later; it would emit the same { action, args } shape.
 
+import type { CoLineInput } from "@/lib/change-order";
 import type { LineInput } from "@/lib/plan-line";
 
 export type ActionName =
@@ -43,6 +44,12 @@ export type JobArgs = {
   complete?: boolean;
   /** dailyReport.post: optional per-line actuals (defaults = last report, else plan). */
   actuals?: ReportActualArg[];
+  /** changeOrder.*: "CO-001" or the change order's id (screen). */
+  changeOrder?: string;
+  title?: string;
+  /** changeOrder.approve: the revision the screen rendered. */
+  revision?: string;
+  coLines?: CoLineInput[];
 };
 export type Intent = { action: ActionName; args: JobArgs };
 

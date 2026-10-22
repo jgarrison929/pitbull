@@ -161,7 +161,16 @@ export function laborCents(manHours: number, rateCentsPerHour: number) {
  * cannot earn past budget. Milestones and PM percent use locked claim percent.
  * Exact fraction: 248/620 of $868,000 = $347,200 (no prior percent rounding).
  */
-export function earnedCentsOf(c: CostLineInput): number {
+export function earnedCentsOf(
+  c: Pick<
+    CostLineInput,
+    | "evMethod"
+    | "budgetQtyMilli"
+    | "budgetCents"
+    | "claimedInstalledQtyMilli"
+    | "claimedPercentMilli"
+  >,
+): number {
   if (c.evMethod === "units" && c.budgetQtyMilli > 0) {
     const raw = Math.round(
       (c.budgetCents * c.claimedInstalledQtyMilli) / c.budgetQtyMilli,
@@ -423,6 +432,13 @@ export const usdShort = (cents: number) => {
         ? `$${Math.round(a / 1e3)}K`
         : `$${Math.round(a)}`;
   return n < 0 ? `−${s}` : s;
+};
+/** Exact dollars and cents from integer cents by integer math: 6_000_000 → "$60,000.00". */
+export const usdCents = (cents: number) => {
+  const a = Math.abs(cents);
+  const dollars = Math.trunc(a / 100).toLocaleString("en-US");
+  const s = `$${dollars}.${String(a % 100).padStart(2, "0")}`;
+  return cents < 0 ? `−${s}` : s;
 };
 export const pct = (n: number) => `${Math.round(n * 100)}%`;
 export const idx = (n: number | null) => (n === null ? "—" : n.toFixed(2));
