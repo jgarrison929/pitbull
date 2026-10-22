@@ -18,13 +18,12 @@ import type {
   progressClaims,
   users,
 } from "@/db/schema";
+import { plugLabor, SHB_CSV, valueSetColumns } from "@/lib/budget";
 import {
-  categoriesFromUnitCosts,
-  categoryTotal,
-  plugLabor,
-  SHB_FIXTURE,
-  valueSetColumns,
-} from "@/lib/budget";
+  insertColumns,
+  parseEstimateCsv,
+  reconcileByCode,
+} from "@/lib/estimate-reconcile";
 import {
   DEFAULT_LABOR_RATE_CENTS,
   plannedValueCents,
@@ -524,7 +523,7 @@ export function seed(companyId: string, today: Date): SeedRows {
     for (const s of j.items) {
       const method = methodOf(s);
       const budgetCents = cents(s.budget);
-      // Escape hatch: legacy seed totals land as a labor plug until CSV brings categories.
+      // Lump seed job (estimate_source = seed): the total is plugged into labor, so the split is not real.
       const cats = plugLabor(budgetCents);
       const values = valueSetColumns(cats, "approved");
       const targetPctMilli = Math.round(s.pct * 1000);
@@ -676,8 +675,8 @@ export function seed(companyId: string, today: Date): SeedRows {
     }
   }
 
-  // Draft estimate job (SHB fixture): CE filled, OB/CB zero until Approve.
-  // Hand-computed totals: $86,750.00 / 304 MH — see docs/v5/intel/estimate-to-budget.md.
+  // Draft estimate job, seeded through the CSV import pipeline from the SHB fixture
+  // ($86,750.00 / 304 MH, docs/v5/intel/estimate-to-budget.md): CE filled, OB/CB zero until Approve.
   {
     const jobId = id("job:harbor");
     const start = isoDate(addDays(today, -14));
@@ -693,95 +692,15 @@ export function seed(companyId: string, today: Date): SeedRows {
       finishOn: isoDate(addDays(today, 240)),
       contractCents: cents(2_400_000),
       estimateStatus: "draft",
+      estimateSource: "csv",
     });
 
-    const summaries = [
-      { code: "02", description: "Earthwork", path: "/02/" },
-      { code: "03", description: "Concrete", path: "/03/" },
-    ] as const;
-    for (const s of summaries) {
-      out.costItems.push({
-        id: id(`cost:harbor:${s.code}`),
-        companyId,
-        jobId,
-        parentId: null,
-        path: s.path,
-        depth: 0,
-        isLeaf: false,
-        code: s.code,
-        description: s.description,
-        unit: "LS",
-        evMethod: "units",
-        forecastMethod: "current_budget" as const,
-        budgetQtyMilli: 0,
-        installedQtyMilli: 0,
-        claimedInstalledQtyMilli: 0,
-        ...valueSetColumns(plugLabor(0), "draft"),
-        plannedStartOn: start,
-        plannedFinishOn: finish,
-        plannedCents: 0,
-        actualCents: 0,
-        lockedActualCents: 0,
-        claimedPercentMilli: 0,
-        earnDerivation: "summary",
-        budgetMhPerUnitMilli: 0,
-      });
-    }
-
-    for (const leaf of SHB_FIXTURE.leaves) {
-      const cats = categoriesFromUnitCosts(leaf.qtyMilli, leaf.units);
-      const parentCode = leaf.code.slice(0, 2);
-      const parentId = id(`cost:harbor:${parentCode}`);
-      out.costItems.push({
-        id: id(`cost:harbor:${leaf.code}`),
-        companyId,
-        jobId,
-        parentId,
-        path: `/${parentCode}/${leaf.code}/`,
-        depth: 1,
-        isLeaf: true,
-        code: leaf.code,
-        description: leaf.description,
-        unit: leaf.unit,
-        evMethod: "units",
-        forecastMethod: "current_budget" as const,
-        budgetQtyMilli: leaf.qtyMilli,
-        installedQtyMilli: 0,
-        claimedInstalledQtyMilli: 0,
-        ...valueSetColumns(cats, "draft"),
-        plannedStartOn: start,
-        plannedFinishOn: finish,
-        plannedCents: 0,
-        actualCents: 0,
-        lockedActualCents: 0,
-        claimedPercentMilli: 0,
-        earnDerivation: "draft estimate — not yet approved",
-        budgetMhPerUnitMilli: leaf.mhPerUnitMilli,
-      });
-    }
-
-    // Sanity: seed must match the hand-computed fixture total.
-    const leafSum = out.costItems
-      .filter((c) => c.jobId === jobId && c.isLeaf)
-      .reduce(
-        (s, c) =>
-          s +
-          categoryTotal({
-            laborCents: c.ceLaborCents!,
-            materialCents: c.ceMaterialCents!,
-            equipmentCents: c.ceEquipmentCents!,
-            subCents: c.ceSubCents!,
-          }),
-        0,
-      );
-    if (leafSum !== SHB_FIXTURE.jobTotalCents) {
-      throw new Error(
-        `harbor draft CE total ${leafSum} ≠ fixture ${SHB_FIXTURE.jobTotalCents}`,
-      );
-    }
-
-    // Draft Period 1 claim (not locked by seedActionHistory — estimate not approved).
+    const parsed = parseEstimateCsv(SHB_CSV);
+    const diff = parsed.ok ? reconcileByCode([], parsed.forest) : null;
+    if (!diff?.ok) throw new Error("seed: SHB_CSV must import onto an empty job");
+    const costId = (code: string) => id(`cost:harbor:${code}`);
     const harborClaimId = id("claim:harbor:period-1");
+    // Draft Period 1 claim (not locked by seedActionHistory — estimate not approved).
     out.progressClaims.push({
       id: harborClaimId,
       companyId,
@@ -791,12 +710,23 @@ export function seed(companyId: string, today: Date): SeedRows {
       lockedAt: null,
       lockedById: null,
     });
-    for (const leaf of SHB_FIXTURE.leaves) {
+    for (const step of diff.plan.steps) {
+      if (step.kind !== "insert") continue;
+      out.costItems.push({
+        id: costId(step.code),
+        companyId,
+        jobId,
+        parentId: step.parentCode ? costId(step.parentCode) : null,
+        plannedStartOn: start,
+        plannedFinishOn: finish,
+        ...insertColumns(step),
+      });
+      if (!step.isLeaf) continue;
       out.progressClaimLines.push({
-        id: id(`claim-line:harbor:${leaf.code}`),
+        id: id(`claim-line:harbor:${step.code}`),
         companyId,
         claimId: harborClaimId,
-        costItemId: id(`cost:harbor:${leaf.code}`),
+        costItemId: costId(step.code),
         claimedPercentMilli: 0,
         installedQtyMilli: 0,
         derivation: "Draft estimate — approve before locking progress",

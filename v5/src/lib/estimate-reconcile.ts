@@ -5,6 +5,7 @@
 import {
   categoriesFromUnitCosts,
   categoryTotal,
+  ceCategories,
   emptyCategories,
   manHoursMilli,
   valueSetColumns,
@@ -430,6 +431,50 @@ export type ExistingCostItem = EstimateItem & {
   /** Counts by kind; empty when nothing hangs off this id. */
   history: Partial<Record<HistoryKind, number>>;
 };
+
+type CostItemRow = {
+  id: string;
+  parentId: string | null;
+  code: string;
+  path: string;
+  depth: number;
+  isLeaf: boolean;
+  description: string;
+  unit: string;
+  budgetQtyMilli: number;
+  budgetMhPerUnitMilli: number;
+  ceLaborCents: number;
+  ceMaterialCents: number;
+  ceEquipmentCents: number;
+  ceSubCents: number;
+};
+
+/** One job's stored cost items as reconcileByCode compares them: parent ids become codes. */
+export function existingCostItems(
+  rows: readonly CostItemRow[],
+  history: ReadonlyMap<string, ExistingCostItem["history"]> = new Map(),
+): ExistingCostItem[] {
+  const codeOf = new Map(rows.map((r) => [r.id, r.code]));
+  return rows.map((r) => {
+    const parentCode = r.parentId === null ? null : codeOf.get(r.parentId);
+    if (parentCode === undefined)
+      throw new Error(`corrupt cost item snapshot: ${r.code} has a parent off the job`);
+    return {
+      id: r.id,
+      code: r.code,
+      parentCode,
+      path: r.path,
+      depth: r.depth,
+      isLeaf: r.isLeaf,
+      description: r.description,
+      unit: r.unit,
+      qtyMilli: r.budgetQtyMilli,
+      mhPerUnitMilli: r.budgetMhPerUnitMilli,
+      ce: ceCategories(r),
+      history: history.get(r.id) ?? {},
+    };
+  });
+}
 
 const historyText = (h: ExistingCostItem["history"]) =>
   (Object.entries(h) as [HistoryKind, number][])
