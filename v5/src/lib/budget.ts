@@ -100,6 +100,16 @@ export function valueSetColumns(
   };
 }
 
+/** Current Estimate columns only. Revising a draft item never touches Original or Current Budget. */
+export function ceOnlyColumns(cats: CostCategories) {
+  return {
+    ceLaborCents: cats.laborCents,
+    ceMaterialCents: cats.materialCents,
+    ceEquipmentCents: cats.equipmentCents,
+    ceSubCents: cats.subCents,
+  };
+}
+
 /**
  * Round half away from zero to integer cents.
  * 1.665 → 2; −1.665 → −2. Never use Math.round (banker's / half-up toward +∞ quirks).
@@ -132,7 +142,10 @@ export function emptyCategories(): CostCategories {
   return { laborCents: 0, materialCents: 0, equipmentCents: 0, subCents: 0 };
 }
 
-/** Legacy single-total plug: entire amount in labor until CSV brings category detail. */
+/**
+ * Lump seed jobs only (estimate_source = seed): the whole total lands in labor, so the split is not real.
+ * CSV estimates and the Harbor seed never call this.
+ */
 export function plugLabor(totalCents: number): CostCategories {
   return {
     laborCents: totalCents,
@@ -172,6 +185,96 @@ export function approveTotalsGuard(
   }
   return { ok: true };
 }
+
+/** Money for one WBS node. Summaries and the job total sum their leaves. */
+export type WbsMoney = {
+  obCents: number;
+  cbCents: number;
+  ceCents: number;
+  ce: CostCategories;
+  mhMilli: number;
+  /** Null on summaries and the job total: quantities in different units do not add. */
+  qtyMilli: number | null;
+};
+
+type WbsMoneyRow = {
+  id: string;
+  path: string;
+  isLeaf: boolean;
+  budgetQtyMilli: number;
+  budgetMhPerUnitMilli: number;
+  obLaborCents: number;
+  obMaterialCents: number;
+  obEquipmentCents: number;
+  obSubCents: number;
+  cbLaborCents: number;
+  cbMaterialCents: number;
+  cbEquipmentCents: number;
+  cbSubCents: number;
+  ceLaborCents: number;
+  ceMaterialCents: number;
+  ceEquipmentCents: number;
+  ceSubCents: number;
+};
+
+/**
+ * Original, Current, and Estimate money plus man-hours per node, rolled up by path prefix like the SQL
+ * roll-ups. Only leaves count; stored summary money is ignored. Parent MH is the sum of qty × rate
+ * on its leaves, never a sum of rates.
+ */
+export function buildWbsMoney(rows: readonly WbsMoneyRow[]): {
+  byId: Record<string, WbsMoney>;
+  job: WbsMoney;
+} {
+  const zero = (qtyMilli: number | null): WbsMoney => ({
+    obCents: 0,
+    cbCents: 0,
+    ceCents: 0,
+    ce: emptyCategories(),
+    mhMilli: 0,
+    qtyMilli,
+  });
+  const byId: Record<string, WbsMoney> = {};
+  const byPath = new Map<string, WbsMoney>();
+  for (const r of rows) {
+    byId[r.id] = zero(r.isLeaf ? r.budgetQtyMilli : null);
+    byPath.set(r.path, byId[r.id]);
+  }
+  const job = zero(null);
+  for (const r of rows) {
+    if (!r.isLeaf) continue;
+    const ob = originalBudgetCents(r);
+    const cb = currentBudgetCents(r);
+    const ce = ceCategories(r);
+    const mhMilli = manHoursMilli(r.budgetQtyMilli, r.budgetMhPerUnitMilli);
+    const add = (m: WbsMoney) => {
+      m.obCents += ob;
+      m.cbCents += cb;
+      m.ceCents += categoryTotal(ce);
+      m.ce.laborCents += ce.laborCents;
+      m.ce.materialCents += ce.materialCents;
+      m.ce.equipmentCents += ce.equipmentCents;
+      m.ce.subCents += ce.subCents;
+      m.mhMilli += mhMilli;
+    };
+    for (let i = r.path.indexOf("/", 1); i !== -1; i = r.path.indexOf("/", i + 1)) {
+      const node = byPath.get(r.path.slice(0, i + 1));
+      if (node) add(node);
+    }
+    add(job);
+  }
+  return { byId, job };
+}
+
+/** The SHB-1001 estimate CSV from docs/v5/intel/estimate-to-budget.md (invented example data). */
+export const SHB_CSV = `code,parent_code,description,unit,qty,mh_per_unit,labor_unit,material_unit,equipment_unit,sub_unit
+02,,Earthwork,,,,,,,
+02-100,02,Excavation,CY,1200,0.05,4.50,0,6.25,0
+02-200,02,Structural backfill,CY,800,0.08,5.00,18.00,3.50,0
+03,,Concrete,,,,,,,
+03-100,03,Footing concrete,CY,150,1.2,72.00,165.00,0,0
+03-200,03,Rebar install (sub),LB,18000,0,0,0,0,0.95
+`;
 
 /** Hand-computed SHB-1001 leaf fixture from docs/v5/intel/estimate-to-budget.md. */
 export const SHB_FIXTURE = {
