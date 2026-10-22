@@ -47,6 +47,40 @@ export async function seedActionHistory(companyId: string, now = new Date()) {
     },
   );
 
+  // Priced, not approved, and before the locks. The newest job-changes row
+  // on every seeded job stays the Period 1 lock (Marcus Lee / Luis Ortega).
+  await run(
+    pm,
+    "Raise a change order on 25-031: Owner-added retaining wall, north approach",
+    "changeOrder.create",
+    {
+      job: "25-031",
+      title: "Owner-added retaining wall, north approach",
+      reason: "County directive CD-07",
+    },
+  );
+  await run(
+    pm,
+    "Price CO-001 on 25-031: new 91-100 Retaining wall LS labor 18,500 material 23,250 equipment 6,100 sub 12,150",
+    "changeOrder.price",
+    {
+      job: "25-031",
+      changeOrder: "CO-001",
+      coLines: [
+        {
+          code: "91-100",
+          description: "Retaining wall, north approach",
+          unit: "LS",
+          qty: "1",
+          labor: "18,500",
+          material: "23,250",
+          equipment: "6,100",
+          sub: "12,150",
+        },
+      ],
+    },
+  );
+
   // Period locks for every seeded job. Period 1 is a draft in seed rows; locking
   // writes a real action_runs row with who / when / what.
   for (const job of SEED_JOB_NUMBERS) {

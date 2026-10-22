@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Seeded typed-action history (seedActionHistory): foreman plan note + PM lock × 3 jobs. */
+/** Seeded typed-action history: foreman plan note, PM lock × 3 jobs, PM raise + price of CO-001. */
 const SEED_FOREMAN_RUNS = 1;
-const SEED_PM_RUNS = 3;
+const SEED_PM_RUNS = 5;
 
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
@@ -114,7 +114,7 @@ test("requests it can't map get examples, not a guess", async ({ page }) => {
   await rail.getByTestId("assistant-input").fill("order pizza for lunch");
   await rail.getByRole("button", { name: "Send" }).click();
   await expect(rail.getByTestId("assistant-help")).toContainText("Try:");
-  // Unmapped prompts do not add a run; seed locks remain.
+  // Unmapped prompts do not add a run; the seeded history remains.
   await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
 });
 
@@ -281,7 +281,7 @@ test("each role has its own conversation; the job page keeps everyone's changes"
   const rail = page.getByTestId("assistant-rail");
   await ask(rail, "Submit tomorrow's plan");
 
-  // A new role starts its own conversation (PM seed locks only — no foreman submit).
+  // A new role starts its own conversation (PM seed history only — no foreman submit).
   await signIn(page, "pm");
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
   await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
