@@ -21,6 +21,8 @@ npm run lint
 npm run typecheck
 npm test                       # vitest
 npm run build && npm run e2e   # Playwright smoke against `next start`
+# Visual baselines (tests/e2e/visual.spec.ts): drift fails CI.
+# Refresh only when intentional: npx playwright test tests/e2e/visual.spec.ts --update-snapshots
 ```
 
 ## Deploy
