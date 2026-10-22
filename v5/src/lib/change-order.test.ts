@@ -400,6 +400,12 @@ describe("assistant and form arguments", () => {
     });
   });
 
+  it("asks how to price when no lines are given", () => {
+    expect(coCommandFromArgs("price", { changeOrder: "CO-001" })).toEqual({
+      ask: "Price it per cost code, like: Price CO-001 on 25-031: new 91-100 Retaining wall LS labor 18,500 material 23,250.",
+    });
+  });
+
   it("maps args to typed commands", () => {
     expect(coCommandFromArgs("approve", { changeOrder: "CO-001", revision: "2" })).toEqual({
       kind: "approve",

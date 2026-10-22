@@ -722,6 +722,7 @@ export type CoRefusal =
   | { kind: "stale_revision"; saw: number; current: number }
   | { kind: "title_required" }
   | { kind: "reason_required" }
+  | { kind: "too_long"; field: "title" | "reason"; max: number }
   | { kind: "invalid_lines" }
   | PlanRefusal;
 
@@ -764,7 +765,11 @@ export function coCommandFromArgs(
   if (!co) return { ask: "Which change order? Say its number, like CO-001." };
   switch (name) {
     case "price":
-      return { kind: "price", co, lines: args.coLines ?? [] };
+      if (!args.coLines?.length)
+        return {
+          ask: "Price it per cost code, like: Price CO-001 on 25-031: new 91-100 Retaining wall LS labor 18,500 material 23,250.",
+        };
+      return { kind: "price", co, lines: args.coLines };
     case "approve": {
       if (args.revision === undefined) return { kind: "approve", co };
       const expectRevision = Number(args.revision);
@@ -843,6 +848,8 @@ export function describeCoResult(r: CoCommandResult): string {
       return `A change order needs a title. Say what changed, like "Raise a change order on 25-031: Added guardrail at the east approach".`;
     case "reason_required":
       return `${r.command === "reject" ? "Rejecting" : "Voiding"} ${on} needs a reason. Add "because …".`;
+    case "too_long":
+      return `Keep the ${f.field} under ${f.max} characters.`;
     case "invalid_lines":
       return `${on} was not priced. ${Object.values(r.errors ?? {}).slice(0, 3).join(" ")}`;
     default:
