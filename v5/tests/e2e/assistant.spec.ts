@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 /** Seeded typed-action history: foreman plan note, PM lock × 3 jobs, PM raise + price of CO-001. */
 const SEED_FOREMAN_RUNS = 1;
-const SEED_PM_RUNS = 5;
+const SEED_PM_RUNS = 14;
 
 async function signIn(page: Page, role: string) {
   await page.goto("/login");

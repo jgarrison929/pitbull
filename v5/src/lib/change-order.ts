@@ -414,7 +414,7 @@ export type CbWrite = {
   cbEquipmentCents: number;
   cbSubCents: number;
   budgetQtyMilli: number;
-  /** Denormalized PV refreshed as of the approval day (same rule as lock). */
+  /** Denormalized PV at the last lock cutoff (same as-of as EV), not the approve day. */
   plannedCents: number;
 };
 
@@ -528,14 +528,19 @@ export function planApproval(
     /** Every existing target leaf and every new-line parent, by id. */
     items: ReadonlyMap<string, BudgetItem>;
     codesOnJob: ReadonlySet<string>;
-    /** YYYY-MM-DD (UTC) */
+    /** YYYY-MM-DD (UTC) — approval day; new leaves start here. */
     today: string;
+    /**
+     * YYYY-MM-DD (UTC) of the last locked period, or `today` when never locked.
+     * Stored plannedCents uses this cutoff, matching EV.
+     */
+    lockCutoffOn: string;
     jobFinishOn: string;
   },
   lines: readonly CoLine[],
 ): { ok: true; plan: ApprovalPlan } | { ok: false; refusal: PlanRefusal } {
   if (!lines.length) return { ok: false, refusal: { kind: "empty" } };
-  const asOf = new Date(`${ctx.today}T00:00:00Z`);
+  const asOf = new Date(`${ctx.lockCutoffOn}T00:00:00Z`);
   const plan: ApprovalPlan = {
     writes: [],
     inserts: [],
@@ -812,11 +817,11 @@ export function describeCoResult(r: CoCommandResult): string {
   if (r.ok) {
     switch (r.command) {
       case "create":
-        return `Raised ${on}: "${r.co.title}". Draft. Price it per cost item; nothing moves until an executive approves it.`;
+        return `Raised ${on}: "${r.co.title}". Draft. Price it per cost item; nothing moves until a PM or executive approves it.`;
       case "price":
         return r.unchanged
           ? `${on} already has those lines (rev ${r.co.revision}, ${usdCents(r.totalCents)}). Nothing changed.`
-          : `Priced ${on} (rev ${r.co.revision}): ${usdCents(r.totalCents)} across ${plural(r.lineCount, "line")}. Pending executive approval, not in Current Budget or EAC.`;
+          : `Priced ${on} (rev ${r.co.revision}): ${usdCents(r.totalCents)} across ${plural(r.lineCount, "line")}. Pending PM or executive approval, not in Current Budget or EAC.`;
       case "approve":
         return describeApproval(on, r.co.revision, r.move);
       case "reject":

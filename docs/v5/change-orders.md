@@ -18,7 +18,7 @@ Who can do what:
 | Command | Who |
 |---|---|
 | Raise, price, void | Project manager or executive |
-| Approve, reject | Executive |
+| Approve, reject | Project manager or executive |
 
 The job screen and the assistant both call `changeOrder.<command>` through `run()`. There is no second write path. Each of those commands is on the job change list. `changeOrder.show` is the read.
 

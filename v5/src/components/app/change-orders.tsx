@@ -59,8 +59,8 @@ export function ChangeOrdersSection({
         <h2 className="text-sm font-semibold">Change orders</h2>
         <p className="text-xs leading-snug text-muted-foreground">
           Revises Current Budget after the estimate is approved. Original
-          Budget does not move. Priced orders are pending until an executive
-          approves them, and they are not in Current Budget or EAC.
+          Budget does not move. Priced orders are pending until a PM or
+          executive approves them, and they are not in Current Budget or EAC.
         </p>
       </header>
       <div className="flex flex-col gap-3 px-4 py-3">
@@ -149,48 +149,106 @@ function ChangeOrderCard({
         </p>
       </header>
       {co.lines.length ? (
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-left text-muted-foreground">
-              <th className="px-3 py-1 font-medium">Cost item</th>
-              <th className="px-2 py-1 text-right font-medium">Labor</th>
-              <th className="px-2 py-1 text-right font-medium">Material</th>
-              <th className="px-2 py-1 text-right font-medium">Equipment</th>
-              <th className="px-2 py-1 text-right font-medium">Sub</th>
-              <th className="px-3 py-1 text-right font-medium">Total</th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          {/* Phone: stack categories so the card stays inside the viewport. */}
+          <ul className="divide-y text-xs md:hidden" data-testid="co-lines-stack">
             {co.lines.map((line) => (
-              <tr key={line.sort} className="border-t">
-                <td className="px-3 py-1.5">
-                  <span className="font-medium">{line.code}</span>{" "}
-                  {line.description}
-                  {line.created ? (
-                    <span className="ml-1 text-muted-foreground">new</span>
-                  ) : null}
-                  {line.qtyDeltaMilli !== 0 ? (
-                    <span className="mt-0.5 block text-muted-foreground">
-                      Qty {signedQty(line.qtyDeltaMilli)} {line.unit}
-                    </span>
-                  ) : null}
-                  {line.note ? (
-                    <span className="mt-0.5 block text-muted-foreground">
-                      {line.note}
-                    </span>
-                  ) : null}
-                </td>
-                <MoneyCell cents={line.delta.laborCents} />
-                <MoneyCell cents={line.delta.materialCents} />
-                <MoneyCell cents={line.delta.equipmentCents} />
-                <MoneyCell cents={line.delta.subCents} />
-                <td className="px-3 py-1.5 text-right tabular-nums">
-                  {usdCents(line.totalCents)}
-                </td>
-              </tr>
+              <li key={line.sort} className="px-3 py-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="min-w-0">
+                    <span className="font-medium">{line.code}</span>{" "}
+                    {line.description}
+                    {line.created ? (
+                      <span className="ml-1 text-muted-foreground">new</span>
+                    ) : null}
+                  </p>
+                  <p className="shrink-0 tabular-nums font-medium">
+                    {usdCents(line.totalCents)}
+                  </p>
+                </div>
+                {line.qtyDeltaMilli !== 0 ? (
+                  <p className="mt-0.5 text-muted-foreground">
+                    Qty {signedQty(line.qtyDeltaMilli)} {line.unit}
+                  </p>
+                ) : null}
+                {line.note ? (
+                  <p className="mt-0.5 text-muted-foreground">{line.note}</p>
+                ) : null}
+                <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-muted-foreground">
+                  <div className="flex justify-between gap-2">
+                    <dt>Labor</dt>
+                    <dd className="tabular-nums text-foreground">
+                      {usdCents(line.delta.laborCents)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>Material</dt>
+                    <dd className="tabular-nums text-foreground">
+                      {usdCents(line.delta.materialCents)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>Equipment</dt>
+                    <dd className="tabular-nums text-foreground">
+                      {usdCents(line.delta.equipmentCents)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>Sub</dt>
+                    <dd className="tabular-nums text-foreground">
+                      {usdCents(line.delta.subCents)}
+                    </dd>
+                  </div>
+                </dl>
+              </li>
             ))}
-          </tbody>
-        </table>
+          </ul>
+          {/* Desktop: full L/M/E/S table. */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-xs" data-testid="co-lines-table">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="px-3 py-1 font-medium">Cost item</th>
+                  <th className="px-2 py-1 text-right font-medium">Labor</th>
+                  <th className="px-2 py-1 text-right font-medium">Material</th>
+                  <th className="px-2 py-1 text-right font-medium">Equipment</th>
+                  <th className="px-2 py-1 text-right font-medium">Sub</th>
+                  <th className="px-3 py-1 text-right font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {co.lines.map((line) => (
+                  <tr key={line.sort} className="border-t">
+                    <td className="px-3 py-1.5">
+                      <span className="font-medium">{line.code}</span>{" "}
+                      {line.description}
+                      {line.created ? (
+                        <span className="ml-1 text-muted-foreground">new</span>
+                      ) : null}
+                      {line.qtyDeltaMilli !== 0 ? (
+                        <span className="mt-0.5 block text-muted-foreground">
+                          Qty {signedQty(line.qtyDeltaMilli)} {line.unit}
+                        </span>
+                      ) : null}
+                      {line.note ? (
+                        <span className="mt-0.5 block text-muted-foreground">
+                          {line.note}
+                        </span>
+                      ) : null}
+                    </td>
+                    <MoneyCell cents={line.delta.laborCents} />
+                    <MoneyCell cents={line.delta.materialCents} />
+                    <MoneyCell cents={line.delta.equipmentCents} />
+                    <MoneyCell cents={line.delta.subCents} />
+                    <td className="px-3 py-1.5 text-right tabular-nums">
+                      {usdCents(line.totalCents)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : (
         <p className="px-3 py-2 text-xs text-muted-foreground">
           No lines yet. Price it per cost item.

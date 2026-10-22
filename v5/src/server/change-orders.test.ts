@@ -143,15 +143,17 @@ describe.skipIf(!db)("change orders", () => {
     const executive = actor(companyId, "executive");
     const before = await leafMoney(companyId, "24-118");
 
+    // Seed already has CO-001..003 on 24-118. Use the numbers this test creates.
     const raised = await changeOrderCommand(companyId, pm, "24-118", {
       kind: "create",
       title: "Temporary sheet pile",
       reason: "County moved the abutment",
     });
     expect(raised.ok).toBe(true);
+    if (!raised.ok) return;
     const voided = await changeOrderCommand(companyId, pm, "24-118", {
       kind: "void",
-      co: { number: 1 },
+      co: { number: raised.co.number },
       reason: "Duplicate of the field note",
     });
     expect(voided.ok && voided.to).toBe("voided");
@@ -162,9 +164,10 @@ describe.skipIf(!db)("change orders", () => {
       reason: "",
     });
     expect(priced.ok).toBe(true);
+    if (!priced.ok) return;
     const lines = await changeOrderCommand(companyId, pm, "24-118", {
       kind: "price",
-      co: { number: 2 },
+      co: { number: priced.co.number },
       lines: [
         {
           code: "91-200",
@@ -177,11 +180,12 @@ describe.skipIf(!db)("change orders", () => {
     expect(lines.ok).toBe(true);
     const rejected = await changeOrderCommand(companyId, executive, "24-118", {
       kind: "reject",
-      co: { number: 2 },
+      co: { number: priced.co.number },
       reason: "Owner declined",
     });
     expect(rejected.ok && rejected.to).toBe("rejected");
 
+    // Seeded approved CO-003 already added leaf 91-300; void/reject must not change leaves.
     const after = await leafMoney(companyId, "24-118");
     expect(after.rows).toEqual(before.rows);
 

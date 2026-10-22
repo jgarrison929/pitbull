@@ -37,10 +37,22 @@ function card(page: Page, number: number) {
   return page.locator(`[data-testid="co-card"][data-co-number="${number}"]`);
 }
 
-test("executive approves priced CO-001; budget and EAC rise once", async ({
+/** Layout viewport must stay at the phone width (no sideways page scroll). */
+async function assertNoPageOverflow(page: Page) {
+  const { scrollWidth, viewportWidth } = await page.evaluate(() => {
+    const vv = window.visualViewport;
+    return {
+      scrollWidth: document.documentElement.scrollWidth,
+      viewportWidth: vv?.width ?? window.innerWidth,
+    };
+  });
+  expect(scrollWidth).toBeLessThanOrEqual(Math.ceil(viewportWidth));
+}
+
+test("PM approves priced CO-001; budget and EAC rise once", async ({
   page,
 }) => {
-  await signIn(page, "executive");
+  await signIn(page, "pm");
   await page.goto("/app/jobs/25-031");
   const co = card(page, 1);
   await expect(co).toHaveAttribute("data-status", "priced");
@@ -77,7 +89,7 @@ test("executive approves priced CO-001; budget and EAC rise once", async ({
   await expect(page.getByTestId("job-changes").locator("li").first()).toContainText(
     /Approved CO-001/,
   );
-  await expect(page.getByTestId("job-changes")).toContainText("Elena Brooks");
+  await expect(page.getByTestId("job-changes")).toContainText("Marcus Lee");
 
   const again = await ask(page, "Approve change order CO-001 on 25-031");
   await expect(again).toHaveAttribute("data-action", "changeOrder.approve");
@@ -87,14 +99,19 @@ test("executive approves priced CO-001; budget and EAC rise once", async ({
   expect(await attr(page, "co-ledger", "data-original-cents")).toBe(ob0);
 });
 
-test("a project manager cannot approve, and reject or void moves nothing", async ({
+test("foreman cannot approve; reject or void moves nothing", async ({
   page,
 }) => {
-  await signIn(page, "pm");
+  await signIn(page, "foreman");
   await page.goto("/app/jobs/25-031");
   await expect(card(page, 1)).toHaveAttribute("data-status", "priced");
   await expect(page.getByTestId("co-approve")).toHaveCount(0);
-  await expect(card(page, 1).getByTestId("co-price")).toBeVisible();
+  const refused = await ask(page, "Approve change order CO-001 on 25-031");
+  await expect(refused).toHaveAttribute("data-action", "changeOrder.approve");
+  await expect(refused.getByTestId("action-summary")).toContainText(
+    /project manager|executive|Switch role/i,
+  );
+  await expect(card(page, 1)).toHaveAttribute("data-status", "priced");
 
   await signIn(page, "executive");
   await page.goto("/app/jobs/24-118");
@@ -102,13 +119,9 @@ test("a project manager cannot approve, and reject or void moves nothing", async
   const eac0 = await cents(page, "job-eac");
   const ob0 = await attr(page, "co-ledger", "data-original-cents");
 
-  const raised = await ask(
-    page,
-    "Raise a change order on 24-118: Temporary sheet pile because the county moved the abutment",
-  );
-  await expect(raised).toHaveAttribute("data-action", "changeOrder.create");
+  // Seeded CO-001 is draft — void it; money must not move.
   await expect(card(page, 1)).toHaveAttribute("data-status", "draft");
-  await card(page, 1).getByTestId("co-void-reason").fill("Duplicate of the field note");
+  await card(page, 1).getByTestId("co-void-reason").fill("Opened by mistake");
   await card(page, 1).getByTestId("co-void").click();
   await expect(card(page, 1)).toHaveAttribute("data-status", "voided");
   expect(await cents(page, "job-budget")).toBe(cb0);
@@ -119,20 +132,30 @@ test("a project manager cannot approve, and reject or void moves nothing", async
   await page.goto("/app/jobs/24-077");
   const cb1 = await cents(page, "job-budget");
   const eac1 = await cents(page, "job-eac");
-  await ask(
-    page,
-    "Raise a change order on 24-077: Extra railing",
-  );
-  const priced = await ask(
-    page,
-    "Price CO-001 on 24-077: new 91-200 Extra railing LS labor 1,000",
-  );
-  await expect(priced).toHaveAttribute("data-action", "changeOrder.price");
-  await expect(card(page, 1)).toHaveAttribute("data-status", "priced");
-  await card(page, 1).getByTestId("co-reject-reason").fill("Owner declined");
-  await card(page, 1).getByTestId("co-reject").click();
-  await expect(card(page, 1)).toHaveAttribute("data-status", "rejected");
+  // Seeded CO-002 is priced — reject it.
+  await expect(card(page, 2)).toHaveAttribute("data-status", "priced");
+  await card(page, 2).getByTestId("co-reject-reason").fill("Owner declined");
+  await card(page, 2).getByTestId("co-reject").click();
+  await expect(card(page, 2)).toHaveAttribute("data-status", "rejected");
   expect(await cents(page, "job-budget")).toBe(cb1);
   expect(await cents(page, "job-eac")).toBe(eac1);
   await expect(page.getByTestId("job-changes")).toContainText("Nothing moved");
+});
+
+test.describe("phone job page does not scroll sideways", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+
+  for (const role of ["pm", "foreman", "executive"] as const) {
+    test(`25-031 as ${role}`, async ({ page }) => {
+      await signIn(page, role);
+      await page.goto("/app/jobs/25-031");
+      await expect(page.getByTestId("co-ledger")).toBeVisible();
+      await expect(page.getByTestId("co-lines-stack")).toBeVisible();
+      await assertNoPageOverflow(page);
+    });
+  }
 });

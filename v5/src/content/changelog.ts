@@ -4,9 +4,9 @@ export const changelog = [
     version: "5.0.0-m5.0",
     date: "2026-10-22",
     items: [
-      "Change orders run draft, then priced, then approved or rejected. Void is available from draft or priced. Only an executive can approve or reject. Reject and void move no money.",
+      "Change orders run draft, then priced, then approved or rejected. Void is available from draft or priced. A PM or executive can approve or reject. Reject and void move no money.",
       "Approve adds the priced lines to Current Budget once. A new cost item starts with Original Budget at zero and Current Budget equal to the change, so the job's Current Budget and EAC both move by that amount. A second approve is refused. Original Budget stays where the estimate left it.",
-      "Cedar Creek seeds CO-001, a priced retaining wall for $60,000.00. The job screen and the assistant run the same actions, and those actions show on the job's change list.",
+      "The seed raises six change orders in mixed states (draft, priced, approved, rejected, voided). Cedar Creek keeps one priced CO for the verify path. The job screen and the assistant run the same actions.",
     ],
   },
   {

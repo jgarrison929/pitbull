@@ -38,6 +38,7 @@ import {
   type ParsedCoLine,
   type PlanRefusal,
 } from "@/lib/change-order";
+import { lastLockDate } from "@/server/data";
 
 // The only writer of change_orders, change_order_lines, change_order_events, and of change-order
 // moves to cost_items.cb_*. No role check here: run() owns roles; the actor is recorded, not checked.
@@ -199,7 +200,16 @@ export async function changeOrderCommand(
           if (!parsed.ok) throw new Refused({ kind: "invalid_lines" }, parsed.errors);
           const lines = await resolveLines(tx, job, parsed.lines);
           const ctx = await loadBudgetItems(tx, job, lines, { lock: false });
-          const dry = planApproval({ ...ctx, today: isoDay(now), jobFinishOn: job.finishOn }, lines);
+          const lockAt = await lastLockDate(companyId, job.id);
+          const dry = planApproval(
+            {
+              ...ctx,
+              today: isoDay(now),
+              lockCutoffOn: isoDay(lockAt ?? now),
+              jobFinishOn: job.finishOn,
+            },
+            lines,
+          );
           if (!dry.ok) throw planRefused(dry.refusal);
           const totalCents = coTotalCents(lines);
           const stored = await loadLines(tx, co.id);
@@ -224,7 +234,16 @@ export async function changeOrderCommand(
             throw new Refused({ kind: "stale_revision", saw: command.expectRevision, current: co.revision });
           const { rows, lines } = await loadLines(tx, co.id);
           const ctx = await loadBudgetItems(tx, job, lines, { lock: true });
-          const r = planApproval({ ...ctx, today: isoDay(now), jobFinishOn: job.finishOn }, lines);
+          const lockAt = await lastLockDate(companyId, job.id);
+          const r = planApproval(
+            {
+              ...ctx,
+              today: isoDay(now),
+              lockCutoffOn: isoDay(lockAt ?? now),
+              jobFinishOn: job.finishOn,
+            },
+            lines,
+          );
           if (!r.ok) throw planRefused(r.refusal);
           const before = await obImage(tx, job.id, r.plan.writes.map((w) => w.costItemId));
           const created = await writeApproval(tx, companyId, job, co, rows, r.plan);
@@ -713,7 +732,16 @@ export async function listChangeOrders(
     if (co.status === "priced") {
       const lines = rows.map((r) => toCoLine(r.line));
       const ctx = await loadBudgetItems(db, job, lines, { lock: false });
-      const p = planApproval({ ...ctx, today, jobFinishOn: job.finishOn }, lines);
+      const lockAt = await lastLockDate(companyId, job.id);
+      const p = planApproval(
+        {
+          ...ctx,
+          today,
+          lockCutoffOn: isoDay(lockAt ?? now),
+          jobFinishOn: job.finishOn,
+        },
+        lines,
+      );
       preview = p.ok ? { ok: true, move: p.plan.move } : { ok: false, why: describePlanRefusal(p.refusal) };
     }
     views.push({

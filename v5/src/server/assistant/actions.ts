@@ -268,8 +268,8 @@ function describeChange(
 const CO_ACTIONS = {
   create: { title: "Raise a change order", roles: ["pm", "executive"] },
   price: { title: "Price a change order", roles: ["pm", "executive"] },
-  approve: { title: "Approve a change order", roles: ["executive"] },
-  reject: { title: "Reject a change order", roles: ["executive"] },
+  approve: { title: "Approve a change order", roles: ["pm", "executive"] },
+  reject: { title: "Reject a change order", roles: ["pm", "executive"] },
   void: { title: "Void a change order", roles: ["pm", "executive"] },
 } as const satisfies Record<
   CoCommandName,
@@ -893,7 +893,7 @@ export const actions: Record<ActionName, ActionDef> = {
       const href = `/app/jobs/${job}#change-orders`;
       if (!data.changeOrders.length)
         return {
-          summary: `${data.job.shortName} has no change orders yet. Raise one, then price it. Nothing moves until an executive approves.`,
+          summary: `${data.job.shortName} has no change orders yet. Raise one, then price it. Nothing moves until a PM or executive approves.`,
           href,
           job,
         };

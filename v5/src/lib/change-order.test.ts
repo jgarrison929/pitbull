@@ -209,7 +209,8 @@ describe("parse and resolve lines", () => {
   });
 });
 
-// Hand-computed fixture. Today 2026-10-22 is day 60 of 120 for both existing items, so PV is half of CB.
+// Hand-computed fixture. Lock cutoff = today 2026-10-22 is day 60 of 120 for both
+// existing items, so PV at the cutoff is half of CB (same as-of as EV).
 //
 // 03-310 units, current_budget. CB 120,000 + 200,000 + 40,000 = $360,000; budget 400 CY; claimed 100 CY; AC $100,000.
 //   before: EV = 360,000 × 100/400 = 90,000; EAC = 100,000 + 360,000 − 90,000 = $370,000
@@ -260,6 +261,7 @@ const ctx = {
   items: new Map([concrete, rebar].map((i) => [i.id, i])),
   codesOnJob: new Set(["03", "03-310", "05-120"]),
   today,
+  lockCutoffOn: today,
   jobFinishOn,
 };
 
@@ -332,7 +334,19 @@ describe("planApproval (hand-computed)", () => {
     ]);
   });
 
-  it("existing items: CB moves by Δ, EAC by the forecast difference, PV refreshed as of today", () => {
+  it("plannedCents uses the lock cutoff, not the approve day", () => {
+    // Cutoff on the planned start day → PV is 0 for existing items (t <= start).
+    const early = planApproval({ ...ctx, lockCutoffOn: "2026-08-23" }, [moreConcrete]);
+    if (!early.ok) throw new Error(early.refusal.kind);
+    expect(early.plan.writes[0]?.plannedCents).toBe(0);
+    // New leaf starts on approve day (today), after the lock → PV at cutoff is 0.
+    const wallEarly = planApproval({ ...ctx, lockCutoffOn: "2026-08-23" }, [wall]);
+    if (!wallEarly.ok) throw new Error(wallEarly.refusal.kind);
+    expect(wallEarly.plan.inserts[0]?.plannedCents).toBe(0);
+    expect(wallEarly.plan.inserts[0]?.plannedStartOn).toBe(today);
+  });
+
+  it("existing items: CB moves by Δ, EAC by the forecast difference, PV at lock cutoff", () => {
     const r = planApproval(ctx, [moreConcrete, lessRebar, wall]);
     if (!r.ok) throw new Error(r.refusal.kind);
     expect(r.plan.move).toEqual({
