@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CostLine } from "@/lib/ev";
-import { pct, pendingInstalledQtyMilli, qty, rollup } from "@/lib/ev";
+import { mh, pct, pendingInstalledQtyMilli, qty, rollup } from "@/lib/ev";
 import { cn } from "@/lib/utils";
 import { Money, Progress, StatusIndex } from "./format";
 import { varianceStatus } from "@/lib/status";
@@ -62,6 +62,17 @@ function InstalledCell({ l }: { l: CostLine }) {
         >
           +{qty(pending)} pending lock
         </div>
+      )}
+      {l.overBudgetQtyMilli > 0 && (
+        <div
+          className="text-red-700 dark:text-red-400"
+          data-testid={`over-qty-${l.code}`}
+        >
+          +{qty(l.overBudgetQtyMilli)} over budget qty
+        </div>
+      )}
+      {l.earnedMhMilli > 0 && (
+        <div data-testid={`earned-mh-${l.code}`}>{mh(l.earnedMhMilli)} MH earned</div>
       )}
     </div>
   );
@@ -168,6 +179,18 @@ export function CostTable({
                 Actual
               </span>
               <Money cents={t.actualCents} />
+            </span>
+            <span>
+              <span className="mr-1 text-xs font-normal text-muted-foreground">
+                EAC
+              </span>
+              <Money cents={t.eacCents} />
+            </span>
+            <span>
+              <span className="mr-1 text-xs font-normal text-muted-foreground">
+                ETC
+              </span>
+              <Money cents={t.etcCents} />
             </span>
             <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
           </span>
@@ -278,6 +301,14 @@ function VirtualTreeDesktop({
                       data-testid="earn-derivation"
                     >
                       {l.earnDerivation}
+                    </div>
+                  ) : null}
+                  {l?.forecastDerivation ? (
+                    <div
+                      className="truncate text-xs text-muted-foreground"
+                      data-testid="forecast-derivation"
+                    >
+                      {l.forecastDerivation}
                     </div>
                   ) : null}
                 </div>

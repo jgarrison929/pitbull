@@ -46,6 +46,11 @@ export const evMethodEnum = pgEnum("ev_method", [
   "milestones",
   "pm_percent",
 ]);
+/** Per-item EAC method. New change-order items default to current_budget (M5). */
+export const forecastMethodEnum = pgEnum("forecast_method", [
+  "current_budget",
+  "average_performance",
+]);
 export const claimStatusEnum = pgEnum("claim_status", ["draft", "locked"]);
 export const costEntryKindEnum = pgEnum("cost_entry_kind", ["labor", "other"]);
 /** Estimate lifecycle: draft until PM Approve freezes Original Budget. */
@@ -140,6 +145,9 @@ export const costItems = pgTable(
     description: text("description").notNull(),
     unit: text("unit").notNull(),
     evMethod: evMethodEnum("ev_method").notNull().default("units"),
+    forecastMethod: forecastMethodEnum("forecast_method")
+      .notNull()
+      .default("current_budget"),
     budgetQtyMilli: milli("budget_qty_milli"),
     /** Live installed quantity from foreman daily reports (units method). Pending until PM lock. */
     installedQtyMilli: milli("installed_qty_milli"),
@@ -175,8 +183,13 @@ export const costItems = pgTable(
      * Based on Current Budget total.
      */
     plannedCents: money("planned_cents"),
-    /** Denormalized sum of cost_entries for this item. */
+    /** Denormalized sum of cost_entries for this item (live). */
     actualCents: money("actual_cents"),
+    /**
+     * Actual cost frozen on the last locked claim. EV indices (CPI) and forecasts
+     * read this; live actualCents − lockedActualCents is the "since lock" delta.
+     */
+    lockedActualCents: money("locked_actual_cents").default(0),
     /** Locked claim percent (thousandths). Display/snapshot; units earn from claimed qty. */
     claimedPercentMilli: milli("claimed_percent_milli").default(0),
     /** Human-readable how the locked percent was derived. */

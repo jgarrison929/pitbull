@@ -184,13 +184,28 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         <Kpi
           label="Earned to date"
           value={<Money cents={p.earnedCents} />}
-          sub={`${pct(p.percent)} of ${usdShort(p.budgetCents)} budget`}
+          sub={
+            p.lockAt
+              ? `${pct(p.percent)} of ${usdShort(p.budgetCents)} · as of last lock`
+              : `${pct(p.percent)} of ${usdShort(p.budgetCents)} budget`
+          }
           testId="job-earned"
         />
         <Kpi
           label="Actual cost"
           value={<Money cents={p.actualCents} />}
-          sub={`vs ${usdShort(p.earnedCents)} earned`}
+          sub={
+            p.sinceLockActualCents !== 0 ? (
+              <>
+                vs {usdShort(p.earnedCents)} earned ·{" "}
+                <span data-testid="job-actual-since-lock">
+                  <Money cents={p.sinceLockActualCents} /> since lock
+                </span>
+              </>
+            ) : (
+              `vs ${usdShort(p.earnedCents)} earned`
+            )
+          }
           testId="job-actual"
         />
         <Kpi
@@ -198,7 +213,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           value={
             <StatusIndex index={p.cpi} varianceCents={p.costVarianceCents} />
           }
-          sub={`cost variance · EAC ${usdShort(p.eacCents)}`}
+          sub={`EAC ${usdShort(p.eacCents)} · ETC ${usdShort(p.etcCents)}`}
           testId="job-cpi"
         />
         <Kpi
@@ -209,7 +224,12 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
               varianceCents={p.scheduleVarianceCents}
             />
           }
-          sub={`schedule variance · ${usdShort(p.plannedCents)} planned`}
+          sub={
+            p.sinceLockPlannedCents !== 0
+              ? `${usdShort(p.plannedCents)} planned · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
+              : `schedule variance · ${usdShort(p.plannedCents)} planned`
+          }
+          testId="job-spi"
         />
       </KpiStrip>
       {plans.map((plan) => (
@@ -296,11 +316,12 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         title="Budget vs earned value by cost code"
         meta={
           <span className="block whitespace-normal">
-            Earned uses the locked claim (claimed installed for units). Foreman
-            reports show as pending until the superintendent approves. Live
-            installs above the claim show as pending lock until the PM locks.
-            CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun
-            is never green.
+            EV, AC, and PV share the last locked period; cost posted since that
+            lock shows separately. Foreman reports stay pending until the
+            superintendent approves; approved installs above the claim stay
+            pending lock until the PM locks. Job EAC is the sum of per-item
+            forecasts. CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A
+            cost overrun is never green.
           </span>
         }
       >

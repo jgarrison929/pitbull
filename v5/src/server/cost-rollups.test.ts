@@ -45,10 +45,11 @@ describe("stress seed shape", () => {
           claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
           budgetCents: cb(c),
           plannedCents: c.plannedCents!,
-          actualCents: c.actualCents!,
+          actualCents: c.lockedActualCents ?? c.actualCents!,
           budgetMhPerUnitMilli: c.budgetMhPerUnitMilli!,
           claimedPercentMilli: c.claimedPercentMilli ?? 0,
           evMethod: "units",
+          forecastMethod: c.forecastMethod ?? "current_budget",
           earnDerivation: c.earnDerivation ?? "",
         }),
       ),
@@ -87,16 +88,31 @@ describe.skipIf(!db)("SQL roll-up matches leaf sum on stress job", () => {
 
     const leaves = items.filter((c) => c.isLeaf);
     expect(sqlRoll.budgetCents).toBe(leaves.reduce((s, c) => s + cb(c), 0));
-    const jsEarned = leaves.reduce(
-      (s, c) =>
-        s +
-        Math.round(
-          (cb(c) * (c.claimedInstalledQtyMilli ?? 0)) /
-            (c.budgetQtyMilli || 1),
-        ),
-      0,
-    );
+    const jsEarned = leaves.reduce((s, c) => {
+      const bac = cb(c);
+      const raw = Math.round(
+        (bac * (c.claimedInstalledQtyMilli ?? 0)) / (c.budgetQtyMilli || 1),
+      );
+      return s + Math.min(bac, raw);
+    }, 0);
     expect(sqlRoll.earnedCents).toBe(jsEarned);
+    expect(sqlRoll.actualCents).toBe(
+      leaves.reduce((s, c) => s + (c.lockedActualCents ?? 0), 0),
+    );
+    expect(sqlRoll.eacCents).toBe(
+      leaves.reduce((s, c) => {
+        const bac = cb(c);
+        const ev = Math.min(
+          bac,
+          Math.round(
+            (bac * (c.claimedInstalledQtyMilli ?? 0)) /
+              (c.budgetQtyMilli || 1),
+          ),
+        );
+        const ac = c.lockedActualCents ?? 0;
+        return s + (ac + (bac - ev)); // current_budget method
+      }, 0),
+    );
 
     const t1 = performance.now();
     const found = await searchCostItems(

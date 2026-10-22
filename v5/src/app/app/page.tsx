@@ -60,7 +60,10 @@ async function Portfolio() {
           testId="kpi-spi"
         />
       </KpiStrip>
-      <Section title="Jobs" meta="EAC assumes each job's current CPI holds">
+      <Section
+        title="Jobs"
+        meta="EAC is the sum of each job's per-item forecasts · EV/AC/PV at last lock"
+      >
         <PortfolioTable jobs={jobs} />
       </Section>
     </>

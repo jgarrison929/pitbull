@@ -20,6 +20,7 @@ describe("status rule", () => {
       budgetMhPerUnitMilli: 0,
       claimedPercentMilli: 1000,
       evMethod: "milestones",
+      forecastMethod: "current_budget",
       earnDerivation: "weighted milestones: both complete",
     });
     expect(mob.varianceCents).toBe(-1_300_000);
@@ -86,13 +87,14 @@ describe("roll-ups equal the sum of their lines, for the seed", () => {
           budgetQtyMilli: c.budgetQtyMilli!,
           installedQtyMilli: c.installedQtyMilli!,
           plannedCents: c.plannedCents!,
-          actualCents: c.actualCents!,
+          actualCents: c.lockedActualCents ?? c.actualCents!,
           budgetMhPerUnitMilli: c.budgetMhPerUnitMilli!,
           budgetCents,
           claimedPercentMilli: c.claimedPercentMilli ?? 0,
           claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
           earnDerivation: c.earnDerivation ?? "",
           evMethod: c.evMethod ?? "units",
+          forecastMethod: c.forecastMethod ?? "current_budget",
         });
       });
     return { j, lines, r: rollup(lines) };

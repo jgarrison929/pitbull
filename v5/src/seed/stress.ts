@@ -56,6 +56,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
       description: `Division ${divCode}`,
       unit: "LS",
       evMethod: "units",
+      forecastMethod: "current_budget" as const,
       budgetQtyMilli: 0,
       installedQtyMilli: 0,
       claimedInstalledQtyMilli: 0,
@@ -64,6 +65,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
       plannedFinishOn: finish,
       plannedCents: 0,
       actualCents: 0,
+      lockedActualCents: 0,
       claimedPercentMilli: 0,
       earnDerivation: "summary",
       budgetMhPerUnitMilli: 0,
@@ -84,6 +86,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         description: `Group ${groupCode}`,
         unit: "LS",
         evMethod: "units",
+        forecastMethod: "current_budget" as const,
         budgetQtyMilli: 0,
         installedQtyMilli: 0,
         claimedInstalledQtyMilli: 0,
@@ -92,6 +95,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         plannedFinishOn: finish,
         plannedCents: 0,
         actualCents: 0,
+        lockedActualCents: 0,
         claimedPercentMilli: 0,
         earnDerivation: "summary",
         budgetMhPerUnitMilli: 0,
@@ -104,6 +108,9 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         // Distinct unit on one leaf so e2e can assert unit-from-pick past slice 40.
         const unit = leafCode === "08-04-077" ? "LF" : "CY";
         if (leafCode === STRESS_OUTSIDE_SLICE_CODE) outsideLeafId = leafId;
+        const actualCents = Math.round(
+          (budgetCents * claimedPercentMilli) / 1000 / 0.95,
+        );
         items.push({
           id: leafId,
           companyId,
@@ -116,6 +123,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
           description: `Leaf ${leafCode} activity`,
           unit,
           evMethod: "units",
+          forecastMethod: "current_budget" as const,
           budgetQtyMilli: 1_000_000,
           installedQtyMilli: claimedPercentMilli * 1000,
           claimedInstalledQtyMilli: claimedPercentMilli * 1000,
@@ -123,9 +131,8 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
           plannedStartOn: start,
           plannedFinishOn: finish,
           plannedCents: plannedValueCents(budgetCents, start, finish, today),
-          actualCents: Math.round(
-            (budgetCents * claimedPercentMilli) / 1000 / 0.95,
-          ),
+          actualCents,
+          lockedActualCents: actualCents,
           claimedPercentMilli,
           earnDerivation: `units complete (stress)`,
           budgetMhPerUnitMilli: 1000,

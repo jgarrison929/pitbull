@@ -1,7 +1,12 @@
-// Earned value math over integer cents and milli-quantities. Pure, so screens, actions and tests share it.
-// Percent complete comes from a PM-locked progress claim. Actuals and installed qty come from field reports.
+// Earned value and forecast math over integer cents and milli-quantities.
+// Pure: screens, SQL roll-ups, actions, and tests share these formulas.
+// Percent complete and AC for indices come from the last PM-locked period (one cutoff).
+// Live installs and cost posted since that lock show as separate "since lock" figures.
 
 export type EvMethod = "units" | "milestones" | "pm_percent";
+
+/** Per-item forecast method. New change-order items default to current_budget (M5). */
+export type ForecastMethod = "current_budget" | "average_performance";
 
 export type CostLineInput = {
   code: string;
@@ -16,12 +21,28 @@ export type CostLineInput = {
    */
   claimedInstalledQtyMilli: number;
   budgetCents: number;
+  /**
+   * Planned value as of the EV cutoff (last lock date, or today if never locked).
+   * Must match plannedValueCents(budget, start, finish, cutoff).
+   */
   plannedCents: number;
+  /**
+   * Actual cost at the EV cutoff (frozen on lock). Live cost above this is
+   * `liveActualCents - actualCents` and is shown as "since lock", not in CPI.
+   */
   actualCents: number;
+  /** Live actual (sum of cost_entries). Defaults to actualCents when omitted. */
+  liveActualCents?: number;
+  /**
+   * Planned value as of "today" (read time). Used only for the since-lock PV delta.
+   * Defaults to plannedCents when omitted.
+   */
+  livePlannedCents?: number;
   budgetMhPerUnitMilli: number;
   /** Locked claim percent, in thousandths of 100% (500 = 50%). */
   claimedPercentMilli: number;
   evMethod: EvMethod;
+  forecastMethod: ForecastMethod;
   /** How this line's locked earned percent was derived (shown on the job page). */
   earnDerivation: string;
   /**
@@ -36,12 +57,25 @@ export type CostLineInput = {
 export type CostLine<T extends CostLineInput = CostLineInput> = T & {
   percent: number;
   earnedCents: number;
-  /** Cost variance: earned minus actual. */
+  /** Cost variance: earned minus actual (at cutoff). */
   varianceCents: number;
-  /** Schedule variance: earned minus planned. */
+  /** Schedule variance: earned minus planned (at cutoff). */
   scheduleVarianceCents: number;
   cpi: number | null;
   spi: number | null;
+  /** Claimed installed above budget qty (units); flagged on the job page. */
+  overBudgetQtyMilli: number;
+  /** Earned man-hours in milli-MH (claimed qty × budget MH/unit). */
+  earnedMhMilli: number;
+  eacCents: number;
+  etcCents: number;
+  /** True when Average Performance fell back because there was no progress. */
+  forecastFallback: boolean;
+  forecastDerivation: string;
+  /** Live actual minus cutoff actual (cost posted since lock). */
+  sinceLockActualCents: number;
+  /** Live PV minus cutoff PV (schedule advance since lock). */
+  sinceLockPlannedCents: number;
 };
 
 /** Snapshot the percent a progress claim should freeze for one cost item. */
@@ -95,7 +129,7 @@ const fmtQty = (n: number) =>
   n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 /**
- * Linear time-phased planned value between planned start and finish (inclusive-ish).
+ * Linear time-phased planned value between planned start and finish.
  * Before start → 0; on/after finish → full budget.
  */
 export function plannedValueCents(
@@ -123,18 +157,41 @@ export function laborCents(manHours: number, rateCentsPerHour: number) {
 }
 
 /**
- * Earned value in cents. Units method uses exact *claimed* installed/budget
- * (not live installed, and not percent rounded to 0.1%) so a lock of 290/620
- * of $868,000 = $406,000 not $406,224. Live installs stay pending until lock.
- * Milestones and PM percent use the locked claim weight / logged percent.
+ * Units EV from claimed installed / budget qty, capped at BAC so over-install
+ * cannot earn past budget. Milestones and PM percent use locked claim percent.
+ * Exact fraction: 248/620 of $868,000 = $347,200 (no prior percent rounding).
  */
 export function earnedCentsOf(c: CostLineInput): number {
   if (c.evMethod === "units" && c.budgetQtyMilli > 0) {
-    return Math.round(
+    const raw = Math.round(
       (c.budgetCents * c.claimedInstalledQtyMilli) / c.budgetQtyMilli,
     );
+    return Math.min(c.budgetCents, raw);
   }
   return Math.round((c.budgetCents * c.claimedPercentMilli) / 1000);
+}
+
+/** Claimed installed above budget quantity (units method). */
+export function overBudgetQtyMilliOf(c: CostLineInput): number {
+  if (c.evMethod !== "units" || c.budgetQtyMilli <= 0) return 0;
+  return Math.max(0, c.claimedInstalledQtyMilli - c.budgetQtyMilli);
+}
+
+/**
+ * Earned man-hours in milli-MH: claimed installed × budget MH per unit.
+ * 248 CY × 1.600 MH/CY → 396.8 MH (396_800 milli).
+ */
+export function earnedMhMilliOf(c: CostLineInput): number {
+  if (c.evMethod !== "units" || c.budgetQtyMilli <= 0) {
+    // Milestones / PM %: earn MH in proportion to locked percent of budget MH total.
+    const budgetMhMilli = Math.round(
+      (c.budgetQtyMilli * c.budgetMhPerUnitMilli) / 1000,
+    );
+    return Math.round((budgetMhMilli * c.claimedPercentMilli) / 1000);
+  }
+  return Math.round(
+    (c.claimedInstalledQtyMilli * c.budgetMhPerUnitMilli) / 1000,
+  );
 }
 
 /** Live installed above the locked claim — shown as pending, not yet earned. */
@@ -143,9 +200,81 @@ export function pendingInstalledQtyMilli(c: CostLineInput): number {
   return Math.max(0, c.installedQtyMilli - c.claimedInstalledQtyMilli);
 }
 
+/**
+ * Per-item estimate at completion and estimate to complete.
+ * - current_budget: EAC = AC + (BAC − EV)
+ * - average_performance: EAC = AC ÷ % complete (= AC × BAC ÷ EV); falls back to
+ *   current_budget when there is no progress (no division by zero).
+ */
+export function itemForecast(input: {
+  forecastMethod: ForecastMethod;
+  budgetCents: number;
+  earnedCents: number;
+  actualCents: number;
+}): {
+  eacCents: number;
+  etcCents: number;
+  forecastFallback: boolean;
+  forecastDerivation: string;
+} {
+  const bac = input.budgetCents;
+  const ev = input.earnedCents;
+  const ac = input.actualCents;
+
+  const currentBudget = () => {
+    const eacCents = ac + (bac - ev);
+    return {
+      eacCents,
+      etcCents: eacCents - ac,
+      forecastFallback: false as const,
+      forecastDerivation: `EAC ${usdPlain(eacCents)} = ${usdPlain(ac)} + (${usdPlain(bac)} − ${usdPlain(ev)}) (current budget)`,
+    };
+  };
+
+  if (input.forecastMethod === "current_budget") {
+    return currentBudget();
+  }
+
+  // Average performance: need progress (EV > 0) to divide.
+  if (ev <= 0) {
+    const fb = currentBudget();
+    return {
+      ...fb,
+      forecastFallback: true,
+      forecastDerivation: `${fb.forecastDerivation} — average performance fell back (no progress)`,
+    };
+  }
+
+  const eacCents = Math.round((ac * bac) / ev);
+  const percentLabel = ((ev / bac) * 100).toFixed(1);
+  return {
+    eacCents,
+    etcCents: eacCents - ac,
+    forecastFallback: false,
+    forecastDerivation: `EAC ${usdPlain(eacCents)} = ${usdPlain(ac)} ÷ ${percentLabel}% (average performance)`,
+  };
+}
+
+function usdPlain(cents: number) {
+  return (cents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
 export function costLine<T extends CostLineInput>(c: T): CostLine<T> {
   const earnedCents = earnedCentsOf(c);
   const percent = c.budgetCents === 0 ? 0 : earnedCents / c.budgetCents;
+  const forecast = itemForecast({
+    forecastMethod: c.forecastMethod,
+    budgetCents: c.budgetCents,
+    earnedCents,
+    actualCents: c.actualCents,
+  });
+  const liveActual = c.liveActualCents ?? c.actualCents;
+  const livePlanned = c.livePlannedCents ?? c.plannedCents;
   return {
     ...c,
     percent,
@@ -154,6 +283,14 @@ export function costLine<T extends CostLineInput>(c: T): CostLine<T> {
     scheduleVarianceCents: earnedCents - c.plannedCents,
     cpi: c.actualCents === 0 ? null : earnedCents / c.actualCents,
     spi: c.plannedCents === 0 ? null : earnedCents / c.plannedCents,
+    overBudgetQtyMilli: overBudgetQtyMilliOf(c),
+    earnedMhMilli: earnedMhMilliOf(c),
+    eacCents: forecast.eacCents,
+    etcCents: forecast.etcCents,
+    forecastFallback: forecast.forecastFallback,
+    forecastDerivation: forecast.forecastDerivation,
+    sinceLockActualCents: liveActual - c.actualCents,
+    sinceLockPlannedCents: livePlanned - c.plannedCents,
   };
 }
 
@@ -167,17 +304,31 @@ export type Rollup = {
   percent: number;
   cpi: number;
   spi: number;
-  /** Estimate at completion, assuming the current CPI holds. */
+  /** Job / portfolio EAC = sum of per-item EACs (not BAC ÷ CPI). */
   eacCents: number;
+  etcCents: number;
+  sinceLockActualCents: number;
+  sinceLockPlannedCents: number;
 };
 
-export function rollup(lines: CostLine[]): Rollup {
-  const sum = (f: (l: CostLine) => number) =>
-    lines.reduce((s, l) => s + f(l), 0);
-  const budgetCents = sum((l) => l.budgetCents);
-  const plannedCents = sum((l) => l.plannedCents);
-  const earnedCents = sum((l) => l.earnedCents);
-  const actualCents = sum((l) => l.actualCents);
+/** Build a Rollup from already-summed leaf totals (shared by JS and SQL paths). */
+export function rollupFromTotals(t: {
+  budgetCents: number;
+  plannedCents: number;
+  earnedCents: number;
+  actualCents: number;
+  eacCents: number;
+  etcCents?: number;
+  sinceLockActualCents?: number;
+  sinceLockPlannedCents?: number;
+}): Rollup {
+  const {
+    budgetCents,
+    plannedCents,
+    earnedCents,
+    actualCents,
+    eacCents,
+  } = t;
   const cpi = actualCents === 0 ? 1 : earnedCents / actualCents;
   return {
     budgetCents,
@@ -189,8 +340,77 @@ export function rollup(lines: CostLine[]): Rollup {
     percent: budgetCents === 0 ? 0 : earnedCents / budgetCents,
     cpi,
     spi: plannedCents === 0 ? 1 : earnedCents / plannedCents,
-    eacCents: Math.round(budgetCents / cpi),
+    eacCents,
+    etcCents: t.etcCents ?? eacCents - actualCents,
+    sinceLockActualCents: t.sinceLockActualCents ?? 0,
+    sinceLockPlannedCents: t.sinceLockPlannedCents ?? 0,
   };
+}
+
+export function rollup(lines: CostLine[]): Rollup {
+  const sum = (f: (l: CostLine) => number) =>
+    lines.reduce((s, l) => s + f(l), 0);
+  return rollupFromTotals({
+    budgetCents: sum((l) => l.budgetCents),
+    plannedCents: sum((l) => l.plannedCents),
+    earnedCents: sum((l) => l.earnedCents),
+    actualCents: sum((l) => l.actualCents),
+    eacCents: sum((l) => l.eacCents),
+    etcCents: sum((l) => l.etcCents),
+    sinceLockActualCents: sum((l) => l.sinceLockActualCents),
+    sinceLockPlannedCents: sum((l) => l.sinceLockPlannedCents),
+  });
+}
+
+/**
+ * Daily S-curve points for a job. Cumulative PV is linear per item; EV and AC
+ * at the cutoff are flat (period snapshot). Last PV point equals BAC.
+ */
+export function sCurvePoints(
+  items: {
+    budgetCents: number;
+    plannedStartOn: string;
+    plannedFinishOn: string;
+    earnedCents: number;
+    actualCents: number;
+  }[],
+  fromOn: string,
+  toOn: string,
+): { on: string; plannedCents: number; earnedCents: number; actualCents: number }[] {
+  const bac = items.reduce((s, i) => s + i.budgetCents, 0);
+  const earned = items.reduce((s, i) => s + i.earnedCents, 0);
+  const actual = items.reduce((s, i) => s + i.actualCents, 0);
+  const out: {
+    on: string;
+    plannedCents: number;
+    earnedCents: number;
+    actualCents: number;
+  }[] = [];
+  const start = Date.parse(`${fromOn}T00:00:00Z`);
+  const end = Date.parse(`${toOn}T00:00:00Z`);
+  for (let t = start; t <= end; t += 86_400_000) {
+    const asOf = new Date(t);
+    const on = asOf.toISOString().slice(0, 10);
+    const plannedCents = items.reduce(
+      (s, i) =>
+        s +
+        plannedValueCents(
+          i.budgetCents,
+          i.plannedStartOn,
+          i.plannedFinishOn,
+          asOf,
+        ),
+      0,
+    );
+    out.push({ on, plannedCents, earnedCents: earned, actualCents: actual });
+  }
+  if (out.length && out[out.length - 1]!.plannedCents !== bac) {
+    // Guarantee the terminal PV equals BAC when the window reaches every finish.
+    const last = out[out.length - 1]!;
+    const allFinished = items.every((i) => i.plannedFinishOn <= toOn);
+    if (allFinished) last.plannedCents = bac;
+  }
+  return out;
 }
 
 export const usdShort = (cents: number) => {
@@ -208,6 +428,11 @@ export const pct = (n: number) => `${Math.round(n * 100)}%`;
 export const idx = (n: number | null) => (n === null ? "—" : n.toFixed(2));
 export const qty = (milli: number) =>
   (milli / 1000).toLocaleString("en-US", { maximumFractionDigits: 2 });
+export const mh = (milli: number) =>
+  (milli / 1000).toLocaleString("en-US", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
 
 /** Default heavy-civil crew rate used when posting foreman hours to actuals. */
 export const DEFAULT_LABOR_RATE_CENTS = 8500;

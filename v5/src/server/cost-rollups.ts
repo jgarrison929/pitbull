@@ -1,8 +1,8 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { requireDb } from "@/db";
-import { costItems } from "@/db/schema";
-import type { Rollup } from "@/lib/ev";
+import { costItems, progressClaims } from "@/db/schema";
+import { rollupFromTotals, type Rollup } from "@/lib/ev";
 
 /** Current Budget total (labor+material+equipment+sub). EV and portfolio read this. */
 const cbTotalSql = sql`(
@@ -11,17 +11,19 @@ const cbTotalSql = sql`(
 )`;
 
 /**
- * Units earn from claimed_installed / budget_qty (main EV); milestones/PM % from
- * claimed_percent. Matches earnedCentsOf in lib/ev.
+ * Units earn from claimed_installed / budget_qty, capped at BAC; milestones/PM %
+ * from claimed_percent. Matches earnedCentsOf in lib/ev.
  */
-/** Per-leaf earned cents — round() matches Math.round in earnedCentsOf. */
 const earnedSql = sql`
   case
     when ${costItems.evMethod} = 'units' and ${costItems.budgetQtyMilli} > 0
-      then round(
-        (${cbTotalSql}::numeric * ${costItems.claimedInstalledQtyMilli})
-          / ${costItems.budgetQtyMilli}
-      )::bigint
+      then least(
+        ${cbTotalSql},
+        round(
+          (${cbTotalSql}::numeric * ${costItems.claimedInstalledQtyMilli})
+            / ${costItems.budgetQtyMilli}
+        )::bigint
+      )
     else round(
       (${cbTotalSql}::numeric * ${costItems.claimedPercentMilli}) / 1000
     )::bigint
@@ -31,19 +33,37 @@ const earnedSql = sql`
  * Linear PV as-of a calendar date (UTC), matching plannedValueCents in lib/ev.
  * Pass asOfIso as YYYY-MM-DD.
  */
-function plannedAsOfSql(asOfIso: string) {
+function plannedAsOfSql(asOfIso: string | ReturnType<typeof sql>) {
+  const asOf = typeof asOfIso === "string" ? sql`${asOfIso}::date` : asOfIso;
   return sql`
     case
       when ${costItems.plannedFinishOn} <= ${costItems.plannedStartOn}
         then ${cbTotalSql}
-      when ${asOfIso}::date <= ${costItems.plannedStartOn} then 0
-      when ${asOfIso}::date >= ${costItems.plannedFinishOn}
+      when ${asOf} <= ${costItems.plannedStartOn} then 0
+      when ${asOf} >= ${costItems.plannedFinishOn}
         then ${cbTotalSql}
       else round(
         ${cbTotalSql}::numeric
-          * (${asOfIso}::date - ${costItems.plannedStartOn})::numeric
+          * (${asOf} - ${costItems.plannedStartOn})::numeric
           / (${costItems.plannedFinishOn} - ${costItems.plannedStartOn})::numeric
       )::bigint
+    end`;
+}
+
+/**
+ * Per-leaf EAC. Matches itemForecast in lib/ev:
+ * current_budget → AC + (BAC − EV); average_performance → AC×BAC÷EV (else fallback).
+ */
+function eacSql(earned: ReturnType<typeof sql>) {
+  return sql`
+    case
+      when ${costItems.forecastMethod} = 'average_performance'
+        and (${earned}) > 0
+        then round(
+          (${costItems.lockedActualCents}::numeric * ${cbTotalSql})
+            / (${earned})::numeric
+        )::bigint
+      else ${costItems.lockedActualCents} + (${cbTotalSql} - (${earned}))
     end`;
 }
 
@@ -52,29 +72,33 @@ function toRollup(r: {
   planned_cents: number;
   earned_cents: number;
   actual_cents: number;
+  eac_cents: number;
+  etc_cents?: number;
+  since_lock_actual_cents?: number;
+  since_lock_planned_cents?: number;
 }): Rollup {
-  const budgetCents = Number(r.budget_cents);
-  const plannedCents = Number(r.planned_cents);
-  const earnedCents = Number(r.earned_cents);
-  const actualCents = Number(r.actual_cents);
-  const cpi = actualCents === 0 ? 1 : earnedCents / actualCents;
-  return {
-    budgetCents,
-    plannedCents,
-    earnedCents,
-    actualCents,
-    costVarianceCents: earnedCents - actualCents,
-    scheduleVarianceCents: earnedCents - plannedCents,
-    percent: budgetCents === 0 ? 0 : earnedCents / budgetCents,
-    cpi,
-    spi: plannedCents === 0 ? 1 : earnedCents / plannedCents,
-    eacCents: Math.round(budgetCents / cpi),
-  };
+  return rollupFromTotals({
+    budgetCents: Number(r.budget_cents),
+    plannedCents: Number(r.planned_cents),
+    earnedCents: Number(r.earned_cents),
+    actualCents: Number(r.actual_cents),
+    eacCents: Number(r.eac_cents),
+    etcCents: Number(r.etc_cents ?? Number(r.eac_cents) - Number(r.actual_cents)),
+    sinceLockActualCents: Number(r.since_lock_actual_cents ?? 0),
+    sinceLockPlannedCents: Number(r.since_lock_planned_cents ?? 0),
+  });
+}
+
+/** ISO date (UTC) for an as-of Date. */
+function isoDay(d: Date) {
+  return d.toISOString().slice(0, 10);
 }
 
 /**
  * Job EV roll-up in SQL over leaf cost codes only. Summary WBS rows are excluded;
  * their children carry the money. Target: &lt;500ms at 10k leaves.
+ *
+ * EV, AC, and PV share one cutoff = last locked period (or `asOf` when never locked).
  */
 export async function jobRollupSql(
   companyId: string,
@@ -82,19 +106,41 @@ export async function jobRollupSql(
   asOf = new Date(),
 ): Promise<Rollup> {
   const db = requireDb();
-  const asOfIso = asOf.toISOString().slice(0, 10);
-  const planned = plannedAsOfSql(asOfIso);
+  const todayIso = isoDay(asOf);
+  const [lock] = await db.execute<{ locked_on: string | null }>(sql`
+    select (${progressClaims.lockedAt} at time zone 'UTC')::date::text as locked_on
+    from ${progressClaims}
+    where ${progressClaims.companyId} = ${companyId}
+      and ${progressClaims.jobId} = ${jobId}
+      and ${progressClaims.status} = 'locked'
+    order by ${progressClaims.lockedAt} desc
+    limit 1`);
+  const cutoffIso = lock?.locked_on ?? todayIso;
+  const plannedCutoff = plannedAsOfSql(cutoffIso);
+  const plannedLive = plannedAsOfSql(todayIso);
+  const earned = earnedSql;
+  const eac = eacSql(earned);
   const [r] = await db.execute<{
     budget_cents: number;
     planned_cents: number;
     earned_cents: number;
     actual_cents: number;
+    eac_cents: number;
+    etc_cents: number;
+    since_lock_actual_cents: number;
+    since_lock_planned_cents: number;
   }>(sql`
     select
       coalesce(sum(${cbTotalSql}), 0)::bigint as budget_cents,
-      coalesce(sum(${planned}), 0)::bigint as planned_cents,
-      coalesce(sum(${earnedSql}), 0)::bigint as earned_cents,
-      coalesce(sum(${costItems.actualCents}), 0)::bigint as actual_cents
+      coalesce(sum(${plannedCutoff}), 0)::bigint as planned_cents,
+      coalesce(sum(${earned}), 0)::bigint as earned_cents,
+      coalesce(sum(${costItems.lockedActualCents}), 0)::bigint as actual_cents,
+      coalesce(sum(${eac}), 0)::bigint as eac_cents,
+      coalesce(sum(${eac} - ${costItems.lockedActualCents}), 0)::bigint as etc_cents,
+      coalesce(sum(${costItems.actualCents} - ${costItems.lockedActualCents}), 0)::bigint
+        as since_lock_actual_cents,
+      coalesce(sum(${plannedLive} - ${plannedCutoff}), 0)::bigint
+        as since_lock_planned_cents
     from ${costItems}
     where ${costItems.companyId} = ${companyId}
       and ${costItems.jobId} = ${jobId}
@@ -109,22 +155,43 @@ export async function pathRollupSql(
   pathPrefix: string,
   asOf = new Date(),
 ): Promise<
-  Pick<Rollup, "budgetCents" | "earnedCents" | "actualCents" | "plannedCents">
+  Pick<
+    Rollup,
+    | "budgetCents"
+    | "earnedCents"
+    | "actualCents"
+    | "plannedCents"
+    | "eacCents"
+    | "etcCents"
+  >
 > {
   const db = requireDb();
-  const asOfIso = asOf.toISOString().slice(0, 10);
-  const planned = plannedAsOfSql(asOfIso);
+  const todayIso = isoDay(asOf);
+  const [lock] = await db.execute<{ locked_on: string | null }>(sql`
+    select (${progressClaims.lockedAt} at time zone 'UTC')::date::text as locked_on
+    from ${progressClaims}
+    where ${progressClaims.companyId} = ${companyId}
+      and ${progressClaims.jobId} = ${jobId}
+      and ${progressClaims.status} = 'locked'
+    order by ${progressClaims.lockedAt} desc
+    limit 1`);
+  const cutoffIso = lock?.locked_on ?? todayIso;
+  const planned = plannedAsOfSql(cutoffIso);
+  const earned = earnedSql;
+  const eac = eacSql(earned);
   const [r] = await db.execute<{
     budget_cents: number;
     planned_cents: number;
     earned_cents: number;
     actual_cents: number;
+    eac_cents: number;
   }>(sql`
     select
       coalesce(sum(${cbTotalSql}), 0)::bigint as budget_cents,
       coalesce(sum(${planned}), 0)::bigint as planned_cents,
-      coalesce(sum(${earnedSql}), 0)::bigint as earned_cents,
-      coalesce(sum(${costItems.actualCents}), 0)::bigint as actual_cents
+      coalesce(sum(${earned}), 0)::bigint as earned_cents,
+      coalesce(sum(${costItems.lockedActualCents}), 0)::bigint as actual_cents,
+      coalesce(sum(${eac}), 0)::bigint as eac_cents
     from ${costItems}
     where ${costItems.companyId} = ${companyId}
       and ${costItems.jobId} = ${jobId}
@@ -135,6 +202,8 @@ export async function pathRollupSql(
     plannedCents: Number(r.planned_cents),
     earnedCents: Number(r.earned_cents),
     actualCents: Number(r.actual_cents),
+    eacCents: Number(r.eac_cents),
+    etcCents: Number(r.eac_cents) - Number(r.actual_cents),
   };
 }
 
@@ -144,22 +213,47 @@ export async function portfolioRollupsSql(
   asOf = new Date(),
 ) {
   const db = requireDb();
-  const asOfIso = asOf.toISOString().slice(0, 10);
-  const planned = plannedAsOfSql(asOfIso);
+  const todayIso = isoDay(asOf);
+  const plannedLive = plannedAsOfSql(todayIso);
+  // Per-job cutoff = last lock date; fall back to today when never locked.
+  const cutoffDate = sql`coalesce(locks.locked_on, ${todayIso}::date)`;
+  const plannedCutoff = plannedAsOfSql(cutoffDate);
+  const earned = earnedSql;
+  const eac = eacSql(earned);
   return db.execute<{
     job_id: string;
     budget_cents: number;
     planned_cents: number;
     earned_cents: number;
     actual_cents: number;
+    eac_cents: number;
+    etc_cents: number;
+    since_lock_actual_cents: number;
+    since_lock_planned_cents: number;
   }>(sql`
+    with locks as (
+      select distinct on (${progressClaims.jobId})
+        ${progressClaims.jobId} as job_id,
+        (${progressClaims.lockedAt} at time zone 'UTC')::date as locked_on
+      from ${progressClaims}
+      where ${progressClaims.companyId} = ${companyId}
+        and ${progressClaims.status} = 'locked'
+      order by ${progressClaims.jobId}, ${progressClaims.lockedAt} desc
+    )
     select
       ${costItems.jobId} as job_id,
       coalesce(sum(${cbTotalSql}), 0)::bigint as budget_cents,
-      coalesce(sum(${planned}), 0)::bigint as planned_cents,
-      coalesce(sum(${earnedSql}), 0)::bigint as earned_cents,
-      coalesce(sum(${costItems.actualCents}), 0)::bigint as actual_cents
+      coalesce(sum(${plannedCutoff}), 0)::bigint as planned_cents,
+      coalesce(sum(${earned}), 0)::bigint as earned_cents,
+      coalesce(sum(${costItems.lockedActualCents}), 0)::bigint as actual_cents,
+      coalesce(sum(${eac}), 0)::bigint as eac_cents,
+      coalesce(sum(${eac} - ${costItems.lockedActualCents}), 0)::bigint as etc_cents,
+      coalesce(sum(${costItems.actualCents} - ${costItems.lockedActualCents}), 0)::bigint
+        as since_lock_actual_cents,
+      coalesce(sum(${plannedLive} - ${plannedCutoff}), 0)::bigint
+        as since_lock_planned_cents
     from ${costItems}
+    left join locks on locks.job_id = ${costItems.jobId}
     where ${costItems.companyId} = ${companyId}
       and ${costItems.isLeaf} = true
     group by ${costItems.jobId}`);

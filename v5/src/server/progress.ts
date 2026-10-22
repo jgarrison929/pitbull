@@ -513,6 +513,11 @@ export async function lockProgressClaim(
         ),
       );
     const byItem = new Map(existing.map((l) => [l.costItemId, l]));
+    /** Fresh snaps keyed by cost item — next draft must use these, not pre-lock rows. */
+    const lockedSnaps = new Map<
+      string,
+      { percentMilli: number; installedQtyMilli: number }
+    >();
 
     for (const item of items) {
       const ms = milestones.filter((m) => m.costItemId === item.id);
@@ -538,6 +543,12 @@ export async function lockProgressClaim(
           ? `${snap.derivation} — ${latestLog.reason}`
           : snap.derivation;
       const lockedDerivation = `${derivation} (locked ${claim.periodLabel})`;
+      const claimedInstalled =
+        item.evMethod === "units" ? item.installedQtyMilli : 0;
+      lockedSnaps.set(item.id, {
+        percentMilli: snap.percentMilli,
+        installedQtyMilli: claimedInstalled,
+      });
 
       const row = byItem.get(item.id);
       if (row) {
@@ -565,8 +576,9 @@ export async function lockProgressClaim(
         .update(costItems)
         .set({
           claimedPercentMilli: snap.percentMilli,
-          claimedInstalledQtyMilli:
-            item.evMethod === "units" ? item.installedQtyMilli : 0,
+          claimedInstalledQtyMilli: claimedInstalled,
+          // Freeze AC at this lock so CPI/EAC share one cutoff with EV and PV.
+          lockedActualCents: item.actualCents,
           earnDerivation: lockedDerivation,
           plannedCents: plannedValueCents(
             currentBudgetCents(item),
@@ -595,13 +607,14 @@ export async function lockProgressClaim(
       lockedById: null,
     });
     for (const item of items) {
+      const snap = lockedSnaps.get(item.id)!;
       await tx.insert(progressClaimLines).values({
         id: randomUUID(),
         companyId,
         claimId: nextId,
         costItemId: item.id,
-        claimedPercentMilli: item.claimedPercentMilli,
-        installedQtyMilli: item.installedQtyMilli,
+        claimedPercentMilli: snap.percentMilli,
+        installedQtyMilli: snap.installedQtyMilli,
         derivation: "Draft — will refresh from field on lock",
       });
     }

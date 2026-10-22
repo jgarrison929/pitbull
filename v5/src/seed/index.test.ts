@@ -23,11 +23,12 @@ function asLine(c: (typeof rows.costItems)[number]) {
     claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
     budgetCents,
     plannedCents: c.plannedCents!,
-    actualCents: c.actualCents!,
+    actualCents: c.lockedActualCents ?? c.actualCents!,
     budgetMhPerUnitMilli: c.budgetMhPerUnitMilli!,
     claimedPercentMilli: c.claimedPercentMilli ?? 0,
     earnDerivation: c.earnDerivation ?? "",
     evMethod: c.evMethod ?? "units",
+    forecastMethod: c.forecastMethod ?? "current_budget",
   });
 }
 
