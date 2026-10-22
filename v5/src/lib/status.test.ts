@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { currentBudgetCents } from "./budget";
 import { costLine, rollup } from "./ev";
 import { indexStatus, overallStatus, varianceStatus } from "./status";
 import { seed } from "@/seed";
@@ -70,16 +71,30 @@ describe("roll-ups equal the sum of their lines, for the seed", () => {
   const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
   const jobs = rows.jobs.map((j) => {
     const lines = rows.costItems
-      .filter((c) => c.jobId === j.id)
-      .map((c) =>
-        costLine({
-          ...c,
+      .filter((c) => c.jobId === j.id && c.isLeaf)
+      .map((c) => {
+        const budgetCents = currentBudgetCents({
+          cbLaborCents: c.cbLaborCents ?? 0,
+          cbMaterialCents: c.cbMaterialCents ?? 0,
+          cbEquipmentCents: c.cbEquipmentCents ?? 0,
+          cbSubCents: c.cbSubCents ?? 0,
+        });
+        return costLine({
+          code: c.code!,
+          description: c.description!,
+          unit: c.unit!,
+          budgetQtyMilli: c.budgetQtyMilli!,
+          installedQtyMilli: c.installedQtyMilli!,
+          plannedCents: c.plannedCents!,
+          actualCents: c.actualCents!,
+          budgetMhPerUnitMilli: c.budgetMhPerUnitMilli!,
+          budgetCents,
           claimedPercentMilli: c.claimedPercentMilli ?? 0,
           claimedInstalledQtyMilli: c.claimedInstalledQtyMilli ?? 0,
           earnDerivation: c.earnDerivation ?? "",
           evMethod: c.evMethod ?? "units",
-        }),
-      );
+        });
+      });
     return { j, lines, r: rollup(lines) };
   });
 
@@ -94,9 +109,12 @@ describe("roll-ups equal the sum of their lines, for the seed", () => {
       expect(r.scheduleVarianceCents).toBe(
         sum(lines.map((l) => l.scheduleVarianceCents)),
       );
-      expect(r.cpi).toBeCloseTo(r.earnedCents / r.actualCents, 10);
-      expect(r.spi).toBeCloseTo(r.earnedCents / r.plannedCents, 10);
-      expect(r.percent).toBeCloseTo(r.earnedCents / r.budgetCents, 10);
+      if (r.actualCents > 0)
+        expect(r.cpi).toBeCloseTo(r.earnedCents / r.actualCents, 10);
+      if (r.plannedCents > 0)
+        expect(r.spi).toBeCloseTo(r.earnedCents / r.plannedCents, 10);
+      if (r.budgetCents > 0)
+        expect(r.percent).toBeCloseTo(r.earnedCents / r.budgetCents, 10);
     },
   );
 

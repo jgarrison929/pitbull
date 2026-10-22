@@ -38,6 +38,11 @@ export const evMethodEnum = pgEnum("ev_method", [
 ]);
 export const claimStatusEnum = pgEnum("claim_status", ["draft", "locked"]);
 export const costEntryKindEnum = pgEnum("cost_entry_kind", ["labor", "other"]);
+/** Estimate lifecycle: draft until PM Approve freezes Original Budget. */
+export const estimateStatusEnum = pgEnum("estimate_status", [
+  "draft",
+  "approved",
+]);
 
 export const companies = pgTable(
   "companies",
@@ -96,6 +101,10 @@ export const jobs = pgTable(
     pmName: text("pm_name").notNull(),
     finishOn: date("finish_on").notNull(),
     contractCents: money("contract_cents"),
+    /** draft until Approve freezes Original Budget; then approved. */
+    estimateStatus: estimateStatusEnum("estimate_status")
+      .notNull()
+      .default("draft"),
   },
   (t) => [index("jobs_company_idx").on(t.companyId)],
 );
@@ -129,13 +138,31 @@ export const costItems = pgTable(
      * Live qty above this is shown as pending until the next lock.
      */
     claimedInstalledQtyMilli: milli("claimed_installed_qty_milli").default(0),
-    budgetCents: money("budget_cents"),
+    /**
+     * Three value sets × four categories (labor/material/equipment/sub), integer cents.
+     * Original Budget (ob_*) is frozen only by Approve. Current Budget (cb_*) starts
+     * equal to OB and later moves with approved COs. Current Estimate (ce_*) is editable.
+     * EV / portfolio / job KPIs read Current Budget (sum of cb_*).
+     */
+    obLaborCents: money("ob_labor_cents").default(0),
+    obMaterialCents: money("ob_material_cents").default(0),
+    obEquipmentCents: money("ob_equipment_cents").default(0),
+    obSubCents: money("ob_sub_cents").default(0),
+    cbLaborCents: money("cb_labor_cents").default(0),
+    cbMaterialCents: money("cb_material_cents").default(0),
+    cbEquipmentCents: money("cb_equipment_cents").default(0),
+    cbSubCents: money("cb_sub_cents").default(0),
+    ceLaborCents: money("ce_labor_cents").default(0),
+    ceMaterialCents: money("ce_material_cents").default(0),
+    ceEquipmentCents: money("ce_equipment_cents").default(0),
+    ceSubCents: money("ce_sub_cents").default(0),
     /** Planned start/finish for linear time-phased PV. */
     plannedStartOn: date("planned_start_on").notNull(),
     plannedFinishOn: date("planned_finish_on").notNull(),
     /**
      * Denormalized planned value to date (from planned_start/finish).
      * Reads recompute as-of today; submit/lock also refresh the stored value.
+     * Based on Current Budget total.
      */
     plannedCents: money("planned_cents"),
     /** Denormalized sum of cost_entries for this item. */

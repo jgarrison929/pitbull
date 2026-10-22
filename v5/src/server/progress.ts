@@ -12,6 +12,7 @@ import {
   progressClaimLines,
   progressClaims,
 } from "@/db/schema";
+import { currentBudgetCents } from "@/lib/budget";
 import {
   DEFAULT_LABOR_RATE_CENTS,
   laborCents,
@@ -220,7 +221,7 @@ async function refreshCostItemActuals(
     );
   if (!item) return;
   const plannedCents = plannedValueCents(
-    item.budgetCents,
+    currentBudgetCents(item),
     item.plannedStartOn,
     item.plannedFinishOn,
     asOf,
@@ -345,7 +346,7 @@ export async function lockProgressClaim(
             item.evMethod === "units" ? item.installedQtyMilli : 0,
           earnDerivation: lockedDerivation,
           plannedCents: plannedValueCents(
-            item.budgetCents,
+            currentBudgetCents(item),
             item.plannedStartOn,
             item.plannedFinishOn,
             now,

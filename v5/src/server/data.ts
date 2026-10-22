@@ -11,6 +11,7 @@ import {
   pmPercentLogs,
   users,
 } from "@/db/schema";
+import { currentBudgetCents } from "@/lib/budget";
 import {
   costLine,
   plannedValueCents,
@@ -29,17 +30,35 @@ function rollupFromSql(r: Rollup) {
   return { ...r, status: overallStatus(r) };
 }
 
-/** PV advances by calendar date — recompute as-of today on every read. */
-function lineAsOfToday(item: ItemRow, asOf: Date) {
-  return costLine({
-    ...item,
+/** Map a cost-item row to EV input: budgetCents = Current Budget total. Keeps id for pickers. */
+function toCostLineInput(item: ItemRow, asOf: Date) {
+  const budgetCents = currentBudgetCents(item);
+  return {
+    id: item.id,
+    code: item.code,
+    description: item.description,
+    unit: item.unit,
+    budgetQtyMilli: item.budgetQtyMilli,
+    installedQtyMilli: item.installedQtyMilli,
+    claimedInstalledQtyMilli: item.claimedInstalledQtyMilli ?? 0,
+    budgetCents,
     plannedCents: plannedValueCents(
-      item.budgetCents,
+      budgetCents,
       item.plannedStartOn,
       item.plannedFinishOn,
       asOf,
     ),
-  });
+    actualCents: item.actualCents,
+    budgetMhPerUnitMilli: item.budgetMhPerUnitMilli,
+    claimedPercentMilli: item.claimedPercentMilli ?? 0,
+    evMethod: item.evMethod,
+    earnDerivation: item.earnDerivation,
+  };
+}
+
+/** PV advances by calendar date — recompute as-of today on every read. */
+function lineAsOfToday(item: ItemRow, asOf: Date) {
+  return costLine(toCostLineInput(item, asOf));
 }
 
 /** Leaf lines only, for EV math and plan-line pickers. */

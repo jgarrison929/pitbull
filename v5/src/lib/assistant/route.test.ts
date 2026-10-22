@@ -17,6 +17,11 @@ const jobs = [
     name: "I-5 Culvert & Drainage Rehab",
     shortName: "I-5 Culverts",
   },
+  {
+    number: "26-010",
+    name: "Harbor Side Abutment — Phase 1",
+    shortName: "Harbor Abutment",
+  },
 ];
 
 describe("assistant router", () => {
@@ -96,6 +101,16 @@ describe("assistant router", () => {
       "Lock the progress claim on 25-031",
       "progressClaim.lock",
       { job: "25-031" },
+    ],
+    [
+      "Approve the estimate on Harbor Abutment",
+      "estimate.approve",
+      { job: "26-010" },
+    ],
+    [
+      "approve estimate for 26-010",
+      "estimate.approve",
+      { job: "26-010" },
     ],
     [
       "change the pour to 80 man-hours",

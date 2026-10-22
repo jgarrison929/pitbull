@@ -1,6 +1,15 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m2.1",
+    date: "2026-10-21",
+    items: [
+      "Cost items carry Original Budget, Current Budget, and Current Estimate — each split into labor, material, equipment, and sub (integer cents).",
+      "PM Approve estimate freezes Original Budget from the Current Estimate, sets Current Budget equal to Original, and writes an audit log. A second approve is refused.",
+      "Harbor Abutment (26-010) seeds as a draft estimate; EV, job, and portfolio KPIs read Current Budget.",
+    ],
+  },
+  {
     version: "5.0.0-m1.4",
     date: "2026-10-21",
     items: [
