@@ -2,6 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 
 const DELTA = 6_000_000;
 
+/** Must match SEED_JOB_NUMBERS in src/seed/history.ts (server-only — do not import). */
+const SEED_JOB_NUMBERS = ["24-118", "25-031", "24-077"] as const;
+
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
   await page.getByTestId(`role-${role}`).click();
@@ -47,6 +50,44 @@ async function assertNoPageOverflow(page: Page) {
     };
   });
   expect(scrollWidth).toBeLessThanOrEqual(Math.ceil(viewportWidth));
+}
+
+/**
+ * Stacked L/M/E/S rows must keep a gap between a value and the next label.
+ * Catches 2-col squeeze at ~320px where "$8,000.00" runs into "Material".
+ */
+async function assertCoStackCategorySpacing(page: Page) {
+  const stacks = page.getByTestId("co-lines-stack");
+  const count = await stacks.count();
+  if (count === 0) return;
+
+  for (let s = 0; s < count; s++) {
+    const bad = await stacks.nth(s).evaluate((stack) => {
+      const rows = [...stack.querySelectorAll("dl > div")];
+      for (let i = 0; i < rows.length - 1; i++) {
+        const dd = rows[i]?.querySelector("dd");
+        const nextDt = rows[i + 1]?.querySelector("dt");
+        if (!dd || !nextDt) continue;
+        const a = dd.getBoundingClientRect();
+        const b = nextDt.getBoundingClientRect();
+        const gapX = b.left - a.right;
+        const gapY = b.top - a.bottom;
+        // Same row (side-by-side): require horizontal gap.
+        if (Math.abs(a.top - b.top) < 2) {
+          if (gapX < 4) {
+            return `${dd.textContent}${nextDt.textContent} (gapX=${gapX})`;
+          }
+          continue;
+        }
+        // Stacked: require vertical gap (or clear horizontal separation).
+        if (gapY < 2 && gapX < 4) {
+          return `${dd.textContent}${nextDt.textContent} (gapY=${gapY})`;
+        }
+      }
+      return null;
+    });
+    expect(bad, `co-lines-stack[${s}] value ran into next label`).toBeNull();
+  }
 }
 
 test("PM approves priced CO-001; budget and EAC rise once", async ({
@@ -142,20 +183,39 @@ test("foreman cannot approve; reject or void moves nothing", async ({
   await expect(page.getByTestId("job-changes")).toContainText("Nothing moved");
 });
 
-test.describe("phone job page does not scroll sideways", () => {
-  test.use({
-    viewport: { width: 390, height: 844 },
-    isMobile: true,
-    hasTouch: true,
-  });
+const PHONE_ROLES = [
+  "pm",
+  "foreman",
+  "executive",
+  "superintendent",
+] as const;
 
-  for (const role of ["pm", "foreman", "executive"] as const) {
-    test(`25-031 as ${role}`, async ({ page }) => {
-      await signIn(page, role);
-      await page.goto("/app/jobs/25-031");
-      await expect(page.getByTestId("co-ledger")).toBeVisible();
-      await expect(page.getByTestId("co-lines-stack")).toBeVisible();
-      await assertNoPageOverflow(page);
+/** Widths already used for phone CO layout, plus 320 where category squeeze showed. */
+const PHONE_VIEWPORTS = [
+  { width: 390, height: 844 },
+  { width: 320, height: 568 },
+] as const;
+
+for (const viewport of PHONE_VIEWPORTS) {
+  test.describe(`phone job page ${viewport.width}px — overflow and CO stack`, () => {
+    test.use({
+      viewport: { ...viewport },
+      isMobile: true,
+      hasTouch: true,
     });
-  }
-});
+
+    for (const role of PHONE_ROLES) {
+      for (const job of SEED_JOB_NUMBERS) {
+        test(`${job} as ${role}`, async ({ page }) => {
+          await signIn(page, role);
+          await page.goto(`/app/jobs/${job}`);
+          await expect(page.getByTestId("co-ledger")).toBeVisible();
+          // Every seeded job has at least one lined CO → phone stack.
+          await expect(page.getByTestId("co-lines-stack").first()).toBeVisible();
+          await assertNoPageOverflow(page);
+          await assertCoStackCategorySpacing(page);
+        });
+      }
+    }
+  });
+}
