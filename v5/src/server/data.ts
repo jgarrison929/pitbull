@@ -9,6 +9,7 @@ import {
   dailyPlans,
   jobs,
   pmPercentLogs,
+  progressClaims,
   users,
 } from "@/db/schema";
 import { currentBudgetCents } from "@/lib/budget";
@@ -16,7 +17,9 @@ import {
   costLine,
   plannedValueCents,
   rollup,
+  rollupFromTotals,
   type CostLine,
+  type ForecastMethod,
   type Rollup,
 } from "@/lib/ev";
 import { overallStatus } from "@/lib/status";
@@ -30,9 +33,38 @@ function rollupFromSql(r: Rollup) {
   return { ...r, status: overallStatus(r) };
 }
 
-/** Map a cost-item row to EV input: budgetCents = Current Budget total. Keeps id for pickers. */
-function toCostLineInput(item: ItemRow, asOf: Date) {
+/** Last locked period date for a job (UTC calendar day), or null if never locked. */
+export async function lastLockDate(
+  companyId: string,
+  jobId: string,
+): Promise<Date | null> {
+  const db = requireDb();
+  const [row] = await db
+    .select({ lockedAt: progressClaims.lockedAt })
+    .from(progressClaims)
+    .where(
+      and(
+        eq(progressClaims.companyId, companyId),
+        eq(progressClaims.jobId, jobId),
+        eq(progressClaims.status, "locked"),
+      ),
+    )
+    .orderBy(desc(progressClaims.lockedAt))
+    .limit(1);
+  return row?.lockedAt ?? null;
+}
+
+/**
+ * Map a cost-item row to EV input at one cutoff.
+ * budgetCents = Current Budget. AC/PV/EV use the last lock; live deltas are separate.
+ */
+function toCostLineInput(
+  item: ItemRow,
+  cutoff: Date,
+  readAsOf: Date,
+) {
   const budgetCents = currentBudgetCents(item);
+  const lockedActual = item.lockedActualCents ?? 0;
   return {
     id: item.id,
     code: item.code,
@@ -46,24 +78,34 @@ function toCostLineInput(item: ItemRow, asOf: Date) {
       budgetCents,
       item.plannedStartOn,
       item.plannedFinishOn,
-      asOf,
+      cutoff,
     ),
-    actualCents: item.actualCents,
+    livePlannedCents: plannedValueCents(
+      budgetCents,
+      item.plannedStartOn,
+      item.plannedFinishOn,
+      readAsOf,
+    ),
+    actualCents: lockedActual,
+    liveActualCents: item.actualCents,
     budgetMhPerUnitMilli: item.budgetMhPerUnitMilli,
     claimedPercentMilli: item.claimedPercentMilli ?? 0,
     evMethod: item.evMethod,
+    forecastMethod: (item.forecastMethod ??
+      "current_budget") as ForecastMethod,
     earnDerivation: item.earnDerivation,
   };
 }
 
-/** PV advances by calendar date — recompute as-of today on every read. */
-function lineAsOfToday(item: ItemRow, asOf: Date) {
-  return costLine(toCostLineInput(item, asOf));
+function lineAtCutoff(item: ItemRow, cutoff: Date, readAsOf: Date) {
+  return costLine(toCostLineInput(item, cutoff, readAsOf));
 }
 
 /** Leaf lines only, for EV math and plan-line pickers. */
-function leafLines(items: ItemRow[], asOf: Date) {
-  return items.filter((i) => i.isLeaf).map((i) => lineAsOfToday(i, asOf));
+function leafLines(items: ItemRow[], cutoff: Date, readAsOf: Date) {
+  return items
+    .filter((i) => i.isLeaf)
+    .map((i) => lineAtCutoff(i, cutoff, readAsOf));
 }
 
 /**
@@ -86,25 +128,16 @@ export const getPortfolio = cache(async function getPortfolio(
   const portfolio = jobRows.map((job) => {
     const s = byJob.get(job.id);
     const r = rollupFromSql(
-      (() => {
-        const budgetCents = Number(s?.budget_cents ?? 0);
-        const plannedCents = Number(s?.planned_cents ?? 0);
-        const earnedCents = Number(s?.earned_cents ?? 0);
-        const actualCents = Number(s?.actual_cents ?? 0);
-        const cpi = actualCents === 0 ? 1 : earnedCents / actualCents;
-        return {
-          budgetCents,
-          plannedCents,
-          earnedCents,
-          actualCents,
-          costVarianceCents: earnedCents - actualCents,
-          scheduleVarianceCents: earnedCents - plannedCents,
-          percent: budgetCents === 0 ? 0 : earnedCents / budgetCents,
-          cpi,
-          spi: plannedCents === 0 ? 1 : earnedCents / plannedCents,
-          eacCents: Math.round(budgetCents / cpi),
-        } satisfies Rollup;
-      })(),
+      rollupFromTotals({
+        budgetCents: Number(s?.budget_cents ?? 0),
+        plannedCents: Number(s?.planned_cents ?? 0),
+        earnedCents: Number(s?.earned_cents ?? 0),
+        actualCents: Number(s?.actual_cents ?? 0),
+        eacCents: Number(s?.eac_cents ?? 0),
+        etcCents: Number(s?.etc_cents ?? 0),
+        sinceLockActualCents: Number(s?.since_lock_actual_cents ?? 0),
+        sinceLockPlannedCents: Number(s?.since_lock_planned_cents ?? 0),
+      }),
     );
     return {
       job,
@@ -126,6 +159,7 @@ export const getPortfolio = cache(async function getPortfolio(
       budgetMhPerUnitMilli: 0,
       claimedPercentMilli: Math.round(p.percent * 1000),
       evMethod: "units" as const,
+      forecastMethod: "current_budget" as const,
       earnDerivation: "",
       percent: p.percent,
       earnedCents: p.earnedCents,
@@ -136,6 +170,14 @@ export const getPortfolio = cache(async function getPortfolio(
       budgetCents: p.budgetCents,
       plannedCents: p.plannedCents,
       actualCents: p.actualCents,
+      eacCents: p.eacCents,
+      etcCents: p.etcCents,
+      overBudgetQtyMilli: 0,
+      earnedMhMilli: 0,
+      forecastFallback: false,
+      forecastDerivation: "",
+      sinceLockActualCents: p.sinceLockActualCents,
+      sinceLockPlannedCents: p.sinceLockPlannedCents,
     })),
   );
   return {
@@ -163,6 +205,7 @@ export async function resolveJobId(companyId: string, number: string) {
 /**
  * One job with its full WBS (ordered by path) and leaf EV lines.
  * Job-scoped reads — does not pull other jobs' cost items.
+ * EV/AC/PV share the last lock date; live changes since lock are on each line.
  */
 export async function getJob(
   companyId: string,
@@ -176,6 +219,8 @@ export async function getJob(
     .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
     .limit(1);
   if (!job) return null;
+  const lockAt = await lastLockDate(companyId, job.id);
+  const cutoff = lockAt ?? asOf;
   const items = await db
     .select()
     .from(costItems)
@@ -183,13 +228,15 @@ export async function getJob(
       and(eq(costItems.companyId, companyId), eq(costItems.jobId, job.id)),
     )
     .orderBy(asc(costItems.path));
-  const lines = leafLines(items, asOf);
+  const lines = leafLines(items, cutoff, asOf);
   // Prefer JS leaf rollup so claimed-installed / as-of PV match costLine exactly.
   const r = rollup(lines);
   return {
     job,
     items,
     lines,
+    lockAt,
+    cutoff,
     ...r,
     status: overallStatus(r),
   };

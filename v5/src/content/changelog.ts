@@ -1,6 +1,15 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m4.0",
+    date: "2026-10-22",
+    items: [
+      "EV, AC, and PV share one cutoff at the last locked period; cost and planned-value changes since that lock show separately so on-plan work keeps SPI at 1.00.",
+      "Per-item forecasts: Current Budget (AC + BAC − EV) or Average Performance (AC ÷ % complete), with job EAC as their sum and ETC on the job tiles.",
+      "Units earned value is capped at Current Budget; earned man-hours sit next to installed quantity. Hand-computed fixtures cover every formula.",
+    ],
+  },
+  {
     version: "5.0.0-m3",
     date: "2026-10-21",
     items: [

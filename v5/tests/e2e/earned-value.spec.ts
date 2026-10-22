@@ -10,12 +10,18 @@ const pourLine = (page: Page) =>
   page.locator('[data-testid="plan-line"][data-code="04-210"]');
 
 async function actualCents(page: Page) {
-  // Exact cents from Money's data-cents — usdShort is too coarse for +$1k deltas.
+  // Cutoff AC (last lock). Exact cents from Money's data-cents.
   return Number(
     await page.getByTestId("job-actual").locator("[data-cents]").getAttribute(
       "data-cents",
     ),
   );
+}
+
+async function sinceLockActualCents(page: Page) {
+  const el = page.getByTestId("job-actual-since-lock").locator("[data-cents]");
+  if ((await el.count()) === 0) return 0;
+  return Number(await el.getAttribute("data-cents"));
 }
 
 /** Issue plan, report pour actuals, leave status reported (no cost post yet). */
@@ -86,11 +92,15 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await expect(page.getByTestId("report-qty-04-210")).toHaveValue("40");
 
   await approveAsSuperintendent(page);
-  const actualAfterApprove = await actualCents(page);
-  expect(actualAfterApprove).toBeGreaterThan(actualBefore);
+  // One cutoff: tile AC stays at last lock; approved cost shows as since-lock.
+  expect(await actualCents(page)).toBe(actualBefore);
+  const sinceAfterApprove = await sinceLockActualCents(page);
+  expect(sinceAfterApprove).toBeGreaterThan(0);
+  // 80 MH @ $85/h on the pour → +$6,800 since lock (other lines may also post).
+  expect(sinceAfterApprove).toBeGreaterThanOrEqual(80 * 85_00);
   await expect(page.getByTestId("pending-04-210").first()).toContainText("40");
 
-  // Switch to PM and lock so claimed installed moves and EV updates.
+  // Switch to PM and lock so claimed installed moves and EV/AC update at the new cutoff.
   await signIn(page, "pm");
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("lock-claim")).toBeVisible();
@@ -104,6 +114,9 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   expect(earnedAfter).not.toBe(earnedBefore);
   expect(cpiAfter).not.toBe(cpiBefore);
   await expect(page.getByTestId("job-cpi")).toContainText(/\d\.\d{2}/);
+  // After lock, cutoff AC absorbs the approved cost; since-lock clears.
+  expect(await actualCents(page)).toBe(actualBefore + sinceAfterApprove);
+  expect(await sinceLockActualCents(page)).toBe(0);
 });
 
 test("assistant reports actuals that differ from the plan (pending until approve)", async ({
