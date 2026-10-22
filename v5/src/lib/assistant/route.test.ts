@@ -128,6 +128,71 @@ describe("assistant router", () => {
       { job: "26-010" },
     ],
     [
+      "Approve change order CO-001 on 25-031",
+      "changeOrder.approve",
+      { job: "25-031", changeOrder: "CO-001" },
+    ],
+    [
+      "Approve change order CO-001 on Cedar Creek",
+      "changeOrder.approve",
+      { job: "25-031", changeOrder: "CO-001" },
+    ],
+    [
+      "Reject CO-001 on Cedar Creek because Owner declined",
+      "changeOrder.reject",
+      { job: "25-031", changeOrder: "CO-001", reason: "Owner declined" },
+    ],
+    [
+      "Void PCO-2 on 24-118 because duplicate",
+      "changeOrder.void",
+      { job: "24-118", changeOrder: "PCO-2", reason: "duplicate" },
+    ],
+    [
+      "Raise a change order on 25-031: Owner-added retaining wall, north approach",
+      "changeOrder.create",
+      {
+        job: "25-031",
+        title: "Owner-added retaining wall, north approach",
+      },
+    ],
+    [
+      "Raise a change order on Cedar Creek: Added guardrail at the east approach",
+      "changeOrder.create",
+      {
+        job: "25-031",
+        title: "Added guardrail at the east approach",
+      },
+    ],
+    [
+      "Price CO-001 on 25-031: new 91-100 Retaining wall LS labor 18,500 material 23,250 equipment 6,100 sub 12,150; 04-210 material -2,000 qty 10",
+      "changeOrder.price",
+      {
+        job: "25-031",
+        changeOrder: "CO-001",
+        coLines: [
+          {
+            code: "91-100",
+            description: "Retaining wall",
+            unit: "LS",
+            labor: "18,500",
+            material: "23,250",
+            equipment: "6,100",
+            sub: "12,150",
+          },
+          {
+            code: "04-210",
+            material: "-2,000",
+            qty: "10",
+          },
+        ],
+      },
+    ],
+    [
+      "Show change orders on Cedar Creek",
+      "changeOrder.show",
+      { job: "25-031" },
+    ],
+    [
       "change the pour to 80 man-hours",
       "dailyPlan.updateLine",
       {

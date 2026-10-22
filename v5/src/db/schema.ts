@@ -5,6 +5,7 @@ import {
   type AnyPgColumn,
   bigint,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -13,6 +14,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -57,6 +59,22 @@ export const costEntryKindEnum = pgEnum("cost_entry_kind", ["labor", "other"]);
 export const estimateStatusEnum = pgEnum("estimate_status", [
   "draft",
   "approved",
+]);
+/** Change-order lifecycle. Legal moves live in CO_TRANSITIONS (lib/change-order.ts). */
+export const coStatusEnum = pgEnum("co_status", [
+  "draft",
+  "priced",
+  "approved",
+  "rejected",
+  "voided",
+]);
+/** Commands that move a change order. One change_order_events row per accepted command. */
+export const coCommandEnum = pgEnum("co_command", [
+  "create",
+  "price",
+  "approve",
+  "reject",
+  "void",
 ]);
 
 export const companies = pgTable(
@@ -383,6 +401,121 @@ export const dailyPlanLines = pgTable(
     reportedHoursTenths: integer("reported_hours_tenths"),
   },
   (t) => [index("daily_plan_lines_plan_idx").on(t.planId)],
+);
+
+/**
+ * A change order revises a job's Current Budget after its estimate is approved.
+ * Original Budget never moves. Only server/change-orders.ts writes these three tables.
+ */
+export const changeOrders = pgTable(
+  "change_orders",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    /** Per-job sequence shown as CO-001. Allocated under the job row lock. */
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    /** Why the change exists (owner directive, design change, field condition). */
+    reason: text("reason").notNull().default(""),
+    status: coStatusEnum("status").notNull().default("draft"),
+    /** +1 on every price that changes lines. Screen approve names the revision it showed. */
+    revision: integer("revision").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("change_orders_job_number_uq").on(t.jobId, t.number),
+    index("change_orders_job_status_idx").on(t.jobId, t.status),
+  ],
+);
+
+/**
+ * One row per existing cost item a CO revises, or per new cost item it adds. Signed integer cents.
+ * Existing-item line: cost_item_id set, new_* null.
+ * New-item line: new_* set; cost_item_id is filled at approve with the leaf it created.
+ */
+export const changeOrderLines = pgTable(
+  "change_order_lines",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    changeOrderId: uuid("change_order_id")
+      .notNull()
+      .references(() => changeOrders.id, { onDelete: "cascade" }),
+    sort: integer("sort").notNull(),
+    costItemId: uuid("cost_item_id").references(() => costItems.id, {
+      onDelete: "cascade",
+    }),
+    newCode: text("new_code"),
+    newDescription: text("new_description"),
+    newUnit: text("new_unit"),
+    /** Summary row the new leaf goes under; null = root. */
+    newParentId: uuid("new_parent_id").references(() => costItems.id, {
+      onDelete: "cascade",
+    }),
+    laborCents: money("labor_cents").default(0),
+    materialCents: money("material_cents").default(0),
+    equipmentCents: money("equipment_cents").default(0),
+    subCents: money("sub_cents").default(0),
+    /** Signed budget-quantity delta. Scope added at the same unit rate keeps EV, so EAC moves by Δ. */
+    qtyDeltaMilli: milli("qty_delta_milli").default(0),
+    note: text("note").notNull().default(""),
+  },
+  (t) => [
+    index("change_order_lines_co_idx").on(t.changeOrderId),
+    index("change_order_lines_item_idx").on(t.costItemId),
+    /** One line per existing item per CO keeps CB − OB = Σ approved lines a plain sum. */
+    uniqueIndex("change_order_lines_co_item_uq")
+      .on(t.changeOrderId, t.costItemId)
+      .where(sql`${t.newCode} is null`),
+    uniqueIndex("change_order_lines_co_code_uq")
+      .on(t.changeOrderId, t.newCode)
+      .where(sql`${t.newCode} is not null`),
+    check(
+      "change_order_lines_target_ck",
+      sql`${t.costItemId} is not null or (${t.newCode} is not null and ${t.newDescription} is not null and ${t.newUnit} is not null)`,
+    ),
+  ],
+);
+
+/** Append-only transition log, written in the same transaction as the state change and budget move. */
+export const changeOrderEvents = pgTable(
+  "change_order_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: companyRef(),
+    changeOrderId: uuid("change_order_id")
+      .notNull()
+      .references(() => changeOrders.id, { onDelete: "cascade" }),
+    command: coCommandEnum("command").notNull(),
+    /** Null only for create. */
+    fromStatus: coStatusEnum("from_status"),
+    toStatus: coStatusEnum("to_status").notNull(),
+    revision: integer("revision").notNull(),
+    actorId: uuid("actor_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** Role at the time of the command. */
+    actorRole: roleEnum("actor_role").notNull(),
+    reason: text("reason").notNull().default(""),
+    /** CO total (Σ line cents) at this event. */
+    totalCents: money("total_cents"),
+    /** Approve only: the exact job CB and EAC moves this transaction wrote. */
+    cbDeltaCents: bigint("cb_delta_cents", { mode: "number" }),
+    eacDeltaCents: bigint("eac_delta_cents", { mode: "number" }),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("change_order_events_co_idx").on(t.changeOrderId, t.at),
+    /** One decision per CO even if a status check were bypassed. Lists TERMINAL_STATUSES (pinned by test). */
+    uniqueIndex("change_order_events_decision_uq")
+      .on(t.changeOrderId)
+      .where(sql`${t.toStatus} in ('approved', 'rejected', 'voided')`),
+  ],
 );
 
 /** Every typed action the assistant ran, so the rail can show its work. */

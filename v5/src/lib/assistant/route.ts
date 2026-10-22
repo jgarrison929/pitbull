@@ -1,6 +1,7 @@
 // Maps a typed or spoken request to one typed action. Deterministic, so tests and demos are repeatable.
 // A language model can replace this later; it would emit the same { action, args } shape.
 
+import type { CoCommandName, CoLineInput } from "@/lib/change-order";
 import type { LineInput } from "@/lib/plan-line";
 
 export type ActionName =
@@ -15,7 +16,9 @@ export type ActionName =
   | "progressClaim.lock"
   | "estimate.approve"
   | "costItem.setPmPercent"
-  | "costItem.setMilestone";
+  | "costItem.setMilestone"
+  | `changeOrder.${CoCommandName}`
+  | "changeOrder.show";
 
 /** Per-line actuals for dailyReport.post (screen form or assistant). */
 export type ReportActualArg = {
@@ -43,6 +46,12 @@ export type JobArgs = {
   complete?: boolean;
   /** dailyReport.post: optional per-line actuals (defaults = last report, else plan). */
   actuals?: ReportActualArg[];
+  /** changeOrder.*: "CO-001" or the change order's id (screen). */
+  changeOrder?: string;
+  title?: string;
+  /** changeOrder.approve: the revision the screen rendered. */
+  revision?: string;
+  coLines?: CoLineInput[];
 };
 export type Intent = { action: ActionName; args: JobArgs };
 
@@ -104,6 +113,11 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
       : undefined);
   const args: JobArgs = jobArg ? { job: jobArg } : {};
   const has = (re: RegExp) => re.test(text);
+
+  // Before plan-line, estimate, and daily-report rules. "Approve the change order"
+  // must not land on estimate.approve or dailyPlan.approve.
+  const changeOrder = routeChangeOrder(prompt, args);
+  if (changeOrder) return changeOrder;
 
   const change = parseChange(prompt);
   if (change) {
@@ -219,6 +233,102 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
   return null;
 }
 
+const CO_CUE = /\b(?:change orders?|pco|co[-\s]?\d+)\b/i;
+
+/** "CO-001", "co 3", "PCO-12". The domain parses it; this only lifts the token. */
+function changeOrderToken(prompt: string): string | undefined {
+  return prompt.match(/\b(?:pco|co)[-\s]*\d+\b/i)?.[0];
+}
+
+function because(prompt: string): string {
+  return prompt.match(/\b(?:because|reason)\s+(.+)$/i)?.[1]?.trim() ?? "";
+}
+
+function coTitle(prompt: string): string {
+  const i = prompt.indexOf(":");
+  if (i < 0) return "";
+  return prompt
+    .slice(i + 1)
+    .replace(/\s+\b(?:because|reason)\b[\s\S]*$/i, "")
+    .trim();
+}
+
+/**
+ * Change-order prompts. Cue is the words "change order", "PCO", or "CO-12",
+ * so "approve the estimate" and "change the pour" stay on their own actions.
+ */
+export function routeChangeOrder(prompt: string, args: JobArgs): Intent | null {
+  if (!CO_CUE.test(prompt)) return null;
+  const text = prompt.toLowerCase();
+  const token = changeOrderToken(prompt);
+  const reason = because(prompt);
+  const base: JobArgs = { ...args, ...(token ? { changeOrder: token } : {}) };
+  if (/\bapprov/.test(text))
+    return { action: "changeOrder.approve", args: base };
+  if (/\b(reject|decline)\b/.test(text))
+    return { action: "changeOrder.reject", args: { ...base, reason } };
+  if (/\b(void|withdraw|cancel)\b/.test(text))
+    return { action: "changeOrder.void", args: { ...base, reason } };
+  if (/\bpric/.test(text)) {
+    const coLines = parseCoLineSpecs(prompt);
+    return {
+      action: "changeOrder.price",
+      args: { ...base, ...(coLines.length ? { coLines } : {}) },
+    };
+  }
+  if (/\b(raise|new|open|create)\b/.test(text)) {
+    const title = coTitle(prompt);
+    return {
+      action: "changeOrder.create",
+      args: {
+        ...base,
+        ...(title ? { title } : {}),
+        ...(reason ? { reason } : {}),
+      },
+    };
+  }
+  return { action: "changeOrder.show", args: base };
+}
+
+/**
+ * The text after the first colon, split on ";".
+ * "new 91-100 Retaining wall LS labor 18,500 material 23,250; 04-210 material -2,000 qty 10"
+ * Amounts stay dollar strings. The domain parses cents and resolves the cost item.
+ */
+export function parseCoLineSpecs(prompt: string): CoLineInput[] {
+  const colon = prompt.indexOf(":");
+  if (colon < 0) return [];
+  const lines: CoLineInput[] = [];
+  for (const segment of prompt.slice(colon + 1).split(";")) {
+    const seg = segment.trim();
+    const head = seg.match(/^(new\s+)?(\d{2}-\d{3})\b\s*(.*)$/i);
+    if (!head) continue;
+    const line: CoLineInput = { code: head[2] };
+    let rest = head[3] ?? "";
+    rest = rest.replace(
+      /\b(labor|material|equipment|sub|qty)\s+(-?[\d,]+(?:\.\d+)?)/gi,
+      (_, cat: string, num: string) => {
+        line[cat.toLowerCase() as "labor" | "material" | "equipment" | "sub" | "qty"] =
+          num;
+        return " ";
+      },
+    );
+    if (head[1]) {
+      const words = rest.trim().split(/\s+/).filter(Boolean);
+      const unit = words.at(-1) ?? "";
+      if (/^[A-Za-z]{1,6}$/.test(unit)) {
+        line.unit = unit;
+        const description = words.slice(0, -1).join(" ").replace(/,\s*$/, "");
+        if (description) line.description = description;
+      } else if (words.length) {
+        line.description = words.join(" ");
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
 /** Phrases that mean an NN-NNN token is a cost code, not a job. */
 function hasCostCodeContext(text: string) {
   return /\b(set|log|record|code|line|cost code)\b/.test(text) &&
@@ -300,4 +410,6 @@ export const examples = [
   "Return the report for Cedar Creek because Recount pour 3",
   "Lock the progress claim on 25-031",
   "Approve the estimate on Harbor Abutment",
+  "Raise a change order on Cedar Creek: Added guardrail at the east approach",
+  "Approve change order CO-001 on Cedar Creek",
 ];

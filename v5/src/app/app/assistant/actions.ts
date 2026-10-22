@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { examples, route, type JobArgs } from "@/lib/assistant/route";
+import type { CoLineInput } from "@/lib/change-order";
 import { isActionName, run } from "@/server/assistant/actions";
 import { getPortfolio } from "@/server/data";
 import { requireUser } from "@/server/session";
@@ -32,7 +33,10 @@ export async function ask(
   return {};
 }
 
-export type ActionState = { summary?: string };
+export type ActionState = {
+  summary?: string;
+  errors?: Record<string, string>;
+};
 
 function argsFromForm(formData: FormData): JobArgs {
   const str = (k: string) => {
@@ -70,6 +74,33 @@ function argsFromForm(formData: FormData): JobArgs {
       qty: qtyByLine.has(lineId) ? qtyByLine.get(lineId) : Number.NaN,
     });
   }
+  const LINE_FIELDS = [
+    "costItemId",
+    "code",
+    "description",
+    "unit",
+    "parentCode",
+    "labor",
+    "material",
+    "equipment",
+    "sub",
+    "qty",
+    "note",
+  ] as const satisfies readonly (keyof CoLineInput)[];
+  // Blank amounts stay "" so the parser reports a bad number instead of dropping the field.
+  const coLines: CoLineInput[] = [];
+  for (const [key, value] of formData.entries()) {
+    if (typeof value !== "string") continue;
+    const m = key.match(/^coLine\[(\d+)\]\[(\w+)\]$/);
+    if (!m) continue;
+    const field = m[2] as (typeof LINE_FIELDS)[number];
+    if (!LINE_FIELDS.includes(field)) continue;
+    const i = Number(m[1]);
+    coLines[i] ??= {};
+    coLines[i][field] = value;
+  }
+  const dense: CoLineInput[] = [];
+  for (let i = 0; i < coLines.length; i++) dense.push(coLines[i] ?? {});
   return {
     job: str("job"),
     lineId: str("lineId"),
@@ -78,11 +109,15 @@ function argsFromForm(formData: FormData): JobArgs {
     percent: str("percent"),
     reason: str("reason"),
     milestoneId: str("milestoneId"),
+    changeOrder: str("changeOrder"),
+    title: str("title"),
+    revision: str("revision"),
     complete:
       completeRaw === undefined
         ? undefined
         : completeRaw === "true" || completeRaw === "1",
     ...(actuals.length ? { actuals } : {}),
+    ...(dense.length ? { coLines: dense } : {}),
   };
 }
 
@@ -98,7 +133,10 @@ async function executeFormAction(formData: FormData): Promise<ActionState> {
     argsFromForm(formData),
   );
   revalidatePath("/app", "layout");
-  return { summary: result.summary };
+  return {
+    summary: result.summary,
+    ...(result.errors ? { errors: result.errors } : {}),
+  };
 }
 
 /** Plain form action for lock / submit / report buttons. */

@@ -1,6 +1,15 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m5.0",
+    date: "2026-10-22",
+    items: [
+      "Change orders run draft, then priced, then approved or rejected. Void is available from draft or priced. A PM or executive can approve or reject. Reject and void move no money.",
+      "Approve adds the priced lines to Current Budget once. A new cost item starts with Original Budget at zero and Current Budget equal to the change, so the job's Current Budget and EAC both move by that amount. A second approve is refused. Original Budget stays where the estimate left it.",
+      "The seed raises six change orders in mixed states (draft, priced, approved, rejected, voided). Cedar Creek keeps one priced CO for the verify path. The job screen and the assistant run the same actions.",
+    ],
+  },
+  {
     version: "5.0.0-m4.0",
     date: "2026-10-22",
     items: [

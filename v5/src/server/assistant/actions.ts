@@ -15,13 +15,29 @@ import type {
   JobArgs,
   ReportActualArg,
 } from "@/lib/assistant/route";
-import { DEFAULT_LABOR_RATE_CENTS, laborCents, qty, usdShort } from "@/lib/ev";
+import {
+  CO_COMMANDS,
+  coCommandFromArgs,
+  describeCoResult,
+  type CoCommandName,
+} from "@/lib/change-order";
+import {
+  DEFAULT_LABOR_RATE_CENTS,
+  laborCents,
+  qty,
+  usdCents,
+  usdShort,
+} from "@/lib/ev";
 import {
   applyLineInput,
   manHoursOf,
   REPORT_LIMITS,
   type LineValues,
 } from "@/lib/plan-line";
+import {
+  changeOrderCommand,
+  listChangeOrders,
+} from "@/server/change-orders";
 import {
   getJob,
   getPlansForJob,
@@ -57,6 +73,8 @@ type ActionDef = {
   title: string;
   /** Roles allowed to run it. Read-only actions are open to everyone. */
   roles?: Role[];
+  /** Shows in the job change feed. WRITES is every action with this set. */
+  writes?: true;
   run(user: CurrentUser, args: JobArgs): Promise<ActionResult>;
 };
 
@@ -247,6 +265,57 @@ function describeChange(
   return out;
 }
 
+const CO_ACTIONS = {
+  create: { title: "Raise a change order", roles: ["pm", "executive"] },
+  price: { title: "Price a change order", roles: ["pm", "executive"] },
+  approve: { title: "Approve a change order", roles: ["pm", "executive"] },
+  reject: { title: "Reject a change order", roles: ["pm", "executive"] },
+  void: { title: "Void a change order", roles: ["pm", "executive"] },
+} as const satisfies Record<
+  CoCommandName,
+  { title: string; roles: readonly Role[] }
+>;
+
+async function runCo(
+  user: CurrentUser,
+  name: CoCommandName,
+  args: JobArgs,
+): Promise<ActionResult> {
+  if (!args.job)
+    return {
+      summary:
+        "Which job? Change orders are numbered per job — name it, like 25-031.",
+    };
+  const command = coCommandFromArgs(name, args);
+  if ("ask" in command) return { summary: command.ask, job: args.job };
+  const r = await changeOrderCommand(
+    user.companyId,
+    { userId: user.userId, role: user.role },
+    args.job,
+    command,
+  );
+  return {
+    summary: describeCoResult(r),
+    href: `/app/jobs/${args.job}#change-orders`,
+    job: r.job?.number ?? args.job,
+    ...(!r.ok && r.errors ? { errors: r.errors } : {}),
+  };
+}
+
+function coActionDefs(): Record<`changeOrder.${CoCommandName}`, ActionDef> {
+  return Object.fromEntries(
+    CO_COMMANDS.map((name) => [
+      `changeOrder.${name}`,
+      {
+        title: CO_ACTIONS[name].title,
+        roles: [...CO_ACTIONS[name].roles],
+        writes: true,
+        run: (user: CurrentUser, args: JobArgs) => runCo(user, name, args),
+      } satisfies ActionDef,
+    ]),
+  ) as Record<`changeOrder.${CoCommandName}`, ActionDef>;
+}
+
 export const actions: Record<ActionName, ActionDef> = {
   "portfolio.summary": {
     title: "Portfolio summary",
@@ -314,6 +383,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "dailyPlan.updateLine": {
     title: "Change a plan line",
+    writes: true,
     roles: ["foreman", "superintendent"],
     async run(user, { job, lineId, lineRef, change }) {
       if (!change)
@@ -395,6 +465,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "dailyPlan.submit": {
     title: "Issue a crew plan to the field",
+    writes: true,
     roles: ["foreman", "superintendent"],
     async run(user, { job }) {
       const found = await resolvePlan(user, job);
@@ -426,6 +497,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "dailyPlan.approve": {
     title: "Approve a daily report",
+    writes: true,
     roles: ["superintendent"],
     async run(user, { job }) {
       const found = await resolvePlan(user, job);
@@ -479,6 +551,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "dailyPlan.return": {
     title: "Return a daily report",
+    writes: true,
     roles: ["superintendent"],
     async run(user, { job, reason }) {
       const found = await resolvePlan(user, job);
@@ -522,6 +595,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "dailyReport.post": {
     title: "Report a day's work",
+    writes: true,
     roles: ["foreman", "superintendent"],
     async run(user, { job, actuals, lineRef }) {
       const found = await resolvePlan(user, job);
@@ -675,6 +749,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "progressClaim.lock": {
     title: "Lock a progress claim",
+    writes: true,
     roles: ["pm", "executive"],
     async run(user, { job }) {
       if (!job)
@@ -704,6 +779,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "estimate.approve": {
     title: "Approve estimate",
+    writes: true,
     roles: ["pm", "executive"],
     async run(user, { job }) {
       if (!job)
@@ -733,6 +809,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "costItem.setPmPercent": {
     title: "Log PM percent complete",
+    writes: true,
     roles: ["pm", "superintendent", "executive"],
     async run(user, { job, costItemId, costCode, lineRef, percent, reason }) {
       const pct = Number(String(percent ?? "").replace(/,/g, ""));
@@ -774,6 +851,7 @@ export const actions: Record<ActionName, ActionDef> = {
   },
   "costItem.setMilestone": {
     title: "Set a milestone complete",
+    writes: true,
     roles: ["pm", "superintendent", "executive"],
     async run(user, { job, milestoneId, costCode, lineRef, complete, reason }) {
       let id = milestoneId;
@@ -798,6 +876,40 @@ export const actions: Record<ActionName, ActionDef> = {
       return {
         summary: `${result.complete ? "Completed" : "Reopened"} milestone “${result.name}” on ${result.code}.`,
         line: result.code,
+      };
+    },
+  },
+  ...coActionDefs(),
+  "changeOrder.show": {
+    title: "Show change orders",
+    async run(user, { job }) {
+      if (!job)
+        return {
+          summary:
+            "Which job? Change orders are numbered per job — name it, like 25-031.",
+        };
+      const data = await listChangeOrders(user.companyId, job);
+      if (!data) return unknownJob(user, job);
+      const href = `/app/jobs/${job}#change-orders`;
+      if (!data.changeOrders.length)
+        return {
+          summary: `${data.job.shortName} has no change orders yet. Raise one, then price it. Nothing moves until a PM or executive approves.`,
+          href,
+          job,
+        };
+      const listed = data.changeOrders
+        .slice(0, 8)
+        .map(
+          (c) =>
+            `${c.label} ${c.title} (${c.status}, ${usdCents(c.totalCents)})`,
+        )
+        .join("; ");
+      return {
+        summary:
+          `${data.job.shortName}: ${data.changeOrders.length} change orders. ` +
+          `Pending ${usdCents(data.ledger.pendingCents)}, not in Current Budget or EAC. ${listed}.`,
+        href,
+        job,
       };
     },
   },
@@ -1052,17 +1164,10 @@ export async function recentRuns(
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
 
-const WRITES: ActionName[] = [
-  "dailyPlan.updateLine",
-  "dailyPlan.submit",
-  "dailyPlan.approve",
-  "dailyPlan.return",
-  "dailyReport.post",
-  "progressClaim.lock",
-  "estimate.approve",
-  "costItem.setPmPercent",
-  "costItem.setMilestone",
-];
+/** Job change feed. Derived from `writes: true`, so a new command cannot forget the list. */
+export const WRITES: ActionName[] = (Object.keys(actions) as ActionName[]).filter(
+  (name) => actions[name].writes,
+);
 
 /** The audit trail for one job: every change anyone in this sandbox made, newest first. */
 export async function jobChanges(

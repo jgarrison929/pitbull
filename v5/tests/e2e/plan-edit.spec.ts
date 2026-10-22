@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Seeded typed-action history (seedActionHistory): foreman plan note + PM lock × 3 jobs. */
+/** Seeded typed-action history: foreman plan note; PM CO creates/prices/void + lock × 3. */
 const SEED_FOREMAN_RUNS = 1;
-const SEED_PM_RUNS = 3;
+const SEED_PM_RUNS = 14;
 
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
@@ -187,7 +187,7 @@ test("a foreman's line edit is in the job's changes for the PM, not in the PM's 
   await signIn(page, "pm");
   const rail = page.getByTestId("assistant-rail");
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
-  // PM chat has seed locks only — never the foreman's pour edit.
+  // PM chat has the seeded locks and CO-001, never the foreman's pour edit.
   await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
   await expect(
     rail

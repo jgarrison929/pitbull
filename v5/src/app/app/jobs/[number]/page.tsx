@@ -4,6 +4,7 @@ import {
   ApproveReportForm,
   ReturnReportForm,
 } from "@/components/app/approve-return-forms";
+import { ChangeOrdersSection } from "@/components/app/change-orders";
 import { CostTable } from "@/components/app/cost-table";
 import { Money, StatusIndex, StatusPill } from "@/components/app/format";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
@@ -17,6 +18,7 @@ import {
   getApprovalPendingByCostItem,
   getReportedActualsForPlan,
 } from "@/server/progress";
+import { listChangeOrders } from "@/server/change-orders";
 import { requireUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
 import { actions, jobChanges } from "@/server/assistant/actions";
@@ -43,13 +45,14 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   const p = await getJob(user.companyId, number);
   // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
   if (!p) notFound();
-  const [plans, changes, draftClaim, evControls, approvalPending] =
+  const [plans, changes, draftClaim, evControls, approvalPending, coData] =
     await Promise.all([
       getPlansForJob(user.companyId, p.job.id),
       jobChanges(user.companyId, p.job.number),
       draftClaimForJob(user.companyId, p.job.id),
       getJobEvControls(user.companyId, p.job.id),
       getApprovalPendingByCostItem(user.companyId, p.job.id),
+      listChangeOrders(user.companyId, p.job.number),
     ]);
   const reportable = plans.filter(
     (pl) => pl.status === "issued" || pl.status === "reported",
@@ -73,6 +76,13 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   const canReturn = actions["dailyPlan.return"].roles?.includes(user.role);
   const canLock = actions["progressClaim.lock"].roles?.includes(user.role);
   const canApprove = actions["estimate.approve"].roles?.includes(user.role);
+  const coCan = {
+    create: actions["changeOrder.create"].roles?.includes(user.role) ?? false,
+    price: actions["changeOrder.price"].roles?.includes(user.role) ?? false,
+    approve: actions["changeOrder.approve"].roles?.includes(user.role) ?? false,
+    reject: actions["changeOrder.reject"].roles?.includes(user.role) ?? false,
+    void: actions["changeOrder.void"].roles?.includes(user.role) ?? false,
+  };
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
   const estimateDraft = p.job.estimateStatus === "draft";
   // Initial combobox options: first leaves only. Large WBS uses server search.
@@ -213,7 +223,16 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           value={
             <StatusIndex index={p.cpi} varianceCents={p.costVarianceCents} />
           }
-          sub={`EAC ${usdShort(p.eacCents)} · ETC ${usdShort(p.etcCents)}`}
+          sub={
+            <>
+              EAC{" "}
+              <span data-testid="job-eac" data-cents={p.eacCents}>
+                {usdShort(p.eacCents)}
+              </span>
+              {" · ETC "}
+              {usdShort(p.etcCents)}
+            </>
+          }
           testId="job-cpi"
         />
         <Kpi
@@ -327,9 +346,18 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       >
         <CostTable nodes={nodes} />
       </Section>
+      {coData ? (
+        <ChangeOrdersSection
+          jobNumber={p.job.number}
+          data={coData}
+          can={coCan}
+          costItems={costItems}
+          searchUrl={`/app/jobs/${p.job.number}/cost-items/search`}
+        />
+      ) : null}
       <Section
         title="Changes on this job"
-        meta="Every edit, report, approve, and return, by anyone on this job"
+        meta="Every edit, report, approve, return, and change order, by anyone on this job"
       >
         {changes.length === 0 ? (
           <p className="px-4 py-3 text-sm text-muted-foreground">
