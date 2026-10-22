@@ -233,15 +233,3 @@ async function JobStrip() {
     </nav>
   );
 }
-
-/** Visible proof that a screen reads the visitor's sandbox in Postgres. */
-export async function DataSource() {
-  const user = await requireUser();
-  return (
-    <p className="text-xs text-muted-foreground" data-testid="data-source">
-      Live from Postgres · sandbox{" "}
-      <span className="font-mono">{user.companyId.slice(0, 8)}</span> · seeded{" "}
-      <LocalTime iso={user.seededAt.toISOString()} />
-    </p>
-  );
-}

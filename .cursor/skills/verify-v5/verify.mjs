@@ -155,12 +155,14 @@ async function flows(browser) {
   });
 
   await step("portfolio loads from Postgres", async () => {
-    const source = (await page.getByTestId("data-source").textContent({ timeout: T })) ?? "";
-    sandbox = (await page.getByTestId("sandbox-id").textContent())?.trim();
+    await page.getByTestId("user-menu").click();
+    sandbox = (await page.getByTestId("sandbox-id").textContent({ timeout: T }))?.trim();
+    await page.keyboard.press("Escape");
     const rows = await page.getByTestId("portfolio-table").getByTestId("job-link").filter({ visible: true }).count();
     const cpi = (await page.getByTestId("kpi-cpi").textContent())?.trim();
-    const ok = source.includes("Live from Postgres") && source.includes(sandbox) && rows === 3 && /^\d\.\d\d[+−]\$/.test(cpi);
-    check("portfolio loads from Postgres", ok, `${rows} jobs, CPI ${cpi}, "${source.trim()}"`);
+    const noDevFooter = (await page.getByText("Live from Postgres").count()) === 0;
+    const ok = Boolean(sandbox) && rows === 3 && /^\d\.\d\d[+−]\$/.test(cpi ?? "") && noDevFooter;
+    check("portfolio loads from Postgres", ok, `${rows} jobs, CPI ${cpi}, sandbox ${sandbox}`);
     await shot(page, "portfolio-desktop");
   });
 

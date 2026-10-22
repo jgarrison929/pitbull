@@ -20,9 +20,9 @@ test("portfolio reads the visitor's sandbox from Postgres", async ({
     await expect(table.getByRole("link", { name })).toBeVisible();
   }
   await expect(page.getByTestId("kpi-cpi")).toHaveText(/^\d\.\d\d[+−]\$/);
-  await expect(page.getByTestId("data-source")).toContainText(
-    "Live from Postgres",
-  );
+  // No developer footers on product screens.
+  await expect(page.getByText("Live from Postgres")).toHaveCount(0);
+  await expect(page.getByText("not seed-only")).toHaveCount(0);
 });
 
 test("job page shows budget vs earned value by cost code and tomorrow's plan", async ({
@@ -44,6 +44,8 @@ test("job page shows budget vs earned value by cost code and tomorrow's plan", a
   ).toBeVisible();
   await expect(page.getByTestId("job-cpi")).toHaveText(/^\d\.\d\d−\$/);
   await expect(page.getByTestId("plan-card")).toContainText("Bridge Crew 2");
+  await expect(page.getByText("not seed-only")).toHaveCount(0);
+  await expect(page.getByText("Live from Postgres")).toHaveCount(0);
 });
 
 test("on a phone the cost codes stack and nothing scrolls sideways", async ({
@@ -65,11 +67,12 @@ test("on a phone the cost codes stack and nothing scrolls sideways", async ({
   await page.close();
 });
 
-test("an unknown job shows not-found, not someone else's data", async ({
+test("an unknown job returns HTTP 404, not someone else's data", async ({
   page,
 }) => {
   await signIn(page);
-  await page.goto("/app/jobs/99-999");
+  const res = await page.goto("/app/jobs/99-999");
+  expect(res?.status()).toBe(404);
   await expect(page.getByText("This page could not be found")).toBeVisible();
   await expect(page.getByTestId("cost-table")).toHaveCount(0);
 });

@@ -11,7 +11,7 @@ One command proves a v5 deployment. It passes only when every check below passes
 |---|---|
 | `/health`, `/status` | Both report the expected commit, a non-zero version, ci-gate result, last-verify field, `Operational`, and Database `ok`. `/` redirects to `/login`. |
 | login as a role card | The Project Manager card signs in as Marcus Lee. |
-| portfolio loads from Postgres | `data-source` says "Live from Postgres" with this visitor's sandbox id, the table has 3 jobs, and portfolio CPI renders. |
+| portfolio loads from Postgres | User menu shows a sandbox id, the table has 3 jobs, portfolio CPI renders, and no "Live from Postgres" footer. |
 | assistant runs a typed action and logs it | Asking "Why is Cedar Creek over budget?" in the rail shows `job.costVariance(25-031)`, and the run is still there after a reload (it lives in `action_runs`). |
 | sandbox reset reseeds | As the foreman, "Submit tomorrow's plan" submits the Cedar Creek plan. Reset demo then brings it back to draft, changes the seeded time, clears the transcript, and keeps the same sandbox id. |
 | signed out, /app redirects to /login | A browser with no session asking for a job page lands on `/login`. |
