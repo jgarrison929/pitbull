@@ -1,5 +1,9 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import {
+  ApproveReportForm,
+  ReturnReportForm,
+} from "@/components/app/approve-return-forms";
 import { CostTable } from "@/components/app/cost-table";
 import { Money, StatusIndex, StatusPill } from "@/components/app/format";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
@@ -10,6 +14,7 @@ import { pct, usdShort } from "@/lib/ev";
 import { getJob, getJobEvControls, getPlansForJob } from "@/server/data";
 import {
   draftClaimForJob,
+  getApprovalPendingByCostItem,
   getReportedActualsForPlan,
 } from "@/server/progress";
 import { requireUser } from "@/server/session";
@@ -38,20 +43,23 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   const p = await getJob(user.companyId, number);
   // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
   if (!p) notFound();
-  const [plans, changes, draftClaim, evControls] = await Promise.all([
-    getPlansForJob(user.companyId, p.job.id),
-    jobChanges(user.companyId, p.job.number),
-    draftClaimForJob(user.companyId, p.job.id),
-    getJobEvControls(user.companyId, p.job.id),
-  ]);
+  const [plans, changes, draftClaim, evControls, approvalPending] =
+    await Promise.all([
+      getPlansForJob(user.companyId, p.job.id),
+      jobChanges(user.companyId, p.job.number),
+      draftClaimForJob(user.companyId, p.job.id),
+      getJobEvControls(user.companyId, p.job.id),
+      getApprovalPendingByCostItem(user.companyId, p.job.id),
+    ]);
+  const reportable = plans.filter(
+    (pl) => pl.status === "issued" || pl.status === "reported",
+  );
   const reportedByPlan = Object.fromEntries(
     await Promise.all(
-      plans
-        .filter((pl) => pl.status === "submitted")
-        .map(async (pl) => [
-          pl.id,
-          await getReportedActualsForPlan(user.companyId, pl.id),
-        ]),
+      reportable.map(async (pl) => [
+        pl.id,
+        await getReportedActualsForPlan(user.companyId, pl.id),
+      ]),
     ),
   ) as Record<
     string,
@@ -59,6 +67,10 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   >;
   const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
   const canReport = actions["dailyReport.post"].roles?.includes(user.role);
+  const canApproveReport = actions["dailyPlan.approve"].roles?.includes(
+    user.role,
+  );
+  const canReturn = actions["dailyPlan.return"].roles?.includes(user.role);
   const canLock = actions["progressClaim.lock"].roles?.includes(user.role);
   const canApprove = actions["estimate.approve"].roles?.includes(user.role);
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
@@ -70,7 +82,19 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     hint: l.unit,
     unit: l.unit,
   }));
-  const byId = new Map(p.lines.map((l) => [l.id, l]));
+  const byId = new Map(
+    p.lines.map((l) => {
+      const pend = approvalPending[l.id];
+      return [
+        l.id,
+        {
+          ...l,
+          approvalPendingQtyMilli: pend?.qtyMilli ?? 0,
+          approvalPendingCents: pend?.cents ?? 0,
+        },
+      ];
+    }),
+  );
   const nodes = p.items.map((i) => ({
     id: i.id,
     code: i.code,
@@ -218,23 +242,40 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
             </div>
           }
           report={
-            canReport && plan.status === "submitted" ? (
-              <ReportWorkForm
-                jobNumber={p.job.number}
-                lines={plan.lines.map((l) => {
-                  const reported = reportedByPlan[plan.id]?.[l.id];
-                  return {
-                    id: l.id,
-                    code: l.code,
-                    activity: l.activity,
-                    unit: l.unit,
-                    manHours: l.manHours,
-                    qtyMilli: l.qtyMilli,
-                    reportedManHours: reported?.manHours,
-                    reportedQtyMilli: reported?.qtyMilli,
-                  };
-                })}
-              />
+            canReport &&
+            (plan.status === "issued" || plan.status === "reported") ? (
+              <div className="flex flex-col gap-3">
+                <ReportWorkForm
+                  jobNumber={p.job.number}
+                  lines={plan.lines.map((l) => {
+                    const reported = reportedByPlan[plan.id]?.[l.id];
+                    return {
+                      id: l.id,
+                      code: l.code,
+                      activity: l.activity,
+                      unit: l.unit,
+                      manHours: l.manHours,
+                      qtyMilli: l.qtyMilli,
+                      reportedManHours: reported?.manHours,
+                      reportedQtyMilli: reported?.qtyMilli,
+                    };
+                  })}
+                />
+                {plan.status === "reported" &&
+                (canApproveReport || canReturn) ? (
+                  <div
+                    className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-start"
+                    data-testid="approve-return-panel"
+                  >
+                    {canApproveReport ? (
+                      <ApproveReportForm jobNumber={p.job.number} />
+                    ) : null}
+                    {canReturn ? (
+                      <ReturnReportForm jobNumber={p.job.number} />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             ) : undefined
           }
         />
@@ -255,10 +296,11 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         title="Budget vs earned value by cost code"
         meta={
           <span className="block whitespace-normal">
-            Earned uses the locked claim (claimed installed for units). Live
-            installs above that show as pending until the PM locks. CPI ≥ 1.00
-            green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never
-            green.
+            Earned uses the locked claim (claimed installed for units). Foreman
+            reports show as pending until the superintendent approves. Live
+            installs above the claim show as pending lock until the PM locks.
+            CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun
+            is never green.
           </span>
         }
       >
@@ -266,7 +308,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       </Section>
       <Section
         title="Changes on this job"
-        meta="Every edit and submit, by anyone on this job"
+        meta="Every edit, report, approve, and return, by anyone on this job"
       >
         {changes.length === 0 ? (
           <p className="px-4 py-3 text-sm text-muted-foreground">

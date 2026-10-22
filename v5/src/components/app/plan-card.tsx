@@ -49,16 +49,24 @@ export function PlanCard({
         <span
           className={cn(
             "rounded-full px-2 py-0.5 text-xs font-medium",
-            draft ? "bg-brand/30" : "bg-positive-soft text-positive",
+            statusBadgeClass(plan.status),
           )}
           data-testid="plan-status"
         >
-          {draft ? "Draft" : "Submitted"}
+          {statusLabel(plan.status)}
         </span>
         <span className="text-xs text-muted-foreground">
           Foreman {plan.foreman} · {plan.weather}
         </span>
       </header>
+      {plan.returnReason ? (
+        <p
+          className="border-b bg-caution-soft/50 px-4 py-2 text-xs"
+          data-testid="return-reason-banner"
+        >
+          Returned: {plan.returnReason}
+        </p>
+      ) : null}
       <ul className="divide-y px-4">
         {plan.lines.map((l) => (
           <li
@@ -85,13 +93,43 @@ export function PlanCard({
       {report ? (
         <div className="border-t px-4 py-3" data-testid="report-panel">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Report day&apos;s work — actuals (plan stays as submitted)
+            Report day&apos;s work — pending until superintendent approves
           </h3>
           {report}
         </div>
       ) : null}
     </section>
   );
+}
+
+function statusLabel(status: Plan["status"]) {
+  switch (status) {
+    case "draft":
+      return "Draft";
+    case "issued":
+      return "Issued";
+    case "reported":
+      return "Reported";
+    case "approved":
+      return "Approved";
+    default:
+      return status;
+  }
+}
+
+function statusBadgeClass(status: Plan["status"]) {
+  switch (status) {
+    case "draft":
+      return "bg-brand/30";
+    case "issued":
+      return "bg-positive-soft text-positive";
+    case "reported":
+      return "bg-caution-soft text-caution";
+    case "approved":
+      return "bg-muted text-muted-foreground";
+    default:
+      return "bg-muted";
+  }
 }
 
 function LineView({ l }: { l: Plan["lines"][number] }) {

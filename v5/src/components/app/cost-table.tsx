@@ -23,9 +23,19 @@ export type WbsNode = {
 const hot = (l: CostLine) =>
   varianceStatus(l.cpi, l.varianceCents) === "at-risk";
 
+/** Exact dollars for approval-pending (not usdShort's $2K rounding). */
+function usdExact(cents: number) {
+  return (cents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
+}
+
 /** Claimed installed drives the number; live above that is pending until lock. */
 function InstalledCell({ l }: { l: CostLine }) {
   const pending = pendingInstalledQtyMilli(l);
+  const approvalQty = l.approvalPendingQtyMilli ?? 0;
+  const approvalCents = l.approvalPendingCents ?? 0;
   const shown =
     l.evMethod === "units" ? l.claimedInstalledQtyMilli : l.installedQtyMilli;
   return (
@@ -33,12 +43,24 @@ function InstalledCell({ l }: { l: CostLine }) {
       <div>
         {qty(shown)} / {qty(l.budgetQtyMilli)} {l.unit}
       </div>
+      {approvalQty > 0 || approvalCents > 0 ? (
+        <div
+          className="text-amber-700 dark:text-amber-400"
+          data-testid={`approval-pending-${l.code}`}
+          data-cents={approvalCents}
+        >
+          +{qty(approvalQty)} {l.unit}
+          {approvalCents > 0
+            ? ` · ${usdExact(approvalCents)} pending`
+            : " pending approval"}
+        </div>
+      ) : null}
       {pending > 0 && (
         <div
           className="text-amber-700 dark:text-amber-400"
           data-testid={`pending-${l.code}`}
         >
-          +{qty(pending)} pending
+          +{qty(pending)} pending lock
         </div>
       )}
     </div>
@@ -378,6 +400,19 @@ function VirtualTreeMobile({
                     <div className="text-muted-foreground">Budget</div>
                     <Money cents={l.budgetCents} />
                   </div>
+                  {(l.approvalPendingQtyMilli ?? 0) > 0 ||
+                  (l.approvalPendingCents ?? 0) > 0 ? (
+                    <div
+                      className="col-span-3 text-amber-700 dark:text-amber-400"
+                      data-testid={`approval-pending-${l.code}`}
+                      data-cents={l.approvalPendingCents ?? 0}
+                    >
+                      +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
+                      {(l.approvalPendingCents ?? 0) > 0
+                        ? ` · ${usdExact(l.approvalPendingCents!)} pending`
+                        : " pending approval"}
+                    </div>
+                  ) : null}
                   {pendingInstalledQtyMilli(l) > 0 && (
                     <div
                       className="col-span-3 text-amber-700 dark:text-amber-400"

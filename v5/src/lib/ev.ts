@@ -24,6 +24,13 @@ export type CostLineInput = {
   evMethod: EvMethod;
   /** How this line's locked earned percent was derived (shown on the job page). */
   earnDerivation: string;
+  /**
+   * Foreman-reported qty awaiting superintendent approval.
+   * Not in installed/actual until approve — shown as pending on the job page.
+   */
+  approvalPendingQtyMilli?: number;
+  /** Labor cents for those pending hours (rate × MH). */
+  approvalPendingCents?: number;
 };
 
 export type CostLine<T extends CostLineInput = CostLineInput> = T & {

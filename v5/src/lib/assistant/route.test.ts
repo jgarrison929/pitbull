@@ -39,6 +39,21 @@ describe("assistant router", () => {
     ["send the plan for cedar", "dailyPlan.submit", { job: "25-031" }],
     ["submit the plan for 99-999", "dailyPlan.submit", { job: "99-999" }],
     [
+      "Approve the daily report for Cedar Creek",
+      "dailyPlan.approve",
+      { job: "25-031" },
+    ],
+    [
+      "Return the report for Cedar Creek because Recount pour 3",
+      "dailyPlan.return",
+      { job: "25-031", reason: "Recount pour 3" },
+    ],
+    [
+      "Return the report for Cedar Creek",
+      "dailyPlan.return",
+      { job: "25-031", reason: "" },
+    ],
+    [
       "Report today's work on Cedar Creek",
       "dailyReport.post",
       { job: "25-031", lineRef: "Report today's work on Cedar Creek" },
