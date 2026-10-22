@@ -77,7 +77,6 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
   const canReturn = actions["dailyPlan.return"].roles?.includes(user.role);
   const canLock = actions["progressClaim.lock"].roles?.includes(user.role);
   const canApprove = actions["estimate.approve"].roles?.includes(user.role);
-<<<<<<< HEAD
   const coCan = {
     create: actions["changeOrder.create"].roles?.includes(user.role) ?? false,
     price: actions["changeOrder.price"].roles?.includes(user.role) ?? false,
@@ -85,9 +84,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     reject: actions["changeOrder.reject"].roles?.includes(user.role) ?? false,
     void: actions["changeOrder.void"].roles?.includes(user.role) ?? false,
   };
-=======
   const canImport = actions["estimate.importCsv"].roles?.includes(user.role);
->>>>>>> 4ddeb34f (feat(v5): show Original, Current, and Estimate on the job and import a CSV)
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
   const estimateDraft = p.job.estimateStatus === "draft";
   const jobMoney = p.money.job;
