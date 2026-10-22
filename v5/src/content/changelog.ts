@@ -9,7 +9,6 @@ export const changelog = [
     ],
   },
   {
-<<<<<<< HEAD
     version: "5.0.0-m5.0",
     date: "2026-10-22",
     items: [
@@ -19,8 +18,6 @@ export const changelog = [
     ],
   },
   {
-=======
->>>>>>> 4a1c3ba9 (chore(v5): put m2.2 changelog entry newest-first)
     version: "5.0.0-m4.0",
     date: "2026-10-22",
     items: [
