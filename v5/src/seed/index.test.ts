@@ -157,20 +157,19 @@ describe("seed", () => {
     }
   });
 
-  it("keeps locked Period 1, draft Period 2, milestones and PM logs", () => {
+  it("starts Period 1 as draft for every job (locks happen via seedActionHistory)", () => {
     expect(rows.costEntries.length).toBeGreaterThan(0);
-    expect(rows.progressClaims.some((c) => c.status === "locked")).toBe(true);
+    expect(rows.progressClaims.length).toBe(rows.jobs.length);
+    expect(rows.progressClaims.every((c) => c.status === "draft")).toBe(true);
     expect(
-      rows.progressClaims.some(
-        (c) => c.status === "draft" && c.periodLabel === "Period 2",
-      ),
+      rows.progressClaims.every((c) => c.periodLabel === "Period 1"),
     ).toBe(true);
     expect(rows.costItemMilestones.length).toBeGreaterThan(0);
     expect(rows.pmPercentLogs.length).toBeGreaterThan(0);
     for (const c of rows.costItems) {
       expect((c.earnDerivation ?? "").length).toBeGreaterThan(0);
       expect(["units", "milestones", "pm_percent"]).toContain(c.evMethod);
-      // Seeded lock: claimed installed matches live (no pending yet).
+      // Field installed matches claimed so the real Period 1 lock is a no-op on numbers.
       expect(c.claimedInstalledQtyMilli).toBe(c.installedQtyMilli);
     }
   });

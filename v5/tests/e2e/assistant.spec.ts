@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/** Seeded typed-action history (seedActionHistory): foreman plan note + PM lock × 3 jobs. */
+const SEED_FOREMAN_RUNS = 1;
+const SEED_PM_RUNS = 3;
+
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
   await page.getByTestId(`role-${role}`).click();
@@ -55,9 +59,10 @@ test("a foreman submits tomorrow's plan from the rail, the screen agrees, reset 
   await page.getByTestId("user-menu").click();
   await page.getByRole("button", { name: "Reset demo" }).click();
   await expect(page).toHaveURL(/reset=1/);
+  // Reset clears visitor runs then re-seeds history (foreman's plan note).
   await expect(
     page.getByTestId("assistant-rail").getByTestId("action-run"),
-  ).toHaveCount(0);
+  ).toHaveCount(SEED_FOREMAN_RUNS);
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
@@ -105,10 +110,12 @@ test("the on-screen Submit button runs the same action and lands in the transcri
 test("requests it can't map get examples, not a guess", async ({ page }) => {
   await signIn(page, "pm");
   const rail = page.getByTestId("assistant-rail");
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
   await rail.getByTestId("assistant-input").fill("order pizza for lunch");
   await rail.getByRole("button", { name: "Send" }).click();
   await expect(rail.getByTestId("assistant-help")).toContainText("Try:");
-  await expect(rail.getByTestId("action-run")).toHaveCount(0);
+  // Unmapped prompts do not add a run; seed locks remain.
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
 });
 
 test("on a phone the foreman lands on the chat view", async ({ browser }) => {
@@ -274,13 +281,19 @@ test("each role has its own conversation; the job page keeps everyone's changes"
   const rail = page.getByTestId("assistant-rail");
   await ask(rail, "Submit tomorrow's plan");
 
-  // A new role starts a fresh conversation, filtered on the server, so a reload shows nothing either.
+  // A new role starts its own conversation (PM seed locks only — no foreman submit).
   await signIn(page, "pm");
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
-  await expect(rail.getByTestId("action-run")).toHaveCount(0);
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
+  await expect(
+    rail.getByTestId("action-run").filter({ hasText: "Submit tomorrow's plan" }),
+  ).toHaveCount(0);
   await page.reload();
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
-  await expect(rail.getByTestId("action-run")).toHaveCount(0);
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
+  await expect(
+    rail.getByTestId("action-run").filter({ hasText: "Submit tomorrow's plan" }),
+  ).toHaveCount(0);
 
   // The audit trail on the screen still says who changed what.
   await page.goto("/app/jobs/25-031");
@@ -291,8 +304,10 @@ test("each role has its own conversation; the job page keeps everyone's changes"
 
   await signIn(page, "foreman");
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
-  await expect(rail.getByTestId("action-run")).toHaveCount(1);
-  await expect(rail.getByTestId("action-run")).toContainText(
-    "Submit tomorrow's plan",
+  await expect(rail.getByTestId("action-run")).toHaveCount(
+    SEED_FOREMAN_RUNS + 1,
   );
+  await expect(
+    rail.getByTestId("action-run").filter({ hasText: "Submit tomorrow's plan" }),
+  ).toHaveCount(1);
 });
