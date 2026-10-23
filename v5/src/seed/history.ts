@@ -1,6 +1,7 @@
 // After the pure seed rows are inserted, run real typed actions so every job's
 // change list is populated from action_runs — never by inserting fake audit rows.
 import "server-only";
+import { SHB_CSV } from "@/lib/budget";
 import { run } from "@/server/assistant/actions";
 import type { CurrentUser } from "@/server/session";
 import { SEED_COMPANY_NAME, seedId, seedUsers } from "./index";
@@ -15,7 +16,7 @@ export const SEED_JOB_NUMBERS = [
 
 /**
  * Approved jobs that get Period 1 locked. Harbor (26-010) stays a draft
- * estimate — its history comes from a plan-line edit, not a lock or approve.
+ * estimate — its history comes from a no-op SHB re-import, not a lock/approve.
  */
 const SEED_LOCK_JOB_NUMBERS = ["24-118", "25-031", "24-077"] as const;
 
@@ -44,8 +45,9 @@ function asUser(
  * Change orders land before the period locks so the newest job-changes row on
  * every locked job stays the Period 1 lock. Cedar (25-031) keeps a single
  * priced CO so the phone job screenshot stays stable; mixed states live on
- * the other two approved jobs. Harbor (26-010) keeps a draft estimate; its
- * change history is a foreman plan-line note (approve stays a live PM demo).
+ * the other two approved jobs. Harbor (26-010) stays a draft estimate; its
+ * change history is a PM SHB re-import (no-op on numbers; Approve stays live).
+ * No Harbor crew plan — plan lines on estimate leaves block import drop demos.
  */
 export async function seedActionHistory(companyId: string, now = new Date()) {
   const foreman = asUser(companyId, "foreman", now);
@@ -65,17 +67,13 @@ export async function seedActionHistory(companyId: string, now = new Date()) {
     },
   );
 
-  // Harbor stays draft: plan-line note is a real write for job change history.
-  // estimate.approve is intentionally not seeded — PM still demos Approve here.
+  // Harbor stays draft: identical SHB re-import is a real typed write for the
+  // job change list without locking the claim or attaching plan-line history.
   await run(
-    foreman,
-    "Add a note on Harbor excavation: utilities marked, ready to dig",
-    "dailyPlan.updateLine",
-    {
-      job: "26-010",
-      lineId: seedId(companyId, "plan-line:harbor:0"),
-      change: { notes: "Utilities marked — ready to dig." },
-    },
+    pm,
+    "Re-import the Harbor Abutment estimate from the SHB fixture",
+    "estimate.importCsv",
+    { job: "26-010", csv: SHB_CSV },
   );
 
   // —— Change orders (6), mixed states, before locks ——

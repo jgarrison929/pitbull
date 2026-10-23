@@ -28,10 +28,12 @@ for (const role of roles) {
       await expect(list).toBeVisible();
       const first = list.locator("li").first();
       await expect(first).toBeVisible();
-      // Who: seeded people who ran typed actions (foreman plan edit / PM lock).
+      // Who: seeded people who ran typed actions (foreman plan edit / PM lock or import).
       await expect(first).toContainText(/Marcus Lee|Luis Ortega/);
-      // What: lock summary or plan-line note edit (Harbor is note-only; others lock).
-      await expect(first).toContainText(/Locked Period|Changed 0[24]-\d{3}|note/);
+      // What: Period lock (approved jobs), Cedar plan note, or Harbor SHB re-import.
+      await expect(first).toContainText(
+        /Locked Period|Changed 0[24]-\d{3}|note|Imported/,
+      );
       // When: LocalTime renders a <time datetime>.
       await expect(first.locator("time[datetime]")).toBeVisible();
       const iso = await first.locator("time[datetime]").getAttribute("datetime");

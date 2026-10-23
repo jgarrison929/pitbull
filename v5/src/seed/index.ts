@@ -732,33 +732,8 @@ export function seed(companyId: string, today: Date): SeedRows {
         derivation: "Draft estimate — approve before locking progress",
       });
     }
-
-    // Crew plan so seedActionHistory can record a real typed write while the
-    // estimate stays draft (approve remains a live PM demo on this job).
-    const harborPlanId = id("plan:harbor:tomorrow");
-    out.dailyPlans.push({
-      id: harborPlanId,
-      companyId,
-      jobId,
-      crew: "Abutment Crew 1",
-      foremanId: id("user:foreman"),
-      planDate: isoDate(addDays(today, 1)),
-      status: "draft",
-      weather: "Clear, 58°F, 5% rain",
-      equipment: [{ name: "Excavator, 320-class", hours: 8 }],
-    });
-    out.dailyPlanLines.push({
-      id: id("plan-line:harbor:0"),
-      companyId,
-      planId: harborPlanId,
-      costItemId: id("cost:harbor:02-100"),
-      activity: "Excavate abutment footing, stage A",
-      location: "Abutment A",
-      qtyMilli: toMilli(120),
-      workers: 3,
-      hoursTenths: 80,
-      sort: 0,
-    });
+    // No Harbor daily plan — plan lines on 02-100 would block estimate-import
+    // drop/reparent demos. seedActionHistory records a no-op SHB re-import instead.
   }
 
   const planId = id("plan:cedar:tomorrow");
