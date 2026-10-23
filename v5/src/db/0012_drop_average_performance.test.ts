@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-/** Migration 0011 must only remap forecast_method → current_budget. */
+/** Migration 0012 must only remap forecast_method → current_budget. */
 const sql = readFileSync(
   join(process.cwd(), "drizzle/0012_drop_average_performance.sql"),
   "utf8",

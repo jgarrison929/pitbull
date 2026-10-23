@@ -170,7 +170,20 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
                 </button>
               </form>
             ) : null}
-            <StatusPill value={p.status} varianceCents={p.costVarianceCents} />
+            {estimateDraft ? (
+              <span
+                className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                data-status="draft"
+                data-testid="draft-label"
+              >
+                Draft
+              </span>
+            ) : (
+              <StatusPill
+                value={p.status!}
+                varianceCents={p.costVarianceCents}
+              />
+            )}
           </div>
         }
       />
