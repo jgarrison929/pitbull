@@ -92,6 +92,10 @@ test("bad CSV lists one error per line and writes nothing", async ({
 
   const file = path.join(__dirname, "../fixtures", "shb-bad.csv");
   await page.getByTestId("import-estimate-file").setInputFiles(file);
+  // Alongside the product hydration fix — not a sole workaround.
+  await expect(page.getByTestId("import-estimate-filename")).toHaveText(
+    "shb-bad.csv",
+  );
   await page.getByTestId("import-estimate-submit").click();
 
   await expect(page.getByTestId("import-estimate-summary")).toContainText(
@@ -108,6 +112,44 @@ test("bad CSV lists one error per line and writes nothing", async ({
   await expect(page.getByTestId("import-estimate-filename")).toHaveText(
     "shb-bad.csv",
   );
+});
+
+/**
+ * Must-fail on main without the hydration-safe picker: under 4× CPU throttle,
+ * setInputFiles as soon as the SSR input exists (no wait for React). Without
+ * mount/submit sync, filename never appears and Import stays disabled.
+ */
+test("early pick under CPU throttle enables Import within 5s", async ({
+  page,
+}) => {
+  await signIn(page, "pm");
+
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+
+  const file = path.join(__dirname, "../fixtures", "shb-qty-1000.csv");
+  await page.goto(`/app/jobs/${DRAFT_JOB}`, { waitUntil: "domcontentloaded" });
+
+  const input = page.getByTestId("import-estimate-file");
+  await input.waitFor({ state: "attached" });
+  await input.setInputFiles(file);
+
+  const filename = page.getByTestId("import-estimate-filename");
+  const submit = page.getByTestId("import-estimate-submit");
+  await expect(filename).toHaveText("shb-qty-1000.csv", { timeout: 5_000 });
+  await expect(submit).toBeEnabled({ timeout: 5_000 });
+
+  await submit.click();
+  await expect(page.getByTestId("import-estimate-summary")).toContainText(
+    /Imported the estimate/,
+    { timeout: 15_000 },
+  );
+  await expect(money(page.getByTestId("job-estimate"))).toHaveAttribute(
+    "data-cents",
+    String(MUTATED_CENTS),
+  );
+
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
 });
 
 test("PM import rewrites Current Estimate, then Approve freezes Original and Current at the fixture", async ({
