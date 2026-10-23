@@ -1,6 +1,6 @@
 {
   "name": "pcs-v5",
-  "version": "5.0.0-m5.1",
+  "version": "5.0.0-m5.2",
   "private": true,
   "scripts": {
     "dev": "next dev",

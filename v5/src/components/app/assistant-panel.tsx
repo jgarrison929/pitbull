@@ -11,6 +11,7 @@ import {
 import { ArrowUp, Mic, Sparkles } from "lucide-react";
 import { ask, type AskState } from "@/app/app/assistant/actions";
 import { LocalTime } from "@/components/app/local-time";
+import { actionRailLabel } from "@/lib/assistant/labels";
 import { examples } from "@/lib/assistant/route";
 import { cn } from "@/lib/utils";
 import type { RunView } from "@/server/assistant/actions";
@@ -122,13 +123,16 @@ export function AssistantPanel({
             <div className="mr-6 rounded-2xl rounded-bl-sm border bg-background px-3 py-2 text-sm">
               <p data-testid="action-summary">{r.summary}</p>
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                <code
-                  className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground"
+                <span
+                  className="rounded bg-muted px-1.5 py-0.5 text-foreground"
                   data-testid="action-name"
                 >
-                  {r.action}
-                  {`(${r.args.job ?? r.args.requested ?? ""})`}
-                </code>
+                  {actionRailLabel(
+                    r.action,
+                    r.args.job ?? r.args.requested ?? null,
+                    { refused: Boolean(r.args.refused) },
+                  )}
+                </span>
                 {r.args.job && r.args.requested === null && (
                   <span data-testid="job-picked">job picked by the action</span>
                 )}

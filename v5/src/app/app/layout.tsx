@@ -9,7 +9,7 @@ export default function AppLayout({ children }: LayoutProps<"/app">) {
   return (
     <AppShell
       rail={
-        <aside className="sticky top-0 hidden h-svh w-[22rem] shrink-0 flex-col border-l bg-card lg:flex">
+        <aside className="sticky top-0 hidden min-h-svh w-[22rem] shrink-0 flex-col self-stretch border-l bg-card lg:flex">
           <Suspense
             fallback={
               <div className="m-4 h-40 animate-pulse rounded-lg bg-muted" />

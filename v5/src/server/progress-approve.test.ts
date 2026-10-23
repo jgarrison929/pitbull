@@ -71,7 +71,7 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
     if (!first.ok || first.already) throw new Error("expected first approve");
     expect(first.postedMh).toBe(22);
     expect(first.postedCents).toBe(22 * DEFAULT_LABOR_RATE_CENTS);
-    expect(first.postedQtyMilli).toBe(12_000);
+    expect(first.postedQtyByUnit).toEqual({ CY: 12_000 });
 
     const [itemAfter] = await db!
       .select()

@@ -1,6 +1,15 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
+    version: "5.0.0-m5.2",
+    date: "2026-10-23",
+    items: [
+      "Draft estimates stay out of active counts and health; portfolio, strip, and job metrics show — until Approve. The cost table uses the same dashes (never EAC $0), and Lock is not offered on a draft job.",
+      "Assistant rail chips use human labels. Refused runs (wrong role, unknown job, domain refusal) read Couldn't … — never success wording.",
+      "Installed quantities never sum across units. Average-performance forecast is removed; existing rows map to Current Budget only.",
+    ],
+  },
+  {
     version: "5.0.0-m5.1",
     date: "2026-10-23",
     items: [

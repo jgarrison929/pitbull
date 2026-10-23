@@ -19,6 +19,14 @@ test("portfolio reads the visitor's sandbox from Postgres", async ({
   ]) {
     await expect(table.getByRole("link", { name })).toBeVisible();
   }
+  // Draft 26-010 is listed but not in the active count / health roll-up.
+  // Count appears in the page meta and the contract KPI — both must agree.
+  await expect(page.getByText(/3 active jobs/)).toHaveCount(2);
+  // Desktop table + phone list both render; assert the visible draft row.
+  const draft = table.locator("[data-estimate=draft]").locator("visible=true");
+  await expect(draft).toContainText("Harbor Side Abutment");
+  await expect(draft.getByTestId("draft-label")).toBeVisible();
+  await expect(draft.getByTestId("metric-dash").first()).toHaveText("—");
   await expect(page.getByTestId("kpi-cpi")).toHaveText(/^\d\.\d\d[+−]\$/);
   // No developer footers on product screens.
   await expect(page.getByText("Live from Postgres")).toHaveCount(0);

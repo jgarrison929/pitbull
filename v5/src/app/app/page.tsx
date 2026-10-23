@@ -17,18 +17,20 @@ export default function PortfolioPage() {
 
 async function Portfolio() {
   const user = await requireUser();
-  const { jobs, totals, contractCents } = await getPortfolio(user.companyId);
+  const { jobs, activeJobCount, totals, contractCents } = await getPortfolio(
+    user.companyId,
+  );
   const portfolio = (
     <>
       <PageHeader
         title="Portfolio"
-        meta={`${jobs.length} active jobs · earned value to date`}
+        meta={`${activeJobCount} active jobs · earned value to date`}
       />
       <KpiStrip>
         <Kpi
           label="Contract value"
           value={<Money cents={contractCents} />}
-          sub={`${jobs.length} jobs`}
+          sub={`${activeJobCount} active jobs`}
           testId="kpi-contract"
         />
         <Kpi

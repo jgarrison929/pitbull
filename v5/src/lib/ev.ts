@@ -5,8 +5,8 @@
 
 export type EvMethod = "units" | "milestones" | "pm_percent";
 
-/** Per-item forecast method. New change-order items default to current_budget (M5). */
-export type ForecastMethod = "current_budget" | "average_performance";
+/** Per-item forecast method. Only current_budget is selectable; average_performance was removed. */
+export type ForecastMethod = "current_budget";
 
 export type CostLineInput = {
   code: string;
@@ -69,8 +69,6 @@ export type CostLine<T extends CostLineInput = CostLineInput> = T & {
   earnedMhMilli: number;
   eacCents: number;
   etcCents: number;
-  /** True when Average Performance fell back because there was no progress. */
-  forecastFallback: boolean;
   forecastDerivation: string;
   /** Live actual minus cutoff actual (cost posted since lock). */
   sinceLockActualCents: number;
@@ -211,9 +209,7 @@ export function pendingInstalledQtyMilli(c: CostLineInput): number {
 
 /**
  * Per-item estimate at completion and estimate to complete.
- * - current_budget: EAC = AC + (BAC − EV)
- * - average_performance: EAC = AC ÷ % complete (= AC × BAC ÷ EV); falls back to
- *   current_budget when there is no progress (no division by zero).
+ * current_budget only: EAC = AC + (BAC − EV).
  */
 export function itemForecast(input: {
   forecastMethod: ForecastMethod;
@@ -223,44 +219,16 @@ export function itemForecast(input: {
 }): {
   eacCents: number;
   etcCents: number;
-  forecastFallback: boolean;
   forecastDerivation: string;
 } {
   const bac = input.budgetCents;
   const ev = input.earnedCents;
   const ac = input.actualCents;
-
-  const currentBudget = () => {
-    const eacCents = ac + (bac - ev);
-    return {
-      eacCents,
-      etcCents: eacCents - ac,
-      forecastFallback: false as const,
-      forecastDerivation: `EAC ${usdPlain(eacCents)} = ${usdPlain(ac)} + (${usdPlain(bac)} − ${usdPlain(ev)}) (current budget)`,
-    };
-  };
-
-  if (input.forecastMethod === "current_budget") {
-    return currentBudget();
-  }
-
-  // Average performance: need progress (EV > 0) to divide.
-  if (ev <= 0) {
-    const fb = currentBudget();
-    return {
-      ...fb,
-      forecastFallback: true,
-      forecastDerivation: `${fb.forecastDerivation} — average performance fell back (no progress)`,
-    };
-  }
-
-  const eacCents = Math.round((ac * bac) / ev);
-  const percentLabel = ((ev / bac) * 100).toFixed(1);
+  const eacCents = ac + (bac - ev);
   return {
     eacCents,
     etcCents: eacCents - ac,
-    forecastFallback: false,
-    forecastDerivation: `EAC ${usdPlain(eacCents)} = ${usdPlain(ac)} ÷ ${percentLabel}% (average performance)`,
+    forecastDerivation: `EAC ${usdPlain(eacCents)} = ${usdPlain(ac)} + (${usdPlain(bac)} − ${usdPlain(ev)}) (current budget)`,
   };
 }
 
@@ -290,13 +258,18 @@ export function costLine<T extends CostLineInput>(c: T): CostLine<T> {
     earnedCents,
     varianceCents: earnedCents - c.actualCents,
     scheduleVarianceCents: earnedCents - c.plannedCents,
-    cpi: c.actualCents === 0 ? null : earnedCents / c.actualCents,
-    spi: c.plannedCents === 0 ? null : earnedCents / c.plannedCents,
+    cpi:
+      c.budgetCents === 0 || c.actualCents === 0
+        ? null
+        : earnedCents / c.actualCents,
+    spi:
+      c.budgetCents === 0 || c.plannedCents === 0
+        ? null
+        : earnedCents / c.plannedCents,
     overBudgetQtyMilli: overBudgetQtyMilliOf(c),
     earnedMhMilli: earnedMhMilliOf(c),
     eacCents: forecast.eacCents,
     etcCents: forecast.etcCents,
-    forecastFallback: forecast.forecastFallback,
     forecastDerivation: forecast.forecastDerivation,
     sinceLockActualCents: liveActual - c.actualCents,
     sinceLockPlannedCents: livePlanned - c.plannedCents,
@@ -311,8 +284,10 @@ export type Rollup = {
   costVarianceCents: number;
   scheduleVarianceCents: number;
   percent: number;
-  cpi: number;
-  spi: number;
+  /** null when budget is $0 or nothing spent yet — screens show "—", not 1.00. */
+  cpi: number | null;
+  /** null when budget is $0 or nothing planned yet — screens show "—", not 1.00. */
+  spi: number | null;
   /** Job / portfolio EAC = sum of per-item EACs (not BAC ÷ CPI). */
   eacCents: number;
   etcCents: number;
@@ -338,7 +313,6 @@ export function rollupFromTotals(t: {
     actualCents,
     eacCents,
   } = t;
-  const cpi = actualCents === 0 ? 1 : earnedCents / actualCents;
   return {
     budgetCents,
     plannedCents,
@@ -347,8 +321,14 @@ export function rollupFromTotals(t: {
     costVarianceCents: earnedCents - actualCents,
     scheduleVarianceCents: earnedCents - plannedCents,
     percent: budgetCents === 0 ? 0 : earnedCents / budgetCents,
-    cpi,
-    spi: plannedCents === 0 ? 1 : earnedCents / plannedCents,
+    cpi:
+      budgetCents === 0 || actualCents === 0
+        ? null
+        : earnedCents / actualCents,
+    spi:
+      budgetCents === 0 || plannedCents === 0
+        ? null
+        : earnedCents / plannedCents,
     eacCents,
     etcCents: t.etcCents ?? eacCents - actualCents,
     sinceLockActualCents: t.sinceLockActualCents ?? 0,
@@ -449,6 +429,21 @@ export const mh = (milli: number) =>
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
+
+/**
+ * Installed quantities grouped by unit. Never sum CY + LB + DAY into one number.
+ * Empty string when nothing was installed.
+ */
+export function formatInstalledByUnit(
+  byUnit: Record<string, number>,
+): string {
+  const parts = Object.entries(byUnit)
+    .filter(([, milli]) => milli !== 0)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([unit, milli]) => `${qty(milli)} ${unit}`);
+  if (!parts.length) return "";
+  return `${parts.join(", ")} installed`;
+}
 
 /** Default heavy-civil crew rate used when posting foreman hours to actuals. */
 export const DEFAULT_LABOR_RATE_CENTS = 8500;

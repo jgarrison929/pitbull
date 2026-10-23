@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { forecastMethodEnum } from "@/db/schema";
 import {
   costLine,
   earnedCentsOf,
   earnedMhMilliOf,
+  formatInstalledByUnit,
+  idx,
   itemForecast,
   plannedValueCents,
   rollup,
+  rollupFromTotals,
   sCurvePoints,
   snapshotClaimPercent,
 } from "./ev";
@@ -134,25 +138,12 @@ describe("04-210 seed fixture (hand-computed)", () => {
     });
     expect(f.eacCents).toBe(105_952_800);
     expect(f.etcCents).toBe(52_080_000);
-    expect(f.forecastFallback).toBe(false);
-  });
-
-  it("check 2: Average Performance EAC = AC × BAC ÷ EV", () => {
-    // EAC = 538728 × 620 ÷ 248 = 1,346,820; ETC = 808,092
-    const f = itemForecast({
-      forecastMethod: "average_performance",
-      budgetCents: pour.budgetCents,
-      earnedCents: 34_720_000,
-      actualCents: pour.actualCents,
-    });
-    expect(f.eacCents).toBe(134_682_000);
-    expect(f.etcCents).toBe(80_809_200);
   });
 
   it("check 3: job EAC is the sum of item EACs", () => {
     const a = costLine({
       ...pour,
-      forecastMethod: "average_performance",
+      forecastMethod: "current_budget",
     });
     const b = costLine({
       ...base,
@@ -164,26 +155,14 @@ describe("04-210 seed fixture (hand-computed)", () => {
       plannedCents: 0,
       actualCents: 0,
       claimedPercentMilli: 0,
-      forecastMethod: "average_performance",
+      forecastMethod: "current_budget",
       evMethod: "pm_percent",
     });
     const r = rollup([a, b]);
-    // 1,346,820 + 900,000 = 2,246,820 (not BAC÷CPI = 2,743,292.35)
-    expect(a.eacCents).toBe(134_682_000);
+    // current_budget: 1,059,528 + 900,000 = 1,959,528 (not BAC÷CPI)
+    expect(a.eacCents).toBe(105_952_800);
     expect(b.eacCents).toBe(90_000_000);
-    expect(r.eacCents).toBe(224_682_000);
-  });
-
-  it("check 4: no progress on Average Performance falls back to Current Budget", () => {
-    const f = itemForecast({
-      forecastMethod: "average_performance",
-      budgetCents: 90_000_000,
-      earnedCents: 0,
-      actualCents: 0,
-    });
-    expect(f.eacCents).toBe(90_000_000);
-    expect(f.forecastFallback).toBe(true);
-    expect(f.forecastDerivation).toMatch(/fell back/);
+    expect(r.eacCents).toBe(195_952_800);
   });
 
   it("check 5: earned man-hours and productivity", () => {
@@ -372,5 +351,44 @@ describe("since lock figures", () => {
     expect(line.sinceLockActualCents).toBe(500_000);
     expect(line.sinceLockPlannedCents).toBe(3_000_000);
     expect(line.cpi).toBeCloseTo(1.25); // EV 5M / AC 4M at cutoff
+  });
+});
+
+describe("honesty: never sum installed qty across units", () => {
+  it("lists CY, LB, and DAY separately — not 8,513", () => {
+    // Bug: 12 CY + 8,500 LB + 1 DAY was shown as "8,513 installed".
+    const text = formatInstalledByUnit({
+      CY: 12_000,
+      LB: 8_500_000,
+      DAY: 1_000,
+    });
+    expect(text).not.toMatch(/8,?513/);
+    // Units listed separately (sorted); never one summed quantity.
+    expect(text).toBe("12 CY, 1 DAY, 8,500 LB installed");
+  });
+});
+
+describe("honesty: zero-budget CPI/SPI", () => {
+  it("shows em dash, not 1.00, when budget is $0", () => {
+    const r = rollupFromTotals({
+      budgetCents: 0,
+      plannedCents: 0,
+      earnedCents: 0,
+      actualCents: 0,
+      eacCents: 0,
+    });
+    expect(r.cpi).toBeNull();
+    expect(r.spi).toBeNull();
+    expect(idx(r.cpi)).toBe("—");
+    expect(idx(r.spi)).toBe("—");
+  });
+});
+
+describe("honesty: forecast method", () => {
+  it("only current_budget remains — average_performance is gone", () => {
+    expect(forecastMethodEnum.enumValues).toEqual(["current_budget"]);
+    expect(forecastMethodEnum.enumValues).not.toContain(
+      "average_performance",
+    );
   });
 });

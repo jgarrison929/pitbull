@@ -148,7 +148,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
                 </button>
               </form>
             ) : null}
-            {draftClaim && canLock ? (
+            {draftClaim && canLock && !estimateDraft ? (
               <form action={runAction}>
                 <input
                   type="hidden"
@@ -170,7 +170,20 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
                 </button>
               </form>
             ) : null}
-            <StatusPill value={p.status} varianceCents={p.costVarianceCents} />
+            {estimateDraft ? (
+              <span
+                className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                data-status="draft"
+                data-testid="draft-label"
+              >
+                Draft
+              </span>
+            ) : (
+              <StatusPill
+                value={p.status!}
+                varianceCents={p.costVarianceCents}
+              />
+            )}
           </div>
         }
       />
@@ -188,125 +201,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       {estimateDraft && canImport ? (
         <ImportEstimateForm jobNumber={p.job.number} />
       ) : null}
-      <KpiStrip>
-        <Kpi
-          label="Original budget"
-          value={<Money cents={jobMoney.obCents} />}
-          sub={
-            estimateDraft
-              ? "Approve freezes the estimate here"
-              : "Frozen at approve"
-          }
-          testId="job-original-budget"
-        />
-        <Kpi
-          label="Current budget"
-          value={<Money cents={p.budgetCents} />}
-          sub={
-            estimateDraft
-              ? "Zero until the estimate is approved"
-              : `${pct(p.percent)} earned`
-          }
-          testId="job-budget"
-        />
-        <Kpi
-          label="Current estimate"
-          value={<Money cents={jobMoney.ceCents} />}
-          sub={`${mh(jobMoney.mhMilli)} MH budgeted`}
-          testId="job-estimate"
-        />
-        <Kpi
-          label="Earned to date"
-          value={<Money cents={p.earnedCents} />}
-          sub={
-            p.lockAt
-              ? `${pct(p.percent)} of ${usdShort(p.budgetCents)} · as of last lock`
-              : `${pct(p.percent)} of ${usdShort(p.budgetCents)} budget`
-          }
-          testId="job-earned"
-        />
-        <Kpi
-          label="Actual cost"
-          value={<Money cents={p.actualCents} />}
-          sub={
-            p.sinceLockActualCents !== 0 ? (
-              <>
-                vs {usdShort(p.earnedCents)} earned ·{" "}
-                <span data-testid="job-actual-since-lock">
-                  <Money cents={p.sinceLockActualCents} /> since lock
-                </span>
-              </>
-            ) : (
-              `vs ${usdShort(p.earnedCents)} earned`
-            )
-          }
-          testId="job-actual"
-        />
-        <Kpi
-          label="CPI"
-          value={
-            <StatusIndex index={p.cpi} varianceCents={p.costVarianceCents} />
-          }
-          sub={
-            <>
-              EAC{" "}
-              <span data-testid="job-eac" data-cents={p.eacCents}>
-                {usdShort(p.eacCents)}
-              </span>
-              {" · ETC "}
-              {usdShort(p.etcCents)}
-            </>
-          }
-          testId="job-cpi"
-        />
-        <Kpi
-          label="SPI"
-          value={
-            <StatusIndex
-              index={p.spi}
-              varianceCents={p.scheduleVarianceCents}
-            />
-          }
-          sub={
-            p.sinceLockPlannedCents !== 0
-              ? `${usdShort(p.plannedCents)} planned · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
-              : `schedule variance · ${usdShort(p.plannedCents)} planned`
-          }
-          testId="job-spi"
-        />
-      </KpiStrip>
-      <p
-        className="mt-2 text-xs text-muted-foreground"
-        data-testid="estimate-categories"
-        data-source={p.job.estimateSource}
-      >
-        {p.job.estimateSource === "csv" ? (
-          <>
-            Current estimate by category: labor{" "}
-            <span data-testid="estimate-labor">
-              <Money cents={jobMoney.ce.laborCents} />
-            </span>{" "}
-            · material{" "}
-            <span data-testid="estimate-material">
-              <Money cents={jobMoney.ce.materialCents} />
-            </span>{" "}
-            · equipment{" "}
-            <span data-testid="estimate-equipment">
-              <Money cents={jobMoney.ce.equipmentCents} />
-            </span>{" "}
-            · subcontract{" "}
-            <span data-testid="estimate-sub">
-              <Money cents={jobMoney.ce.subCents} />
-            </span>{" "}
-            ·{" "}
-            <span data-testid="estimate-mh" data-milli={jobMoney.mhMilli}>
-              {mh(jobMoney.mhMilli)} MH
-            </span>
-          </>
-        ) : (
-          "Lump budget — each cost item is one seeded total, with no labor, material, equipment, or subcontract split."
-        )}
-      </p>
+      {/* Plans lead so Submit + crew footer stay reachable after KPI growth (#662). */}
       {plans.map((plan) => (
         <PlanCard
           key={plan.id}
@@ -375,6 +270,171 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           }
         />
       ))}
+      <KpiStrip>
+        <Kpi
+          label="Original budget"
+          value={
+            estimateDraft ? (
+              <span className="text-muted-foreground" data-testid="metric-dash">
+                —
+              </span>
+            ) : (
+              <Money cents={jobMoney.obCents} />
+            )
+          }
+          sub={
+            estimateDraft
+              ? "Approve freezes the estimate here"
+              : "Frozen at approve"
+          }
+          testId="job-original-budget"
+        />
+        <Kpi
+          label="Current budget"
+          value={<Money cents={p.budgetCents} />}
+          sub={
+            estimateDraft
+              ? "Zero until the estimate is approved"
+              : `${pct(p.percent)} earned`
+          }
+          testId="job-budget"
+        />
+        <Kpi
+          label="Current estimate"
+          value={<Money cents={jobMoney.ceCents} />}
+          sub={`${mh(jobMoney.mhMilli)} MH budgeted`}
+          testId="job-estimate"
+        />
+        <Kpi
+          label="Earned to date"
+          value={
+            estimateDraft ? (
+              <span className="text-muted-foreground" data-testid="metric-dash">
+                —
+              </span>
+            ) : (
+              <Money cents={p.earnedCents} />
+            )
+          }
+          sub={
+            estimateDraft
+              ? "After estimate approval"
+              : p.lockAt
+                ? `${pct(p.percent)} of ${usdShort(p.budgetCents)} · as of last lock`
+                : `${pct(p.percent)} of ${usdShort(p.budgetCents)} budget`
+          }
+          testId="job-earned"
+        />
+        <Kpi
+          label="Actual cost"
+          value={
+            estimateDraft ? (
+              <span className="text-muted-foreground" data-testid="metric-dash">
+                —
+              </span>
+            ) : (
+              <Money cents={p.actualCents} />
+            )
+          }
+          sub={
+            estimateDraft
+              ? "After estimate approval"
+              : p.sinceLockActualCents !== 0 ? (
+                  <>
+                    vs {usdShort(p.earnedCents)} earned ·{" "}
+                    <span data-testid="job-actual-since-lock">
+                      <Money cents={p.sinceLockActualCents} /> since lock
+                    </span>
+                  </>
+                ) : (
+                  `vs ${usdShort(p.earnedCents)} earned`
+                )
+          }
+          testId="job-actual"
+        />
+        <Kpi
+          label="CPI"
+          value={
+            estimateDraft ? (
+              <span className="text-muted-foreground" data-testid="metric-dash">
+                —
+              </span>
+            ) : (
+              <StatusIndex index={p.cpi} varianceCents={p.costVarianceCents} />
+            )
+          }
+          sub={
+            estimateDraft ? (
+              "EAC — · ETC —"
+            ) : (
+              <>
+                EAC{" "}
+                <span data-testid="job-eac" data-cents={p.eacCents}>
+                  {usdShort(p.eacCents)}
+                </span>
+                {" · ETC "}
+                {usdShort(p.etcCents)}
+              </>
+            )
+          }
+          testId="job-cpi"
+        />
+        <Kpi
+          label="SPI"
+          value={
+            estimateDraft ? (
+              <span className="text-muted-foreground" data-testid="metric-dash">
+                —
+              </span>
+            ) : (
+              <StatusIndex
+                index={p.spi}
+                varianceCents={p.scheduleVarianceCents}
+              />
+            )
+          }
+          sub={
+            estimateDraft
+              ? "After estimate approval"
+              : p.sinceLockPlannedCents !== 0
+                ? `${usdShort(p.plannedCents)} planned · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
+                : `schedule variance · ${usdShort(p.plannedCents)} planned`
+          }
+          testId="job-spi"
+        />
+      </KpiStrip>
+      <p
+        className="mt-2 text-xs text-muted-foreground"
+        data-testid="estimate-categories"
+        data-source={p.job.estimateSource}
+      >
+        {p.job.estimateSource === "csv" ? (
+          <>
+            Current estimate by category: labor{" "}
+            <span data-testid="estimate-labor">
+              <Money cents={jobMoney.ce.laborCents} />
+            </span>{" "}
+            · material{" "}
+            <span data-testid="estimate-material">
+              <Money cents={jobMoney.ce.materialCents} />
+            </span>{" "}
+            · equipment{" "}
+            <span data-testid="estimate-equipment">
+              <Money cents={jobMoney.ce.equipmentCents} />
+            </span>{" "}
+            · subcontract{" "}
+            <span data-testid="estimate-sub">
+              <Money cents={jobMoney.ce.subCents} />
+            </span>{" "}
+            ·{" "}
+            <span data-testid="estimate-mh" data-milli={jobMoney.mhMilli}>
+              {mh(jobMoney.mhMilli)} MH
+            </span>
+          </>
+        ) : (
+          "Lump budget — each cost item is one seeded total, with no labor, material, equipment, or subcontract split."
+        )}
+      </p>
       {canEvEdit ? (
         <Section
           title="Field measurement methods"
@@ -405,6 +465,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           nodes={nodes}
           jobMoney={jobMoney}
           defaultValueSet={estimateDraft ? "ce" : "cb"}
+          estimateDraft={estimateDraft}
         />
       </Section>
       {coData ? (

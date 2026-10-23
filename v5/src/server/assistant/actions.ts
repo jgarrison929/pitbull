@@ -23,11 +23,14 @@ import {
 } from "@/lib/change-order";
 import {
   DEFAULT_LABOR_RATE_CENTS,
+  formatInstalledByUnit,
+  idx,
   laborCents,
   qty,
   usdCents,
   usdShort,
 } from "@/lib/ev";
+import { sentence } from "@/lib/prose";
 import {
   applyLineInput,
   manHoursOf,
@@ -71,6 +74,8 @@ export type ActionResult = {
   errors?: Record<string, string>;
   /** Multi-line feedback (e.g. CSV row errors) shown as a list under the summary. */
   detailLines?: string[];
+  /** Role, unknown job, or domain refusal — rail chip must not use success wording. */
+  refused?: true;
 };
 
 type ActionDef = {
@@ -129,6 +134,7 @@ async function unknownJob(
   const { jobs: all } = await getPortfolio(user.companyId);
   return {
     summary: `There is no job ${number} in this sandbox. Jobs here: ${all.map((j) => j.job.number).join(", ")}.`,
+    refused: true,
   };
 }
 
@@ -269,6 +275,7 @@ function describeChange(
   return out;
 }
 
+
 const CO_ACTIONS = {
   create: { title: "Raise a change order", roles: ["pm", "executive"] },
   price: { title: "Price a change order", roles: ["pm", "executive"] },
@@ -289,9 +296,11 @@ async function runCo(
     return {
       summary:
         "Which job? Change orders are numbered per job — name it, like 25-031.",
+      refused: true,
     };
   const command = coCommandFromArgs(name, args);
-  if ("ask" in command) return { summary: command.ask, job: args.job };
+  if ("ask" in command)
+    return { summary: command.ask, job: args.job, refused: true };
   const r = await changeOrderCommand(
     user.companyId,
     { userId: user.userId, role: user.role },
@@ -303,6 +312,7 @@ async function runCo(
     href: `/app/jobs/${args.job}#change-orders`,
     job: r.job?.number ?? args.job,
     ...(!r.ok && r.errors ? { errors: r.errors } : {}),
+    ...(!r.ok ? { refused: true as const } : {}),
   };
 }
 
@@ -324,16 +334,20 @@ export const actions: Record<ActionName, ActionDef> = {
   "portfolio.summary": {
     title: "Portfolio summary",
     async run(user) {
-      const { jobs: all, totals } = await getPortfolio(user.companyId);
-      const risky = all.filter((j) => j.status !== "on-track");
+      const { jobs: all, activeJobCount, totals } = await getPortfolio(
+        user.companyId,
+      );
+      const risky = all.filter(
+        (j) => !j.estimateDraft && j.status !== "on-track",
+      );
       const flags = risky.map((j) =>
-        j.cpi < j.spi
-          ? `${j.job.shortName} (CPI ${j.cpi.toFixed(2)})`
-          : `${j.job.shortName} (SPI ${j.spi.toFixed(2)})`,
+        (j.cpi ?? Infinity) < (j.spi ?? Infinity)
+          ? `${j.job.shortName} (CPI ${idx(j.cpi)})`
+          : `${j.job.shortName} (SPI ${idx(j.spi)})`,
       );
       return {
         summary:
-          `${all.length} jobs. Portfolio CPI ${totals.cpi.toFixed(2)}, SPI ${totals.spi.toFixed(2)}. ` +
+          `${activeJobCount} active jobs. Portfolio CPI ${idx(totals.cpi)}, SPI ${idx(totals.spi)}. ` +
           (flags.length
             ? `Needs attention: ${flags.join(", ")}.`
             : "Every job is on track."),
@@ -356,7 +370,7 @@ export const actions: Record<ActionName, ActionDef> = {
       const net = j.costVarianceCents;
       return {
         summary:
-          `${j.job.shortName} is ${usdShort(Math.abs(net))} ${net < 0 ? "over" : "under"} on earned vs actual cost (CPI ${j.cpi.toFixed(2)}). ` +
+          `${j.job.shortName} is ${usdShort(Math.abs(net))} ${net < 0 ? "over" : "under"} on earned vs actual cost (CPI ${idx(j.cpi)}). ` +
           (worst.length
             ? `Largest overruns: ${worst.map((l) => `${l.code} ${l.description} ${usdShort(l.varianceCents)}`).join("; ")}.`
             : "No cost code is over."),
@@ -461,7 +475,10 @@ export const actions: Record<ActionName, ActionDef> = {
           ),
         );
       return {
-        summary: `Changed ${item.code} ${v.activity} on ${plan.crew}'s plan: ${changes.join("; ")}.`,
+        summary: sentence(
+          `Changed ${item.code} ${v.activity} on ${plan.crew}'s plan: `,
+          changes,
+        ),
         ...where,
         line: item.code,
       };
@@ -540,13 +557,12 @@ export const actions: Record<ActionName, ActionDef> = {
           job: j.job.number,
         };
       }
+      const installed = formatInstalledByUnit(result.postedQtyByUnit);
       return {
         summary:
           `Approved ${plan.crew}'s report for ${day(plan.planDate)} on ${j.job.shortName}: ` +
           `${result.postedMh} MH / ${usdShort(result.postedCents)} actual cost` +
-          (result.postedQtyMilli
-            ? `, ${qty(result.postedQtyMilli)} installed`
-            : "") +
+          (installed ? `, ${installed}` : "") +
           `. Entries dated ${day(result.planDate!)}.`,
         href: jobHref(j),
         job: j.job.number,
@@ -763,6 +779,13 @@ export const actions: Record<ActionName, ActionDef> = {
         };
       const j = await resolveJob(user, job);
       if (!j) return unknownJob(user, job);
+      if (j.job.estimateStatus === "draft")
+        return {
+          summary: `Approve the estimate on ${j.job.shortName} before locking a progress claim.`,
+          href: jobHref(j),
+          job: j.job.number,
+          refused: true,
+        };
       const result = await lockProgressClaim(
         user.companyId,
         j.job.id,
@@ -773,6 +796,7 @@ export const actions: Record<ActionName, ActionDef> = {
           summary: `There is no open draft progress claim on ${j.job.shortName} to lock.`,
           href: jobHref(j),
           job: j.job.number,
+          refused: true,
         };
       return {
         summary: `Locked ${result.periodLabel} on ${j.job.shortName}: ${result.lines} cost codes. ${result.nextPeriodLabel} is now open as a draft.`,
@@ -833,6 +857,7 @@ export const actions: Record<ActionName, ActionDef> = {
           summary: result.summary,
           href: jobHref(j),
           job: j.job.number,
+          refused: true,
         };
       }
       return {
@@ -1103,6 +1128,8 @@ export type RunArgs = {
   /** Cost code of the plan line an edit touched. */
   line?: string;
   href?: string;
+  /** When true, the rail chip uses a refusal label (never success wording). */
+  refused?: true;
 };
 
 const roleNames: Record<Role, string> = {
@@ -1147,7 +1174,11 @@ export async function run(
       ? await def.run(user, effectiveArgs)
       : {
           summary: `${def.title} needs ${def.roles!.map((r) => roleNames[r]).join(" or ")}. You are signed in as ${roleNames[user.role]}. Switch role to try it.`,
+          refused: true,
+          // Keep the named job on the chip so refusal reads "Couldn't … on 25-031".
+          job: effectiveArgs.job,
         };
+  const refused = Boolean(result.refused);
   const [row] = await requireDb()
     .insert(actionRuns)
     .values({
@@ -1159,9 +1190,11 @@ export async function run(
       // They differ when the request named none and the action picked one.
       args: {
         requested: args.job ?? null,
-        job: result.job ?? null,
+        // Role refusal never ran the action — still show the job they named.
+        job: result.job ?? effectiveArgs.job ?? null,
         ...(result.line ? { line: result.line } : {}),
         ...(result.href ? { href: result.href } : {}),
+        ...(refused ? { refused: true as const } : {}),
       } satisfies RunArgs,
       summary: result.summary,
     })
@@ -1189,16 +1222,19 @@ export async function recentRuns(
     )
     .orderBy(desc(actionRuns.createdAt))
     .limit(limit);
-  return rows.reverse().map(({ run, userName, role }) => ({
-    id: run.id,
-    prompt: run.prompt,
-    action: run.action,
-    args: run.args as RunArgs,
-    summary: run.summary,
-    createdAt: run.createdAt.toISOString(),
-    userName,
-    role,
-  }));
+  return rows.reverse().map(({ run, userName, role }) => {
+    const args = run.args as RunArgs;
+    return {
+      id: run.id,
+      prompt: run.prompt,
+      action: run.action,
+      args,
+      summary: run.summary,
+      createdAt: run.createdAt.toISOString(),
+      userName,
+      role,
+    };
+  });
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
 

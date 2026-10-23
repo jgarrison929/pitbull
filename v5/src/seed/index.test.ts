@@ -11,7 +11,7 @@ import {
   reconcileByCode,
 } from "@/lib/estimate-reconcile";
 import { costLine, plannedValueCents } from "@/lib/ev";
-import { seed, seedId } from "./index";
+import { SEED_ACTIVE_JOB_COUNT, seed, seedId } from "./index";
 
 const company = "00000000-0000-4000-8000-000000000001";
 const today = new Date("2026-10-19T00:00:00Z");
@@ -191,6 +191,10 @@ describe("seed", () => {
   it("seeds one draft estimate job with the SHB fixture totals", () => {
     const harbor = rows.jobs.find((j) => j.number === "26-010")!;
     expect(harbor.estimateStatus).toBe("draft");
+    // Login copy and portfolio "active jobs" must agree — draft is not active.
+    expect(SEED_ACTIVE_JOB_COUNT).toBe(
+      rows.jobs.filter((j) => j.estimateStatus === "approved").length,
+    );
     const leaves = rows.costItems.filter(
       (c) => c.jobId === harbor.id && c.isLeaf,
     );

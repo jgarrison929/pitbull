@@ -257,7 +257,7 @@ async function flows(browser) {
     await shot(page, "assistant-rail-desktop");
     await page.reload({ waitUntil: "networkidle" });
     const persisted = await page.getByTestId("assistant-rail").getByTestId("action-run").count();
-    check("assistant runs a typed action and logs it", name === "job.costVariance(25-031)" && persisted >= 1, `${name}: ${summary} (runs after reload: ${persisted})`);
+    check("assistant runs a typed action and logs it", name === "Cost variance on 25-031" && persisted >= 1, `${name}: ${summary} (runs after reload: ${persisted})`);
   });
 
   await step("sandbox reset reseeds", async () => {
