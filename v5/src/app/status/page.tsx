@@ -42,10 +42,19 @@ async function StatusDetails() {
     getDeployStatus(),
     checkHealth(dbPing()),
   ]);
+  const ciGateValue = (() => {
+    const label = ciLabel(deploy.ciGate);
+    if (!deploy.ciGateStale) return label;
+    const age =
+      deploy.ciGateAgeMs == null
+        ? "stale"
+        : `stale ${Math.round(deploy.ciGateAgeMs / 1000)}s`;
+    return `${label} (${age})`;
+  })();
   const rows: [string, string, string][] = [
     ["Version", deploy.version, "status-version"],
     ["Commit", deploy.commit, "status-commit"],
-    ["CI gate", ciLabel(deploy.ciGate), "status-ci-gate"],
+    ["CI gate", ciGateValue, "status-ci-gate"],
     [
       "Last verify",
       deploy.lastVerifyAt ?? "not recorded",

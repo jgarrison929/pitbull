@@ -44,11 +44,11 @@ node .cursor/skills/verify-v5/verify.mjs --shots /tmp/m1-screens  # also copy th
 | `--wait` | `0` | Seconds to poll `/health` until the commit matches |
 | `--shots` | the evidence folder | Where to write the desktop and mobile screenshots |
 
-**Last-verify stamp:** on a passing run, the script `POST`s `/api/verify/stamp` when `VERIFY_TOKEN` is set in the runner environment. The same value must be configured on the Railway staging service (`VERIFY_TOKEN`). Without it, `/status` keeps showing `not recorded`.
+**Last-verify stamp:** on a passing run, the script `POST`s `/api/verify/stamp` when `VERIFY_TOKEN` is set in the runner environment. The same value must be configured on the Railway staging service (`VERIFY_TOKEN`). The stamp must match the deployed commit and must not use a future timestamp. Without the token, `/status` keeps showing `not recorded`. If `VERIFY_TOKEN` is set and the stamp fails (including HTTP 401), verify-v5 exits **non-zero**.
 
 To see it fail on purpose, pass a commit staging doesn't serve, such as `--commit 000000000000`. The commit checks print `FAIL` and the run exits 1.
 
-Exit code 0 means every check passed. Exit code 1 means at least one failed; the printed `FAIL` lines say which.
+Exit code 0 means every check passed (and stamp succeeded when `VERIFY_TOKEN` was set). Exit code 1 means at least one failed; the printed `FAIL` lines say which.
 
 ## Evidence
 

@@ -1,5 +1,11 @@
 import { connection } from "next/server";
+import { getBuildInfo } from "@/lib/build-info";
 import { writeLastVerifyAt } from "@/lib/last-verify";
+import {
+  commitsMatchDeployed,
+  isStampTimestampAllowed,
+} from "@/lib/stamp-guards";
+import { tokensEqual } from "@/lib/tokens-equal";
 import { resolveVerifyToken } from "@/lib/verify-token";
 
 /**
@@ -17,7 +23,7 @@ export async function POST(req: Request) {
   }
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!token || token !== expected) {
+  if (!token || !tokensEqual(token, expected)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -31,9 +37,24 @@ export async function POST(req: Request) {
   if (!commit) {
     return Response.json({ error: "commit required" }, { status: 400 });
   }
+
+  const deployed = getBuildInfo().commit;
+  if (!commitsMatchDeployed(commit, deployed)) {
+    return Response.json(
+      {
+        error: "commit does not match deployed commit",
+        deployed,
+      },
+      { status: 400 },
+    );
+  }
+
   const at = body.at ? new Date(body.at) : new Date();
   if (!Number.isFinite(at.getTime())) {
     return Response.json({ error: "invalid at" }, { status: 400 });
+  }
+  if (!isStampTimestampAllowed(at)) {
+    return Response.json({ error: "timestamp is in the future" }, { status: 400 });
   }
 
   try {

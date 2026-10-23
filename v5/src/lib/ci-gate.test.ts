@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CI_GATE_CACHE_TTL_MS,
+  CI_GATE_ERROR_TTL_MS,
   clearCiGateCache,
   fetchCiGate,
   resolveCiGate,
@@ -22,18 +23,29 @@ function passFetch() {
 
 describe("resolveCiGate", () => {
   it("honors CI_GATE_RESULT override", async () => {
-    expect(await resolveCiGate("abc", { CI_GATE_RESULT: "pass" })).toBe("pass");
-    expect(await resolveCiGate("abc", { CI_GATE_RESULT: "fail" })).toBe("fail");
+    expect(await resolveCiGate("abc", { CI_GATE_RESULT: "pass" })).toEqual({
+      result: "pass",
+      stale: false,
+      ageMs: 0,
+    });
+    expect(await resolveCiGate("abc", { CI_GATE_RESULT: "fail" })).toEqual({
+      result: "fail",
+      stale: false,
+      ageMs: 0,
+    });
   });
 
   it("is unknown without a commit", async () => {
-    expect(await fetchCiGate("unknown")).toBe("unknown");
-    expect(await fetchCiGate("")).toBe("unknown");
+    expect(await fetchCiGate("unknown")).toMatchObject({ result: "unknown" });
+    expect(await fetchCiGate("")).toMatchObject({ result: "unknown" });
   });
 
   it("maps a successful ci-gate check-run to pass", async () => {
     const fetchFn = passFetch();
-    expect(await fetchCiGate("0123456789ab", {}, fetchFn)).toBe("pass");
+    expect(await fetchCiGate("0123456789ab", {}, fetchFn)).toMatchObject({
+      result: "pass",
+      stale: false,
+    });
     expect(fetchFn).toHaveBeenCalledOnce();
     const url = String(fetchFn.mock.calls.at(0)?.at(0) ?? "");
     expect(url).toContain("/commits/0123456789ab/check-runs");
@@ -48,7 +60,7 @@ describe("resolveCiGate", () => {
         ],
       }),
     );
-    expect(await fetchCiGate("abc", {}, fail)).toBe("fail");
+    expect(await fetchCiGate("abc", {}, fail)).toMatchObject({ result: "fail" });
     clearCiGateCache();
     const pending = vi.fn(async () =>
       Response.json({
@@ -57,12 +69,17 @@ describe("resolveCiGate", () => {
         ],
       }),
     );
-    expect(await fetchCiGate("abc", {}, pending)).toBe("pending");
+    expect(await fetchCiGate("abc", {}, pending)).toMatchObject({
+      result: "pending",
+    });
   });
 
-  it("is unknown when GitHub errors", async () => {
+  it("is unknown when GitHub errors and there is no last good", async () => {
     const fetchFn = vi.fn(async () => new Response("nope", { status: 403 }));
-    expect(await fetchCiGate("abc", {}, fetchFn)).toBe("unknown");
+    expect(await fetchCiGate("abc", {}, fetchFn)).toMatchObject({
+      result: "unknown",
+      stale: false,
+    });
   });
 
   it("sends Authorization when GITHUB_TOKEN is set", async () => {
@@ -85,9 +102,15 @@ describe("ci-gate server cache", () => {
     const now = 1_000_000;
     const clock = () => now;
 
-    expect(await fetchCiGate("deadbeef", {}, fetchFn, clock)).toBe("pass");
-    expect(await fetchCiGate("deadbeef", {}, fetchFn, clock)).toBe("pass");
-    expect(await resolveCiGate("deadbeef", {}, fetchFn, clock)).toBe("pass");
+    expect(await fetchCiGate("deadbeef", {}, fetchFn, clock)).toMatchObject({
+      result: "pass",
+    });
+    expect(await fetchCiGate("deadbeef", {}, fetchFn, clock)).toMatchObject({
+      result: "pass",
+    });
+    expect(await resolveCiGate("deadbeef", {}, fetchFn, clock)).toMatchObject({
+      result: "pass",
+    });
     expect(fetchFn).toHaveBeenCalledOnce();
   });
 
@@ -108,5 +131,91 @@ describe("ci-gate server cache", () => {
     await fetchCiGate("aaa", {}, fetchFn, clock);
     await fetchCiGate("bbb", {}, fetchFn, clock);
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("single-flights concurrent refreshes (100 → 1 GitHub call)", async () => {
+    let resolveFetch!: (r: Response) => void;
+    const fetchFn = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+    let now = 1_000_000;
+    const clock = () => now;
+
+    // Warm cache with a completed pass first.
+    const warm = passFetch();
+    await fetchCiGate("stampede", {}, warm, clock);
+    now += CI_GATE_CACHE_TTL_MS + 1;
+
+    const pending = Array.from({ length: 100 }, () =>
+      fetchCiGate("stampede", {}, fetchFn, clock),
+    );
+    // Only one in-flight lookup should have started.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+
+    resolveFetch!(
+      Response.json({
+        check_runs: [
+          { name: "ci-gate", status: "completed", conclusion: "success" },
+        ],
+      }),
+    );
+    const results = await Promise.all(pending);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(results.every((r) => r.result === "pass")).toBe(true);
+  });
+
+  it("stale-while-error keeps last good and uses short error TTL", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          check_runs: [
+            { name: "ci-gate", status: "completed", conclusion: "success" },
+          ],
+        }),
+      )
+      .mockResolvedValue(new Response("rate limited", { status: 403 }));
+
+    let now = 1_000_000;
+    const clock = () => now;
+
+    const first = await fetchCiGate("stale", {}, fetchFn, clock);
+    expect(first).toMatchObject({ result: "pass", stale: false });
+
+    now += CI_GATE_CACHE_TTL_MS + 1;
+    const second = await fetchCiGate("stale", {}, fetchFn, clock);
+    expect(second).toMatchObject({ result: "pass", stale: true });
+    expect(second.ageMs).toBeGreaterThan(0);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+
+    // Still within error TTL: no third GitHub call; still pass/stale.
+    now += CI_GATE_ERROR_TTL_MS - 1;
+    const third = await fetchCiGate("stale", {}, fetchFn, clock);
+    expect(third).toMatchObject({ result: "pass", stale: true });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+
+    // After short error TTL, retries GitHub (still 403) but keeps last good.
+    now += 2;
+    const fourth = await fetchCiGate("stale", {}, fetchFn, clock);
+    expect(fourth).toMatchObject({ result: "pass", stale: true });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not cache unknown for the full success TTL", async () => {
+    const fetchFn = vi.fn(async () => new Response("nope", { status: 403 }));
+    let now = 1_000_000;
+    const clock = () => now;
+
+    await fetchCiGate("short-unknown", {}, fetchFn, clock);
+    now += CI_GATE_ERROR_TTL_MS + 1;
+    await fetchCiGate("short-unknown", {}, fetchFn, clock);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+
+    // Still well under the 5-minute success TTL — would be 1 call if unknown
+    // were cached for CI_GATE_CACHE_TTL_MS.
+    expect(now - 1_000_000).toBeLessThan(CI_GATE_CACHE_TTL_MS);
   });
 });

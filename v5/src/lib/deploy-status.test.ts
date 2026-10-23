@@ -26,6 +26,7 @@ describe("getDeployStatus ci-gate traffic", () => {
 
     expect(a.ciGate).toBe("pass");
     expect(b.ciGate).toBe("pass");
+    expect(a.ciGateStale).toBe(false);
     expect(a.lastVerifyAt).toBe("2026-10-20T17:00:00.000Z");
     expect(fetchFn).toHaveBeenCalledOnce();
   });
