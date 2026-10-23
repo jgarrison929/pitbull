@@ -14,6 +14,7 @@ export type ActionName =
   | "dailyPlan.return"
   | "dailyReport.post"
   | "progressClaim.lock"
+  | "estimate.importCsv"
   | "estimate.approve"
   | "costItem.setPmPercent"
   | "costItem.setMilestone"
@@ -52,6 +53,8 @@ export type JobArgs = {
   /** changeOrder.approve: the revision the screen rendered. */
   revision?: string;
   coLines?: CoLineInput[];
+  /** estimate.importCsv: the file text. Only the job page's file picker sets it; chat never does. */
+  csv?: string;
 };
 export type Intent = { action: ActionName; args: JobArgs };
 
@@ -128,6 +131,8 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
       args: { ...(known ? { job: known } : {}), lineRef: prompt, change },
     };
   }
+  if (has(/\bimport(s|ed|ing)?\b/) && has(/\b(estimate|csv)\b/))
+    return { action: "estimate.importCsv", args };
   if (
     has(/\b(lock|claim)\b/) &&
     has(/\b(progress|claim|earned|period)\b/)
@@ -409,6 +414,7 @@ export const examples = [
   "Approve the daily report for Cedar Creek",
   "Return the report for Cedar Creek because Recount pour 3",
   "Lock the progress claim on 25-031",
+  "Import the estimate CSV for Harbor Abutment",
   "Approve the estimate on Harbor Abutment",
   "Raise a change order on Cedar Creek: Added guardrail at the east approach",
   "Approve change order CO-001 on Cedar Creek",

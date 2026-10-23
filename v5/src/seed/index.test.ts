@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { currentBudgetCents, SHB_FIXTURE } from "@/lib/budget";
+import {
+  buildWbsMoney,
+  currentBudgetCents,
+  SHB_CSV,
+  SHB_FIXTURE,
+} from "@/lib/budget";
+import {
+  existingCostItems,
+  parseEstimateCsv,
+  reconcileByCode,
+} from "@/lib/estimate-reconcile";
 import { costLine, plannedValueCents } from "@/lib/ev";
 import { seed, seedId } from "./index";
 
@@ -219,6 +229,58 @@ describe("seed", () => {
         "approved",
       );
     }
+  });
+
+  it("seeds Harbor as a CSV estimate, so importing SHB onto it changes nothing", () => {
+    const harbor = rows.jobs.find((j) => j.number === "26-010")!;
+    expect(harbor.estimateSource).toBe("csv");
+    for (const j of rows.jobs)
+      if (j !== harbor) expect(j.estimateSource ?? "seed").toBe("seed");
+
+    const items = rows.costItems
+      .filter((c) => c.jobId === harbor.id)
+      .map((c) => ({
+        id: c.id!,
+        parentId: c.parentId ?? null,
+        code: c.code,
+        path: c.path,
+        depth: c.depth ?? 0,
+        isLeaf: c.isLeaf ?? true,
+        description: c.description,
+        unit: c.unit,
+        budgetQtyMilli: c.budgetQtyMilli ?? 0,
+        budgetMhPerUnitMilli: c.budgetMhPerUnitMilli ?? 0,
+        obLaborCents: c.obLaborCents ?? 0,
+        obMaterialCents: c.obMaterialCents ?? 0,
+        obEquipmentCents: c.obEquipmentCents ?? 0,
+        obSubCents: c.obSubCents ?? 0,
+        cbLaborCents: c.cbLaborCents ?? 0,
+        cbMaterialCents: c.cbMaterialCents ?? 0,
+        cbEquipmentCents: c.cbEquipmentCents ?? 0,
+        cbSubCents: c.cbSubCents ?? 0,
+        ceLaborCents: c.ceLaborCents ?? 0,
+        ceMaterialCents: c.ceMaterialCents ?? 0,
+        ceEquipmentCents: c.ceEquipmentCents ?? 0,
+        ceSubCents: c.ceSubCents ?? 0,
+      }));
+    for (const s of items.filter((c) => !c.isLeaf)) {
+      expect(s).toMatchObject({ unit: "", budgetQtyMilli: 0, ceLaborCents: 0 });
+    }
+    const money = buildWbsMoney(items).job;
+    expect(money).toMatchObject({
+      obCents: 0,
+      cbCents: 0,
+      ceCents: SHB_FIXTURE.jobTotalCents,
+      ce: SHB_FIXTURE.categories,
+      mhMilli: SHB_FIXTURE.jobMhMilli,
+    });
+
+    const parsed = parseEstimateCsv(SHB_CSV);
+    if (!parsed.ok) throw new Error("SHB_CSV must parse");
+    const diff = reconcileByCode(existingCostItems(items), parsed.forest);
+    if (!diff.ok) throw new Error("SHB_CSV must reconcile");
+    expect(diff.plan.steps).toEqual([]);
+    expect(diff.plan.unchangedIds).toHaveLength(items.length);
   });
 
   it("starts Period 1 as draft for every job (locks happen via seedActionHistory)", () => {

@@ -48,7 +48,8 @@ export async function approveEstimate(
       .select()
       .from(jobs)
       .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!job) {
       return {
         ok: false,

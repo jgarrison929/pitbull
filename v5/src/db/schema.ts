@@ -76,6 +76,11 @@ export const coCommandEnum = pgEnum("co_command", [
   "reject",
   "void",
 ]);
+/**
+ * seed: a lump total plugged into labor (no real category split).
+ * csv: a unit-cost estimate with labor/material/equipment/sub from the CSV grammar.
+ */
+export const estimateSourceEnum = pgEnum("estimate_source", ["seed", "csv"]);
 
 export const companies = pgTable(
   "companies",
@@ -138,6 +143,9 @@ export const jobs = pgTable(
     estimateStatus: estimateStatusEnum("estimate_status")
       .notNull()
       .default("draft"),
+    estimateSource: estimateSourceEnum("estimate_source")
+      .notNull()
+      .default("seed"),
   },
   (t) => [index("jobs_company_idx").on(t.companyId)],
 );
@@ -219,8 +227,10 @@ export const costItems = pgTable(
     index("cost_items_job_idx").on(t.jobId),
     index("cost_items_job_path_idx").on(t.jobId, t.path),
     index("cost_items_job_parent_idx").on(t.jobId, t.parentId),
-    index("cost_items_job_code_idx").on(t.jobId, t.code),
+    // CSV import upserts by cost code, so a code appears once per job.
+    uniqueIndex("cost_items_job_code_uidx").on(t.jobId, t.code),
     index("cost_items_job_leaf_idx").on(t.jobId, t.isLeaf),
+    index("cost_items_parent_idx").on(t.parentId),
   ],
 );
 
@@ -339,7 +349,10 @@ export const progressClaimLines = pgTable(
     installedQtyMilli: milli("installed_qty_milli"),
     derivation: text("derivation").notNull().default(""),
   },
-  (t) => [index("progress_claim_lines_claim_idx").on(t.claimId)],
+  (t) => [
+    index("progress_claim_lines_claim_idx").on(t.claimId),
+    index("progress_claim_lines_item_idx").on(t.costItemId),
+  ],
 );
 
 export const dailyPlans = pgTable(
@@ -400,7 +413,10 @@ export const dailyPlanLines = pgTable(
     /** Foreman-reported man-hours in tenths. Null until first report. */
     reportedHoursTenths: integer("reported_hours_tenths"),
   },
-  (t) => [index("daily_plan_lines_plan_idx").on(t.planId)],
+  (t) => [
+    index("daily_plan_lines_plan_idx").on(t.planId),
+    index("daily_plan_lines_item_idx").on(t.costItemId),
+  ],
 );
 
 /**

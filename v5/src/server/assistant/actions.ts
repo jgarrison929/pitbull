@@ -44,7 +44,9 @@ import {
   getPortfolio,
   type JobDetail,
 } from "@/server/data";
+import { importErrorLines } from "@/lib/estimate-reconcile";
 import { approveEstimate } from "@/server/estimate";
+import { importEstimateCsv } from "@/server/estimate-import";
 import {
   approveDailyReport,
   getReportedActualsForPlan,
@@ -67,6 +69,8 @@ export type ActionResult = {
   /** dailyPlan.updateLine: the cost code of the line it changed, and field errors for forms. */
   line?: string;
   errors?: Record<string, string>;
+  /** Multi-line feedback (e.g. CSV row errors) shown as a list under the summary. */
+  detailLines?: string[];
 };
 
 type ActionDef = {
@@ -774,6 +778,40 @@ export const actions: Record<ActionName, ActionDef> = {
         summary: `Locked ${result.periodLabel} on ${j.job.shortName}: ${result.lines} cost codes. ${result.nextPeriodLabel} is now open as a draft.`,
         href: jobHref(j),
         job: j.job.number,
+      };
+    },
+  },
+  "estimate.importCsv": {
+    title: "Import estimate CSV",
+    writes: true,
+    roles: ["pm"],
+    async run(user, { job, csv }) {
+      if (!job)
+        return {
+          summary: "Which job's estimate should I import? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      // No job on this result: pointing at the file picker changes nothing, so it stays off the job's audit trail.
+      if (!csv && j.job.estimateStatus === "draft")
+        return {
+          summary: `Import reads a CSV file. Open ${j.job.shortName} and choose the estimate file under Import estimate.`,
+          href: jobHref(j),
+        };
+      const result = await importEstimateCsv(
+        user.companyId,
+        j.job.number,
+        csv ?? "",
+      );
+      const detailLines =
+        !result.ok && "errors" in result && result.errors.length
+          ? importErrorLines(result.errors)
+          : undefined;
+      return {
+        summary: result.summary,
+        href: jobHref(j),
+        job: j.job.number,
+        ...(detailLines?.length ? { detailLines } : {}),
       };
     },
   },

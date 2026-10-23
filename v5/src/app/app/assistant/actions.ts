@@ -36,6 +36,7 @@ export async function ask(
 export type ActionState = {
   summary?: string;
   errors?: Record<string, string>;
+  detailLines?: string[];
 };
 
 function argsFromForm(formData: FormData): JobArgs {
@@ -112,6 +113,7 @@ function argsFromForm(formData: FormData): JobArgs {
     changeOrder: str("changeOrder"),
     title: str("title"),
     revision: str("revision"),
+    csv: str("csv"),
     complete:
       completeRaw === undefined
         ? undefined
@@ -136,6 +138,9 @@ async function executeFormAction(formData: FormData): Promise<ActionState> {
   return {
     summary: result.summary,
     ...(result.errors ? { errors: result.errors } : {}),
+    ...(result.detailLines?.length
+      ? { detailLines: result.detailLines }
+      : {}),
   };
 }
 

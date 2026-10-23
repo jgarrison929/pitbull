@@ -9,9 +9,10 @@ import { CostTable } from "@/components/app/cost-table";
 import { Money, StatusIndex, StatusPill } from "@/components/app/format";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { EvMethodControls } from "@/components/app/ev-method-controls";
+import { ImportEstimateForm } from "@/components/app/import-estimate-form";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
-import { pct, usdShort } from "@/lib/ev";
+import { mh, pct, usdShort } from "@/lib/ev";
 import { getJob, getJobEvControls, getPlansForJob } from "@/server/data";
 import {
   draftClaimForJob,
@@ -83,8 +84,10 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     reject: actions["changeOrder.reject"].roles?.includes(user.role) ?? false,
     void: actions["changeOrder.void"].roles?.includes(user.role) ?? false,
   };
+  const canImport = actions["estimate.importCsv"].roles?.includes(user.role);
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
   const estimateDraft = p.job.estimateStatus === "draft";
+  const jobMoney = p.money.job;
   // Initial combobox options: first leaves only. Large WBS uses server search.
   const costItems = p.lines.slice(0, 40).map((l) => ({
     value: l.id,
@@ -114,6 +117,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     isLeaf: i.isLeaf,
     path: i.path,
     line: i.isLeaf ? byId.get(i.id) : undefined,
+    money: p.money.byId[i.id]!,
   }));
   return (
     <>
@@ -174,13 +178,27 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
         className="mb-3 text-xs text-muted-foreground"
         data-testid="estimate-status"
         data-status={p.job.estimateStatus}
+        data-source={p.job.estimateSource}
       >
         Estimate:{" "}
         {estimateDraft
           ? "draft — Approve freezes Original Budget from the Current Estimate"
           : "approved — Original Budget frozen; Current Budget equals Original until change orders"}
       </p>
+      {estimateDraft && canImport ? (
+        <ImportEstimateForm jobNumber={p.job.number} />
+      ) : null}
       <KpiStrip>
+        <Kpi
+          label="Original budget"
+          value={<Money cents={jobMoney.obCents} />}
+          sub={
+            estimateDraft
+              ? "Approve freezes the estimate here"
+              : "Frozen at approve"
+          }
+          testId="job-original-budget"
+        />
         <Kpi
           label="Current budget"
           value={<Money cents={p.budgetCents} />}
@@ -190,6 +208,12 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
               : `${pct(p.percent)} earned`
           }
           testId="job-budget"
+        />
+        <Kpi
+          label="Current estimate"
+          value={<Money cents={jobMoney.ceCents} />}
+          sub={`${mh(jobMoney.mhMilli)} MH budgeted`}
+          testId="job-estimate"
         />
         <Kpi
           label="Earned to date"
@@ -251,6 +275,38 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           testId="job-spi"
         />
       </KpiStrip>
+      <p
+        className="mt-2 text-xs text-muted-foreground"
+        data-testid="estimate-categories"
+        data-source={p.job.estimateSource}
+      >
+        {p.job.estimateSource === "csv" ? (
+          <>
+            Current estimate by category: labor{" "}
+            <span data-testid="estimate-labor">
+              <Money cents={jobMoney.ce.laborCents} />
+            </span>{" "}
+            · material{" "}
+            <span data-testid="estimate-material">
+              <Money cents={jobMoney.ce.materialCents} />
+            </span>{" "}
+            · equipment{" "}
+            <span data-testid="estimate-equipment">
+              <Money cents={jobMoney.ce.equipmentCents} />
+            </span>{" "}
+            · subcontract{" "}
+            <span data-testid="estimate-sub">
+              <Money cents={jobMoney.ce.subCents} />
+            </span>{" "}
+            ·{" "}
+            <span data-testid="estimate-mh" data-milli={jobMoney.mhMilli}>
+              {mh(jobMoney.mhMilli)} MH
+            </span>
+          </>
+        ) : (
+          "Lump budget — each cost item is one seeded total, with no labor, material, equipment, or subcontract split."
+        )}
+      </p>
       {plans.map((plan) => (
         <PlanCard
           key={plan.id}
@@ -344,7 +400,12 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           </span>
         }
       >
-        <CostTable nodes={nodes} />
+        <CostTable
+          key={p.job.estimateStatus}
+          nodes={nodes}
+          jobMoney={jobMoney}
+          defaultValueSet={estimateDraft ? "ce" : "cb"}
+        />
       </Section>
       {coData ? (
         <ChangeOrdersSection
