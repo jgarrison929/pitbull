@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { resolveDefaultCommit } from "./default-commit.mjs";
+import { ciGateIsPass } from "./status-ci-gate.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, "../../..");
@@ -136,11 +137,7 @@ try {
     Boolean(status.version) && status.version !== "0.0.0",
     status.version,
   );
-  check(
-    "/status shows ci-gate",
-    ["pass", "fail", "pending", "unknown"].includes(status.ciGate ?? ""),
-    status.ciGate,
-  );
+  check("/status ci-gate is pass", ciGateIsPass(status.ciGate), status.ciGate);
   check(
     "/status shows last-verify field",
     Boolean(status.lastVerify),

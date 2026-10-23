@@ -9,7 +9,7 @@ One command proves a v5 deployment. It passes only when every check below passes
 
 | Check | Passes when |
 |---|---|
-| `/health`, `/status` | Both report the expected commit, a non-zero version, ci-gate result, last-verify field, `Operational`, and Database `ok`. `/` redirects to `/login`. |
+| `/health`, `/status` | Both report the expected commit, a non-zero version, **ci-gate `pass`** (not merely present — `fail`/`pending`/`unknown` fail the run), last-verify field, `Operational`, and Database `ok`. `/` redirects to `/login`. |
 | login as a role card | The Project Manager card signs in as Marcus Lee. |
 | portfolio loads from Postgres | User menu shows a sandbox id, the table has as many jobs as the default seed (`seed()` job count — not hardcoded), portfolio CPI renders, and no "Live from Postgres" footer. |
 | assistant runs a typed action and logs it | Asking "Why is Cedar Creek over budget?" in the rail shows `job.costVariance(25-031)`, and the run is still there after a reload (it lives in `action_runs`). |
@@ -37,6 +37,7 @@ node .cursor/skills/verify-v5/verify.mjs --url http://localhost:3100 --commit "$
 node .cursor/skills/verify-v5/verify.mjs --shots /tmp/m1-screens  # also copy the screenshots somewhere handy
 node .cursor/skills/verify-v5/verify.mjs --self-check     # no network/Playwright; CI smoke for imports + default commit
 node .cursor/skills/verify-v5/default-commit.test.mjs     # scripted check (includes --self-check)
+node .cursor/skills/verify-v5/status-ci-gate.test.mjs     # /status ci-gate must be pass
 ```
 
 | Flag | Default | Meaning |

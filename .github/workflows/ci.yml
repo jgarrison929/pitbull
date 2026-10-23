@@ -71,6 +71,7 @@ jobs:
           # resolveDefaultCommit reads origin/main (last v5/ touch).
           git fetch --no-tags origin main:refs/remotes/origin/main
           node .cursor/skills/verify-v5/default-commit.test.mjs
+          node .cursor/skills/verify-v5/status-ci-gate.test.mjs
           node .cursor/skills/verify-v5/verify.mjs --self-check
 
   v5:
