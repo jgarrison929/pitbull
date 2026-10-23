@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { runActionState, type ActionState } from "@/app/app/assistant/actions";
 import { ESTIMATE_COLUMNS, MAX_CSV_CHARS } from "@/lib/estimate-reconcile";
 
@@ -58,6 +58,7 @@ export function ImportEstimateForm({ jobNumber }: { jobNumber: string }) {
 }
 
 function ImportPicker({ pending }: { pending: boolean }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [csv, setCsv] = useState("");
   const [fileName, setFileName] = useState("");
   const [tooBig, setTooBig] = useState<string | null>(null);
@@ -78,6 +79,15 @@ function ImportPicker({ pending }: { pending: boolean }) {
     setFileName(file.name);
   }
 
+  // A file chosen before React attaches onChange (SSR HTML / early paste) stays on
+  // the input but never reaches state, so Import stays disabled. Sync once after mount.
+  useEffect(() => {
+    const file = inputRef.current?.files?.[0];
+    if (file) void choose(file);
+    // Mount-only: re-read if the native value was set before hydration.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally once
+  }, []);
+
   return (
     <>
       <input type="hidden" name="csv" value={csv} />
@@ -85,6 +95,7 @@ function ImportPicker({ pending }: { pending: boolean }) {
         <label className="flex min-w-0 flex-col gap-1">
           <span className="font-medium text-foreground">Import estimate</span>
           <input
+            ref={inputRef}
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => choose(e.target.files?.[0])}
