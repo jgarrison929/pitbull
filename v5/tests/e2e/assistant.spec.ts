@@ -255,7 +255,7 @@ test("a job number that isn't in the sandbox is refused, not swapped for another
     "There is no job 99-999 in this sandbox",
   );
   await expect(run.getByTestId("action-name")).toHaveText(
-    "Submitted plan on 99-999",
+    "Couldn't submit plan on 99-999",
   );
 
   // The Submit button posts the job number; a forged one is refused the same way.
@@ -272,6 +272,24 @@ test("a job number that isn't in the sandbox is refused, not swapped for another
     "data-status",
     "draft",
   );
+});
+
+test("refused runs get a refusal chip, never success wording", async ({
+  page,
+}) => {
+  await signIn(page, "superintendent");
+  const lock = await ask(
+    page.getByTestId("assistant-rail"),
+    "Lock Period 2 on 25-031",
+  );
+  await expect(lock).toHaveAttribute("data-action", "progressClaim.lock");
+  await expect(lock.getByTestId("action-summary")).toContainText(
+    /project manager|executive|Switch role/i,
+  );
+  await expect(lock.getByTestId("action-name")).toHaveText(
+    "Couldn't lock progress claim on 25-031",
+  );
+  await expect(lock.getByTestId("action-name")).not.toContainText(/^Locked/);
 });
 
 test("each role has its own conversation; the job page keeps everyone's changes", async ({

@@ -111,6 +111,9 @@ test("foreman cannot approve; reject or void moves nothing", async ({
   await expect(refused.getByTestId("action-summary")).toContainText(
     /project manager|executive|Switch role/i,
   );
+  await expect(refused.getByTestId("action-name")).toHaveText(
+    "Couldn't approve change order on 25-031",
+  );
   await expect(card(page, 1)).toHaveAttribute("data-status", "priced");
 
   await signIn(page, "executive");

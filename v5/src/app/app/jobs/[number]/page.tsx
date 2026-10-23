@@ -452,6 +452,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           nodes={nodes}
           jobMoney={jobMoney}
           defaultValueSet={estimateDraft ? "ce" : "cb"}
+          estimateDraft={estimateDraft}
         />
       </Section>
       {coData ? (

@@ -74,6 +74,8 @@ export type ActionResult = {
   errors?: Record<string, string>;
   /** Multi-line feedback (e.g. CSV row errors) shown as a list under the summary. */
   detailLines?: string[];
+  /** Role, unknown job, or domain refusal — rail chip must not use success wording. */
+  refused?: true;
 };
 
 type ActionDef = {
@@ -132,6 +134,7 @@ async function unknownJob(
   const { jobs: all } = await getPortfolio(user.companyId);
   return {
     summary: `There is no job ${number} in this sandbox. Jobs here: ${all.map((j) => j.job.number).join(", ")}.`,
+    refused: true,
   };
 }
 
@@ -293,9 +296,11 @@ async function runCo(
     return {
       summary:
         "Which job? Change orders are numbered per job — name it, like 25-031.",
+      refused: true,
     };
   const command = coCommandFromArgs(name, args);
-  if ("ask" in command) return { summary: command.ask, job: args.job };
+  if ("ask" in command)
+    return { summary: command.ask, job: args.job, refused: true };
   const r = await changeOrderCommand(
     user.companyId,
     { userId: user.userId, role: user.role },
@@ -307,6 +312,7 @@ async function runCo(
     href: `/app/jobs/${args.job}#change-orders`,
     job: r.job?.number ?? args.job,
     ...(!r.ok && r.errors ? { errors: r.errors } : {}),
+    ...(!r.ok ? { refused: true as const } : {}),
   };
 }
 
@@ -773,6 +779,13 @@ export const actions: Record<ActionName, ActionDef> = {
         };
       const j = await resolveJob(user, job);
       if (!j) return unknownJob(user, job);
+      if (j.job.estimateStatus === "draft")
+        return {
+          summary: `Approve the estimate on ${j.job.shortName} before locking a progress claim.`,
+          href: jobHref(j),
+          job: j.job.number,
+          refused: true,
+        };
       const result = await lockProgressClaim(
         user.companyId,
         j.job.id,
@@ -783,6 +796,7 @@ export const actions: Record<ActionName, ActionDef> = {
           summary: `There is no open draft progress claim on ${j.job.shortName} to lock.`,
           href: jobHref(j),
           job: j.job.number,
+          refused: true,
         };
       return {
         summary: `Locked ${result.periodLabel} on ${j.job.shortName}: ${result.lines} cost codes. ${result.nextPeriodLabel} is now open as a draft.`,
@@ -843,6 +857,7 @@ export const actions: Record<ActionName, ActionDef> = {
           summary: result.summary,
           href: jobHref(j),
           job: j.job.number,
+          refused: true,
         };
       }
       return {
@@ -1113,6 +1128,8 @@ export type RunArgs = {
   /** Cost code of the plan line an edit touched. */
   line?: string;
   href?: string;
+  /** When true, the rail chip uses a refusal label (never success wording). */
+  refused?: true;
 };
 
 const roleNames: Record<Role, string> = {
@@ -1157,7 +1174,11 @@ export async function run(
       ? await def.run(user, effectiveArgs)
       : {
           summary: `${def.title} needs ${def.roles!.map((r) => roleNames[r]).join(" or ")}. You are signed in as ${roleNames[user.role]}. Switch role to try it.`,
+          refused: true,
+          // Keep the named job on the chip so refusal reads "Couldn't … on 25-031".
+          job: effectiveArgs.job,
         };
+  const refused = Boolean(result.refused);
   const [row] = await requireDb()
     .insert(actionRuns)
     .values({
@@ -1169,9 +1190,11 @@ export async function run(
       // They differ when the request named none and the action picked one.
       args: {
         requested: args.job ?? null,
-        job: result.job ?? null,
+        // Role refusal never ran the action — still show the job they named.
+        job: result.job ?? effectiveArgs.job ?? null,
         ...(result.line ? { line: result.line } : {}),
         ...(result.href ? { href: result.href } : {}),
+        ...(refused ? { refused: true as const } : {}),
       } satisfies RunArgs,
       summary: result.summary,
     })

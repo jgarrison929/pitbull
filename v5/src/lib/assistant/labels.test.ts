@@ -14,4 +14,19 @@ describe("honesty: assistant rail labels", () => {
     expect(label).toBe("Updated plan line on 25-031");
     expect(label).not.toContain("dailyPlan");
   });
+
+  it("refused runs never get success wording", () => {
+    expect(
+      actionRailLabel("changeOrder.approve", "25-031", { refused: true }),
+    ).toBe("Couldn't approve change order on 25-031");
+    expect(
+      actionRailLabel("dailyPlan.submit", "99-999", { refused: true }),
+    ).toBe("Couldn't submit plan on 99-999");
+    expect(
+      actionRailLabel("progressClaim.lock", "25-031", { refused: true }),
+    ).toBe("Couldn't lock progress claim on 25-031");
+    expect(
+      actionRailLabel("changeOrder.approve", "25-031", { refused: true }),
+    ).not.toMatch(/^Approved/);
+  });
 });

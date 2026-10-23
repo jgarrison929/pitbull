@@ -57,7 +57,7 @@ export function AppShell({
 }) {
   return (
     <div className="flex min-h-svh bg-background">
-      <aside className="sticky top-0 hidden h-svh w-14 shrink-0 flex-col items-center gap-1 bg-chrome py-3 md:flex">
+      <aside className="sticky top-0 hidden min-h-svh w-14 shrink-0 flex-col items-center gap-1 self-stretch bg-chrome py-3 md:flex">
         <Brand className="mb-3" />
         <nav aria-label="Main" className="flex flex-col gap-1">
           {nav.map(({ href, label, icon: Icon, exact }) => (
@@ -99,7 +99,7 @@ export function AppShell({
           <JobStrip />
         </Suspense>
         <div className="flex min-h-0 flex-1">
-          <main className="flex min-w-0 flex-1 flex-col gap-5 p-4 pb-24 md:p-6">
+          <main className="flex min-w-0 flex-1 flex-col gap-5 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:p-6">
             {children}
           </main>
         </div>
@@ -224,7 +224,12 @@ async function JobStrip() {
                 {p.job.number}
               </span>
             </span>
-            <span className="tabular-nums">
+            <span
+              className="tabular-nums"
+              data-testid={
+                p.estimateDraft ? "strip-estimate-draft" : undefined
+              }
+            >
               {p.estimateDraft
                 ? "Estimate draft"
                 : `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`}

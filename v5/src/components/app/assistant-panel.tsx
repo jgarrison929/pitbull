@@ -130,6 +130,7 @@ export function AssistantPanel({
                   {actionRailLabel(
                     r.action,
                     r.args.job ?? r.args.requested ?? null,
+                    { refused: Boolean(r.args.refused) },
                   )}
                 </span>
                 {r.args.job && r.args.requested === null && (

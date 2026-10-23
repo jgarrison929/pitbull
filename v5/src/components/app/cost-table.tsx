@@ -129,6 +129,17 @@ function InstalledCell({ l }: { l: CostLine }) {
   );
 }
 
+function MetricDash() {
+  return (
+    <span
+      className="text-muted-foreground tabular-nums"
+      data-testid="metric-dash"
+    >
+      —
+    </span>
+  );
+}
+
 /**
  * Budget vs earned value by cost code. Virtualized tree for large WBS;
  * phone list stays virtualized too so 10k rows never mount all DOM nodes.
@@ -137,11 +148,14 @@ export function CostTable({
   nodes,
   jobMoney,
   defaultValueSet,
+  estimateDraft = false,
 }: {
   /** Full WBS ordered by path (summaries + leaves). Leaf EV lives on node.line. */
   nodes: WbsNode[];
   jobMoney: WbsMoney;
   defaultValueSet: ValueSet;
+  /** Draft estimate: money and CPI show "—" (never $0 / EAC $0). */
+  estimateDraft?: boolean;
 }) {
   // Roll up from nodes only — avoid a second 10k-line props list on the RSC payload.
   const lines = useMemo(
@@ -237,46 +251,58 @@ export function CostTable({
           onToggle={toggle}
           collapsed={collapsed}
           valueSet={valueSet}
+          estimateDraft={estimateDraft}
         />
         <div
           className="mt-1 flex items-center justify-between gap-3 border-t-2 py-3 text-sm font-medium"
           data-testid="cost-job-total"
         >
-          <span>Job total (leaves) · {pct(t.percent)}</span>
+          <span>
+            Job total (leaves)
+            {estimateDraft ? null : ` · ${pct(t.percent)}`}
+          </span>
           <span className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 tabular-nums">
             {(Object.keys(VALUE_SETS) as ValueSet[]).map((set) => (
               <span key={set} data-testid={`cost-total-${set}`}>
                 <span className="mr-1 text-xs font-normal text-muted-foreground">
                   {VALUE_SETS[set].label}
                 </span>
-                <Money cents={centsOf(jobMoney, set)} />
+                {estimateDraft ? (
+                  <MetricDash />
+                ) : (
+                  <Money cents={centsOf(jobMoney, set)} />
+                )}
               </span>
             ))}
             <span>
               <span className="mr-1 text-xs font-normal text-muted-foreground">
                 Earned
               </span>
-              <Money cents={t.earnedCents} />
+              {estimateDraft ? <MetricDash /> : <Money cents={t.earnedCents} />}
             </span>
             <span>
               <span className="mr-1 text-xs font-normal text-muted-foreground">
                 Actual
               </span>
-              <Money cents={t.actualCents} />
+              {estimateDraft ? <MetricDash /> : <Money cents={t.actualCents} />}
             </span>
             <span>
               <span className="mr-1 text-xs font-normal text-muted-foreground">
                 EAC
               </span>
-              <Money cents={t.eacCents} />
+              {estimateDraft ? <MetricDash /> : <Money cents={t.eacCents} />}
             </span>
             <span>
               <span className="mr-1 text-xs font-normal text-muted-foreground">
                 ETC
               </span>
-              <Money cents={t.etcCents} />
+              {estimateDraft ? <MetricDash /> : <Money cents={t.etcCents} />}
             </span>
-            <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+            {estimateDraft ? (
+              <MetricDash />
+            ) : (
+              <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+            )}
           </span>
         </div>
       </div>
@@ -286,12 +312,20 @@ export function CostTable({
           onToggle={toggle}
           collapsed={collapsed}
           valueSet={valueSet}
+          estimateDraft={estimateDraft}
         />
         <div className="flex items-center justify-between border-t py-3 text-sm font-medium">
-          <span>Job total · {pct(t.percent)}</span>
+          <span>
+            Job total
+            {estimateDraft ? null : ` · ${pct(t.percent)}`}
+          </span>
           <span>
             CPI{" "}
-            <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+            {estimateDraft ? (
+              <MetricDash />
+            ) : (
+              <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+            )}
           </span>
         </div>
       </div>
@@ -304,17 +338,21 @@ function VirtualTreeDesktop({
   onToggle,
   collapsed,
   valueSet,
+  estimateDraft,
 }: {
   rows: WbsNode[];
   onToggle: (id: string) => void;
   collapsed: Set<string>;
   valueSet: ValueSet;
+  estimateDraft: boolean;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 52,
+    // Measure real row height so multi-line derivations are not clipped.
+    measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 12,
   });
   return (
@@ -351,8 +389,8 @@ function VirtualTreeDesktop({
                 ref={virtualizer.measureElement}
                 data-index={v.index}
                 className={cn(
-                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] items-center gap-x-3 border-b px-2 py-1.5 text-sm",
-                  l && hot(l) && "bg-negative-soft/60",
+                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] items-start gap-x-3 border-b px-2 py-1.5 text-sm",
+                  l && !estimateDraft && hot(l) && "bg-negative-soft/60",
                 )}
                 style={{
                   transform: `translateY(${v.start}px)`,
@@ -385,7 +423,7 @@ function VirtualTreeDesktop({
                   >
                     {n.description}
                   </span>
-                  {l?.earnDerivation ? (
+                  {!estimateDraft && l?.earnDerivation ? (
                     <div
                       className="truncate text-xs text-muted-foreground"
                       data-testid="earn-derivation"
@@ -393,7 +431,7 @@ function VirtualTreeDesktop({
                       {l.earnDerivation}
                     </div>
                   ) : null}
-                  {l?.forecastDerivation ? (
+                  {!estimateDraft && l?.forecastDerivation ? (
                     <div
                       className="truncate text-xs text-muted-foreground"
                       data-testid="forecast-derivation"
@@ -404,31 +442,70 @@ function VirtualTreeDesktop({
                 </div>
                 {l ? (
                   <>
-                    <InstalledCell l={l} />
+                    {estimateDraft ? (
+                      <div className="text-right text-xs">
+                        <MetricDash />
+                      </div>
+                    ) : (
+                      <InstalledCell l={l} />
+                    )}
                     <div className="flex items-center justify-end gap-1.5">
-                      <Progress value={l.percent} className="w-10 shrink-0" />
-                      <span className="w-9 shrink-0 text-right text-xs tabular-nums">
-                        {pct(l.percent)}
-                      </span>
+                      {estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <>
+                          <Progress
+                            value={l.percent}
+                            className="w-10 shrink-0"
+                          />
+                          <span className="w-9 shrink-0 text-right text-xs tabular-nums">
+                            {pct(l.percent)}
+                          </span>
+                        </>
+                      )}
                     </div>
-                    <BudgetCell money={n.money} set={valueSet} exact />
+                    {estimateDraft ? (
+                      <div className="text-right">
+                        <MetricDash />
+                      </div>
+                    ) : (
+                      <BudgetCell money={n.money} set={valueSet} exact />
+                    )}
                     <div className="text-right">
-                      <Money cents={l.earnedCents} exact />
+                      {estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <Money cents={l.earnedCents} exact />
+                      )}
                     </div>
                     <div className="text-right">
-                      <Money cents={l.actualCents} exact />
+                      {estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <Money cents={l.actualCents} exact />
+                      )}
                     </div>
                     <div className="text-right">
-                      <StatusIndex
-                        index={l.cpi}
-                        varianceCents={l.varianceCents}
-                      />
+                      {estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <StatusIndex
+                          index={l.cpi}
+                          varianceCents={l.varianceCents}
+                        />
+                      )}
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="col-span-2" />
-                    <BudgetCell money={n.money} set={valueSet} />
+                    {estimateDraft ? (
+                      <div className="text-right">
+                        <MetricDash />
+                      </div>
+                    ) : (
+                      <BudgetCell money={n.money} set={valueSet} />
+                    )}
                     <div className="col-span-3" />
                   </>
                 )}
@@ -446,17 +523,20 @@ function VirtualTreeMobile({
   onToggle,
   collapsed,
   valueSet,
+  estimateDraft,
 }: {
   rows: WbsNode[];
   onToggle: (id: string) => void;
   collapsed: Set<string>;
   valueSet: ValueSet;
+  estimateDraft: boolean;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 88,
+    measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 8,
   });
   return (
@@ -481,7 +561,7 @@ function VirtualTreeMobile({
               data-index={v.index}
               className={cn(
                 "absolute left-0 w-full border-b py-2",
-                l && hot(l) && "bg-negative-soft/60",
+                l && !estimateDraft && hot(l) && "bg-negative-soft/60",
               )}
               style={{
                 transform: `translateY(${v.start}px)`,
@@ -507,27 +587,47 @@ function VirtualTreeMobile({
                   <span className="font-medium">{n.description}</span>
                 </div>
                 {l ? (
-                  <StatusIndex index={l.cpi} varianceCents={l.varianceCents} />
+                  estimateDraft ? (
+                    <MetricDash />
+                  ) : (
+                    <StatusIndex
+                      index={l.cpi}
+                      varianceCents={l.varianceCents}
+                    />
+                  )
                 ) : null}
               </div>
               {l ? (
                 <div className="mt-1 grid grid-cols-3 gap-2 pr-2 text-xs">
                   <div>
                     <div className="text-muted-foreground">Earned</div>
-                    <Money cents={l.earnedCents} exact />
+                    {estimateDraft ? (
+                      <MetricDash />
+                    ) : (
+                      <Money cents={l.earnedCents} exact />
+                    )}
                   </div>
                   <div>
                     <div className="text-muted-foreground">Actual</div>
-                    <Money cents={l.actualCents} exact />
+                    {estimateDraft ? (
+                      <MetricDash />
+                    ) : (
+                      <Money cents={l.actualCents} exact />
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-muted-foreground">
                       {VALUE_SETS[valueSet].label}
                     </div>
-                    <BudgetCell money={n.money} set={valueSet} exact />
+                    {estimateDraft ? (
+                      <MetricDash />
+                    ) : (
+                      <BudgetCell money={n.money} set={valueSet} exact />
+                    )}
                   </div>
-                  {(l.approvalPendingQtyMilli ?? 0) > 0 ||
-                  (l.approvalPendingCents ?? 0) > 0 ? (
+                  {!estimateDraft &&
+                  ((l.approvalPendingQtyMilli ?? 0) > 0 ||
+                    (l.approvalPendingCents ?? 0) > 0) ? (
                     <div
                       className="col-span-3 text-amber-700 dark:text-amber-400"
                       data-testid={`approval-pending-${l.code}`}
@@ -539,7 +639,7 @@ function VirtualTreeMobile({
                         : " pending approval"}
                     </div>
                   ) : null}
-                  {pendingInstalledQtyMilli(l) > 0 && (
+                  {!estimateDraft && pendingInstalledQtyMilli(l) > 0 && (
                     <div
                       className="col-span-3 text-amber-700 dark:text-amber-400"
                       data-testid={`pending-${l.code}`}
@@ -553,7 +653,11 @@ function VirtualTreeMobile({
                   <span className="text-muted-foreground">
                     {VALUE_SETS[valueSet].label}
                   </span>
-                  <BudgetCell money={n.money} set={valueSet} />
+                  {estimateDraft ? (
+                    <MetricDash />
+                  ) : (
+                    <BudgetCell money={n.money} set={valueSet} />
+                  )}
                 </div>
               )}
             </div>
