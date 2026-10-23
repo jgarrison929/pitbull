@@ -104,3 +104,11 @@ Per `CONTRIBUTING.md`: update `VERSION`, web `package.json`, API csproj Version 
 
 - Demo users: `IsDemoUser` + `DemoRestrictionMiddleware` (admin GET-only, no DELETE)  
 - Never commit secrets; Railway env via platform config  
+
+## Cloud Agent
+
+The Cloud Agent environment runs **v5** (`v5/`), the live Next.js 16 app. The legacy tree under `src/` is frozen at tag `legacy-3.8.2-final` and is not installed or started.
+
+On boot, PostgreSQL 17 starts and `npm run dev` in `v5/` listens on port 3000. Login shells put Node 24 (`/opt/node/bin`) first on `PATH` and export `DATABASE_URL` (local database `pcs_v5`), `PLAYWRIGHT_BROWSERS_PATH` (`/opt/ms-playwright`), and `GIT_COMMIT_SHA` from the current checkout.
+
+From `v5/`: `npm run lint`, `npm run typecheck`, `npm run drizzle:check`, `npm test`, `npm run db:prepare`, `npm run build`, `npm run e2e` (Playwright, port 3100). `/health` reports `db: ok` when Postgres is up.  
