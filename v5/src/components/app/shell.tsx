@@ -107,6 +107,7 @@ export function AppShell({
 
       <nav
         aria-label="Main"
+        data-testid="phone-tab-bar"
         className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background md:hidden"
       >
         {nav.map(({ href, label, icon: Icon, exact }) => (

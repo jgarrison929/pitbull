@@ -156,7 +156,9 @@ async function insertSandbox(
   await tx.insert(companies).values({
     ...rows.company,
     visitorHash,
-    // TTL is wall-clock so a frozen V5_SEED_NOW cannot pre-expire the sandbox.
+    // Seed calendar may be frozen (V5_SEED_NOW); company metadata stays on the
+    // wall clock so Reset demo still bumps seeded-at and TTL cannot pre-expire.
+    seededAt: wall,
     expiresAt: new Date(wall.getTime() + SANDBOX_TTL_MS),
   });
   await tx.insert(users).values(rows.users);
@@ -186,13 +188,14 @@ export async function createSandbox(
 export async function resetSandbox(companyId: string, seedAt = seedNow()) {
   const db = requireDb();
   const rows = seed(companyId, seedAt);
+  const wall = wallNow();
   await db.transaction(async (tx) => {
     await tx.delete(actionRuns).where(eq(actionRuns.companyId, companyId));
     await tx.delete(jobs).where(eq(jobs.companyId, companyId));
     await insertWork(tx, rows);
     await tx
       .update(companies)
-      .set({ seededAt: seedAt })
+      .set({ seededAt: wall })
       .where(eq(companies.id, companyId));
   });
   await seedActionHistory(companyId, seedAt);

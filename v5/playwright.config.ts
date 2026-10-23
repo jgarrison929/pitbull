@@ -9,9 +9,9 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["github"]] : "list",
   expect: {
     toHaveScreenshot: {
-      // Same Linux Chromium as CI. Near-zero tolerance so a money-digit
-      // drift fails; maxDiffPixels in visual.spec covers anti-alias noise.
-      maxDiffPixels: 120,
+      // Same Linux Chromium as CI. Zero tolerance — measured run-to-run noise
+      // is 0px; a one-digit KPI change must fail (see visual.spec acceptance).
+      maxDiffPixels: 0,
       animations: "disabled",
     },
   },
@@ -37,10 +37,11 @@ export default defineConfig({
       // Shape-only stamp so /status last-verify is never blank in smoke.
       LAST_VERIFY_AT:
         process.env.LAST_VERIFY_AT ?? "2026-10-20T17:00:00.000Z",
-      // Do NOT set V5_SEED_NOW on the shared webServer — it freezes seededAt for
-      // every e2e (breaks login reset) and used to pre-expire sandboxes when the
-      // frozen day was in the past. visual.spec freezes the client clock and
-      // normalizes plan-date labels in-page instead.
+      // Freeze the seed calendar (plan + finish dates) for deterministic
+      // visuals. sandbox.ts keeps company.seededAt + TTL on wall clock so
+      // login reset and expiry stay correct.
+      V5_SEED_NOW:
+        process.env.V5_SEED_NOW ?? "2026-10-20T17:00:00.000Z",
     },
   },
 });

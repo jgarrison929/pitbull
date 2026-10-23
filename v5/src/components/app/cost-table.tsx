@@ -314,7 +314,9 @@ function VirtualTreeDesktop({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 52,
+    // Measure real row height — fixed estimate overprinted multi-line leaves.
+    estimateSize: () => 56,
+    measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 12,
   });
   return (
@@ -351,7 +353,7 @@ function VirtualTreeDesktop({
                 ref={virtualizer.measureElement}
                 data-index={v.index}
                 className={cn(
-                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] items-center gap-x-3 border-b px-2 py-1.5 text-sm",
+                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] items-start gap-x-3 border-b px-2 py-1.5 text-sm",
                   l && hot(l) && "bg-negative-soft/60",
                 )}
                 style={{
@@ -456,7 +458,8 @@ function VirtualTreeMobile({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 88,
+    estimateSize: () => 96,
+    measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 8,
   });
   return (

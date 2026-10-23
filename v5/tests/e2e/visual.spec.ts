@@ -3,23 +3,20 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 /**
  * Visual baselines for the trust bar.
  *
- * Harness rules (Verify #661 follow-up):
- * - Full-page or element shots that include every asserted control
- * - Frozen client clock + in-page plan-date normalization (shared webServer
- *   must not set V5_SEED_NOW — that breaks login reset / sandbox TTL)
- * - No masks on closed-menu sandbox chips (Chromium still lays them out)
- * - Near-zero pixel tolerance (anti-alias only) so a money-digit drift fails
+ * Harness rules (Verify #661 / #676):
+ * - Full-height viewport shots (rails span the page; phone tab bar hidden)
+ * - Server seed calendar frozen via V5_SEED_NOW (finish dates unmasked)
+ * - Client clock frozen; visible LocalTime → gray chips (not finish dates)
+ * - maxDiffPixels: 0 — a one-digit KPI change must fail
  */
 
-/** Client clock for LocalTime hydration; plan dates are rewritten in stabilize. */
+/** Must match playwright.config webServer env V5_SEED_NOW. */
 const FROZEN_NOW = "2026-10-20T17:00:00.000Z";
-/** Stable label replacing `Wed, Oct 21`-style plan headings in shots. */
-const FROZEN_PLAN_DAY = "Wed, Oct 21";
 
-/** Anti-aliasing only — a changed dollar digit must fail. */
+/** Zero tolerance — measured run-to-run noise is 0 on Linux Chromium. */
 const SHOT_OPTS = {
   animations: "disabled" as const,
-  maxDiffPixels: 120,
+  maxDiffPixels: 0,
 };
 
 async function freezeClock(page: Page) {
@@ -34,10 +31,9 @@ async function signIn(page: Page, role: string) {
 }
 
 /**
- * LocalTime SSR is `… UTC`; the client hydrates to a locale string. Wait for
- * hydration, then replace *visible* timestamps with fixed gray chips so wall-
- * clock seed times (CO history, rail, job-changes) cannot flake CI. Never style
- * closed-menu `seeded-at` (that was painting over the job strip / H1).
+ * LocalTime SSR is `… UTC`; wait for hydration, then chip volatile times.
+ * Never chip job-finish (frozen by V5_SEED_NOW; must stay readable) or
+ * closed-menu seeded-at (layout still paints it).
  */
 async function waitForHydratedTimes(page: Page) {
   const times = page.locator("time[datetime]");
@@ -45,10 +41,12 @@ async function waitForHydratedTimes(page: Page) {
   for (let i = 0; i < n; i++) {
     const t = times.nth(i);
     if (!(await t.isVisible())) continue;
-    const inClosedMenu = await t.evaluate(
-      (el) => !!el.closest("details:not([open])"),
-    );
-    if (inClosedMenu) continue;
+    const skip = await t.evaluate((el) => {
+      if (el.closest("details:not([open])")) return true;
+      if (el.getAttribute("data-testid") === "job-finish") return true;
+      return false;
+    });
+    if (skip) continue;
     await expect(t).not.toContainText("UTC");
   }
 }
@@ -57,6 +55,8 @@ async function stabilize(page: Page) {
   await page.addStyleTag({
     content: `
       *, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }
+      /* Hide fixed phone tab bar so full-page shots never paint it mid-content. */
+      [data-testid="phone-tab-bar"] { display: none !important; }
       time[datetime] {
         display: inline-block !important;
         width: 8.5rem !important;
@@ -67,8 +67,8 @@ async function stabilize(page: Page) {
         border-radius: 2px !important;
         vertical-align: -0.1em !important;
       }
-      /* Closed user-menu still lays out seeded-at; leave it alone. */
-      details:not([open]) time[datetime] {
+      details:not([open]) time[datetime],
+      time[data-testid="job-finish"] {
         display: inline !important;
         width: auto !important;
         height: auto !important;
@@ -80,27 +80,37 @@ async function stabilize(page: Page) {
       }
     `,
   });
-  // Drop Suspense pulse placeholders before we shoot.
   await expect(page.locator(".animate-pulse")).toHaveCount(0);
   await waitForHydratedTimes(page);
-  // Plan headings use seed-relative "Wed, Oct 21" — rewrite so baselines
-  // do not depend on the shared webServer calendar day.
-  await page.evaluate((label) => {
-    const re =
-      /\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), [A-Z][a-z]{2} \d{1,2}\b/g;
-    for (const h of document.querySelectorAll(
-      '[data-testid="plan-card"] h2',
-    )) {
-      h.textContent = (h.textContent ?? "").replace(re, label);
-    }
-  }, FROZEN_PLAN_DAY);
+}
+
+/**
+ * Grow the viewport to the document height so sticky `h-svh` rails paint the
+ * full page (fullPage stitching otherwise clips them at the original 800px).
+ */
+async function fitViewportToPage(page: Page) {
+  const box = page.viewportSize();
+  if (!box) throw new Error("no viewport");
+  const contentHeight = await page.evaluate(() =>
+    Math.ceil(
+      Math.max(
+        document.documentElement.scrollHeight,
+        document.body?.scrollHeight ?? 0,
+      ),
+    ),
+  );
+  await page.setViewportSize({
+    width: box.width,
+    height: Math.max(box.height, contentHeight),
+  });
 }
 
 async function shotPage(page: Page, name: string) {
   await stabilize(page);
+  await fitViewportToPage(page);
   await expect(page).toHaveScreenshot(`${name}.png`, {
     ...SHOT_OPTS,
-    fullPage: true,
+    fullPage: false,
   });
 }
 
@@ -134,7 +144,7 @@ test.describe("visual baselines", () => {
       await expect(page.getByTestId("cost-table")).toBeVisible();
       await expect(page.getByTestId("plan-card")).toBeVisible();
       await expect(page.getByTestId("job-changes")).toBeVisible();
-      // Full page catches cost table + changes + rails (viewport-only missed them).
+      await expect(page.getByTestId("job-finish")).toBeVisible();
       await shotPage(page, "job-desktop");
     });
 
@@ -154,7 +164,6 @@ test.describe("visual baselines", () => {
       const plan = page.getByTestId("plan-card");
       await expect(plan).toBeVisible();
       await expect(page.getByTestId("submit-plan")).toBeVisible();
-      // Element shot keeps Submit plan + crew/MH footer in frame.
       await shotElement(plan, "plan-desktop", page);
     });
   });
@@ -200,6 +209,7 @@ test.describe("visual baselines", () => {
       const plan = page.getByTestId("plan-card");
       await expect(plan).toBeVisible();
       await expect(page.getByTestId("submit-plan")).toBeVisible();
+      // Tab bar hidden in stabilize so Submit plan stays visible in the shot.
       await shotElement(plan, "plan-phone", page);
     });
   });
@@ -208,14 +218,12 @@ test.describe("visual baselines", () => {
     test.use({ viewport: { width: 1280, height: 800 } });
 
     /**
-     * A $1 EAC mutation must fail the visual check. Uses exact-cent text so the
-     * digit change is visible even when usdShort would still round to $14.7M.
-     * The mutation is in-page only — never committed.
+     * One visible digit in a headline KPI must fail the visual check.
+     * Mutation is in-page only — never committed.
      */
-    test("EAC $1 drift fails the job-desktop visual check", async ({
+    test("one digit in Current budget fails the job-desktop visual check", async ({
       page,
     }, testInfo) => {
-      // Mutates the live page — never refresh baselines from this test.
       test.skip(
         testInfo.config.updateSnapshots === "all" ||
           testInfo.config.updateSnapshots === "changed",
@@ -224,35 +232,35 @@ test.describe("visual baselines", () => {
 
       await signIn(page, "pm");
       await page.goto("/app/jobs/25-031");
-      await expect(page.getByTestId("job-eac")).toBeVisible();
-      await expect(page.getByTestId("cost-table")).toBeVisible();
+      const budget = page.getByTestId("job-budget");
+      await expect(budget).toBeVisible();
+      await expect(budget).toContainText("$12.9M");
       await stabilize(page);
+      await fitViewportToPage(page);
 
-      // Clean page must match baseline (regen before this is green in CI).
       await expect(page).toHaveScreenshot("job-desktop.png", {
         ...SHOT_OPTS,
-        fullPage: true,
+        fullPage: false,
       });
 
-      await page.getByTestId("job-eac").evaluate((el) => {
-        const cents = Number(el.getAttribute("data-cents") ?? "0") + 100; // +$1
-        const a = Math.abs(cents);
-        const dollars = Math.trunc(a / 100).toLocaleString("en-US");
-        el.textContent = `$${dollars}.${String(a % 100).padStart(2, "0")}`;
+      // One digit: $12.9M → $12.8M (Verify measured ~120px; with maxDiffPixels:0 must fail).
+      await budget.evaluate((el) => {
+        el.textContent = (el.textContent ?? "").replace("$12.9M", "$12.8M");
       });
+      await expect(budget).toContainText("$12.8M");
 
       let failed = false;
       try {
         await expect(page).toHaveScreenshot("job-desktop.png", {
           ...SHOT_OPTS,
-          fullPage: true,
+          fullPage: false,
         });
       } catch {
         failed = true;
       }
       expect(
         failed,
-        "expected a $1 EAC text mutation to fail toHaveScreenshot",
+        "expected a one-digit Current budget change ($12.9M→$12.8M) to fail toHaveScreenshot",
       ).toBe(true);
     });
   });
