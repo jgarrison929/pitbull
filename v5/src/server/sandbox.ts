@@ -25,6 +25,20 @@ export const SANDBOX_TTL_MS = 24 * 60 * 60 * 1000;
 /** Live sandboxes one browser may hold. Past the cap, signing in reuses the newest one. */
 export const MAX_SANDBOXES_PER_VISITOR = 3;
 
+/**
+ * Wall clock for seed dates. Visual e2e sets `V5_SEED_NOW` so plan dates and
+ * LocalTime stay deterministic across calendar days; production leaves it unset.
+ */
+export function seedNow(fallback = new Date()): Date {
+  const raw = process.env.V5_SEED_NOW?.trim();
+  if (!raw) return fallback;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`V5_SEED_NOW is not a valid date: ${raw}`);
+  }
+  return parsed;
+}
+
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 async function insertWork(tx: Tx, rows: SeedRows) {
@@ -80,7 +94,10 @@ export const SANDBOX_LOCK_TIMEOUT = "5s";
  * requireDb()/getDb() inside — a second pool checkout while holding the advisory
  * lock can deadlock the pool when other sessions wait on the same lock.
  */
-export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
+export async function sandboxForVisitor(
+  visitorHash: string,
+  now = seedNow(),
+) {
   const db = requireDb();
   const companyId = await db.transaction(async (tx) => {
     // Fail fast if another sign-in holds the lock too long (transaction-local).
@@ -140,7 +157,7 @@ async function insertSandbox(
 
 /** Creates a new visitor sandbox cloned from the seed. */
 export async function createSandbox(
-  now = new Date(),
+  now = seedNow(),
   visitorHash: string | null = null,
 ) {
   const db = requireDb();
@@ -152,7 +169,7 @@ export async function createSandbox(
 }
 
 /** Puts a sandbox back to the seed. Users and sessions survive, so the visitor stays signed in. */
-export async function resetSandbox(companyId: string, now = new Date()) {
+export async function resetSandbox(companyId: string, now = seedNow()) {
   const db = requireDb();
   const rows = seed(companyId, now);
   await db.transaction(async (tx) => {
