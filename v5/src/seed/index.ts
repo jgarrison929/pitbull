@@ -732,6 +732,8 @@ export function seed(companyId: string, today: Date): SeedRows {
         derivation: "Draft estimate — approve before locking progress",
       });
     }
+    // No Harbor daily plan — plan lines on 02-100 would block estimate-import
+    // drop/reparent demos. seedActionHistory records a no-op SHB re-import instead.
   }
 
   const planId = id("plan:cedar:tomorrow");

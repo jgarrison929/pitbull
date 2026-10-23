@@ -25,6 +25,26 @@ export const SANDBOX_TTL_MS = 24 * 60 * 60 * 1000;
 /** Live sandboxes one browser may hold. Past the cap, signing in reuses the newest one. */
 export const MAX_SANDBOXES_PER_VISITOR = 3;
 
+/**
+ * Calendar used for seed rows (plan dates, claim periods, …). Optional
+ * `V5_SEED_NOW` freezes that calendar for visual baselines. Sandbox TTL and
+ * "still live?" checks always use wall clock — a frozen seed day must not
+ * expire sandboxes the moment real time moves past it.
+ */
+export function seedNow(fallback = new Date()): Date {
+  const raw = process.env.V5_SEED_NOW?.trim();
+  if (!raw) return fallback;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`V5_SEED_NOW is not a valid date: ${raw}`);
+  }
+  return parsed;
+}
+
+function wallNow() {
+  return new Date();
+}
+
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 async function insertWork(tx: Tx, rows: SeedRows) {
@@ -80,7 +100,11 @@ export const SANDBOX_LOCK_TIMEOUT = "5s";
  * requireDb()/getDb() inside — a second pool checkout while holding the advisory
  * lock can deadlock the pool when other sessions wait on the same lock.
  */
-export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
+export async function sandboxForVisitor(
+  visitorHash: string,
+  seedAt = seedNow(),
+) {
+  const wall = wallNow();
   const db = requireDb();
   const companyId = await db.transaction(async (tx) => {
     // Fail fast if another sign-in holds the lock too long (transaction-local).
@@ -97,16 +121,16 @@ export async function sandboxForVisitor(visitorHash: string, now = new Date()) {
       .where(
         and(
           eq(companies.visitorHash, visitorHash),
-          gt(companies.expiresAt, now),
+          gt(companies.expiresAt, wall),
         ),
       )
       .orderBy(desc(companies.seededAt));
     if (live.length >= MAX_SANDBOXES_PER_VISITOR) return live[0].id;
     // seed() is pure in-memory; insertSandbox writes only through tx.
-    return insertSandbox(tx, now, visitorHash);
+    return insertSandbox(tx, seedAt, visitorHash, wall);
   });
   // Typed-action history must run after the insert tx commits (run() uses its own connection).
-  await ensureSeedHistory(companyId, now);
+  await ensureSeedHistory(companyId, seedAt);
   return companyId;
 }
 
@@ -123,48 +147,58 @@ async function ensureSeedHistory(companyId: string, now: Date) {
 
 async function insertSandbox(
   tx: Tx,
-  now: Date,
+  seedAt: Date,
   visitorHash: string | null,
+  wall = wallNow(),
 ) {
   const companyId = randomUUID();
-  const rows = seed(companyId, now);
+  const rows = seed(companyId, seedAt);
   await tx.insert(companies).values({
     ...rows.company,
     visitorHash,
-    expiresAt: new Date(now.getTime() + SANDBOX_TTL_MS),
+    // Seed calendar may be frozen (V5_SEED_NOW); company metadata stays on the
+    // wall clock so Reset demo still bumps seeded-at and TTL cannot pre-expire.
+    seededAt: wall,
+    expiresAt: new Date(wall.getTime() + SANDBOX_TTL_MS),
   });
   await tx.insert(users).values(rows.users);
   await insertWork(tx, rows);
   return companyId;
 }
 
-/** Creates a new visitor sandbox cloned from the seed. */
+/**
+ * Creates a new visitor sandbox cloned from the seed.
+ * `wallAt` drives TTL (defaults to real now). Pass the same past instant for
+ * both `seedAt` and `wallAt` in tests that need an already-expired sandbox.
+ */
 export async function createSandbox(
-  now = new Date(),
+  seedAt = seedNow(),
   visitorHash: string | null = null,
+  wallAt = wallNow(),
 ) {
   const db = requireDb();
   const companyId = await db.transaction(async (tx) =>
-    insertSandbox(tx, now, visitorHash),
+    insertSandbox(tx, seedAt, visitorHash, wallAt),
   );
-  await seedActionHistory(companyId, now);
+  await seedActionHistory(companyId, seedAt);
   return companyId;
 }
 
 /** Puts a sandbox back to the seed. Users and sessions survive, so the visitor stays signed in. */
-export async function resetSandbox(companyId: string, now = new Date()) {
+export async function resetSandbox(companyId: string, seedAt = seedNow()) {
   const db = requireDb();
-  const rows = seed(companyId, now);
+  const rows = seed(companyId, seedAt);
+  const wall = wallNow();
   await db.transaction(async (tx) => {
     await tx.delete(actionRuns).where(eq(actionRuns.companyId, companyId));
     await tx.delete(jobs).where(eq(jobs.companyId, companyId));
     await insertWork(tx, rows);
     await tx
       .update(companies)
-      .set({ seededAt: now })
+      .set({ seededAt: wall })
       .where(eq(companies.id, companyId));
   });
-  await seedActionHistory(companyId, now);
+  await seedActionHistory(companyId, seedAt);
 }
 
 export async function countRows(companyId: string) {

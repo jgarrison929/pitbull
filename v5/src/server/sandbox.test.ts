@@ -17,8 +17,8 @@ import {
 const db = getDb();
 const created: string[] = [];
 
-/** Foreman note + PM CO creates/prices/void + locks + executive reject/approve. */
-const SEED_HISTORY_RUNS = 17;
+/** Foreman Cedar note + Harbor SHB re-import + PM CO creates/prices/void + locks + executive reject/approve. */
+const SEED_HISTORY_RUNS = 18;
 /** Pure seed cost items plus the one leaf approved CO-003 inserts on 24-118. */
 const SEED_APPROVED_CO_LEAVES = 1;
 
@@ -41,8 +41,9 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
         plans: expected.dailyPlans.length,
       });
       expect(rows.runs).toBe(SEED_HISTORY_RUNS);
-      // Harbor stays a draft estimate; history jobs still get Period 1 locks.
-      expect(SEED_JOB_NUMBERS).toHaveLength(3);
+      // Harbor stays a draft estimate (SHB re-import history); approved jobs get Period 1 locks.
+      expect(SEED_JOB_NUMBERS).toHaveLength(4);
+      expect(SEED_JOB_NUMBERS).toContain("26-010");
     },
     30_000,
   );
@@ -79,7 +80,9 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
 
   it("sweeps only expired sandboxes", async () => {
     const live = await createSandbox();
-    const old = await createSandbox(new Date(Date.now() - 48 * 3600 * 1000));
+    // TTL is wall-clock; pass the past instant as wallAt so expiry is in the past.
+    const past = new Date(Date.now() - 48 * 3600 * 1000);
+    const old = await createSandbox(past, null, past);
     created.push(live, old);
     await sweepExpiredSandboxes();
     const ids = (await db!.select({ id: companies.id }).from(companies)).map(

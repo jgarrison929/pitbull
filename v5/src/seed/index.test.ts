@@ -155,11 +155,14 @@ describe("seed", () => {
   });
 
   it("has tomorrow's draft plan for the foreman, on real cost items", () => {
+    // Cedar only — Harbor history is a PM SHB re-import (no crew plan on leaves).
     expect(rows.dailyPlans).toHaveLength(1);
     expect(rows.dailyPlans[0]).toMatchObject({
       planDate: "2026-10-20",
       status: "draft",
     });
+    const cedar = rows.jobs.find((j) => j.number === "25-031")!;
+    expect(rows.dailyPlans[0]!.jobId).toBe(cedar.id);
     const ids = new Set(rows.costItems.map((c) => c.id));
     expect(rows.dailyPlanLines.every((l) => ids.has(l.costItemId))).toBe(true);
     expect(rows.users.map((u) => u.role)).toEqual([

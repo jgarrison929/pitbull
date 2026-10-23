@@ -1,12 +1,24 @@
 // After the pure seed rows are inserted, run real typed actions so every job's
 // change list is populated from action_runs — never by inserting fake audit rows.
 import "server-only";
+import { SHB_CSV } from "@/lib/budget";
 import { run } from "@/server/assistant/actions";
 import type { CurrentUser } from "@/server/session";
 import { SEED_COMPANY_NAME, seedId, seedUsers } from "./index";
 
-/** Job numbers the demo seed creates (must match jobSpecs in seed/index). */
-export const SEED_JOB_NUMBERS = ["24-118", "25-031", "24-077"] as const;
+/** Every demo job number (must match jobs created in seed/index). */
+export const SEED_JOB_NUMBERS = [
+  "24-118",
+  "25-031",
+  "24-077",
+  "26-010",
+] as const;
+
+/**
+ * Approved jobs that get Period 1 locked. Harbor (26-010) stays a draft
+ * estimate — its history comes from a no-op SHB re-import, not a lock/approve.
+ */
+const SEED_LOCK_JOB_NUMBERS = ["24-118", "25-031", "24-077"] as const;
 
 function asUser(
   companyId: string,
@@ -31,9 +43,11 @@ function asUser(
  * (and outside any advisory-lock transaction that held the insert).
  *
  * Change orders land before the period locks so the newest job-changes row on
- * every seeded job stays the Period 1 lock. Cedar (25-031) keeps a single
+ * every locked job stays the Period 1 lock. Cedar (25-031) keeps a single
  * priced CO so the phone job screenshot stays stable; mixed states live on
- * the other two jobs.
+ * the other two approved jobs. Harbor (26-010) stays a draft estimate; its
+ * change history is a PM SHB re-import (no-op on numbers; Approve stays live).
+ * No Harbor crew plan — plan lines on estimate leaves block import drop demos.
  */
 export async function seedActionHistory(companyId: string, now = new Date()) {
   const foreman = asUser(companyId, "foreman", now);
@@ -51,6 +65,15 @@ export async function seedActionHistory(companyId: string, now = new Date()) {
       lineId: seedId(companyId, "plan-line:cedar:0"),
       change: { notes: "Forms checked — ready for concrete." },
     },
+  );
+
+  // Harbor stays draft: identical SHB re-import is a real typed write for the
+  // job change list without locking the claim or attaching plan-line history.
+  await run(
+    pm,
+    "Re-import the Harbor Abutment estimate from the SHB fixture",
+    "estimate.importCsv",
+    { job: "26-010", csv: SHB_CSV },
   );
 
   // —— Change orders (6), mixed states, before locks ——
@@ -237,9 +260,10 @@ export async function seedActionHistory(companyId: string, now = new Date()) {
     },
   );
 
-  // Period locks for every seeded job. Period 1 is a draft in seed rows; locking
-  // writes a real action_runs row with who / when / what.
-  for (const job of SEED_JOB_NUMBERS) {
+  // Period locks for approved seeded jobs. Period 1 is a draft in seed rows;
+  // locking writes a real action_runs row with who / when / what. Harbor is
+  // omitted — estimate still draft; claim stays open until Approve.
+  for (const job of SEED_LOCK_JOB_NUMBERS) {
     await run(pm, `Lock Period 1 on job ${job}`, "progressClaim.lock", {
       job,
     });

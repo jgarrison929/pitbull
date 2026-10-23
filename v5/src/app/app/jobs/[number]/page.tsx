@@ -123,7 +123,17 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     <>
       <PageHeader
         title={p.job.name}
-        meta={`${p.job.number} · ${p.job.owner} · PM ${p.job.pmName} · finish ${new Date(`${p.job.finishOn}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })}`}
+        meta={
+          <>
+            {p.job.number} · {p.job.owner} · PM {p.job.pmName} · finish{" "}
+            <time dateTime={p.job.finishOn} data-testid="job-finish">
+              {new Date(`${p.job.finishOn}T00:00:00Z`).toLocaleDateString(
+                "en-US",
+                { month: "short", year: "numeric", timeZone: "UTC" },
+              )}
+            </time>
+          </>
+        }
         actions={
           <div className="flex items-center gap-2">
             {estimateDraft && canApprove ? (

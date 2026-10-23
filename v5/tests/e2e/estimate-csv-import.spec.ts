@@ -91,7 +91,15 @@ test("bad CSV lists one error per line and writes nothing", async ({
   );
 
   const file = path.join(__dirname, "../fixtures", "shb-bad.csv");
-  await page.getByTestId("import-estimate-file").setInputFiles(file);
+  const picker = page.getByTestId("import-estimate-file");
+  // Sticky chrome can cover the picker; scroll + visible before setInputFiles
+  // so onChange runs. Then wait for file.text() (filename) before submit.
+  await picker.scrollIntoViewIfNeeded();
+  await expect(picker).toBeVisible();
+  await picker.setInputFiles(file);
+  await expect(page.getByTestId("import-estimate-filename")).toHaveText(
+    "shb-bad.csv",
+  );
   await page.getByTestId("import-estimate-submit").click();
 
   await expect(page.getByTestId("import-estimate-summary")).toContainText(

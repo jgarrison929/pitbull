@@ -9,8 +9,9 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["github"]] : "list",
   expect: {
     toHaveScreenshot: {
-      // Same Linux Chromium as CI; small tolerance for antialias noise.
-      maxDiffPixelRatio: 0.02,
+      // Same Linux Chromium as CI. Zero tolerance — measured run-to-run noise
+      // is 0px; a one-digit KPI change must fail (see visual.spec acceptance).
+      maxDiffPixels: 0,
       animations: "disabled",
     },
   },
@@ -36,6 +37,11 @@ export default defineConfig({
       // Shape-only stamp so /status last-verify is never blank in smoke.
       LAST_VERIFY_AT:
         process.env.LAST_VERIFY_AT ?? "2026-10-20T17:00:00.000Z",
+      // Freeze the seed calendar (plan + finish dates) for deterministic
+      // visuals. sandbox.ts keeps company.seededAt + TTL on wall clock so
+      // login reset and expiry stay correct.
+      V5_SEED_NOW:
+        process.env.V5_SEED_NOW ?? "2026-10-20T17:00:00.000Z",
     },
   },
 });
