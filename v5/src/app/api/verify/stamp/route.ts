@@ -1,16 +1,17 @@
 import { connection } from "next/server";
 import { writeLastVerifyAt } from "@/lib/last-verify";
+import { resolveVerifyToken } from "@/lib/verify-token";
 
 /**
  * verify-v5 posts here after a successful run so /status can show last-verify.
- * Authorization: Bearer $VERIFY_STAMP_TOKEN (must be set on the deploy).
+ * Authorization: Bearer $VERIFY_TOKEN (must be set on the deploy).
  */
 export async function POST(req: Request) {
   await connection();
-  const expected = process.env.VERIFY_STAMP_TOKEN?.trim();
+  const expected = resolveVerifyToken();
   if (!expected) {
     return Response.json(
-      { error: "VERIFY_STAMP_TOKEN is not configured" },
+      { error: "VERIFY_TOKEN is not configured" },
       { status: 503 },
     );
   }

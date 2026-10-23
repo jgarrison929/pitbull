@@ -4,6 +4,9 @@ export type CiGateResult = "pass" | "fail" | "pending" | "unknown";
 
 const DEFAULT_REPO = "jgarrison929/pitbull";
 
+/** Server-side TTL so /health and /status do not hit GitHub on every request. */
+export const CI_GATE_CACHE_TTL_MS = 5 * 60 * 1000;
+
 type CheckRunsResponse = {
   check_runs?: Array<{
     name: string;
@@ -12,14 +15,25 @@ type CheckRunsResponse = {
   }>;
 };
 
+type CacheEntry = { result: CiGateResult; expiresAt: number };
+
+const cache = new Map<string, CacheEntry>();
+
+/** Test helper: drop cached lookups between cases. */
+export function clearCiGateCache(): void {
+  cache.clear();
+}
+
 /**
  * Maps a GitHub check-run for `ci-gate` onto a short result.
- * Env override `CI_GATE_RESULT` wins (local/e2e); otherwise fetches GitHub.
+ * Env override `CI_GATE_RESULT` wins (local/e2e); otherwise fetches GitHub
+ * (cached per commit for {@link CI_GATE_CACHE_TTL_MS}).
  */
 export async function resolveCiGate(
   commit: string,
   env: Record<string, string | undefined> = process.env,
   fetchFn: typeof fetch = fetch,
+  now: () => number = Date.now,
 ): Promise<CiGateResult> {
   const override = env.CI_GATE_RESULT?.trim().toLowerCase();
   if (
@@ -30,15 +44,31 @@ export async function resolveCiGate(
   ) {
     return override;
   }
-  return fetchCiGate(commit, env, fetchFn);
+  return fetchCiGate(commit, env, fetchFn, now);
 }
 
 export async function fetchCiGate(
   commit: string,
   env: Record<string, string | undefined> = process.env,
   fetchFn: typeof fetch = fetch,
+  now: () => number = Date.now,
 ): Promise<CiGateResult> {
   if (!commit || commit === "unknown") return "unknown";
+
+  const t = now();
+  const hit = cache.get(commit);
+  if (hit && hit.expiresAt > t) return hit.result;
+
+  const result = await lookupCiGate(commit, env, fetchFn);
+  cache.set(commit, { result, expiresAt: t + CI_GATE_CACHE_TTL_MS });
+  return result;
+}
+
+async function lookupCiGate(
+  commit: string,
+  env: Record<string, string | undefined>,
+  fetchFn: typeof fetch,
+): Promise<CiGateResult> {
   const repo = env.GITHUB_REPOSITORY ?? DEFAULT_REPO;
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",

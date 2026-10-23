@@ -33,3 +33,5 @@ Staging `pitbull-web` on Railway runs this folder: Root Directory `/v5`, and `DA
 
 - `/status`: version, commit, ci-gate result, last verify timestamp, build time, DB health.
 - `/health`: the same data as JSON. Returns 503 when a configured DB is unreachable.
+- ci-gate is resolved from GitHub once per commit (5 min server cache). Optional `GITHUB_TOKEN` / `GH_TOKEN` avoids anonymous rate limits.
+- After a successful verify-v5 run, set `VERIFY_TOKEN` on the deploy and in the runner env so `POST /api/verify/stamp` records last-verify (otherwise `/status` shows `not recorded`).

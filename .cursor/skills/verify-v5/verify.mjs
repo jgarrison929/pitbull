@@ -417,13 +417,13 @@ const checkedAt = new Date().toISOString();
 const result = { url: base, expectedCommit: expected, passed, checkedAt, checks };
 writeFileSync(path.join(outDir, "result.json"), JSON.stringify(result, null, 2));
 
-// Stamp the deploy so /status can show last-verify (requires VERIFY_STAMP_TOKEN on the app).
-if (passed && process.env.VERIFY_STAMP_TOKEN) {
+// Stamp the deploy so /status can show last-verify (requires VERIFY_TOKEN on the app + runner).
+if (passed && process.env.VERIFY_TOKEN) {
   try {
     const res = await fetch(`${base}/api/verify/stamp`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.VERIFY_STAMP_TOKEN}`,
+        Authorization: `Bearer ${process.env.VERIFY_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ at: checkedAt, commit: expected }),
@@ -437,8 +437,8 @@ if (passed && process.env.VERIFY_STAMP_TOKEN) {
   } catch (error) {
     console.log(`stamp failed: ${error.message ?? error}`);
   }
-} else if (passed && !process.env.VERIFY_STAMP_TOKEN) {
-  console.log("VERIFY_STAMP_TOKEN unset — /status last-verify not stamped");
+} else if (passed && !process.env.VERIFY_TOKEN) {
+  console.log("VERIFY_TOKEN unset — /status last-verify not stamped");
 }
 
 for (const c of checks) console.log(`${c.ok ? "PASS" : "FAIL"} ${c.name} (${c.detail})`);
