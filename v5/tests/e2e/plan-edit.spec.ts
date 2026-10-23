@@ -1,8 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Seeded typed-action history: foreman plan note; PM CO creates/prices/void + lock × 3. */
+/** Seeded typed-action history: foreman plan note; PM Harbor import + COs + lock × 3. */
 const SEED_FOREMAN_RUNS = 1;
-const SEED_PM_RUNS = 14;
+/** Keep in sync with assistant.spec / seedActionHistory. */
+const SEED_PM_RUNS = 15;
 
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
