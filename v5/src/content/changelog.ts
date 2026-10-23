@@ -1,10 +1,11 @@
 // Public changelog. Newest first. Each entry is a demo-able increment that passed ci-gate and verify-v5.
 export const changelog = [
   {
-    version: "5.0.0-m2.2",
-    date: "2026-10-22",
+    version: "5.0.0-m5.1",
+    date: "2026-10-23",
     items: [
-      "A project manager can import an estimate CSV on a draft job. Matching cost codes update in place, and a bad row writes nothing.",
+      "A project manager can import an estimate CSV on a draft job. Matching cost codes update in place, and a bad row writes nothing. Executives cannot import.",
+      "Import and the job change log show ordinary dollars and cents. Leaf budget lines show exact amounts; roll-up totals may stay compact. Import errors list one problem per line, and a successful import clears the file picker.",
       "The job shows Original Budget, Current Budget, and Current Estimate, with parent totals rolled up from the leaves. Approve still freezes Original Budget from the Current Estimate.",
     ],
   },

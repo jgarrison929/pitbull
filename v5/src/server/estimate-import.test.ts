@@ -60,7 +60,8 @@ describe.skipIf(!db)("importEstimateCsv", () => {
 
     const r = await importEstimateCsv(companyId, "26-099", fixture("shb-estimate.csv"));
     expect(r).toMatchObject({ ok: true, inserted: 6, revised: 0, removed: 0, unchanged: 0 });
-    expect(r.summary).toContain("8675000¢");
+    expect(r.summary).toContain("$86,750.00");
+    expect(r.summary).not.toMatch(/¢/);
 
     const after = await tree(companyId, "26-099");
     expect(after.job.estimateSource).toBe("csv");
@@ -129,8 +130,21 @@ describe.skipIf(!db)("importEstimateCsv", () => {
     const before = await tree(companyId);
     const r = await importEstimateCsv(companyId, HARBOR, fixture("shb-bad.csv"));
     expect(r).toMatchObject({ ok: false, reason: "invalid_csv" });
-    expect(r.summary).toMatch(/line 4 qty: Enter a plain number/);
-    expect(r.summary).toMatch(/line 7 code: Code 03-100 is already on line 6\./);
+    expect(r.summary).toContain("2 errors — see the list below");
+    expect(r.ok ? [] : r.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          line: 4,
+          column: "qty",
+          message: expect.stringMatching(/plain number/),
+        }),
+        expect.objectContaining({
+          line: 7,
+          column: "code",
+          message: expect.stringMatching(/already on line 6/),
+        }),
+      ]),
+    );
     expect(await tree(companyId)).toEqual(before);
   });
 
@@ -185,9 +199,12 @@ describe.skipIf(!db)("importEstimateCsv", () => {
 
     const r = await importEstimateCsv(companyId, HARBOR, dropped);
     expect(r).toMatchObject({ ok: false, reason: "field_history" });
-    expect(r.summary).toContain(
-      "02-100 has 1 cost entry, so the file cannot leave it out.",
-    );
+    expect(r.summary).toContain("1 error — see the list below");
+    expect(r.ok ? [] : r.errors).toEqual([
+      expect.objectContaining({
+        message: "02-100 has 1 cost entry, so the file cannot leave it out.",
+      }),
+    ]);
     expect(await tree(companyId)).toEqual(before);
 
     const revised = await importEstimateCsv(companyId, HARBOR, fixture("shb-qty-1000.csv"));

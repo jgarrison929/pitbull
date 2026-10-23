@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { idx, usdShort } from "@/lib/ev";
+import { idx, usdCents, usdShort } from "@/lib/ev";
 import { varianceStatus, type Status } from "@/lib/status";
 
 const statusStyle: Record<
@@ -91,9 +91,12 @@ export function StatusIndex({
 export function Money({
   cents,
   signed = false,
+  /** Leaf budget lines: exact dollars and cents. Roll-ups stay compact. */
+  exact = false,
 }: {
   cents: number;
   signed?: boolean;
+  exact?: boolean;
 }) {
   const tone = signed
     ? cents < 0
@@ -102,13 +105,14 @@ export function Money({
         ? "text-positive"
         : ""
     : "";
+  const text = exact ? usdCents(cents) : usdShort(cents);
   return (
     <span
       className={cn("whitespace-nowrap tabular-nums", tone)}
       data-cents={cents}
     >
       {signed && cents > 0 ? "+" : ""}
-      {usdShort(cents)}
+      {text}
     </span>
   );
 }

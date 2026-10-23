@@ -49,10 +49,19 @@ function rowData(n: WbsNode) {
   };
 }
 
-function BudgetCell({ money, set }: { money: WbsMoney; set: ValueSet }) {
+function BudgetCell({
+  money,
+  set,
+  exact,
+}: {
+  money: WbsMoney;
+  set: ValueSet;
+  /** Leaves show exact cents; summary roll-ups stay compact. */
+  exact?: boolean;
+}) {
   return (
     <div className="text-right">
-      <Money cents={centsOf(money, set)} />
+      <Money cents={centsOf(money, set)} exact={exact} />
       {money.mhMilli > 0 ? (
         <div className="text-xs tabular-nums text-muted-foreground">
           {mh(money.mhMilli)} MH
@@ -402,12 +411,12 @@ function VirtualTreeDesktop({
                         {pct(l.percent)}
                       </span>
                     </div>
-                    <BudgetCell money={n.money} set={valueSet} />
+                    <BudgetCell money={n.money} set={valueSet} exact />
                     <div className="text-right">
-                      <Money cents={l.earnedCents} />
+                      <Money cents={l.earnedCents} exact />
                     </div>
                     <div className="text-right">
-                      <Money cents={l.actualCents} />
+                      <Money cents={l.actualCents} exact />
                     </div>
                     <div className="text-right">
                       <StatusIndex
@@ -505,17 +514,17 @@ function VirtualTreeMobile({
                 <div className="mt-1 grid grid-cols-3 gap-2 pr-2 text-xs">
                   <div>
                     <div className="text-muted-foreground">Earned</div>
-                    <Money cents={l.earnedCents} />
+                    <Money cents={l.earnedCents} exact />
                   </div>
                   <div>
                     <div className="text-muted-foreground">Actual</div>
-                    <Money cents={l.actualCents} />
+                    <Money cents={l.actualCents} exact />
                   </div>
                   <div className="text-right">
                     <div className="text-muted-foreground">
                       {VALUE_SETS[valueSet].label}
                     </div>
-                    <BudgetCell money={n.money} set={valueSet} />
+                    <BudgetCell money={n.money} set={valueSet} exact />
                   </div>
                   {(l.approvalPendingQtyMilli ?? 0) > 0 ||
                   (l.approvalPendingCents ?? 0) > 0 ? (

@@ -11,7 +11,7 @@ import {
   valueSetColumns,
   type CostCategories,
 } from "@/lib/budget";
-import { mh, usdShort } from "@/lib/ev";
+import { mh, usdCents } from "@/lib/ev";
 
 /** Domain cap, kept under next.config's 2 MB server-action body so multipart overhead still fits. */
 export const MAX_CSV_CHARS = 1_500_000;
@@ -661,12 +661,19 @@ export type ImportResult =
 
 const SHOWN_ERRORS = 20;
 
+/** One user-facing line per row error (capped), for the import form list. */
+export function importErrorLines(errors: readonly RowError[]): string[] {
+  return errors.slice(0, SHOWN_ERRORS).map((e) =>
+    e.line > 0 ? `Line ${e.line} · ${e.column}: ${e.message}` : e.message,
+  );
+}
+
 /** The one sentence the rail, the job page, and the audit log show for an import. */
 export function summarizeImport(r: ImportResult): string {
   if (r.ok) {
     const t = r.totals;
     return (
-      `Imported the estimate on ${r.shortName}: Current Estimate ${usdShort(t.ceCents)} (${t.ceCents}¢) ` +
+      `Imported the estimate on ${r.shortName}: Current Estimate ${usdCents(t.ceCents)} ` +
       `across ${t.leafCount} leaves, ${t.itemCount} cost items, ${mh(t.mhMilli)} MH. ` +
       `${r.revised} updated, ${r.inserted} added, ${r.removed} removed, ${r.unchanged} unchanged. ` +
       `Approve freezes it as Original Budget.`
@@ -682,14 +689,9 @@ export function summarizeImport(r: ImportResult): string {
     case "invalid_csv":
     case "field_history": {
       const n = r.errors.length;
-      const listed = r.errors
-        .slice(0, SHOWN_ERRORS)
-        .map((e) =>
-          e.line > 0 ? `line ${e.line} ${e.column}: ${e.message}` : e.message,
-        )
-        .join("; ");
-      const more = n > SHOWN_ERRORS ? `; and ${n - SHOWN_ERRORS} more.` : "";
-      return `Imported nothing on ${r.shortName}. ${n} ${n === 1 ? "error" : "errors"}: ${listed}${more}`;
+      const more =
+        n > SHOWN_ERRORS ? ` (${n - SHOWN_ERRORS} more not listed).` : "";
+      return `Imported nothing on ${r.shortName}. ${n} ${n === 1 ? "error" : "errors"} — see the list below.${more}`;
     }
   }
 }

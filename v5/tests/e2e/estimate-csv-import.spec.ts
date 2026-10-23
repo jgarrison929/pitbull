@@ -7,6 +7,15 @@ async function signIn(page: Page, role: string) {
   await expect(page).toHaveURL(/\/app$/);
 }
 
+async function ask(scope: ReturnType<Page["getByTestId"]>, prompt: string) {
+  await expect(scope.getByTestId("assistant-input")).toBeVisible();
+  const before = await scope.getByTestId("action-run").count();
+  await scope.getByTestId("assistant-input").fill(prompt);
+  await scope.getByRole("button", { name: "Send" }).click();
+  await expect(scope.getByTestId("action-run")).toHaveCount(before + 1);
+  return scope.getByTestId("action-run").last();
+}
+
 const DRAFT_JOB = "26-010";
 /** Hand-computed SHB fixture total. $86,750.00. */
 const FIXTURE_CENTS = 8_675_000;
@@ -15,6 +24,13 @@ const FIXTURE_CENTS = 8_675_000;
  * 200 CY times $4.50 labor plus $6.25 equipment is $2,150.00, so 215000¢ under the fixture.
  */
 const MUTATED_CENTS = 8_460_000;
+
+function moneyLabel(cents: number) {
+  const a = Math.abs(cents);
+  const dollars = Math.trunc(a / 100).toLocaleString("en-US");
+  const s = `$${dollars}.${String(a % 100).padStart(2, "0")}`;
+  return cents < 0 ? `−${s}` : s;
+}
 
 function money(root: Locator) {
   return root.locator("[data-cents]");
@@ -32,13 +48,67 @@ async function importFile(page: Page, name: string, cents: number) {
   await expect(page.getByTestId("import-estimate-filename")).toHaveText(name);
   await page.getByTestId("import-estimate-submit").click();
   const summary = page.getByTestId("import-estimate-summary");
-  await expect(summary).toContainText(`${cents}¢`);
+  await expect(summary).toContainText(moneyLabel(cents));
+  await expect(summary).not.toContainText("¢");
   await expect(summary).toContainText(/[1-9]\d* updated/);
+  await expect(page.getByTestId("import-estimate-filename")).toHaveCount(0);
   await expect(money(page.getByTestId("job-estimate"))).toHaveAttribute(
     "data-cents",
     String(cents),
   );
 }
+
+test("executive cannot import; PM can", async ({ page }) => {
+  await signIn(page, "executive");
+  await page.goto(`/app/jobs/${DRAFT_JOB}`);
+  await expect(page.getByTestId("import-estimate-form")).toHaveCount(0);
+
+  const run = await ask(
+    page.getByTestId("assistant-rail"),
+    "Import the estimate CSV for Harbor Abutment",
+  );
+  await expect(run).toHaveAttribute("data-action", "estimate.importCsv");
+  await expect(run.getByTestId("action-summary")).toContainText(
+    /needs a project manager/i,
+  );
+  await expect(run.getByTestId("action-summary")).toContainText(
+    /signed in as an executive/i,
+  );
+
+  await signIn(page, "pm");
+  await page.goto(`/app/jobs/${DRAFT_JOB}`);
+  await expect(page.getByTestId("import-estimate-form")).toBeVisible();
+});
+
+test("bad CSV lists one error per line and writes nothing", async ({
+  page,
+}) => {
+  await signIn(page, "pm");
+  await page.goto(`/app/jobs/${DRAFT_JOB}`);
+  await expect(money(page.getByTestId("job-estimate"))).toHaveAttribute(
+    "data-cents",
+    String(FIXTURE_CENTS),
+  );
+
+  const file = path.join(__dirname, "../fixtures", "shb-bad.csv");
+  await page.getByTestId("import-estimate-file").setInputFiles(file);
+  await page.getByTestId("import-estimate-submit").click();
+
+  await expect(page.getByTestId("import-estimate-summary")).toContainText(
+    /Imported nothing/,
+  );
+  const errors = page.getByTestId("import-estimate-errors").locator("li");
+  await expect(errors).not.toHaveCount(0);
+  expect(await errors.count()).toBeGreaterThan(1);
+  await expect(errors.first()).toContainText(/Line \d+/);
+  await expect(money(page.getByTestId("job-estimate"))).toHaveAttribute(
+    "data-cents",
+    String(FIXTURE_CENTS),
+  );
+  await expect(page.getByTestId("import-estimate-filename")).toHaveText(
+    "shb-bad.csv",
+  );
+});
 
 test("PM import rewrites Current Estimate, then Approve freezes Original and Current at the fixture", async ({
   page,
@@ -87,6 +157,10 @@ test("PM import rewrites Current Estimate, then Approve freezes Original and Cur
   await expect(money(page.getByTestId("estimate-labor"))).toHaveAttribute(
     "data-cents",
     "1930000",
+  );
+  // Leaf shows exact dollars; parent roll-up may stay compact ($K).
+  await expect(visibleRow(page, "02-100").locator("[data-cents]").first()).toHaveText(
+    "$10,750.00",
   );
 
   await importFile(page, "shb-estimate.csv", FIXTURE_CENTS);

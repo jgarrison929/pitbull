@@ -3,6 +3,7 @@ import { SHB_CSV, SHB_FIXTURE } from "./budget";
 import {
   ESTIMATE_COLUMNS,
   forestTotals,
+  importErrorLines,
   parseEstimateCsv,
   reconcileByCode,
   summarizeImport,
@@ -303,7 +304,7 @@ describe("summarizeImport", () => {
     mhMilli: SHB_FIXTURE.jobMhMilli,
   };
 
-  it("success names the exact cents and the change counts", () => {
+  it("success names ordinary dollars and the change counts", () => {
     expect(
       summarizeImport({
         ok: true,
@@ -317,11 +318,24 @@ describe("summarizeImport", () => {
         preservedIds: [],
       }),
     ).toBe(
-      "Imported the estimate on Harbor Abutment: Current Estimate $87K (8675000¢) across 4 leaves, 6 cost items, 304.0 MH. 1 updated, 0 added, 0 removed, 5 unchanged. Approve freezes it as Original Budget.",
+      "Imported the estimate on Harbor Abutment: Current Estimate $86,750.00 across 4 leaves, 6 cost items, 304.0 MH. 1 updated, 0 added, 0 removed, 5 unchanged. Approve freezes it as Original Budget.",
     );
+    expect(
+      summarizeImport({
+        ok: true,
+        jobNumber: "26-010",
+        shortName: "Harbor Abutment",
+        inserted: 0,
+        revised: 1,
+        removed: 0,
+        unchanged: 5,
+        totals,
+        preservedIds: [],
+      }),
+    ).not.toMatch(/¢/);
   });
 
-  it("refusals list errors by line and column, capped at 20", () => {
+  it("refusal summary points at the error list; lines are capped at 20", () => {
     const errors = Array.from({ length: 25 }, (_, i) => ({
       line: i + 2,
       column: "qty" as const,
@@ -334,8 +348,12 @@ describe("summarizeImport", () => {
       shortName: "Harbor Abutment",
       errors,
     });
-    expect(s).toMatch(/^Imported nothing on Harbor Abutment\. 25 errors: line 2 qty: Use at most 3 decimal places\.; /);
-    expect(s).toMatch(/line 21 qty: .*; and 5 more\.$/);
-    expect(s).not.toMatch(/line 22 /);
+    expect(s).toBe(
+      "Imported nothing on Harbor Abutment. 25 errors — see the list below. (5 more not listed).",
+    );
+    const lines = importErrorLines(errors);
+    expect(lines).toHaveLength(20);
+    expect(lines[0]).toBe("Line 2 · qty: Use at most 3 decimal places.");
+    expect(lines.at(-1)).toMatch(/^Line 21 · qty:/);
   });
 });
