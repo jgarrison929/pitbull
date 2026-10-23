@@ -17,8 +17,8 @@ import {
 const db = getDb();
 const created: string[] = [];
 
-/** Foreman note + PM CO creates/prices/void + locks + executive reject/approve. */
-const SEED_HISTORY_RUNS = 17;
+/** Foreman notes (Cedar + Harbor) + PM CO creates/prices/void + locks + executive reject/approve. */
+const SEED_HISTORY_RUNS = 18;
 /** Pure seed cost items plus the one leaf approved CO-003 inserts on 24-118. */
 const SEED_APPROVED_CO_LEAVES = 1;
 
@@ -41,8 +41,9 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
         plans: expected.dailyPlans.length,
       });
       expect(rows.runs).toBe(SEED_HISTORY_RUNS);
-      // Harbor stays a draft estimate; history jobs still get Period 1 locks.
-      expect(SEED_JOB_NUMBERS).toHaveLength(3);
+      // Harbor stays a draft estimate (plan-line history); approved jobs get Period 1 locks.
+      expect(SEED_JOB_NUMBERS).toHaveLength(4);
+      expect(SEED_JOB_NUMBERS).toContain("26-010");
     },
     30_000,
   );

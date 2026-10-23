@@ -5,8 +5,19 @@ import { run } from "@/server/assistant/actions";
 import type { CurrentUser } from "@/server/session";
 import { SEED_COMPANY_NAME, seedId, seedUsers } from "./index";
 
-/** Job numbers the demo seed creates (must match jobSpecs in seed/index). */
-export const SEED_JOB_NUMBERS = ["24-118", "25-031", "24-077"] as const;
+/** Every demo job number (must match jobs created in seed/index). */
+export const SEED_JOB_NUMBERS = [
+  "24-118",
+  "25-031",
+  "24-077",
+  "26-010",
+] as const;
+
+/**
+ * Approved jobs that get Period 1 locked. Harbor (26-010) stays a draft
+ * estimate — its history comes from a plan-line edit, not a lock or approve.
+ */
+const SEED_LOCK_JOB_NUMBERS = ["24-118", "25-031", "24-077"] as const;
 
 function asUser(
   companyId: string,
@@ -31,9 +42,10 @@ function asUser(
  * (and outside any advisory-lock transaction that held the insert).
  *
  * Change orders land before the period locks so the newest job-changes row on
- * every seeded job stays the Period 1 lock. Cedar (25-031) keeps a single
+ * every locked job stays the Period 1 lock. Cedar (25-031) keeps a single
  * priced CO so the phone job screenshot stays stable; mixed states live on
- * the other two jobs.
+ * the other two approved jobs. Harbor (26-010) keeps a draft estimate; its
+ * change history is a foreman plan-line note (approve stays a live PM demo).
  */
 export async function seedActionHistory(companyId: string, now = new Date()) {
   const foreman = asUser(companyId, "foreman", now);
@@ -50,6 +62,19 @@ export async function seedActionHistory(companyId: string, now = new Date()) {
       job: "25-031",
       lineId: seedId(companyId, "plan-line:cedar:0"),
       change: { notes: "Forms checked — ready for concrete." },
+    },
+  );
+
+  // Harbor stays draft: plan-line note is a real write for job change history.
+  // estimate.approve is intentionally not seeded — PM still demos Approve here.
+  await run(
+    foreman,
+    "Add a note on Harbor excavation: utilities marked, ready to dig",
+    "dailyPlan.updateLine",
+    {
+      job: "26-010",
+      lineId: seedId(companyId, "plan-line:harbor:0"),
+      change: { notes: "Utilities marked — ready to dig." },
     },
   );
 
@@ -237,9 +262,10 @@ export async function seedActionHistory(companyId: string, now = new Date()) {
     },
   );
 
-  // Period locks for every seeded job. Period 1 is a draft in seed rows; locking
-  // writes a real action_runs row with who / when / what.
-  for (const job of SEED_JOB_NUMBERS) {
+  // Period locks for approved seeded jobs. Period 1 is a draft in seed rows;
+  // locking writes a real action_runs row with who / when / what. Harbor is
+  // omitted — estimate still draft; claim stays open until Approve.
+  for (const job of SEED_LOCK_JOB_NUMBERS) {
     await run(pm, `Lock Period 1 on job ${job}`, "progressClaim.lock", {
       job,
     });

@@ -7,7 +7,8 @@ const roles = [
   "foreman",
 ] as const;
 
-const jobs = ["24-118", "25-031", "24-077"] as const;
+/** Must match SEED_JOB_NUMBERS in src/seed/history.ts — including draft Harbor. */
+const jobs = ["24-118", "25-031", "24-077", "26-010"] as const;
 
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
@@ -29,8 +30,8 @@ for (const role of roles) {
       await expect(first).toBeVisible();
       // Who: seeded people who ran typed actions (foreman plan edit / PM lock).
       await expect(first).toContainText(/Marcus Lee|Luis Ortega/);
-      // What: lock summary or plan-line note edit.
-      await expect(first).toContainText(/Locked Period|Changed 04-210|note/);
+      // What: lock summary or plan-line note edit (Harbor is note-only; others lock).
+      await expect(first).toContainText(/Locked Period|Changed 0[24]-\d{3}|note/);
       // When: LocalTime renders a <time datetime>.
       await expect(first.locator("time[datetime]")).toBeVisible();
       const iso = await first.locator("time[datetime]").getAttribute("datetime");
