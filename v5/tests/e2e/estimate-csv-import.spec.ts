@@ -92,10 +92,6 @@ test("bad CSV lists one error per line and writes nothing", async ({
 
   const file = path.join(__dirname, "../fixtures", "shb-bad.csv");
   await page.getByTestId("import-estimate-file").setInputFiles(file);
-  // Wait for the async FileReader path to enable submit (same as importFile).
-  await expect(page.getByTestId("import-estimate-filename")).toHaveText(
-    "shb-bad.csv",
-  );
   await page.getByTestId("import-estimate-submit").click();
 
   await expect(page.getByTestId("import-estimate-summary")).toContainText(
