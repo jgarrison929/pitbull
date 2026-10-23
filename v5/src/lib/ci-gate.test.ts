@@ -77,7 +77,7 @@ describe("resolveCiGate", () => {
 describe("ci-gate server cache", () => {
   it("does not call GitHub again for the same commit within the TTL", async () => {
     const fetchFn = passFetch();
-    let now = 1_000_000;
+    const now = 1_000_000;
     const clock = () => now;
 
     expect(await fetchCiGate("deadbeef", {}, fetchFn, clock)).toBe("pass");
