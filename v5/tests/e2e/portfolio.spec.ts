@@ -67,6 +67,30 @@ test("on a phone the cost codes stack and nothing scrolls sideways", async ({
   await page.close();
 });
 
+/** Tablet: cards below lg so the 7-col table cannot expand the page. */
+for (const width of [768, 800, 820] as const) {
+  test(`portfolio at ${width}px uses cards and does not scroll sideways`, async ({
+    browser,
+  }) => {
+    const page = await browser.newPage({
+      viewport: { width, height: 900 },
+    });
+    await signIn(page, "pm");
+    await page.goto("/app");
+    await expect(page.getByTestId("portfolio-cards")).toBeVisible();
+    await expect(page.getByTestId("portfolio-table").locator("table")).toBeHidden();
+    const { scrollWidth, viewportWidth } = await page.evaluate(() => {
+      const vv = window.visualViewport;
+      return {
+        scrollWidth: document.documentElement.scrollWidth,
+        viewportWidth: vv?.width ?? window.innerWidth,
+      };
+    });
+    expect(scrollWidth).toBeLessThanOrEqual(Math.ceil(viewportWidth));
+    await page.close();
+  });
+}
+
 test("an unknown job returns HTTP 404, not someone else's data", async ({
   page,
 }) => {

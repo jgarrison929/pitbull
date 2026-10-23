@@ -183,37 +183,52 @@ test("foreman cannot approve; reject or void moves nothing", async ({
   await expect(page.getByTestId("job-changes")).toContainText("Nothing moved");
 });
 
-const PHONE_ROLES = [
+const LAYOUT_ROLES = [
   "pm",
   "foreman",
   "executive",
   "superintendent",
 ] as const;
 
-/** Widths already used for phone CO layout, plus 320 where category squeeze showed. */
-const PHONE_VIEWPORTS = [
-  { width: 390, height: 844 },
-  { width: 320, height: 568 },
+/**
+ * Phone: CO stack + category gap. Tablet (768–820): job strip + cost grid —
+ * before the tablet fix, document scrollWidth exceeded the viewport by ~25–80px.
+ */
+const LAYOUT_VIEWPORTS = [
+  { width: 390, height: 844, phone: true },
+  { width: 320, height: 568, phone: true },
+  { width: 768, height: 900, phone: false },
+  { width: 800, height: 900, phone: false },
+  { width: 820, height: 900, phone: false },
 ] as const;
 
-for (const viewport of PHONE_VIEWPORTS) {
-  test.describe(`phone job page ${viewport.width}px — overflow and CO stack`, () => {
+for (const viewport of LAYOUT_VIEWPORTS) {
+  const label = viewport.phone
+    ? `phone job page ${viewport.width}px — overflow and CO stack`
+    : `tablet job page ${viewport.width}px — no sideways scroll`;
+
+  test.describe(label, () => {
     test.use({
-      viewport: { ...viewport },
-      isMobile: true,
-      hasTouch: true,
+      viewport: { width: viewport.width, height: viewport.height },
+      isMobile: viewport.phone,
+      hasTouch: viewport.phone,
     });
 
-    for (const role of PHONE_ROLES) {
+    for (const role of LAYOUT_ROLES) {
       for (const job of SEED_JOB_NUMBERS) {
         test(`${job} as ${role}`, async ({ page }) => {
           await signIn(page, role);
           await page.goto(`/app/jobs/${job}`);
           await expect(page.getByTestId("co-ledger")).toBeVisible();
-          // Every seeded job has at least one lined CO → phone stack.
-          await expect(page.getByTestId("co-lines-stack").first()).toBeVisible();
+          await expect(page.getByTestId("job-strip")).toBeVisible();
+          if (viewport.phone) {
+            // Every seeded job has at least one lined CO → phone stack.
+            await expect(page.getByTestId("co-lines-stack").first()).toBeVisible();
+            await assertCoStackCategorySpacing(page);
+          } else {
+            await expect(page.getByTestId("cost-table")).toBeVisible();
+          }
           await assertNoPageOverflow(page);
-          await assertCoStackCategorySpacing(page);
         });
       }
     }
