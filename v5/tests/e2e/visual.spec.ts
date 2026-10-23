@@ -35,17 +35,21 @@ async function signIn(page: Page, role: string) {
 
 /**
  * LocalTime SSR is `… UTC`; the client hydrates to a locale string. Wait for
- * hydration, then replace visible action/history timestamps with fixed gray
- * chips so glyph anti-aliasing cannot flake the rail. Never touch closed-menu
- * `seeded-at` (masking that paints over the job strip / H1).
+ * hydration, then replace *visible* timestamps with fixed gray chips so wall-
+ * clock seed times (CO history, rail, job-changes) cannot flake CI. Never style
+ * closed-menu `seeded-at` (that was painting over the job strip / H1).
  */
 async function waitForHydratedTimes(page: Page) {
-  const times = page.locator(
-    '[data-testid="action-run"] time[datetime], [data-testid="job-changes"] time[datetime]',
-  );
+  const times = page.locator("time[datetime]");
   const n = await times.count();
   for (let i = 0; i < n; i++) {
-    await expect(times.nth(i)).not.toContainText("UTC");
+    const t = times.nth(i);
+    if (!(await t.isVisible())) continue;
+    const inClosedMenu = await t.evaluate(
+      (el) => !!el.closest("details:not([open])"),
+    );
+    if (inClosedMenu) continue;
+    await expect(t).not.toContainText("UTC");
   }
 }
 
@@ -53,8 +57,7 @@ async function stabilize(page: Page) {
   await page.addStyleTag({
     content: `
       *, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }
-      [data-testid="action-run"] time[datetime],
-      [data-testid="job-changes"] time[datetime] {
+      time[datetime] {
         display: inline-block !important;
         width: 8.5rem !important;
         height: 1em !important;
@@ -63,6 +66,17 @@ async function stabilize(page: Page) {
         background: #d4d4d8 !important;
         border-radius: 2px !important;
         vertical-align: -0.1em !important;
+      }
+      /* Closed user-menu still lays out seeded-at; leave it alone. */
+      details:not([open]) time[datetime] {
+        display: inline !important;
+        width: auto !important;
+        height: auto !important;
+        overflow: visible !important;
+        color: inherit !important;
+        background: transparent !important;
+        border-radius: 0 !important;
+        vertical-align: baseline !important;
       }
     `,
   });
