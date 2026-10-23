@@ -35,7 +35,8 @@ node .cursor/skills/verify-v5/verify.mjs                  # staging; expects las
 node .cursor/skills/verify-v5/verify.mjs --wait 1800      # poll up to 30 min for the deploy to land
 node .cursor/skills/verify-v5/verify.mjs --url http://localhost:3100 --commit "$(git rev-parse HEAD)"
 node .cursor/skills/verify-v5/verify.mjs --shots /tmp/m1-screens  # also copy the screenshots somewhere handy
-node .cursor/skills/verify-v5/default-commit.test.mjs     # scripted check for default --commit resolution
+node .cursor/skills/verify-v5/verify.mjs --self-check     # no network/Playwright; CI smoke for imports + default commit
+node .cursor/skills/verify-v5/default-commit.test.mjs     # scripted check (includes --self-check)
 ```
 
 | Flag | Default | Meaning |
@@ -44,6 +45,7 @@ node .cursor/skills/verify-v5/default-commit.test.mjs     # scripted check for d
 | `--commit` | last `origin/main` commit that touches `v5/` | Expected commit (first 12 chars). Not bare `origin/main` tip — Railway skips deploys that touch nothing under `v5/`, so a docs/skill/CI-only tip would never land. Override with an explicit SHA when verifying a specific build. |
 | `--wait` | `0` | Seconds to poll `/health` until the commit matches |
 | `--shots` | the evidence folder | Where to write the desktop and mobile screenshots |
+| `--self-check` | off | Exit after resolving the expected commit and proving `execFileSync` works. No `/health`, Playwright, or seed load. CI runs this whenever `.cursor/skills/verify-v5/**` changes. |
 
 **Default commit:** when `--commit` is omitted, `resolveDefaultCommit` runs `git log -1 --format=%H origin/main -- v5/` (see `default-commit.mjs`). If that history is empty it falls back to `git rev-parse origin/main`. Pass `--commit` to pin a SHA (local `npm start`, a lagging deploy, or a deliberate mismatch).
 

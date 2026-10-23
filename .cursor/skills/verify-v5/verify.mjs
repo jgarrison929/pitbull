@@ -2,8 +2,9 @@
 // Verifies a deployed v5 app: /health and /status report the expected commit and Database ok, then
 // walks the real flows (login, portfolio from Postgres, one assistant action, sandbox reset) on
 // desktop and phone viewports.
-// Usage: node .cursor/skills/verify-v5/verify.mjs [--url URL] [--commit SHA] [--wait SECONDS] [--shots DIR]
+// Usage: node .cursor/skills/verify-v5/verify.mjs [--url URL] [--commit SHA] [--wait SECONDS] [--shots DIR] [--self-check]
 // Writes evidence to .cursor/skills/verify-v5/evidence/<timestamp>/ and exits 1 on any failed check.
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -19,11 +20,21 @@ const { values: args } = parseArgs({
     commit: { type: "string" },
     wait: { type: "string", default: "0" },
     shots: { type: "string" },
+    "self-check": { type: "boolean", default: false },
   },
 });
 
-const base = args.url.replace(/\/$/, "");
 const expected = (args.commit ?? resolveDefaultCommit(repo)).trim().slice(0, 12);
+
+// CI smoke: resolve default commit + prove execFileSync is bound (loadSeedDemoJobs needs it).
+// No network, Playwright, or v5/node_modules — exits before those paths.
+if (args["self-check"]) {
+  execFileSync(process.execPath, ["-e", ""], { stdio: "ignore" });
+  console.log(`self-check ok expected=${expected}`);
+  process.exit(0);
+}
+
+const base = args.url.replace(/\/$/, "");
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outDir = path.join(here, "evidence", stamp);
 mkdirSync(outDir, { recursive: true });

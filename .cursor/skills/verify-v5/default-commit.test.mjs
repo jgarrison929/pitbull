@@ -74,3 +74,17 @@ assert.ok(lastV5, "expected at least one commit on origin/main that touches v5/"
 console.log(
   `ok: default commit ${resolveDefaultCommit(repo).slice(0, 12)} (last v5/; tip ${tip.slice(0, 12)}${tip === lastV5 ? ", same" : ", differs"})`,
 );
+
+// verify.mjs must load far enough for --self-check (catches missing execFileSync / broken imports
+// without Playwright). Fails before the import restore when execFileSync was deleted.
+{
+  const verify = path.join(here, "verify.mjs");
+  const out = execFileSync(process.execPath, ["--check", verify], { encoding: "utf8" });
+  assert.equal(out, "");
+  const smoke = execFileSync(process.execPath, [verify, "--self-check"], {
+    encoding: "utf8",
+    cwd: repo,
+  });
+  assert.match(smoke, /^self-check ok expected=[0-9a-f]{12}\n$/);
+  console.log(`ok: verify.mjs --self-check (${smoke.trim()})`);
+}
