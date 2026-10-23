@@ -19,12 +19,14 @@ concurrency:
 
 jobs:
   # The legacy app is frozen at tag legacy-3.8.2-final and has no CI. PRs that touch v5/ or this
-  # workflow run the v5 job; other PRs skip it and ci-gate still reports. Pushes to main always run it.
+  # workflow run the v5 job; PRs that touch .cursor/skills/verify-v5/ run the skill smoke (v5 may
+  # still skip). Other PRs skip both and ci-gate still reports. Pushes to main always run both.
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
       v5: ${{ steps.filter.outputs.v5 }}
+      verify_v5: ${{ steps.filter.outputs.verify_v5 }}
     steps:
       - uses: actions/checkout@v7
         if: github.event_name == 'pull_request'
@@ -35,13 +37,42 @@ jobs:
         run: |
           if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
             echo "v5=true" >> "$GITHUB_OUTPUT"
+            echo "verify_v5=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           files=$(git diff --name-only HEAD^1 HEAD)
           echo "$files"
           if grep -qE '^v5/|^\.github/workflows/ci\.yml$' <<<"$files"; then v5=true; else v5=false; fi
+          if grep -qE '^\.cursor/skills/verify-v5/|^\.github/workflows/ci\.yml$' <<<"$files"; then verify_v5=true; else verify_v5=false; fi
           echo "v5=$v5" >> "$GITHUB_OUTPUT"
+          echo "verify_v5=$verify_v5" >> "$GITHUB_OUTPUT"
           echo "v5 changed: **$v5** (false = v5 job skipped)" >> "$GITHUB_STEP_SUMMARY"
+          echo "verify-v5 skill changed: **$verify_v5** (false = skill smoke skipped)" >> "$GITHUB_STEP_SUMMARY"
+
+  verify-v5-skill:
+    name: verify-v5 skill smoke
+    needs: changes
+    if: needs.changes.outputs.verify_v5 == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # default-commit.test needs origin/main for last v5/ touch
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: v5/.nvmrc
+
+      - name: Skill smoke (default-commit + verify --self-check)
+        run: |
+          # resolveDefaultCommit reads origin/main (last v5/ touch).
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          node .cursor/skills/verify-v5/default-commit.test.mjs
+          node .cursor/skills/verify-v5/status-ci-gate.test.mjs
+          node .cursor/skills/verify-v5/verify.mjs --self-check
 
   v5:
     name: v5 (lint, typecheck, test, build, e2e)
@@ -131,7 +162,7 @@ jobs:
   ci-gate:
     name: ci-gate
     if: always()
-    needs: [changes, v5]
+    needs: [changes, v5, verify-v5-skill]
     runs-on: ubuntu-latest
     permissions:
       actions: read

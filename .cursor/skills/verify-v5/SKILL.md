@@ -9,7 +9,7 @@ One command proves a v5 deployment. It passes only when every check below passes
 
 | Check | Passes when |
 |---|---|
-| `/health`, `/status` | Both report the expected commit, a non-zero version, ci-gate result, last-verify field, `Operational`, and Database `ok`. `/` redirects to `/login`. |
+| `/health`, `/status` | Both report the expected commit, a non-zero version, **ci-gate `pass`** (not merely present — `fail`/`pending`/`unknown` fail the run), last-verify field, `Operational`, and Database `ok`. `/` redirects to `/login`. |
 | login as a role card | The Project Manager card signs in as Marcus Lee. |
 | portfolio loads from Postgres | User menu shows a sandbox id, the table has as many jobs as the default seed (`seed()` job count — not hardcoded), portfolio CPI renders, and no "Live from Postgres" footer. |
 | assistant runs a typed action and logs it | Asking "Why is Cedar Creek over budget?" in the rail shows `job.costVariance(25-031)`, and the run is still there after a reload (it lives in `action_runs`). |
@@ -31,18 +31,24 @@ Prerequisites: Node 24 and `npm ci` in `v5/` (the script loads Playwright from `
 
 ```sh
 git fetch origin
-node .cursor/skills/verify-v5/verify.mjs                  # staging, expects origin/main
+node .cursor/skills/verify-v5/verify.mjs                  # staging; expects last origin/main commit that touches v5/
 node .cursor/skills/verify-v5/verify.mjs --wait 1800      # poll up to 30 min for the deploy to land
 node .cursor/skills/verify-v5/verify.mjs --url http://localhost:3100 --commit "$(git rev-parse HEAD)"
 node .cursor/skills/verify-v5/verify.mjs --shots /tmp/m1-screens  # also copy the screenshots somewhere handy
+node .cursor/skills/verify-v5/verify.mjs --self-check     # no network/Playwright; CI smoke for imports + default commit
+node .cursor/skills/verify-v5/default-commit.test.mjs     # scripted check (includes --self-check)
+node .cursor/skills/verify-v5/status-ci-gate.test.mjs     # /status ci-gate must be pass
 ```
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--url` | `https://pitbull-web-staging.up.railway.app` | App base URL |
-| `--commit` | `git rev-parse origin/main` | Expected commit; compared on the first 12 characters |
+| `--commit` | last `origin/main` commit that touches `v5/` | Expected commit (first 12 chars). Not bare `origin/main` tip — Railway skips deploys that touch nothing under `v5/`, so a docs/skill/CI-only tip would never land. Override with an explicit SHA when verifying a specific build. |
 | `--wait` | `0` | Seconds to poll `/health` until the commit matches |
 | `--shots` | the evidence folder | Where to write the desktop and mobile screenshots |
+| `--self-check` | off | Exit after resolving the expected commit and proving `execFileSync` works. No `/health`, Playwright, or seed load. CI runs this whenever `.cursor/skills/verify-v5/**` changes. |
+
+**Default commit:** when `--commit` is omitted, `resolveDefaultCommit` runs `git log -1 --format=%H origin/main -- v5/` (see `default-commit.mjs`). If that history is empty it falls back to `git rev-parse origin/main`. Pass `--commit` to pin a SHA (local `npm start`, a lagging deploy, or a deliberate mismatch).
 
 To see it fail on purpose, pass a commit staging doesn't serve, such as `--commit 000000000000`. The commit checks print `FAIL` and the run exits 1.
 
