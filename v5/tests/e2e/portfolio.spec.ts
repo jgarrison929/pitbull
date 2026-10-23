@@ -20,7 +20,8 @@ test("portfolio reads the visitor's sandbox from Postgres", async ({
     await expect(table.getByRole("link", { name })).toBeVisible();
   }
   // Draft 26-010 is listed but not in the active count / health roll-up.
-  await expect(page.getByText(/3 active jobs/)).toBeVisible();
+  // Count appears in the page meta and the contract KPI — both must agree.
+  await expect(page.getByText(/3 active jobs/)).toHaveCount(2);
   const draft = table.locator("[data-estimate=draft]");
   await expect(draft).toContainText("Harbor Side Abutment");
   await expect(draft.getByTestId("draft-label")).toBeVisible();
