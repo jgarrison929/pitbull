@@ -417,32 +417,38 @@ const checkedAt = new Date().toISOString();
 const result = { url: base, expectedCommit: expected, passed, checkedAt, checks };
 writeFileSync(path.join(outDir, "result.json"), JSON.stringify(result, null, 2));
 
-// Stamp the deploy so /status can show last-verify (requires VERIFY_STAMP_TOKEN on the app).
-if (passed && process.env.VERIFY_STAMP_TOKEN) {
+// Stamp the deploy so /status can show last-verify (requires VERIFY_TOKEN on the app + runner).
+// When VERIFY_TOKEN is set, a stamp failure fails the run (non-zero exit).
+let stampFailed = false;
+if (passed && process.env.VERIFY_TOKEN) {
   try {
     const res = await fetch(`${base}/api/verify/stamp`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.VERIFY_STAMP_TOKEN}`,
+        Authorization: `Bearer ${process.env.VERIFY_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ at: checkedAt, commit: expected }),
     });
     const body = await res.json().catch(() => ({}));
-    console.log(
-      res.ok
-        ? `stamped last-verify ${body.lastVerifyAt ?? checkedAt}`
-        : `stamp failed HTTP ${res.status}: ${JSON.stringify(body)}`,
-    );
+    if (res.ok) {
+      console.log(`stamped last-verify ${body.lastVerifyAt ?? checkedAt}`);
+    } else {
+      stampFailed = true;
+      console.log(`stamp failed HTTP ${res.status}: ${JSON.stringify(body)}`);
+    }
   } catch (error) {
+    stampFailed = true;
     console.log(`stamp failed: ${error.message ?? error}`);
   }
-} else if (passed && !process.env.VERIFY_STAMP_TOKEN) {
-  console.log("VERIFY_STAMP_TOKEN unset — /status last-verify not stamped");
+} else if (passed && !process.env.VERIFY_TOKEN) {
+  console.log("VERIFY_TOKEN unset — /status last-verify not stamped");
 }
 
+const verified = passed && !stampFailed;
 for (const c of checks) console.log(`${c.ok ? "PASS" : "FAIL"} ${c.name} (${c.detail})`);
-console.log(`${passed ? "VERIFIED" : "NOT VERIFIED"} ${base} at ${expected}`);
+if (stampFailed) console.log("FAIL stamp last-verify (VERIFY_TOKEN set but stamp failed)");
+console.log(`${verified ? "VERIFIED" : "NOT VERIFIED"} ${base} at ${expected}`);
 console.log(`evidence: ${path.relative(repo, outDir)}`);
 if (shotDir !== outDir) console.log(`screenshots: ${shotDir}`);
-process.exit(passed ? 0 : 1);
+process.exit(verified ? 0 : 1);

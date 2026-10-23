@@ -12,7 +12,7 @@ test("status page shows version, commit, ci-gate, last-verify and health", async
     process.env.EXPECT_COMMIT ?? /.+/,
   );
   await expect(page.getByTestId("status-ci-gate")).toHaveText(
-    /^(pass|fail|pending|unknown)$/,
+    /^(pass|fail|pending|unknown)( \(stale( \d+s)?\))?$/,
   );
   await expect(page.getByTestId("status-last-verify")).toHaveText(/.+/);
   await expect(page.getByTestId("health-status")).toHaveText("Operational");
@@ -31,6 +31,10 @@ test("health route reports deploy status shape", async ({ request }) => {
   expect(typeof body.commit).toBe("string");
   expect(body.commit.length).toBeGreaterThan(0);
   expect(["pass", "fail", "pending", "unknown"]).toContain(body.ciGate);
+  expect(typeof body.ciGateStale).toBe("boolean");
+  expect(
+    body.ciGateAgeMs === null || typeof body.ciGateAgeMs === "number",
+  ).toBe(true);
   expect(
     body.lastVerifyAt === null || typeof body.lastVerifyAt === "string",
   ).toBe(true);
