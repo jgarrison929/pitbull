@@ -91,7 +91,12 @@ test("bad CSV lists one error per line and writes nothing", async ({
   );
 
   const file = path.join(__dirname, "../fixtures", "shb-bad.csv");
-  await page.getByTestId("import-estimate-file").setInputFiles(file);
+  const input = page.getByTestId("import-estimate-file");
+  await expect(input).toBeVisible();
+  await input.setInputFiles(file);
+  await expect(page.getByTestId("import-estimate-submit")).toBeEnabled({
+    timeout: 10_000,
+  });
   await page.getByTestId("import-estimate-submit").click();
 
   await expect(page.getByTestId("import-estimate-summary")).toContainText(
@@ -131,20 +136,19 @@ test("PM import rewrites Current Estimate, then Approve freezes Original and Cur
     "data-cents",
     "0",
   );
-  await expect(money(page.getByTestId("job-original-budget"))).toHaveAttribute(
-    "data-cents",
-    "0",
-  );
+  // Draft Original Budget is "—" (never $0) until Approve.
+  await expect(
+    page.getByTestId("job-original-budget").getByTestId("metric-dash"),
+  ).toHaveText("—");
 
   await importFile(page, "shb-qty-1000.csv", MUTATED_CENTS);
   await expect(money(page.getByTestId("job-budget"))).toHaveAttribute(
     "data-cents",
     "0",
   );
-  await expect(money(page.getByTestId("job-original-budget"))).toHaveAttribute(
-    "data-cents",
-    "0",
-  );
+  await expect(
+    page.getByTestId("job-original-budget").getByTestId("metric-dash"),
+  ).toHaveText("—");
   await expect(visibleRow(page, "02-100")).toHaveAttribute(
     "data-ce-cents",
     "1075000",
@@ -172,10 +176,9 @@ test("PM import rewrites Current Estimate, then Approve freezes Original and Cur
     "data-cents",
     String(FIXTURE_CENTS),
   );
-  await expect(money(page.getByTestId("cost-total-ob"))).toHaveAttribute(
-    "data-cents",
-    "0",
-  );
+  await expect(
+    page.getByTestId("cost-total-ob").getByTestId("metric-dash"),
+  ).toHaveText("—");
   await expect(visibleRow(page, "02-100")).toHaveAttribute(
     "data-ce-cents",
     "1290000",

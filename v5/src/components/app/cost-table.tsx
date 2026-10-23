@@ -267,7 +267,8 @@ export function CostTable({
                 <span className="mr-1 text-xs font-normal text-muted-foreground">
                   {VALUE_SETS[set].label}
                 </span>
-                {estimateDraft ? (
+                {/* Draft: CE is real; OB/CB stay — until Approve (never $0). */}
+                {estimateDraft && set !== "ce" ? (
                   <MetricDash />
                 ) : (
                   <Money cents={centsOf(jobMoney, set)} />
@@ -464,7 +465,7 @@ function VirtualTreeDesktop({
                         </>
                       )}
                     </div>
-                    {estimateDraft ? (
+                    {estimateDraft && valueSet !== "ce" ? (
                       <div className="text-right">
                         <MetricDash />
                       </div>
@@ -499,7 +500,7 @@ function VirtualTreeDesktop({
                 ) : (
                   <>
                     <div className="col-span-2" />
-                    {estimateDraft ? (
+                    {estimateDraft && valueSet !== "ce" ? (
                       <div className="text-right">
                         <MetricDash />
                       </div>
@@ -619,7 +620,7 @@ function VirtualTreeMobile({
                     <div className="text-muted-foreground">
                       {VALUE_SETS[valueSet].label}
                     </div>
-                    {estimateDraft ? (
+                    {estimateDraft && valueSet !== "ce" ? (
                       <MetricDash />
                     ) : (
                       <BudgetCell money={n.money} set={valueSet} exact />
@@ -653,7 +654,7 @@ function VirtualTreeMobile({
                   <span className="text-muted-foreground">
                     {VALUE_SETS[valueSet].label}
                   </span>
-                  {estimateDraft ? (
+                  {estimateDraft && valueSet !== "ce" ? (
                     <MetricDash />
                   ) : (
                     <BudgetCell money={n.money} set={valueSet} />

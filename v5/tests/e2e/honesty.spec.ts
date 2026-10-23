@@ -37,12 +37,16 @@ test("draft 26-010 job page: dashes in cost table, no Lock claim", async ({
   await expect(page.getByTestId("lock-claim")).toHaveCount(0);
   const total = page.getByTestId("cost-job-total");
   await expect(total).toBeVisible();
-  await expect(total).not.toContainText("$0");
+  // EV metrics and OB/CB are dashes; Current Estimate stays real.
+  await expect(
+    total.getByTestId("cost-total-ob").getByTestId("metric-dash"),
+  ).toHaveText("—");
   await expect(total.getByTestId("metric-dash").first()).toHaveText("—");
-  // Leaf money cells are dashes too (no $0 rows).
-  const leaf = page.getByTestId("cost-tree-row").first();
-  await expect(leaf.getByTestId("metric-dash").first()).toBeVisible();
-  await expect(leaf).not.toContainText("$0");
+  await expect(total).not.toContainText("EAC $0");
+  await expect(total).not.toContainText("ETC $0");
+  await expect(
+    total.getByTestId("cost-total-ce").locator("[data-cents]"),
+  ).not.toHaveAttribute("data-cents", "0");
 });
 
 test("job strip labels draft as Estimate draft", async ({ page }) => {
