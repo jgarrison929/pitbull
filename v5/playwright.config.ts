@@ -37,9 +37,10 @@ export default defineConfig({
       // Shape-only stamp so /status last-verify is never blank in smoke.
       LAST_VERIFY_AT:
         process.env.LAST_VERIFY_AT ?? "2026-10-20T17:00:00.000Z",
-      // Freeze seed calendar so plan dates match page.clock in visual.spec.
-      V5_SEED_NOW:
-        process.env.V5_SEED_NOW ?? "2026-10-20T17:00:00.000Z",
+      // Do NOT set V5_SEED_NOW on the shared webServer — it freezes seededAt for
+      // every e2e (breaks login reset) and used to pre-expire sandboxes when the
+      // frozen day was in the past. visual.spec freezes the client clock and
+      // normalizes plan-date labels in-page instead.
     },
   },
 });

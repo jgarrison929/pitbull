@@ -80,7 +80,9 @@ describe.skipIf(!db)("sandbox lifecycle", () => {
 
   it("sweeps only expired sandboxes", async () => {
     const live = await createSandbox();
-    const old = await createSandbox(new Date(Date.now() - 48 * 3600 * 1000));
+    // TTL is wall-clock; pass the past instant as wallAt so expiry is in the past.
+    const past = new Date(Date.now() - 48 * 3600 * 1000);
+    const old = await createSandbox(past, null, past);
     created.push(live, old);
     await sweepExpiredSandboxes();
     const ids = (await db!.select({ id: companies.id }).from(companies)).map(

@@ -5,13 +5,16 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
  *
  * Harness rules (Verify #661 follow-up):
  * - Full-page or element shots that include every asserted control
- * - Frozen client clock + V5_SEED_NOW so plan dates / LocalTime stay fixed
+ * - Frozen client clock + in-page plan-date normalization (shared webServer
+ *   must not set V5_SEED_NOW — that breaks login reset / sandbox TTL)
  * - No masks on closed-menu sandbox chips (Chromium still lays them out)
  * - Near-zero pixel tolerance (anti-alias only) so a money-digit drift fails
  */
 
-/** Must match playwright.config webServer env V5_SEED_NOW. */
+/** Client clock for LocalTime hydration; plan dates are rewritten in stabilize. */
 const FROZEN_NOW = "2026-10-20T17:00:00.000Z";
+/** Stable label replacing `Wed, Oct 21`-style plan headings in shots. */
+const FROZEN_PLAN_DAY = "Wed, Oct 21";
 
 /** Anti-aliasing only — a changed dollar digit must fail. */
 const SHOT_OPTS = {
@@ -66,6 +69,17 @@ async function stabilize(page: Page) {
   // Drop Suspense pulse placeholders before we shoot.
   await expect(page.locator(".animate-pulse")).toHaveCount(0);
   await waitForHydratedTimes(page);
+  // Plan headings use seed-relative "Wed, Oct 21" — rewrite so baselines
+  // do not depend on the shared webServer calendar day.
+  await page.evaluate((label) => {
+    const re =
+      /\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), [A-Z][a-z]{2} \d{1,2}\b/g;
+    for (const h of document.querySelectorAll(
+      '[data-testid="plan-card"] h2',
+    )) {
+      h.textContent = (h.textContent ?? "").replace(re, label);
+    }
+  }, FROZEN_PLAN_DAY);
 }
 
 async function shotPage(page: Page, name: string) {
