@@ -48,10 +48,9 @@ export const evMethodEnum = pgEnum("ev_method", [
   "milestones",
   "pm_percent",
 ]);
-/** Per-item EAC method. New change-order items default to current_budget (M5). */
+/** Per-item EAC method. Only current_budget is used (average_performance removed). */
 export const forecastMethodEnum = pgEnum("forecast_method", [
   "current_budget",
-  "average_performance",
 ]);
 export const claimStatusEnum = pgEnum("claim_status", ["draft", "locked"]);
 export const costEntryKindEnum = pgEnum("cost_entry_kind", ["labor", "other"]);

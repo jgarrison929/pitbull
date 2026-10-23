@@ -30,8 +30,8 @@ export const worst = (...all: (Status | null)[]): Status =>
 
 /** A job or the portfolio: the worse of its cost and schedule status. */
 export function overallStatus(r: {
-  cpi: number;
-  spi: number;
+  cpi: number | null;
+  spi: number | null;
   costVarianceCents: number;
   scheduleVarianceCents: number;
 }): Status {

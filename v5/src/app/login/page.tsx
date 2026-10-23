@@ -6,7 +6,7 @@ import {
   LineChart,
   Briefcase,
 } from "lucide-react";
-import { seedUsers, SEED_COMPANY_NAME } from "@/seed";
+import { seedUsers, SEED_ACTIVE_JOB_COUNT, SEED_COMPANY_NAME } from "@/seed";
 import { signIn } from "./actions";
 
 export const metadata: Metadata = { title: "Sign in · Pitbull demo" };
@@ -45,8 +45,12 @@ export default function LoginPage() {
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           You get a private sandbox of {SEED_COMPANY_NAME}, a fictional
-          heavy-civil contractor with three live jobs. Change anything. Reset
-          puts it back in seconds, and it expires after 24 hours.
+          heavy-civil contractor with{" "}
+          {SEED_ACTIVE_JOB_COUNT === 1
+            ? "one live job"
+            : `${SEED_ACTIVE_JOB_COUNT} live jobs`}
+          . Change anything. Reset puts it back in seconds, and it expires after
+          24 hours.
         </p>
       </div>
       <ul className="grid gap-3 sm:grid-cols-2" aria-label="Demo roles">

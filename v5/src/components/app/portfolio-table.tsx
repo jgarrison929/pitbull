@@ -4,6 +4,26 @@ import type { PortfolioJob } from "@/server/data";
 import { Money, Progress, StatusIndex, StatusPill } from "./format";
 import { Td, Th } from "./page";
 
+function DraftLabel() {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+      data-status="draft"
+      data-testid="draft-label"
+    >
+      Draft
+    </span>
+  );
+}
+
+function MetricDash() {
+  return (
+    <span className="text-muted-foreground tabular-nums" data-testid="metric-dash">
+      —
+    </span>
+  );
+}
+
 export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
   return (
     <div data-testid="portfolio-table">
@@ -24,6 +44,7 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
             <tr
               key={p.job.id}
               className="border-b last:border-0 hover:bg-muted/40"
+              data-estimate={p.job.estimateStatus}
             >
               <Td>
                 <Link
@@ -41,28 +62,44 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
                 <Money cents={p.job.contractCents} />
               </Td>
               <Td>
-                <div className="flex items-center gap-2">
-                  <Progress value={p.percent} className="w-14" />
-                  <span className="text-xs tabular-nums">{pct(p.percent)}</span>
-                </div>
+                {p.estimateDraft ? (
+                  <MetricDash />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Progress value={p.percent} className="w-14" />
+                    <span className="text-xs tabular-nums">{pct(p.percent)}</span>
+                  </div>
+                )}
               </Td>
               <Td right>
-                <StatusIndex
-                  index={p.cpi}
-                  varianceCents={p.costVarianceCents}
-                />
+                {p.estimateDraft ? (
+                  <MetricDash />
+                ) : (
+                  <StatusIndex
+                    index={p.cpi}
+                    varianceCents={p.costVarianceCents}
+                  />
+                )}
               </Td>
               <Td right>
-                <StatusIndex
-                  index={p.spi}
-                  varianceCents={p.scheduleVarianceCents}
-                />
+                {p.estimateDraft ? (
+                  <MetricDash />
+                ) : (
+                  <StatusIndex
+                    index={p.spi}
+                    varianceCents={p.scheduleVarianceCents}
+                  />
+                )}
               </Td>
               <Td right>
-                <Money cents={p.eacCents} />
+                {p.estimateDraft ? <MetricDash /> : <Money cents={p.eacCents} />}
               </Td>
               <Td>
-                <StatusPill value={p.status} />
+                {p.estimateDraft ? (
+                  <DraftLabel />
+                ) : (
+                  <StatusPill value={p.status!} />
+                )}
               </Td>
             </tr>
           ))}
@@ -70,38 +107,52 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
       </table>
       <ul className="divide-y md:hidden">
         {jobs.map((p) => (
-          <li key={p.job.id}>
+          <li key={p.job.id} data-estimate={p.job.estimateStatus}>
             <Link
               href={`/app/jobs/${p.job.number}`}
               className="flex flex-col gap-2 py-3"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="truncate font-medium">{p.job.name}</div>
+                  <div className="font-medium whitespace-normal">
+                    {p.job.name}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {p.job.number} · PM {p.job.pmName}
                   </div>
                 </div>
-                <StatusPill value={p.status} />
+                {p.estimateDraft ? (
+                  <DraftLabel />
+                ) : (
+                  <StatusPill value={p.status!} />
+                )}
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <div className="text-muted-foreground">Done</div>
-                  {pct(p.percent)}
+                  {p.estimateDraft ? <MetricDash /> : pct(p.percent)}
                 </div>
                 <div>
                   <div className="text-muted-foreground">CPI</div>
-                  <StatusIndex
-                    index={p.cpi}
-                    varianceCents={p.costVarianceCents}
-                  />
+                  {p.estimateDraft ? (
+                    <MetricDash />
+                  ) : (
+                    <StatusIndex
+                      index={p.cpi}
+                      varianceCents={p.costVarianceCents}
+                    />
+                  )}
                 </div>
                 <div>
                   <div className="text-muted-foreground">SPI</div>
-                  <StatusIndex
-                    index={p.spi}
-                    varianceCents={p.scheduleVarianceCents}
-                  />
+                  {p.estimateDraft ? (
+                    <MetricDash />
+                  ) : (
+                    <StatusIndex
+                      index={p.spi}
+                      varianceCents={p.scheduleVarianceCents}
+                    />
+                  )}
                 </div>
               </div>
             </Link>

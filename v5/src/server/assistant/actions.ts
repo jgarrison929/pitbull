@@ -23,11 +23,14 @@ import {
 } from "@/lib/change-order";
 import {
   DEFAULT_LABOR_RATE_CENTS,
+  formatInstalledByUnit,
+  idx,
   laborCents,
   qty,
   usdCents,
   usdShort,
 } from "@/lib/ev";
+import { sentence } from "@/lib/prose";
 import {
   applyLineInput,
   manHoursOf,
@@ -269,6 +272,7 @@ function describeChange(
   return out;
 }
 
+
 const CO_ACTIONS = {
   create: { title: "Raise a change order", roles: ["pm", "executive"] },
   price: { title: "Price a change order", roles: ["pm", "executive"] },
@@ -324,16 +328,20 @@ export const actions: Record<ActionName, ActionDef> = {
   "portfolio.summary": {
     title: "Portfolio summary",
     async run(user) {
-      const { jobs: all, totals } = await getPortfolio(user.companyId);
-      const risky = all.filter((j) => j.status !== "on-track");
+      const { jobs: all, activeJobCount, totals } = await getPortfolio(
+        user.companyId,
+      );
+      const risky = all.filter(
+        (j) => !j.estimateDraft && j.status !== "on-track",
+      );
       const flags = risky.map((j) =>
-        j.cpi < j.spi
-          ? `${j.job.shortName} (CPI ${j.cpi.toFixed(2)})`
-          : `${j.job.shortName} (SPI ${j.spi.toFixed(2)})`,
+        (j.cpi ?? Infinity) < (j.spi ?? Infinity)
+          ? `${j.job.shortName} (CPI ${idx(j.cpi)})`
+          : `${j.job.shortName} (SPI ${idx(j.spi)})`,
       );
       return {
         summary:
-          `${all.length} jobs. Portfolio CPI ${totals.cpi.toFixed(2)}, SPI ${totals.spi.toFixed(2)}. ` +
+          `${activeJobCount} active jobs. Portfolio CPI ${idx(totals.cpi)}, SPI ${idx(totals.spi)}. ` +
           (flags.length
             ? `Needs attention: ${flags.join(", ")}.`
             : "Every job is on track."),
@@ -356,7 +364,7 @@ export const actions: Record<ActionName, ActionDef> = {
       const net = j.costVarianceCents;
       return {
         summary:
-          `${j.job.shortName} is ${usdShort(Math.abs(net))} ${net < 0 ? "over" : "under"} on earned vs actual cost (CPI ${j.cpi.toFixed(2)}). ` +
+          `${j.job.shortName} is ${usdShort(Math.abs(net))} ${net < 0 ? "over" : "under"} on earned vs actual cost (CPI ${idx(j.cpi)}). ` +
           (worst.length
             ? `Largest overruns: ${worst.map((l) => `${l.code} ${l.description} ${usdShort(l.varianceCents)}`).join("; ")}.`
             : "No cost code is over."),
@@ -461,7 +469,10 @@ export const actions: Record<ActionName, ActionDef> = {
           ),
         );
       return {
-        summary: `Changed ${item.code} ${v.activity} on ${plan.crew}'s plan: ${changes.join("; ")}.`,
+        summary: sentence(
+          `Changed ${item.code} ${v.activity} on ${plan.crew}'s plan: `,
+          changes,
+        ),
         ...where,
         line: item.code,
       };
@@ -540,13 +551,12 @@ export const actions: Record<ActionName, ActionDef> = {
           job: j.job.number,
         };
       }
+      const installed = formatInstalledByUnit(result.postedQtyByUnit);
       return {
         summary:
           `Approved ${plan.crew}'s report for ${day(plan.planDate)} on ${j.job.shortName}: ` +
           `${result.postedMh} MH / ${usdShort(result.postedCents)} actual cost` +
-          (result.postedQtyMilli
-            ? `, ${qty(result.postedQtyMilli)} installed`
-            : "") +
+          (installed ? `, ${installed}` : "") +
           `. Entries dated ${day(result.planDate!)}.`,
         href: jobHref(j),
         job: j.job.number,
@@ -1189,16 +1199,19 @@ export async function recentRuns(
     )
     .orderBy(desc(actionRuns.createdAt))
     .limit(limit);
-  return rows.reverse().map(({ run, userName, role }) => ({
-    id: run.id,
-    prompt: run.prompt,
-    action: run.action,
-    args: run.args as RunArgs,
-    summary: run.summary,
-    createdAt: run.createdAt.toISOString(),
-    userName,
-    role,
-  }));
+  return rows.reverse().map(({ run, userName, role }) => {
+    const args = run.args as RunArgs;
+    return {
+      id: run.id,
+      prompt: run.prompt,
+      action: run.action,
+      args,
+      summary: run.summary,
+      createdAt: run.createdAt.toISOString(),
+      userName,
+      role,
+    };
+  });
 }
 export type RunView = Awaited<ReturnType<typeof recentRuns>>[number];
 

@@ -43,8 +43,12 @@ export function PlanCard({
       data-status={plan.status}
     >
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-        <h2 className="text-sm font-semibold">
-          Daily plan · {plan.crew} · {day(plan.planDate)}
+        <h2 className="min-w-0 text-sm font-semibold">
+          <span className="whitespace-nowrap">Daily plan</span>
+          <span className="text-muted-foreground"> · </span>
+          <span className="whitespace-nowrap">{plan.crew}</span>
+          <span className="text-muted-foreground"> · </span>
+          <span className="whitespace-nowrap">{day(plan.planDate)}</span>
         </h2>
         <span
           className={cn(
@@ -58,6 +62,9 @@ export function PlanCard({
         <span className="text-xs text-muted-foreground">
           Foreman {plan.foreman} · {plan.weather}
         </span>
+        {actions ? (
+          <div className="ml-auto flex flex-wrap gap-2">{actions}</div>
+        ) : null}
       </header>
       {plan.returnReason ? (
         <p
@@ -89,7 +96,7 @@ export function PlanCard({
           </li>
         ))}
       </ul>
-      <Footer plan={plan} manHours={manHours} actions={actions} />
+      <Footer plan={plan} manHours={manHours} />
       {report ? (
         <div className="border-t px-4 py-3" data-testid="report-panel">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -177,14 +184,15 @@ function LineView({ l }: { l: Plan["lines"][number] }) {
 function Footer({
   plan,
   manHours,
-  actions,
 }: {
   plan: Plan;
   manHours: number;
-  actions?: React.ReactNode;
 }) {
   return (
-    <footer className="flex flex-wrap items-center gap-2 border-t px-4 py-3 text-xs">
+    <footer
+      className="flex flex-wrap items-center gap-2 border-t px-4 py-3 text-xs"
+      data-testid="plan-footer"
+    >
       {plan.equipment.map((e) => (
         <span
           key={e.name}
@@ -194,7 +202,6 @@ function Footer({
         </span>
       ))}
       <span className="font-medium tabular-nums">{manHours} MH</span>
-      {actions && <div className="ml-auto flex gap-2">{actions}</div>}
     </footer>
   );
 }

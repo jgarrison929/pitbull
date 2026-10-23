@@ -229,7 +229,7 @@ export async function approveDailyReport(
         already: true as const,
         postedMh: 0,
         postedCents: 0,
-        postedQtyMilli: 0,
+        postedQtyByUnit: {} as Record<string, number>,
         lines: 0,
       };
     }
@@ -266,7 +266,7 @@ export async function approveDailyReport(
         already: true as const,
         postedMh: 0,
         postedCents: 0,
-        postedQtyMilli: 0,
+        postedQtyByUnit: {} as Record<string, number>,
         lines: 0,
       };
     }
@@ -288,7 +288,7 @@ export async function approveDailyReport(
 
     let postedMh = 0;
     let postedCents = 0;
-    let postedQtyMilli = 0;
+    const postedQtyByUnit: Record<string, number> = {};
     const touchedItems = new Set<string>();
 
     for (const { line, item } of rows) {
@@ -343,6 +343,8 @@ export async function approveDailyReport(
                 eq(costItems.companyId, companyId),
               ),
             );
+          postedQtyByUnit[item.unit] =
+            (postedQtyByUnit[item.unit] ?? 0) + qtyMilli;
         }
         await tx.insert(costEntries).values({
           id: randomUUID(),
@@ -355,7 +357,6 @@ export async function approveDailyReport(
           sourcePlanLineId: line.id,
           at: entryAt,
         });
-        postedQtyMilli += qtyMilli;
       }
 
       touchedItems.add(item.id);
@@ -370,7 +371,7 @@ export async function approveDailyReport(
       already: false as const,
       postedMh,
       postedCents,
-      postedQtyMilli,
+      postedQtyByUnit,
       lines: rows.length,
       planDate: plan.planDate,
     };

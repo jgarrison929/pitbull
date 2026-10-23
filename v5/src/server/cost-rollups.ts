@@ -52,19 +52,10 @@ function plannedAsOfSql(asOfIso: string | ReturnType<typeof sql>) {
 
 /**
  * Per-leaf EAC. Matches itemForecast in lib/ev:
- * current_budget → AC + (BAC − EV); average_performance → AC×BAC÷EV (else fallback).
+ * current_budget → AC + (BAC − EV).
  */
 function eacSql(earned: ReturnType<typeof sql>) {
-  return sql`
-    case
-      when ${costItems.forecastMethod} = 'average_performance'
-        and (${earned}) > 0
-        then round(
-          (${costItems.lockedActualCents}::numeric * ${cbTotalSql})
-            / (${earned})::numeric
-        )::bigint
-      else ${costItems.lockedActualCents} + (${cbTotalSql} - (${earned}))
-    end`;
+  return sql`${costItems.lockedActualCents} + (${cbTotalSql} - (${earned}))`;
 }
 
 function toRollup(r: {

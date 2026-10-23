@@ -448,6 +448,14 @@ const jobSpecs = [
   },
 ];
 
+/**
+ * Approved (live) jobs in the seed. Harbor 26-010 is a separate draft estimate
+ * and is not counted. Login copy and portfolio "active jobs" must agree with this.
+ */
+export const SEED_ACTIVE_JOB_COUNT = jobSpecs.filter(
+  (j) => j.estimateStatus === "approved",
+).length;
+
 export type SeedRows = {
   company: Insert<typeof companies>;
   users: Insert<typeof users>[];

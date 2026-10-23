@@ -22,14 +22,15 @@ import {
   type ForecastMethod,
   type Rollup,
 } from "@/lib/ev";
-import { overallStatus } from "@/lib/status";
+import { isEstimateDraft } from "@/lib/portfolio";
+import { overallStatus, type Status } from "@/lib/status";
 import { portfolioRollupsSql } from "@/server/cost-rollups";
 
 // The tenant boundary: every read takes the signed-in user's companyId and filters on it.
 
 type ItemRow = typeof costItems.$inferSelect;
 
-function rollupFromSql(r: Rollup) {
+function rollupFromSql(r: Rollup): Rollup & { status: Status } {
   return { ...r, status: overallStatus(r) };
 }
 
@@ -126,30 +127,43 @@ export const getPortfolio = cache(async function getPortfolio(
   const sums = await portfolioRollupsSql(companyId, asOf);
   const byJob = new Map(sums.map((s) => [s.job_id, s]));
   const portfolio = jobRows.map((job) => {
+    const draft = isEstimateDraft(job);
     const s = byJob.get(job.id);
-    const r = rollupFromSql(
-      rollupFromTotals({
-        budgetCents: Number(s?.budget_cents ?? 0),
-        plannedCents: Number(s?.planned_cents ?? 0),
-        earnedCents: Number(s?.earned_cents ?? 0),
-        actualCents: Number(s?.actual_cents ?? 0),
-        eacCents: Number(s?.eac_cents ?? 0),
-        etcCents: Number(s?.etc_cents ?? 0),
-        sinceLockActualCents: Number(s?.since_lock_actual_cents ?? 0),
-        sinceLockPlannedCents: Number(s?.since_lock_planned_cents ?? 0),
-      }),
-    );
+    const r = rollupFromTotals({
+      budgetCents: Number(s?.budget_cents ?? 0),
+      plannedCents: Number(s?.planned_cents ?? 0),
+      earnedCents: Number(s?.earned_cents ?? 0),
+      actualCents: Number(s?.actual_cents ?? 0),
+      eacCents: Number(s?.eac_cents ?? 0),
+      etcCents: Number(s?.etc_cents ?? 0),
+      sinceLockActualCents: Number(s?.since_lock_actual_cents ?? 0),
+      sinceLockPlannedCents: Number(s?.since_lock_planned_cents ?? 0),
+    });
+    // Draft estimates are not active: no CPI/SPI/On-track, EAC shown as "—".
+    if (draft) {
+      return {
+        job,
+        lines: [] as CostLine[],
+        ...r,
+        cpi: null,
+        spi: null,
+        status: null as Status | null,
+        estimateDraft: true as const,
+      };
+    }
+    const withStatus = rollupFromSql(r);
     return {
       job,
-      /** Empty on portfolio; call getJob for the tree. */
       lines: [] as CostLine[],
-      ...r,
+      ...withStatus,
+      estimateDraft: false as const,
     };
   });
+  const active = portfolio.filter((p) => !p.estimateDraft);
   const totals = rollup(
-    portfolio.map((p) => ({
+    active.map((p) => ({
       ...p,
-      // Synthetic single line per job for portfolio totals.
+      // Synthetic single line per job for portfolio totals (active only).
       code: p.job.number,
       description: p.job.name,
       unit: "LS",
@@ -174,7 +188,6 @@ export const getPortfolio = cache(async function getPortfolio(
       etcCents: p.etcCents,
       overBudgetQtyMilli: 0,
       earnedMhMilli: 0,
-      forecastFallback: false,
       forecastDerivation: "",
       sinceLockActualCents: p.sinceLockActualCents,
       sinceLockPlannedCents: p.sinceLockPlannedCents,
@@ -182,8 +195,10 @@ export const getPortfolio = cache(async function getPortfolio(
   );
   return {
     jobs: portfolio,
+    activeJobs: active,
+    activeJobCount: active.length,
     totals,
-    contractCents: jobRows.reduce((s, j) => s + j.contractCents, 0),
+    contractCents: active.reduce((s, p) => s + p.job.contractCents, 0),
   };
 });
 
@@ -231,6 +246,7 @@ export async function getJob(
   const lines = leafLines(items, cutoff, asOf);
   // Prefer JS leaf rollup so claimed-installed / as-of PV match costLine exactly.
   const r = rollup(lines);
+  const draft = isEstimateDraft(job);
   return {
     job,
     items,
@@ -240,7 +256,10 @@ export async function getJob(
     lockAt,
     cutoff,
     ...r,
-    status: overallStatus(r),
+    ...(draft
+      ? { cpi: null, spi: null, status: null as Status | null }
+      : { status: overallStatus(r) as Status | null }),
+    estimateDraft: draft,
   };
 }
 

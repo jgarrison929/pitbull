@@ -10,6 +10,7 @@ import {
 import { StatusPill } from "@/components/app/format";
 import { LocalTime } from "@/components/app/local-time";
 import { NavLink } from "@/components/app/nav-link";
+import { idx } from "@/lib/ev";
 import { cn } from "@/lib/utils";
 import { getPortfolio } from "@/server/data";
 import { requireUser } from "@/server/session";
@@ -224,10 +225,24 @@ async function JobStrip() {
               </span>
             </span>
             <span className="tabular-nums">
-              CPI {p.cpi.toFixed(2)} · SPI {p.spi.toFixed(2)}
+              {p.estimateDraft
+                ? "Estimate draft"
+                : `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`}
             </span>
           </span>
-          <StatusPill value={p.status} varianceCents={p.costVarianceCents} />
+          {p.estimateDraft ? (
+            <span
+              className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+              data-status="draft"
+            >
+              Draft
+            </span>
+          ) : (
+            <StatusPill
+              value={p.status!}
+              varianceCents={p.costVarianceCents}
+            />
+          )}
         </NavLink>
       ))}
     </nav>
