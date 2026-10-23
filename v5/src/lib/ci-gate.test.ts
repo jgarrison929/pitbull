@@ -68,9 +68,14 @@ describe("resolveCiGate", () => {
   it("sends Authorization when GITHUB_TOKEN is set", async () => {
     const fetchFn = passFetch();
     await fetchCiGate("abc", { GITHUB_TOKEN: "ghs_test" }, fetchFn);
-    const init = fetchFn.mock.calls.at(0)?.at(1) as RequestInit;
-    const headers = init.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer ghs_test");
+    expect(fetchFn).toHaveBeenCalledWith(
+      expect.stringContaining("/commits/abc/check-runs"),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer ghs_test",
+        }),
+      }),
+    );
   });
 });
 
