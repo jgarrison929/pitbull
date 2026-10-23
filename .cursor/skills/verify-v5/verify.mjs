@@ -4,12 +4,12 @@
 // desktop and phone viewports.
 // Usage: node .cursor/skills/verify-v5/verify.mjs [--url URL] [--commit SHA] [--wait SECONDS] [--shots DIR]
 // Writes evidence to .cursor/skills/verify-v5/evidence/<timestamp>/ and exits 1 on any failed check.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { resolveDefaultCommit } from "./default-commit.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, "../../..");
@@ -23,9 +23,7 @@ const { values: args } = parseArgs({
 });
 
 const base = args.url.replace(/\/$/, "");
-const expected = (
-  args.commit ?? execFileSync("git", ["rev-parse", "origin/main"], { cwd: repo, encoding: "utf8" })
-).trim().slice(0, 12);
+const expected = (args.commit ?? resolveDefaultCommit(repo)).trim().slice(0, 12);
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const outDir = path.join(here, "evidence", stamp);
 mkdirSync(outDir, { recursive: true });

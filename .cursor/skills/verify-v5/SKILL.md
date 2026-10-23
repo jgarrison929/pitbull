@@ -31,18 +31,21 @@ Prerequisites: Node 24 and `npm ci` in `v5/` (the script loads Playwright from `
 
 ```sh
 git fetch origin
-node .cursor/skills/verify-v5/verify.mjs                  # staging, expects origin/main
+node .cursor/skills/verify-v5/verify.mjs                  # staging; expects last origin/main commit that touches v5/
 node .cursor/skills/verify-v5/verify.mjs --wait 1800      # poll up to 30 min for the deploy to land
 node .cursor/skills/verify-v5/verify.mjs --url http://localhost:3100 --commit "$(git rev-parse HEAD)"
 node .cursor/skills/verify-v5/verify.mjs --shots /tmp/m1-screens  # also copy the screenshots somewhere handy
+node .cursor/skills/verify-v5/default-commit.test.mjs     # scripted check for default --commit resolution
 ```
 
 | Flag | Default | Meaning |
 |---|---|---|
 | `--url` | `https://pitbull-web-staging.up.railway.app` | App base URL |
-| `--commit` | `git rev-parse origin/main` | Expected commit; compared on the first 12 characters |
+| `--commit` | last `origin/main` commit that touches `v5/` | Expected commit (first 12 chars). Not bare `origin/main` tip — Railway skips deploys that touch nothing under `v5/`, so a docs/skill/CI-only tip would never land. Override with an explicit SHA when verifying a specific build. |
 | `--wait` | `0` | Seconds to poll `/health` until the commit matches |
 | `--shots` | the evidence folder | Where to write the desktop and mobile screenshots |
+
+**Default commit:** when `--commit` is omitted, `resolveDefaultCommit` runs `git log -1 --format=%H origin/main -- v5/` (see `default-commit.mjs`). If that history is empty it falls back to `git rev-parse origin/main`. Pass `--commit` to pin a SHA (local `npm start`, a lagging deploy, or a deliberate mismatch).
 
 To see it fail on purpose, pass a commit staging doesn't serve, such as `--commit 000000000000`. The commit checks print `FAIL` and the run exits 1.
 
