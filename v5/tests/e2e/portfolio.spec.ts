@@ -19,6 +19,12 @@ test("portfolio reads the visitor's sandbox from Postgres", async ({
   ]) {
     await expect(table.getByRole("link", { name })).toBeVisible();
   }
+  // Draft 26-010 is listed but not in the active count / health roll-up.
+  await expect(page.getByText(/3 active jobs/)).toBeVisible();
+  const draft = table.locator("[data-estimate=draft]");
+  await expect(draft).toContainText("Harbor Side Abutment");
+  await expect(draft.getByTestId("draft-label")).toBeVisible();
+  await expect(draft.getByTestId("metric-dash").first()).toHaveText("—");
   await expect(page.getByTestId("kpi-cpi")).toHaveText(/^\d\.\d\d[+−]\$/);
   // No developer footers on product screens.
   await expect(page.getByText("Live from Postgres")).toHaveCount(0);

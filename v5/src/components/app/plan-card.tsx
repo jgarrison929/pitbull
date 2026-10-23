@@ -139,15 +139,20 @@ function statusBadgeClass(status: Plan["status"]) {
   }
 }
 
+/** Keep a trailing short token (e.g. "lift 2") with its word — no orphan digit wrap. */
+export function activityLabel(activity: string) {
+  return activity.replace(/(\S+)\s+(\S{1,3})$/u, "$1\u00A0$2");
+}
+
 function LineView({ l }: { l: Plan["lines"][number] }) {
   return (
     <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
       <div className="min-w-0">
-        <div className="font-medium">
+        <div className="font-medium text-pretty">
           <span className="mr-2 font-mono text-xs text-muted-foreground">
             {l.code}
           </span>
-          {l.activity}
+          {activityLabel(l.activity)}
         </div>
         <div className="text-xs text-muted-foreground">
           {l.location} · {l.description}
