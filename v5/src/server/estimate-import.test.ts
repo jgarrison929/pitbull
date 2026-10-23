@@ -88,6 +88,33 @@ describe.skipIf(!db)("importEstimateCsv", () => {
     expect((await tree(companyId)).items).toEqual(before.items);
   });
 
+  it("after seed history Harbor still imports the awkward M2 fixture (10,071,336¢)", async () => {
+    // createSandbox runs seedActionHistory (Harbor estimate.importCsv, no claim lock).
+    const companyId = await sandbox();
+    const [claim] = await db!
+      .select()
+      .from(progressClaims)
+      .where(eq(progressClaims.id, seedId(companyId, "claim:harbor:period-1")));
+    expect(claim.status).toBe("draft");
+
+    const r = await importEstimateCsv(
+      companyId,
+      HARBOR,
+      fixture("awkward-estimate.csv"),
+    );
+    expect(r).toMatchObject({ ok: true });
+    expect(r.summary).not.toMatch(/locked progress claim/i);
+    if (!r.ok) return;
+    expect(r.totals.ceCents).toBe(10_071_336);
+    const after = await tree(companyId);
+    expect(after.job.estimateStatus).toBe("draft");
+    expect(after.money.job).toMatchObject({
+      obCents: 0,
+      cbCents: 0,
+      ceCents: 10_071_336,
+    });
+  });
+
   it("revises a quantity in place, keeping ids and draft claim lines", async () => {
     const companyId = await sandbox();
     const excavationId = seedId(companyId, "cost:harbor:02-100");
