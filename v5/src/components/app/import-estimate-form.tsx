@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { runActionState, type ActionState } from "@/app/app/assistant/actions";
 import { ESTIMATE_COLUMNS, MAX_CSV_CHARS } from "@/lib/estimate-reconcile";
 
@@ -13,11 +13,54 @@ export function ImportEstimateForm({ jobNumber }: { jobNumber: string }) {
     runActionState,
     {},
   );
+
+  // Remount the picker after a successful import so the next file is chosen deliberately.
+  const pickerKey =
+    state.summary?.startsWith("Imported the estimate") &&
+    !state.detailLines?.length
+      ? state.summary
+      : "idle";
+
+  return (
+    <form
+      action={dispatch}
+      className="mb-3 flex flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-xs"
+      data-testid="import-estimate-form"
+    >
+      <input type="hidden" name="action" value="estimate.importCsv" />
+      <input type="hidden" name="job" value={jobNumber} />
+      <input type="hidden" name="label" value="Import estimate" />
+      <ImportPicker key={pickerKey} pending={pending} />
+      <p className="text-muted-foreground">
+        One row per cost item with the header{" "}
+        <code className="break-all">{ESTIMATE_COLUMNS.join(",")}</code>. Summary
+        rows leave unit, quantity, and costs blank. Importing again updates
+        matching codes in place, and nothing is written if any row has an
+        error.
+      </p>
+      {state.summary ? (
+        <p className="text-foreground" data-testid="import-estimate-summary">
+          {state.summary}
+        </p>
+      ) : null}
+      {state.detailLines?.length ? (
+        <ul
+          className="list-disc space-y-1 pl-4 text-foreground"
+          data-testid="import-estimate-errors"
+        >
+          {state.detailLines.map((line, i) => (
+            <li key={`${i}-${line}`}>{line}</li>
+          ))}
+        </ul>
+      ) : null}
+    </form>
+  );
+}
+
+function ImportPicker({ pending }: { pending: boolean }) {
   const [csv, setCsv] = useState("");
   const [fileName, setFileName] = useState("");
   const [tooBig, setTooBig] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const lastSummary = useRef<string | undefined>(undefined);
 
   async function choose(file: File | undefined) {
     setCsv("");
@@ -35,33 +78,13 @@ export function ImportEstimateForm({ jobNumber }: { jobNumber: string }) {
     setFileName(file.name);
   }
 
-  // Clear the picker after a successful import so the next file is chosen deliberately.
-  useEffect(() => {
-    if (!state.summary || state.summary === lastSummary.current) return;
-    lastSummary.current = state.summary;
-    if (state.detailLines?.length) return;
-    if (!state.summary.startsWith("Imported the estimate")) return;
-    setCsv("");
-    setFileName("");
-    setTooBig(null);
-    if (fileRef.current) fileRef.current.value = "";
-  }, [state]);
-
   return (
-    <form
-      action={dispatch}
-      className="mb-3 flex flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-xs"
-      data-testid="import-estimate-form"
-    >
-      <input type="hidden" name="action" value="estimate.importCsv" />
-      <input type="hidden" name="job" value={jobNumber} />
-      <input type="hidden" name="label" value="Import estimate" />
+    <>
       <input type="hidden" name="csv" value={csv} />
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex min-w-0 flex-col gap-1">
           <span className="font-medium text-foreground">Import estimate</span>
           <input
-            ref={fileRef}
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => choose(e.target.files?.[0])}
@@ -81,28 +104,11 @@ export function ImportEstimateForm({ jobNumber }: { jobNumber: string }) {
           <span data-testid="import-estimate-filename">{fileName}</span>
         ) : null}
       </div>
-      <p className="text-muted-foreground">
-        One row per cost item with the header{" "}
-        <code className="break-all">{ESTIMATE_COLUMNS.join(",")}</code>. Summary
-        rows leave unit, quantity, and costs blank. Importing again updates
-        matching codes in place, and nothing is written if any row has an
-        error.
-      </p>
-      {tooBig || state.summary ? (
+      {tooBig ? (
         <p className="text-foreground" data-testid="import-estimate-summary">
-          {tooBig ?? state.summary}
+          {tooBig}
         </p>
       ) : null}
-      {state.detailLines?.length ? (
-        <ul
-          className="list-disc space-y-1 pl-4 text-foreground"
-          data-testid="import-estimate-errors"
-        >
-          {state.detailLines.map((line, i) => (
-            <li key={`${i}-${line}`}>{line}</li>
-          ))}
-        </ul>
-      ) : null}
-    </form>
+    </>
   );
 }
