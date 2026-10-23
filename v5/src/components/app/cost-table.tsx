@@ -231,15 +231,22 @@ export function CostTable({
           ))}
         </div>
       </div>
-      <div className="hidden md:block">
-        <VirtualTreeDesktop
-          rows={visible}
-          onToggle={toggle}
-          collapsed={collapsed}
-          valueSet={valueSet}
-        />
+      {/*
+        Desktop grid min-width is ~47rem. Below lg the assistant rail is gone
+        and at 768–820px that grid was expanding document scrollWidth (~25–80px).
+        Scroll the tree inside the card; job total stays full width below.
+      */}
+      <div className="hidden min-w-0 md:block">
+        <div className="overflow-x-auto">
+          <VirtualTreeDesktop
+            rows={visible}
+            onToggle={toggle}
+            collapsed={collapsed}
+            valueSet={valueSet}
+          />
+        </div>
         <div
-          className="mt-1 flex items-center justify-between gap-3 border-t-2 py-3 text-sm font-medium"
+          className="mt-1 flex min-w-0 flex-wrap items-center justify-between gap-3 border-t-2 py-3 text-sm font-medium"
           data-testid="cost-job-total"
         >
           <span>Job total (leaves) · {pct(t.percent)}</span>
@@ -318,7 +325,7 @@ function VirtualTreeDesktop({
     overscan: 12,
   });
   return (
-    <div>
+    <div className="min-w-[47rem]">
       <div className="grid grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_4.25rem_4.25rem_4.25rem_6.5rem] gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground">
         <div>Cost code</div>
         <div className="whitespace-nowrap text-right">Installed</div>
@@ -332,7 +339,7 @@ function VirtualTreeDesktop({
       </div>
       <div
         ref={parentRef}
-        className="h-[min(32rem,70vh)] overflow-auto"
+        className="h-[min(32rem,70vh)] overflow-y-auto overflow-x-hidden"
         data-testid="cost-tree-scroll"
       >
         <div

@@ -174,28 +174,32 @@ function ChangeOrderCard({
                 {line.note ? (
                   <p className="mt-0.5 text-muted-foreground">{line.note}</p>
                 ) : null}
-                <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-muted-foreground">
-                  <div className="flex justify-between gap-2">
-                    <dt>Labor</dt>
-                    <dd className="tabular-nums text-foreground">
+                {/*
+                  Single column on phone: a 2-col grid at ~320px lets a value
+                  run into the next label (e.g. "$8,000.00Material").
+                */}
+                <dl className="mt-1.5 grid grid-cols-1 gap-y-1 text-muted-foreground">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="shrink-0">Labor</dt>
+                    <dd className="min-w-0 text-right tabular-nums text-foreground">
                       {usdCents(line.delta.laborCents)}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-2">
-                    <dt>Material</dt>
-                    <dd className="tabular-nums text-foreground">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="shrink-0">Material</dt>
+                    <dd className="min-w-0 text-right tabular-nums text-foreground">
                       {usdCents(line.delta.materialCents)}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-2">
-                    <dt>Equipment</dt>
-                    <dd className="tabular-nums text-foreground">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="shrink-0">Equipment</dt>
+                    <dd className="min-w-0 text-right tabular-nums text-foreground">
                       {usdCents(line.delta.equipmentCents)}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-2">
-                    <dt>Sub</dt>
-                    <dd className="tabular-nums text-foreground">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="shrink-0">Sub</dt>
+                    <dd className="min-w-0 text-right tabular-nums text-foreground">
                       {usdCents(line.delta.subCents)}
                     </dd>
                   </div>

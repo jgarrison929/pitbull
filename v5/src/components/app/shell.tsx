@@ -206,7 +206,8 @@ async function JobStrip() {
   return (
     <nav
       aria-label="Jobs"
-      className="flex gap-2 overflow-x-auto border-b px-4 py-2"
+      data-testid="job-strip"
+      className="flex min-w-0 gap-2 overflow-x-auto border-b px-4 py-2"
     >
       {jobs.map((p) => (
         <NavLink

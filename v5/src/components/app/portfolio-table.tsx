@@ -7,68 +7,74 @@ import { Td, Th } from "./page";
 export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
   return (
     <div data-testid="portfolio-table">
-      <table className="hidden w-full text-sm md:table">
-        <thead>
-          <tr className="border-b">
-            <Th>Job</Th>
-            <Th right>Contract</Th>
-            <Th>Complete</Th>
-            <Th right>CPI · cost var.</Th>
-            <Th right>SPI · sched. var.</Th>
-            <Th right>EAC</Th>
-            <Th>Status</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {jobs.map((p) => (
-            <tr
-              key={p.job.id}
-              className="border-b last:border-0 hover:bg-muted/40"
-            >
-              <Td>
-                <Link
-                  href={`/app/jobs/${p.job.number}`}
-                  className="font-medium hover:underline"
-                  data-testid="job-link"
-                >
-                  {p.job.name}
-                </Link>
-                <div className="whitespace-nowrap text-xs text-muted-foreground">
-                  {p.job.number} · PM {p.job.pmName}
-                </div>
-              </Td>
-              <Td right>
-                <Money cents={p.job.contractCents} />
-              </Td>
-              <Td>
-                <div className="flex items-center gap-2">
-                  <Progress value={p.percent} className="w-14" />
-                  <span className="text-xs tabular-nums">{pct(p.percent)}</span>
-                </div>
-              </Td>
-              <Td right>
-                <StatusIndex
-                  index={p.cpi}
-                  varianceCents={p.costVarianceCents}
-                />
-              </Td>
-              <Td right>
-                <StatusIndex
-                  index={p.spi}
-                  varianceCents={p.scheduleVarianceCents}
-                />
-              </Td>
-              <Td right>
-                <Money cents={p.eacCents} />
-              </Td>
-              <Td>
-                <StatusPill value={p.status} />
-              </Td>
+      {/*
+        Wide 7-col table at md (768–820) can expand the page when the assistant
+        rail is hidden. Cards through lg; full table from lg up.
+      */}
+      <div className="hidden min-w-0 overflow-x-auto lg:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b">
+              <Th>Job</Th>
+              <Th right>Contract</Th>
+              <Th>Complete</Th>
+              <Th right>CPI · cost var.</Th>
+              <Th right>SPI · sched. var.</Th>
+              <Th right>EAC</Th>
+              <Th>Status</Th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <ul className="divide-y md:hidden">
+          </thead>
+          <tbody>
+            {jobs.map((p) => (
+              <tr
+                key={p.job.id}
+                className="border-b last:border-0 hover:bg-muted/40"
+              >
+                <Td>
+                  <Link
+                    href={`/app/jobs/${p.job.number}`}
+                    className="font-medium hover:underline"
+                    data-testid="job-link"
+                  >
+                    {p.job.name}
+                  </Link>
+                  <div className="whitespace-nowrap text-xs text-muted-foreground">
+                    {p.job.number} · PM {p.job.pmName}
+                  </div>
+                </Td>
+                <Td right>
+                  <Money cents={p.job.contractCents} />
+                </Td>
+                <Td>
+                  <div className="flex items-center gap-2">
+                    <Progress value={p.percent} className="w-14" />
+                    <span className="text-xs tabular-nums">{pct(p.percent)}</span>
+                  </div>
+                </Td>
+                <Td right>
+                  <StatusIndex
+                    index={p.cpi}
+                    varianceCents={p.costVarianceCents}
+                  />
+                </Td>
+                <Td right>
+                  <StatusIndex
+                    index={p.spi}
+                    varianceCents={p.scheduleVarianceCents}
+                  />
+                </Td>
+                <Td right>
+                  <Money cents={p.eacCents} />
+                </Td>
+                <Td>
+                  <StatusPill value={p.status} />
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="divide-y lg:hidden" data-testid="portfolio-cards">
         {jobs.map((p) => (
           <li key={p.job.id}>
             <Link
