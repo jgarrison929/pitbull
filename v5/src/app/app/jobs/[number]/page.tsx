@@ -8,14 +8,16 @@ import {
 import { ChangeOrdersSection } from "@/components/app/change-orders";
 import { CostTable } from "@/components/app/cost-table";
 import { Money, StatusIndex, StatusPill } from "@/components/app/format";
-import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
+import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page-shell";
 import { EvMethodControls } from "@/components/app/ev-method-controls";
 import { ImportEstimateForm } from "@/components/app/import-estimate-form";
 import { JobNewPlanSlot } from "@/components/app/job-new-plan-slot";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { mh, pct, usdShort } from "@/lib/ev";
+import { SCurveChart } from "@/components/app/s-curve-chart";
 import { getJob, getJobEvControls, getJobPagePlans } from "@/server/data";
+import { jobCurve } from "@/server/curve";
 import { jobPagePlanSurface } from "@/server/job-page-plans";
 import {
   draftClaimForJob,
@@ -84,6 +86,7 @@ export async function Job({
   };
   const canImport = actions["estimate.importCsv"].roles?.includes(user.role);
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
+  const estimateDraft = p.job.estimateStatus === "draft";
   const [
     pagePlans,
     changes,
@@ -92,6 +95,7 @@ export async function Job({
     approvalPending,
     coData,
     crewRows,
+    curve,
   ] = await Promise.all([
     // Open cards keep full lines; 30-day history is summary-only (page budget).
     // todayLA defaults inside getJobPagePlans via seedNow + job TZ (never UTC).
@@ -106,6 +110,7 @@ export async function Job({
     getApprovalPendingByCostItem(user.companyId, p.job.id),
     listChangeOrders(user.companyId, p.job.number),
     canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
+    estimateDraft ? Promise.resolve(null) : jobCurve(user.companyId, p.job.id),
   ]);
   // #18 page wiring: surface owns open split / New-plan today (M8).
   // History summaries stay from getJobPagePlans (budget — no full line arrays).
@@ -126,7 +131,6 @@ export async function Job({
     user.companyId,
     reportable.map((pl) => pl.id),
   );
-  const estimateDraft = p.job.estimateStatus === "draft";
   const jobMoney = p.money.job;
   // Initial combobox options: first leaves only. Large WBS uses server search.
   const costItems = p.lines.slice(0, 40).map((l) => ({
@@ -499,12 +503,41 @@ export async function Job({
             estimateDraft
               ? "After estimate approval"
               : p.sinceLockPlannedCents !== 0
-                ? `${usdShort(p.plannedCents)} planned · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
-                : `schedule variance · ${usdShort(p.plannedCents)} planned`
+                ? (
+                    <>
+                      <span data-testid="job-planned">
+                        <span data-cents={p.plannedCents}>
+                          {usdShort(p.plannedCents)}
+                        </span>
+                      </span>{" "}
+                      planned · {usdShort(p.sinceLockPlannedCents)} PV since lock
+                    </>
+                  )
+                : (
+                    <>
+                      schedule variance ·{" "}
+                      <span data-testid="job-planned">
+                        <span data-cents={p.plannedCents}>
+                          {usdShort(p.plannedCents)}
+                        </span>
+                      </span>{" "}
+                      planned
+                    </>
+                  )
           }
           testId="job-spi"
         />
       </KpiStrip>
+      {curve && curve.points.length > 0 ? (
+        <Section
+          title="S-curve"
+          meta="Planned value spreads Current Budget between each cost item's dates. Earned and actual stop at the last locked period."
+          className="mt-3"
+          testId="s-curve-section"
+        >
+          <SCurveChart points={curve.points} cutoffOn={curve.cutoffOn} />
+        </Section>
+      ) : null}
       <p
         className="mt-2 text-xs text-muted-foreground"
         data-testid="estimate-categories"

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Assistant } from "@/components/app/assistant";
-import { PageHeader } from "@/components/app/page";
+import { PageHeader } from "@/components/app/page-shell";
 
 /** The assistant as a full screen, for phones and narrow windows. Wide screens show it as the right rail. */
 export default function AssistantPage() {
