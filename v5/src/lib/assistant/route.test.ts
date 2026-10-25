@@ -41,6 +41,33 @@ describe("assistant router", () => {
       { job: "25-031", date: "today", crew: "Bridge Crew 2" },
     ],
     [
+      // Part E: unknown job must stay on create (Couldn't create plan), not show.
+      "Plan today on 99-999 for Bridge Crew 2",
+      "dailyPlan.create",
+      { job: "99-999", date: "today", crew: "Bridge Crew 2" },
+    ],
+    [
+      "Plan today on 99-999",
+      "dailyPlan.create",
+      { job: "99-999", date: "today" },
+    ],
+    [
+      "Plan tomorrow on 99-999",
+      "dailyPlan.create",
+      { job: "99-999", date: "tomorrow" },
+    ],
+    [
+      "plan today on 99-999 for culvert crew a",
+      "dailyPlan.create",
+      { job: "99-999", date: "today", crew: "culvert crew a" },
+    ],
+    // Known job without crew still shows (unchanged).
+    [
+      "Plan tomorrow on 24-077",
+      "dailyPlan.show",
+      { job: "24-077" },
+    ],
+    [
       "Add 04-210 to today's plan on 25-031: 12 CY, 3 workers, 8 hours",
       "dailyPlan.addLine",
       {

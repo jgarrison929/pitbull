@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import postgres from "postgres";
+import { databaseConnectionString } from "@/db/database-url";
 import { parseJobDrillPath } from "@/lib/job-drill-path";
 import { isUuid } from "@/lib/uuid";
 
@@ -10,17 +11,39 @@ const SESSION_COOKIE = "pcs_session";
  * Shared pool for drill-down 404 checks. Opening+closing a connection on every
  * /app/jobs/* request paid a full TCP handshake before the page could start —
  * ~37 ms p50 even with only 3 ms RTT. Keep the pool warm for the process life.
+ *
+ * Always open with `databaseConnectionString` — raw env URLs with `/` in the
+ * password throw Invalid URL and Next logs the full DATABASE_URL (Verify FAIL).
  */
 let sql: ReturnType<typeof postgres> | null = null;
-function proxySql(databaseUrl: string) {
+let sqlConnectionString: string | null = null;
+
+/** Tests only — drop the warm proxy pool between cases. */
+export async function resetProxySqlForTests() {
+  if (sql) {
+    await sql.end({ timeout: 5 }).catch(() => {});
+  }
+  sql = null;
+  sqlConnectionString = null;
+}
+
+function proxySql(rawDatabaseUrl: string) {
+  const connectionString = databaseConnectionString(rawDatabaseUrl);
+  if (!connectionString) {
+    // Never pass the raw URL to postgres.js (password lands in error.input).
+    throw new Error("database unavailable");
+  }
   // idle_timeout: 0 — do not drop the pool between Verify crawls; reconnect
   // cost on Railway (even private) dwarfs the 404 lookup itself.
-  sql ??= postgres(databaseUrl, {
-    max: 2,
-    idle_timeout: 0,
-    max_lifetime: 60 * 30,
-    connect_timeout: 10,
-  });
+  if (!sql || sqlConnectionString !== connectionString) {
+    sql = postgres(connectionString, {
+      max: 2,
+      idle_timeout: 0,
+      max_lifetime: 60 * 30,
+      connect_timeout: 10,
+    });
+    sqlConnectionString = connectionString;
+  }
   return sql;
 }
 

@@ -307,6 +307,36 @@ test("milestone by name on a named job, not every mobilization match", async ({
   );
 });
 
+test("Plan today/tomorrow on an unknown job refuses create — never show-crew chip", async ({
+  page,
+}) => {
+  // Verify FAIL (b): all 4 roles × today / tomorrow / crew forms.
+  const roles = ["executive", "pm", "superintendent", "foreman"] as const;
+  const prompts = [
+    "Plan today on 99-999",
+    "Plan tomorrow on 99-999",
+    "Plan today on 99-999 for Bridge Crew 2",
+  ] as const;
+  for (const role of roles) {
+    await signIn(page, role);
+    await page.goto("/app/jobs/25-031");
+    const rail = page.getByTestId("assistant-rail");
+    for (const prompt of prompts) {
+      const run = await ask(rail, prompt);
+      await expect(run).toHaveAttribute("data-action", "dailyPlan.create");
+      await expect(run.getByTestId("action-summary")).toHaveText(
+        "There is no job 99-999. Try 24-077, 24-118, or 25-031",
+      );
+      await expect(run.getByTestId("action-name")).toHaveText(
+        "Couldn't create plan on 99-999",
+      );
+      await expect(run.getByTestId("action-name")).not.toHaveText(
+        "Couldn't show crew plan on 99-999",
+      );
+    }
+  }
+});
+
 test("a job number that isn't in the sandbox is refused, not swapped for another job", async ({
   page,
 }) => {

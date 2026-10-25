@@ -487,6 +487,8 @@ export function parseCrewName(prompt: string): string | undefined {
 
 /**
  * "Plan today on 25-031 for Bridge Crew 2" → dailyPlan.create.
+ * Unknown job + plan today/tomorrow → create (Part E refusal), even without crew —
+ * otherwise fallthrough to show chips "Couldn't show crew plan on 99-999".
  * Must run before the generic dailyPlan.show cue.
  */
 export function routeCreatePlan(
@@ -496,7 +498,6 @@ export function routeCreatePlan(
   const text = prompt.toLowerCase();
   if (!/\bplan\b/.test(text)) return null;
   if (!/\b(today|tomorrow|\d{4}-\d{2}-\d{2})\b/.test(text)) return null;
-  if (!/\bfor\b/.test(text) && !/\bcrew\b/.test(text)) return null;
   // "Show tomorrow's plan" / "what's the plan for" stay on show.
   if (/\b(show|see|what's|whats|open|view)\b/.test(text)) return null;
   if (/\b(submit|send|issue|file|add|remove|report|approve|return)\b/.test(text))
@@ -505,12 +506,31 @@ export function routeCreatePlan(
   const known =
     findJob(prompt, jobs)?.number ??
     codesIn(prompt).find((c) => jobs.some((j) => j.number === c));
-  if (!known) return null;
+  const unknown = codesIn(prompt).find(
+    (c) => !jobs.some((j) => j.number === c),
+  );
 
   const date = parsePlanDate(prompt) ?? "today";
   const forCrew =
     parseCrewName(prompt) ??
     prompt.match(/\bfor\s+(.+?)\s*$/i)?.[1]?.trim();
+
+  // Unknown NN-NNN: always create so unknownJob() refuses with create chip.
+  // Crew optional — "Plan today on 99-999" must not fall through to show.
+  if (unknown && !known) {
+    return {
+      action: "dailyPlan.create",
+      args: {
+        job: unknown,
+        date,
+        ...(forCrew ? { crew: forCrew } : {}),
+      },
+    };
+  }
+
+  // Known job still needs for/crew ("Plan tomorrow on 24-077" → show).
+  if (!/\bfor\b/.test(text) && !/\bcrew\b/.test(text)) return null;
+  if (!known) return null;
   if (!forCrew) return null;
 
   return {

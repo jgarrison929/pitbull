@@ -7,6 +7,10 @@ const pkg = JSON.parse(
   readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
 ) as { version: string };
 
+const lock = JSON.parse(
+  readFileSync(new URL("../../package-lock.json", import.meta.url), "utf8"),
+) as { version: string; packages?: { "": { version?: string } } };
+
 const rootVersion = readFileSync(
   new URL("../../../VERSION", import.meta.url),
   "utf8",
@@ -25,6 +29,14 @@ describe("5.0.2 release closeout", () => {
     expect(rootVersion).toBe("5.0.2");
     expect(changelog[0]?.version).toBe("5.0.2");
     expect(changelog[0]?.date).toBe("2026-10-26");
+  });
+
+  it("must-fail: package-lock.json version must match package.json and VERSION", () => {
+    // #723 follow-up: bumping package.json/VERSION without the lockfile stayed green.
+    expect(lock.version).toBe(pkg.version);
+    expect(lock.version).toBe(rootVersion);
+    expect(lock.packages?.[""]?.version).toBe(pkg.version);
+    expect(lock.packages?.[""]?.version).toBe(rootVersion);
   });
 
   it("keeps the Parts A–C changelog items in plain user language", () => {

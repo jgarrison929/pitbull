@@ -2,9 +2,20 @@ import dns from "node:dns";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import {
+  databaseConnectionString,
+  databaseUrlHost,
+} from "./database-url";
 import * as schema from "./schema";
 
 export type Db = ReturnType<typeof drizzle<typeof schema>>;
+
+export {
+  containsUserinfoLeak,
+  databaseConnectionString,
+  databaseUrlHost,
+  parsePostgresUrl,
+} from "./database-url";
 
 let db: Db | null = null;
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -49,6 +60,28 @@ function sleepSync(ms: number) {
   }
 }
 
+/** Default shared-app pool size. Override with V5_DB_POOL_MAX (positive int). */
+export const DEFAULT_DB_POOL_MAX = 10;
+
+/** Proxy drill-down pool (src/proxy.ts) — documented for capacity math only. */
+export const PROXY_DB_POOL_MAX = 2;
+
+/**
+ * App pool `max` from env. Invalid / missing → DEFAULT_DB_POOL_MAX.
+ * Soft-capped so a typo cannot open hundreds of connections per process.
+ */
+export function dbPoolMaxFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const raw = env.V5_DB_POOL_MAX;
+  if (raw == null || raw === "") return DEFAULT_DB_POOL_MAX;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_DB_POOL_MAX;
+  return Math.min(Math.floor(n), 50);
+}
+
+let poolMaxLogged = false;
+
 /**
  * Classify DATABASE_URL without exposing credentials — private Railway
  * networking vs public TCP proxy. Staging must use `${{Postgres.DATABASE_URL}}`
@@ -73,14 +106,9 @@ export function classifyDatabaseUrl(url = process.env.DATABASE_URL): {
       dnsPreferIpv4: false,
     };
   }
-  let host: string | null = null;
-  try {
-    // Hostname only — never substring-match the full connection string
-    // (CodeQL: Incomplete URL substring sanitization).
-    host = new URL(url).hostname.toLowerCase();
-  } catch {
-    host = null;
-  }
+  // Hostname only — never substring-match the full connection string
+  // (CodeQL: Incomplete URL substring sanitization). Never return userinfo.
+  const host = databaseUrlHost(url);
   const privateRailway = Boolean(
     host === "railway.internal" || host?.endsWith(".railway.internal"),
   );
@@ -130,24 +158,51 @@ function wrapClient(client: ReturnType<typeof postgres>) {
   return client;
 }
 
-/** Returns the shared Drizzle client, or null when DATABASE_URL is not set. */
-export function getDb(): Db | null {
-  const url = process.env.DATABASE_URL;
-  if (!url) return null;
-  if (!db) {
-    ensureRailwayDns();
-    // Keep connections warm across requests — idle teardown re-pays TCP+auth RTT.
-    // max 10: job page fires independent reads in parallel.
+/**
+ * Build the shared client. Never passes a raw env URL with unencoded userinfo
+ * to postgres.js (Invalid URL embeds the password in the error `input` field).
+ */
+function openDb(url: string): Db | null {
+  const connectionString = databaseConnectionString(url);
+  if (!connectionString) {
+    // Unparseable — do not call postgres(url); do not log the raw string.
+    console.error("[db] DATABASE_URL is not a usable Postgres URL (host redacted)");
+    return null;
+  }
+  ensureRailwayDns();
+  const max = dbPoolMaxFromEnv();
+  if (!poolMaxLogged) {
+    // Secret-free: pool size only — never log DATABASE_URL / userinfo.
+    console.info(`[db] postgres pool max=${max}`);
+    poolMaxLogged = true;
+  }
+  try {
     sqlClient = wrapClient(
-      postgres(url, {
-        max: 10,
+      postgres(connectionString, {
+        max,
         idle_timeout: 0,
         max_lifetime: 60 * 30,
         connect_timeout: 10,
       }),
     );
     db = drizzle(sqlClient, { schema });
+    return db;
+  } catch (err) {
+    // Strip any accidental URL / userinfo from thrown errors before logging.
+    const msg = err instanceof Error ? err.message : "connection failed";
+    const safe = msg.replace(/postgres(ql)?:\/\/\S+/gi, "postgres://[redacted]");
+    console.error(`[db] failed to open pool: ${safe}`);
+    sqlClient = null;
+    db = null;
+    return null;
   }
+}
+
+/** Returns the shared Drizzle client, or null when DATABASE_URL is not set. */
+export function getDb(): Db | null {
+  const url = process.env.DATABASE_URL;
+  if (!url) return null;
+  if (!db) return openDb(url);
   return db;
 }
 
@@ -158,10 +213,20 @@ export function requireDb(): Db {
   return client;
 }
 
-/** A ping for checkHealth, or null when no database is configured. */
+/**
+ * A ping for checkHealth, or null when no database is configured.
+ * When DATABASE_URL is set but unparseable / open failed, returns a ping that
+ * throws so health is degraded/error — not ok/not-configured.
+ */
 export function dbPing(): (() => Promise<void>) | null {
+  const url = process.env.DATABASE_URL;
+  if (!url) return null;
   const client = getDb();
-  if (!client) return null;
+  if (!client) {
+    return async () => {
+      throw new Error("database unavailable");
+    };
+  }
   return async () => {
     await client.execute(sql`select 1`);
   };

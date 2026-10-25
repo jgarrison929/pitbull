@@ -29,6 +29,12 @@ describe("honesty: assistant rail labels", () => {
       actionRailLabel("dailyPlan.create", "25-031", { refused: true }),
     ).toBe("Couldn't create plan on 25-031");
     expect(
+      actionRailLabel("dailyPlan.create", "99-999", { refused: true }),
+    ).toBe("Couldn't create plan on 99-999");
+    expect(
+      actionRailLabel("dailyPlan.create", "99-999", { refused: true }),
+    ).not.toBe("Couldn't show crew plan on 99-999");
+    expect(
       actionRailLabel("costItem.setForecastMethod", "25-031", {
         refused: true,
       }),

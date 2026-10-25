@@ -9,10 +9,13 @@
  */
 import { describe, expect, it } from "vitest";
 import { seed } from "@/seed";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   INSERT_WORK_CHUNK,
   INSERT_WORK_MAX_STATEMENTS,
   enqueueInsertWork,
+  flushPending,
   insertWork,
 } from "./insert-work";
 
@@ -211,5 +214,61 @@ describe("insertWork live send path (must-fail)", () => {
     expect(wallMs).toBeGreaterThan(n * RTT_MS * 0.8);
     // The production insertWork path (previous tests) stays under 3×RTT.
     expect(wallMs).toBeGreaterThan(RTT_MS * 3);
+  });
+
+  it("reset-shaped flush pipelines via flushPending (must-fail if sequential)", async () => {
+    // #715 follow-up: reverting resetSandbox flush to one-at-a-time stayed
+    // green under insertWork-only tests (~75 ms slower under latency).
+    // Promise.resolve(thenable) → real Promise for tsc; thenable still starts on .then.
+    const asPromise = (p: PromiseLike<unknown>) => Promise.resolve(p);
+    const tx = makeLatencyTx(RTT_MS);
+    const pending: Promise<unknown>[] = [];
+    pending.push(asPromise(tx.delete("action_runs").where()));
+    pending.push(asPromise(tx.delete("jobs").where()));
+    pending.push(asPromise(tx.delete("crews").where()));
+    enqueueInsertWork(tx as never, rows, pending);
+    pending.push(asPromise(tx.update("companies").set().where()));
+    const n = pending.length;
+    const t0 = performance.now();
+    await flushPending(pending);
+    const wallMs = performance.now() - t0;
+
+    expect(n).toBeGreaterThan(8);
+    expect(tx.maxInFlight).toBe(n);
+    expect(wallMs).toBeLessThan(RTT_MS * 3);
+    expect(wallMs).toBeLessThan(n * RTT_MS * 0.5);
+
+    // Sequential twin: resolve one-at-a-time so start() is not batched.
+    const txSeq = makeLatencyTx(RTT_MS);
+    const sequential: PromiseLike<unknown>[] = [];
+    sequential.push(txSeq.delete("action_runs").where());
+    sequential.push(txSeq.delete("jobs").where());
+    sequential.push(txSeq.delete("crews").where());
+    enqueueInsertWork(txSeq as never, rows, sequential as Promise<unknown>[]);
+    sequential.push(txSeq.update("companies").set().where());
+    const t1 = performance.now();
+    for (const p of sequential) await asPromise(p);
+    const seqMs = performance.now() - t1;
+    expect(txSeq.maxInFlight).toBe(1);
+    expect(seqMs).toBeGreaterThan(n * RTT_MS * 0.8);
+  });
+
+  it("must-fail: resetSandbox and insertWork must call flushPending", () => {
+    const sandboxSrc = readFileSync(
+      join(process.cwd(), "src/server/sandbox.ts"),
+      "utf8",
+    );
+    const insertSrc = readFileSync(
+      join(process.cwd(), "src/server/insert-work.ts"),
+      "utf8",
+    );
+    expect(sandboxSrc).toMatch(/await flushPending\(pending\)/);
+    // Executable sequential flush (not a comment) must not appear.
+    expect(sandboxSrc).not.toMatch(
+      /^\s*for \(const p of pending\) await p/m,
+    );
+    expect(insertSrc).toMatch(/export async function flushPending/);
+    expect(insertSrc).toMatch(/await Promise\.all\(pending\)/);
+    expect(insertSrc).toMatch(/await flushPending\(pending\)/);
   });
 });
