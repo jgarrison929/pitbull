@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatMigrationsLabel,
+  journalWhenStrictlyIncreases,
   loadMigrationJournal,
   namesForAppliedRows,
 } from "./applied-migrations";
@@ -51,5 +52,51 @@ describe("loadMigrationJournal", () => {
     expect(tags).toContain("0012_drop_average_performance");
     expect(tags).toContain("0017_average_performance");
     expect(new Set(tags).size).toBe(tags.length);
+  });
+
+  it("journal when values strictly increase with idx", () => {
+    const entries = loadMigrationJournal();
+    expect(journalWhenStrictlyIncreases(entries)).toBe(true);
+    for (let i = 1; i < entries.length; i++) {
+      expect(entries[i]!.when).toBeGreaterThan(entries[i - 1]!.when);
+      if (
+        typeof entries[i]!.idx === "number" &&
+        typeof entries[i - 1]!.idx === "number"
+      ) {
+        expect(entries[i]!.idx).toBeGreaterThan(entries[i - 1]!.idx!);
+      }
+    }
+  });
+});
+
+describe("journalWhenStrictlyIncreases", () => {
+  it("accepts rising when (and idx) in order", () => {
+    expect(
+      journalWhenStrictlyIncreases([
+        { tag: "a", when: 100, idx: 0 },
+        { tag: "b", when: 200, idx: 1 },
+        { tag: "c", when: 300, idx: 2 },
+      ]),
+    ).toBe(true);
+  });
+
+  it("must-fail: a lower stamp after a higher one is refused", () => {
+    // Mirrors the #726/#728 collision: 0017 @ 1793000000000 then 0018 with a
+    // smaller when would be silently skipped by the migrator.
+    expect(
+      journalWhenStrictlyIncreases([
+        { tag: "0017_average_performance", when: 1793000000000, idx: 17 },
+        { tag: "0018_daily_plan_events", when: 1792951797052, idx: 18 },
+      ]),
+    ).toBe(false);
+  });
+
+  it("must-fail: equal when values are refused", () => {
+    expect(
+      journalWhenStrictlyIncreases([
+        { tag: "a", when: 100, idx: 0 },
+        { tag: "b", when: 100, idx: 1 },
+      ]),
+    ).toBe(false);
   });
 });

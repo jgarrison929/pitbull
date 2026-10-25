@@ -49,9 +49,12 @@ describe.skipIf(!db)("null crew_id labor rate fallback", () => {
 
     expect(await laborRateForPlan(requireDb(), planId)).toBe(BRIDGE);
 
-    await submitDailyReport(companyId, planId, {
-      [pourLineId]: { manHours: 22, qtyMilli: 12_000 },
-    });
+    await submitDailyReport(
+      companyId,
+      planId,
+      { [pourLineId]: { manHours: 22, qtyMilli: 12_000 } },
+      { userId: seedId(companyId, "user:foreman"), role: "foreman" },
+    );
 
     const [item] = await db!
       .select()
@@ -76,11 +79,14 @@ describe.skipIf(!db)("null crew_id labor rate fallback", () => {
       .set({ status: "issued", crewId: null })
       .where(eq(dailyPlans.id, planId));
 
-    await submitDailyReport(companyId, planId, {
-      [pourLineId]: { manHours: 22, qtyMilli: 12_000 },
-    });
+    await submitDailyReport(
+      companyId,
+      planId,
+      { [pourLineId]: { manHours: 22, qtyMilli: 12_000 } },
+      { userId: seedId(companyId, "user:foreman"), role: "foreman" },
+    );
 
-    const result = await approveDailyReport(companyId, planId, superId);
+    const result = await approveDailyReport(companyId, planId, { userId: superId, role: "superintendent" });
     // Red if laborRateForPlan throws on null crew_id.
     expect(result.ok).toBe(true);
     if (!result.ok || result.already) throw new Error("expected first approve");

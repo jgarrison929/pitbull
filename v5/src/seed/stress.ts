@@ -1,6 +1,6 @@
 // Stress WBS: 10 divisions × 10 groups × 100 leaves = 10,000 leaf cost codes (+ 110 summaries).
 // Used by the perf harness, optional V5_SEED_STRESS=1 local seed, and ensureStressJob (e2e).
-import type { costItems } from "@/db/schema";
+import type { costItems, dailyPlanEvents } from "@/db/schema";
 import { plugLabor, valueSetColumns } from "@/lib/budget";
 import { plannedValueCents } from "@/lib/ev";
 import { seedId, type WorkSeedPatch } from "./index";
@@ -21,7 +21,12 @@ export type StressRows = WorkSeedPatch &
   Required<
     Pick<
       WorkSeedPatch,
-      "jobs" | "costItems" | "crews" | "dailyPlans" | "dailyPlanLines"
+      | "jobs"
+      | "costItems"
+      | "crews"
+      | "dailyPlans"
+      | "dailyPlanEvents"
+      | "dailyPlanLines"
     >
   >;
 
@@ -190,7 +195,20 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         status: "draft",
         weather: "Clear",
         equipment: [],
+        createdById: foremanId,
       },
+    ],
+    dailyPlanEvents: [
+      {
+        id: id("plan-event:stress:created"),
+        companyId,
+        planId,
+        kind: "created",
+        actorRole: "foreman",
+        actorId: foremanId,
+        detail: "",
+        at: today,
+      } satisfies Insert<typeof dailyPlanEvents>,
     ],
     dailyPlanLines: [
       {

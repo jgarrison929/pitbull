@@ -89,10 +89,13 @@ describe.skipIf(!getDb())("0016 upgrade backfill matches fresh seed", () => {
         .update(dailyPlans)
         .set({ status: "issued" })
         .where(eq(dailyPlans.id, planId));
-      await submitDailyReport(freshId, planId, {
-        [pourLineId]: { manHours: 22, qtyMilli: 12_000 },
-      });
-      const approved = await approveDailyReport(freshId, planId, superId);
+      await submitDailyReport(
+        freshId,
+        planId,
+        { [pourLineId]: { manHours: 22, qtyMilli: 12_000 } },
+        { userId: seedId(freshId, "user:foreman"), role: "foreman" },
+      );
+      const approved = await approveDailyReport(freshId, planId, { userId: superId, role: "superintendent" });
       expect(approved.ok).toBe(true);
 
       const freshPour = await getCostItemPage(freshId, "25-031", "04-210");

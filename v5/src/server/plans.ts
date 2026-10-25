@@ -20,7 +20,8 @@ import {
   planDateInWindow,
 } from "@/lib/plan-date";
 import { preferPlanKeep } from "@/lib/plan-keep";
-import { seedNow } from "@/server/seed-clock";
+import { recordPlanEvent } from "@/server/plan-events";
+import { seedNow, getSeedClock } from "@/server/seed-clock";
 import type { CurrentUser } from "@/server/session";
 
 export { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
@@ -197,20 +198,31 @@ export async function createDailyPlan(
   }
 
   const planId = randomUUID();
+  const createdAt = getSeedClock();
   try {
-    await db.insert(dailyPlans).values({
-      id: planId,
-      companyId: user.companyId,
-      jobId: job.id,
-      // Dual-write legacy text until a later contract migration drops it.
-      crew: crew.name,
-      crewId: crew.id,
-      foremanId: crew.foremanId,
-      planDate: input.planDate,
-      status: "draft",
-      weather: "",
-      equipment: [],
-      createdById: user.userId,
+    await db.transaction(async (tx) => {
+      await tx.insert(dailyPlans).values({
+        id: planId,
+        companyId: user.companyId,
+        jobId: job.id,
+        // Dual-write legacy text until a later contract migration drops it.
+        crew: crew.name,
+        crewId: crew.id,
+        foremanId: crew.foremanId,
+        planDate: input.planDate,
+        status: "draft",
+        weather: "",
+        equipment: [],
+        createdById: user.userId,
+        createdAt,
+      });
+      await recordPlanEvent(tx, {
+        companyId: user.companyId,
+        planId,
+        kind: "created",
+        actor: { userId: user.userId, role: user.role },
+        at: createdAt,
+      });
     });
   } catch (err) {
     // Race: unique (job, crew, date) — same friendly copy as the pre-check.

@@ -19,6 +19,7 @@ describe("appendWorkSeed / V5_SEED_STRESS path", () => {
         key === "costItems" ||
         key === "crews" ||
         key === "dailyPlans" ||
+        key === "dailyPlanEvents" ||
         key === "dailyPlanLines"
       ) {
         expect(stress[key]?.length ?? 0, key).toBeGreaterThan(0);

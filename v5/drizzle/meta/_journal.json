@@ -127,6 +127,13 @@
       "when": 1793000000000,
       "tag": "0017_average_performance",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793010000000,
+      "tag": "0018_daily_plan_events",
+      "breakpoints": true
     }
   ]
 }

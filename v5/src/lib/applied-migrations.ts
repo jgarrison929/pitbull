@@ -4,7 +4,31 @@ import path from "node:path";
 import { sql } from "drizzle-orm";
 import type { Db } from "@/db";
 
-export type JournalEntry = { tag: string; when: number };
+export type JournalEntry = { tag: string; when: number; idx?: number };
+
+/**
+ * True when each journal entry's `when` is strictly greater than the previous
+ * entry's (by array order / rising `idx`). Drizzle stores `when` as
+ * `folderMillis` / `__drizzle_migrations.created_at` and skips any migration
+ * whose millis are ≤ the last applied row — so a lower stamp silently no-ops.
+ */
+export function journalWhenStrictlyIncreases(
+  entries: readonly JournalEntry[],
+): boolean {
+  for (let i = 1; i < entries.length; i++) {
+    const prev = entries[i - 1]!;
+    const cur = entries[i]!;
+    if (cur.when <= prev.when) return false;
+    if (
+      typeof prev.idx === "number" &&
+      typeof cur.idx === "number" &&
+      cur.idx <= prev.idx
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /** Load drizzle journal tags from the deploy's `drizzle/meta/_journal.json`. */
 export function loadMigrationJournal(

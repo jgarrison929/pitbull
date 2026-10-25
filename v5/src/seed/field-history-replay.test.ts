@@ -207,6 +207,7 @@ async function replayPlan(args: {
     companyId,
     newPlanId,
     reportActuals,
+    { userId: seedId(companyId, "user:foreman"), role: "foreman" },
     now,
   );
   expect(reported.ok).toBe(true);
@@ -214,7 +215,7 @@ async function replayPlan(args: {
   const approved = await approveDailyReport(
     companyId,
     newPlanId,
-    superintendent.userId,
+    { userId: superintendent.userId, role: "superintendent" },
     now,
   );
   expect(approved.ok).toBe(true);

@@ -133,10 +133,13 @@ describe.skipIf(!db)("Part C drill-down loaders", () => {
         .set({ status: "issued" })
         .where(eq(dailyPlans.id, planId));
 
-      await submitDailyReport(companyId, planId, {
-        [pourLineId]: { manHours: 22, qtyMilli: 12_000 },
-      });
-      const approve = await approveDailyReport(companyId, planId, superId);
+      await submitDailyReport(
+        companyId,
+        planId,
+        { [pourLineId]: { manHours: 22, qtyMilli: 12_000 } },
+        { userId: seedId(companyId, "user:foreman"), role: "foreman" },
+      );
+      const approve = await approveDailyReport(companyId, planId, { userId: superId, role: "superintendent" });
       expect(approve.ok).toBe(true);
 
       const after = await getCostItemPage(companyId, "25-031", "04-210");
@@ -200,10 +203,13 @@ describe.skipIf(!db)("Part C drill-down loaders", () => {
         .reduce((s, e) => s + e.amountCents, 0);
       expect(throughBefore).toBe(acBefore);
 
-      await submitDailyReport(companyId, planId, {
-        [lineId]: { manHours: 42, qtyMilli: 175_000 },
-      });
-      const approved = await approveDailyReport(companyId, planId, superId);
+      await submitDailyReport(
+        companyId,
+        planId,
+        { [lineId]: { manHours: 42, qtyMilli: 175_000 } },
+        { userId: seedId(companyId, "user:foreman"), role: "foreman" },
+      );
+      const approved = await approveDailyReport(companyId, planId, { userId: superId, role: "superintendent" });
       expect(approved.ok).toBe(true);
 
       const posted = 42 * CREW_LABOR_RATE_CENTS["Culvert Crew A"];

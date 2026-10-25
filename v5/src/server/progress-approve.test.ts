@@ -22,6 +22,15 @@ import {
 const BRIDGE_RATE = CREW_LABOR_RATE_CENTS["Bridge Crew 2"];
 const CULVERT_RATE = CREW_LABOR_RATE_CENTS["Culvert Crew A"];
 
+const foremanActor = (companyId: string) => ({
+  userId: seedId(companyId, "user:foreman"),
+  role: "foreman" as const,
+});
+const superActor = (companyId: string) => ({
+  userId: seedId(companyId, "user:superintendent"),
+  role: "superintendent" as const,
+});
+
 const db = getDb();
 const created: string[] = [];
 
@@ -52,9 +61,12 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
     const installedBefore = itemBefore.installedQtyMilli;
 
     // 22.0 MH × Bridge Crew 2 seeded rate; 12 CY
-    const submit = await submitDailyReport(companyId, planId, {
-      [pourLineId]: { manHours: 22, qtyMilli: 12_000 },
-    });
+    const submit = await submitDailyReport(
+      companyId,
+      planId,
+      { [pourLineId]: { manHours: 22, qtyMilli: 12_000 } },
+      foremanActor(companyId),
+    );
     expect(submit.ok).toBe(true);
 
     const [itemAfterReport] = await db!
@@ -76,7 +88,7 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
     );
     expect(pending[pourItemId]?.cents).toBe(22 * BRIDGE_RATE);
 
-    const first = await approveDailyReport(companyId, planId, superId);
+    const first = await approveDailyReport(companyId, planId, superActor(companyId));
     expect(first.ok).toBe(true);
     if (!first.ok || first.already) throw new Error("expected first approve");
     expect(first.postedMh).toBe(22);
@@ -107,7 +119,7 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
       planDateAsTimestamp(plan.planDate).toISOString(),
     );
 
-    const second = await approveDailyReport(companyId, planId, superId);
+    const second = await approveDailyReport(companyId, planId, superActor(companyId));
     expect(second.ok).toBe(true);
     if (!second.ok) throw new Error("expected second approve ok");
     expect(second.already).toBe(true);
@@ -144,14 +156,17 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
       .from(costItems)
       .where(eq(costItems.id, pourItemId));
 
-    await submitDailyReport(companyId, planId, {
-      [pourLineId]: { manHours: 22, qtyMilli: 12_000 },
-    });
+    await submitDailyReport(
+      companyId,
+      planId,
+      { [pourLineId]: { manHours: 22, qtyMilli: 12_000 } },
+      foremanActor(companyId),
+    );
 
-    const empty = await returnDailyReport(companyId, planId, "   ");
+    const empty = await returnDailyReport(companyId, planId, "   ", superActor(companyId));
     expect(empty.ok).toBe(false);
 
-    const ok = await returnDailyReport(companyId, planId, "Recount pour 3");
+    const ok = await returnDailyReport(companyId, planId, "Recount pour 3", superActor(companyId));
     expect(ok.ok).toBe(true);
 
     const [plan] = await db!
@@ -194,16 +209,19 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
       .set({ status: "issued" })
       .where(eq(dailyPlans.id, planId));
 
-    await submitDailyReport(companyId, planId, {
-      [pourLineId]: { manHours: 10, qtyMilli: 5_000 },
-    });
+    await submitDailyReport(
+      companyId,
+      planId,
+      { [pourLineId]: { manHours: 10, qtyMilli: 5_000 } },
+      foremanActor(companyId),
+    );
     // Approve on a different calendar day than the plan date.
     const approveAt = new Date(`${planDate}T18:00:00.000Z`);
     approveAt.setUTCDate(approveAt.getUTCDate() + 2);
     const result = await approveDailyReport(
       companyId,
       planId,
-      superId,
+      superActor(companyId),
       approveAt,
     );
     expect(result.ok).toBe(true);
@@ -248,9 +266,12 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
       .from(costItems)
       .where(eq(costItems.id, itemId));
 
-    await submitDailyReport(companyId, planId, {
-      [lineId]: { manHours: 50, qtyMilli: 48_000 },
-    });
+    await submitDailyReport(
+      companyId,
+      planId,
+      { [lineId]: { manHours: 50, qtyMilli: 48_000 } },
+      foremanActor(companyId),
+    );
 
     const pending = await getApprovalPendingByCostItem(
       companyId,
@@ -258,7 +279,7 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
     );
     expect(pending[itemId]?.cents).toBe(50 * CULVERT_RATE);
 
-    const first = await approveDailyReport(companyId, planId, superId);
+    const first = await approveDailyReport(companyId, planId, superActor(companyId));
     expect(first.ok).toBe(true);
     if (!first.ok || first.already) throw new Error("expected first approve");
     expect(first.postedCents).toBe(50 * CULVERT_RATE);

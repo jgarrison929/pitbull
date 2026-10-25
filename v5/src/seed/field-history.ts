@@ -1,9 +1,11 @@
 /**
  * 5.0.2 Part B — 30 working days of approved daily plans + labor cost rows.
  * Pure `(companyId, today, …) → rows`. Does not call `run()`.
+ * 5.0.3 Part D — also emits append-only daily_plan_events (role + time).
  */
 import type {
   costEntries,
+  dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
 } from "@/db/schema";
@@ -71,6 +73,7 @@ export type FieldHistoryJob = {
 export type FieldHistoryRows = {
   dailyPlans: Insert<typeof dailyPlans>[];
   dailyPlanLines: Insert<typeof dailyPlanLines>[];
+  dailyPlanEvents: Insert<typeof dailyPlanEvents>[];
   costEntries: Insert<typeof costEntries>[];
   /** plan id of the Cedar returned-then-approved story row. */
   cedarReturnedPlanId: string;
@@ -107,7 +110,29 @@ export function buildFieldHistory(args: {
 
   const planRows: Insert<typeof dailyPlans>[] = [];
   const lineRows: Insert<typeof dailyPlanLines>[] = [];
+  const eventRows: Insert<typeof dailyPlanEvents>[] = [];
   const entryRows: Insert<typeof costEntries>[] = [];
+
+  const pushEvent = (
+    planId: string,
+    kind: Insert<typeof dailyPlanEvents>["kind"],
+    actorRole: Insert<typeof dailyPlanEvents>["actorRole"],
+    actorId: string | null,
+    at: Date,
+    detail = "",
+    keySuffix = "",
+  ) => {
+    eventRows.push({
+      id: id(`plan-event:hist:${planId}:${kind}${keySuffix}`),
+      companyId,
+      planId,
+      kind,
+      actorRole,
+      actorId,
+      detail,
+      at,
+    });
+  };
 
   // Per item: which history days it spans, and qty/hours slices.
   type DaySlice = { day: string; qtyMilli: number; hoursTenths: number };
@@ -186,6 +211,61 @@ export function buildFieldHistory(args: {
         createdById: foremanId,
         reportedAt,
       });
+
+      // Roles only — seed author of history plans is the superintendent.
+      pushEvent(planId, "created", "superintendent", superintendentId, createdAt);
+      pushEvent(
+        planId,
+        "submitted",
+        "superintendent",
+        superintendentId,
+        submittedAt,
+      );
+      if (isReturnStory) {
+        // Full return-then-approve arc: first report → return → re-report → approve.
+        pushEvent(
+          planId,
+          "reported",
+          "foreman",
+          foremanId,
+          firstReportedAt,
+          "",
+          ":1",
+        );
+        pushEvent(
+          planId,
+          "returned",
+          "superintendent",
+          superintendentId,
+          returnedAt!,
+          CEDAR_RETURN_REASON,
+        );
+        pushEvent(
+          planId,
+          "reported",
+          "foreman",
+          foremanId,
+          reportedAt!,
+          "",
+          ":2",
+        );
+        pushEvent(
+          planId,
+          "approved",
+          "superintendent",
+          superintendentId,
+          approvedAt!,
+        );
+      } else {
+        pushEvent(planId, "reported", "foreman", foremanId, reportedAt!);
+        pushEvent(
+          planId,
+          "approved",
+          "superintendent",
+          superintendentId,
+          approvedAt!,
+        );
+      }
 
       let sort = 0;
       for (const item of jobItems) {
@@ -266,6 +346,7 @@ export function buildFieldHistory(args: {
   return {
     dailyPlans: planRows,
     dailyPlanLines: lineRows,
+    dailyPlanEvents: eventRows,
     costEntries: entryRows,
     cedarReturnedPlanId,
   };
