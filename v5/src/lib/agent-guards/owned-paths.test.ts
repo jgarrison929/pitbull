@@ -1,9 +1,16 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   featurePrTouchesOwnedPaths,
   ownedPathBypassAllowed,
   touchesBuilderForbidden,
 } from "./owned-paths";
+
+const checkOwnedPathsScript = readFileSync(
+  join(import.meta.dirname, "../../../scripts/check-owned-paths.mjs"),
+  "utf8",
+);
 
 describe("owned paths — verify-v5 / proxy.ts", () => {
   it("must-fail: feature PR that also edits verify-v5", () => {
@@ -49,12 +56,26 @@ describe("owned paths — verify-v5 / proxy.ts", () => {
     expect(ownedPathBypassAllowed({ prTitle: "feat: sync verify" })).toBe(
       false,
     );
-    // Commit subjects must not grant bypass (past mistake on #731).
+    // Commit subjects must not grant bypass.
     expect(
       ownedPathBypassAllowed({
         prTitle: "feat: sync",
         labels: [],
       }),
     ).toBe(false);
+  });
+
+  it("must-fail: lookalike title marker does not bypass (case-sensitive)", () => {
+    expect(
+      ownedPathBypassAllowed({ prTitle: "[OWNED-PATH-OK] sync verify skill" }),
+    ).toBe(false);
+    expect(
+      ownedPathBypassAllowed({ prTitle: "[Owned-Path-Ok] sync verify skill" }),
+    ).toBe(false);
+    // CI script must stay case-sensitive (no /i on the title marker).
+    expect(checkOwnedPathsScript).toMatch(/\/\\\[owned-path-ok\\\]\/\.test/);
+    expect(checkOwnedPathsScript).not.toMatch(
+      /\/\\\[owned-path-ok\\\]\/i\.test/,
+    );
   });
 });

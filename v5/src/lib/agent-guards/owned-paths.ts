@@ -4,11 +4,12 @@ import { BUILDER_FORBIDDEN_TOUCH } from "./paths";
  * Feature builders must not edit verify-v5 or proxy.ts in the same change set
  * as product work — those files are owned by dedicated slices.
  *
- * Bypass (CI): PR title contains `[owned-path-ok]`, or label `owned-path-ok`.
- * Not the last commit subject — that was too easy to forget on later pushes.
+ * Bypass (CI): PR title contains exact `[owned-path-ok]` (case-sensitive),
+ * or label `owned-path-ok`. Not the last commit subject — that was too easy
+ * to forget on later pushes. Lookalikes like `[OWNED-PATH-OK]` must not bypass.
  */
 
-export const OWNED_PATH_OK_TITLE = /\[owned-path-ok\]/i;
+export const OWNED_PATH_OK_TITLE = /\[owned-path-ok\]/;
 export const OWNED_PATH_OK_LABEL = "owned-path-ok";
 
 export function touchesBuilderForbidden(paths: string[]): string[] {

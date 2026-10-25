@@ -17,18 +17,18 @@ Prefer **truth over polish**. Assume the next editor only opened the nearest fil
 | Rule | Enforcement (drop the row once the mistake cannot happen) |
 |------|--------------------------------------------------------------|
 | One working calendar: `src/lib/working-calendar.ts` only — never `lib/schedule/working-days.ts` | Architecture + `src/lib/agent-guards/paths.test.ts`; README in `src/lib/schedule/` |
-| Page anatomy rename `page.tsx` → `page-shell.tsx` | **Parked** until 5.0.3 queue (#721, #724–#728) lands — then a pure rename PR (`PARKED_PAGE_SHELL_RENAME`) |
+| Page anatomy rename `page.tsx` → `page-shell.tsx` | **Parked** until the 5.0.3 queue lands — then a pure rename PR (`PARKED_PAGE_SHELL_RENAME`) |
 | Must-fail tests observe the **live** send path — do not assert a formula shared with production | `agent-guards/must-fail.ts` (+ live check when `insert-work-pipeline.test.ts` exists) |
 | PV must-fail maps finish→exclusive via `plannedFinishExclusiveOn` — do not hard-code both inputs | `weakPvMustFail` + cpm.test contract when present |
 | CPM backward pass: seed/cap LF at **job finish** (SS-only successors) | `cpmCapsLfAtJobFinish` when `cpm.ts` ships |
 | Working-day math is **indexed** (binary search on day numbers) — no per-day `Date` walks | `calendarUsesIndexedArithmetic` when calendar ships |
 | No raw Tailwind palette / hex / oklch in product UI — theme tokens only | `no-raw-colors.ts` (+ allowlist until Part C lands; expiry 2026-11-30) |
 | Never call Pitbull an "ERP"; no coming-soon / stub / lorem user copy | `banned-strings.test.ts` + roadmap bans |
-| Do not edit `.cursor/skills/verify-v5` or `src/proxy.ts` in a feature PR | `npm run check:owned-paths` in CI (fail closed); bypass via PR title `[owned-path-ok]` or label `owned-path-ok` |
-| Job / cost-item pages: fixed query budgets — no N+1 over history | `getDbQueryCount` + `*-query-budget.test.ts` (landed with #717) |
-| Staging `DATABASE_URL` = private `*.railway.internal`, not `DATABASE_PUBLIC_URL` / `*.proxy.rlwy.net` | `classifyDatabaseUrl` on `/health` as `dbNetwork` (#717) |
+| Do not edit `.cursor/skills/verify-v5` or `src/proxy.ts` in a feature PR | `npm run check:owned-paths` in CI (fail closed); bypass via exact PR title `[owned-path-ok]` (case-sensitive) or label `owned-path-ok` |
+| Job / cost-item pages: fixed query budgets — no N+1 over history | `getDbQueryCount` + `*-query-budget.test.ts` |
+| Staging `DATABASE_URL` = private `*.railway.internal`, not `DATABASE_PUBLIC_URL` / `*.proxy.rlwy.net` | `classifyDatabaseUrl` on `/health` as `dbNetwork` |
 | No Recharts (or other heavy client chart) for simple SVG series | `no-recharts.test.ts` |
-| No `ALTER TYPE … ADD VALUE` in drizzle migrations (fails inside TX) | `migrations.test.ts` |
+| `ALTER TYPE … ADD VALUE` only when allowlisted — `db-migrate.mjs` applies those outside a TX | `migrations.test.ts` + `ADD_VALUE_ALLOWLIST` |
 | Visual baselines: `maxDiffPixels: 0`; every light shot gets a `-dark-` twin once dark theme ships | `visual.test.ts` |
 
 Exceptions: comment the offending line with reason, expiry, and who approved. Prefer deleting the wrong API over documenting it.

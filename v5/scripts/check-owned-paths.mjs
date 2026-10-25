@@ -3,8 +3,9 @@
  * Fails when a feature change set also touches verify-v5 or v5/src/proxy.ts.
  *
  * Bypass (not the last commit subject):
- *   - PR title contains `[owned-path-ok]`, or
+ *   - PR title contains exact `[owned-path-ok]` (case-sensitive), or
  *   - PR has label `owned-path-ok`
+ * Lookalikes like `[OWNED-PATH-OK]` must not bypass.
  *
  * Fail closed in CI when the base ref/SHA cannot be resolved / diffed.
  *
@@ -45,7 +46,8 @@ function fail(msg, detail) {
 /** Bypass via PR title or label — never last-commit subject. */
 function bypassGranted() {
   const title = process.env.OWNED_PATHS_PR_TITLE || "";
-  if (/\[owned-path-ok\]/i.test(title)) {
+  // Exact case-sensitive marker — do not add the /i flag.
+  if (/\[owned-path-ok\]/.test(title)) {
     console.log("check-owned-paths: skipped ([owned-path-ok] in PR title)");
     return true;
   }
