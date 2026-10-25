@@ -9,13 +9,12 @@
 import { createHash, randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import { classifyDatabaseUrl, getDb } from "@/db";
 import {
-  classifyDatabaseUrl,
-  getDb,
   getDbQueryCount,
   resetDbClient,
   resetDbQueryCount,
-} from "@/db";
+} from "@/db/test-hooks";
 import { companies, sessions } from "@/db/schema";
 import { calendarDateInTz } from "@/lib/plan-date";
 import { seedId } from "@/seed";
