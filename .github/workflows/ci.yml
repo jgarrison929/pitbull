@@ -235,6 +235,22 @@ jobs:
       - name: Drizzle schema sync check
         run: npm run drizzle:check
 
+      - name: Owned paths (verify-v5 / proxy.ts)
+        working-directory: .
+        env:
+          # Prefer PR base SHA — shallow checkouts often lack merge-base with origin/main.
+          OWNED_PATHS_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          OWNED_PATHS_BASE: origin/${{ github.base_ref || 'main' }}
+          OWNED_PATHS_PR_TITLE: ${{ github.event.pull_request.title || '' }}
+          OWNED_PATHS_PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.sha }}"
+          else
+            git fetch origin "${{ github.base_ref || 'main' }}" --depth=50
+          fi
+          npm --prefix v5 run check:owned-paths
+
       - name: Prepare database (pre-deploy step)
         run: npm run db:prepare
 

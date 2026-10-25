@@ -17,6 +17,7 @@
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:prepare": "npm run db:ensure && npm run db:migrate",
     "drizzle:check": "node scripts/drizzle-check.mjs",
+    "check:owned-paths": "node scripts/check-owned-paths.mjs",
     "perf:cost-codes": "node scripts/perf-cost-codes.mjs"
   },
   "dependencies": {
