@@ -15,19 +15,26 @@ describe("theme cookie (5.0.3 Part C)", () => {
 
   it("root layout reads the cookie and applies the dark class", () => {
     const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
-    expect(layout).toMatch(/getTheme/);
+    expect(layout).toMatch(/from ["']@\/server\/theme["']/);
+    expect(layout).toMatch(/const theme = await getTheme\(\)/);
     expect(layout).toMatch(/theme === ["']dark["'] && ["']dark["']/);
     expect(layout).toMatch(/data-theme=\{theme\}/);
     // Cookie on <html> blocks the static shell — keep the opt-out explicit.
     expect(layout).toMatch(/export const instant = false/);
   });
 
-  it("must-fail: layout must not drop the dark class wiring", () => {
+  it("must-fail: layout must await getTheme() (server cookie read)", () => {
+    // #724 follow-up: a leftover `getTheme` import string stayed green while
+    // the await + dark class wiring were removed (only e2e caught the flash).
     const layout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
-    // If someone hard-codes light-only html, this goes red.
-    expect(layout.includes("dark")).toBe(true);
-    expect(layout.includes("getTheme")).toBe(true);
-    expect(layout.includes("instant = false")).toBe(true);
+    const themeSrc = readFileSync(join(process.cwd(), "src/server/theme.ts"), "utf8");
+    expect(layout).toMatch(/const theme = await getTheme\(\)/);
+    expect(layout).toMatch(/theme === ["']dark["'] && ["']dark["']/);
+    expect(layout).toMatch(/data-theme=\{theme\}/);
+    expect(layout).toMatch(/export const instant = false/);
+    expect(themeSrc).toMatch(/cookies\(\)/);
+    expect(themeSrc).toMatch(/THEME_COOKIE/);
+    expect(themeSrc).toMatch(/\.get\(THEME_COOKIE\)/);
   });
 
   it("user menu hosts Light and Dark switches", () => {

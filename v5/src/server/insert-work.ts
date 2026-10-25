@@ -139,12 +139,24 @@ export function enqueueInsertWork(
 }
 
 /**
+ * Flush a pending pipeline in one batch (postgres.js pipelines on one
+ * connection). Callers must not await statements one-at-a-time — that is N
+ * network round-trips under latency and is caught by insert-work-pipeline tests.
+ * Accepts PromiseLike so latency harnesses (drizzle-like thenables) typecheck.
+ */
+export async function flushPending(
+  pending: ReadonlyArray<PromiseLike<unknown>>,
+): Promise<void> {
+  await Promise.all(pending);
+}
+
+/**
  * Insert all work tables. Statements are pipelined (FK order preserved).
  * Returns the number of SQL statements actually enqueued (not a seed formula).
  */
 export async function insertWork(tx: Tx, rows: SeedRows): Promise<number> {
   const pending: Promise<unknown>[] = [];
   const n = enqueueInsertWork(tx, rows, pending);
-  await Promise.all(pending);
+  await flushPending(pending);
   return n;
 }

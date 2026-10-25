@@ -16,12 +16,14 @@ import { seed } from "@/seed";
 import { seedStressJob, STRESS_JOB_NUMBER } from "@/seed/stress";
 import {
   enqueueInsertWork,
+  flushPending,
   insertWork,
 } from "./insert-work";
 import { seedNow } from "./seed-clock";
 
 export { seedNow } from "./seed-clock";
 export {
+  flushPending,
   insertWork,
   insertWorkStatementCount,
   INSERT_WORK_MAX_STATEMENTS,
@@ -193,7 +195,9 @@ export async function resetSandbox(
         .where(eq(companies.id, companyId)),
     );
     statements = pending.length;
-    await Promise.all(pending);
+    // Batched flushPending — serial await of the pending list is N RTTs and is
+    // caught by insert-work-pipeline (reset-shaped) must-fail.
+    await flushPending(pending);
   });
   const txnMs = performance.now() - tTxn0;
   return {
