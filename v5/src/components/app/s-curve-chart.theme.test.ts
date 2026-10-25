@@ -25,6 +25,12 @@ describe("S-curve chart theme tokens", () => {
     expect(pkg.dependencies?.recharts).toBeUndefined();
   });
 
+  it("must-fail: single-point EV still draws a visible stroke + marker", () => {
+    const src = readFileSync(join(here, "s-curve-chart.tsx"), "utf8");
+    expect(src).toMatch(/finite === 1/);
+    expect(src).toMatch(/data-series-marker="earnedCents"/);
+  });
+
   it("must-fail: light and dark --chart-1/2/3 stay theme-token pairs (readable on each bg)", () => {
     const css = readFileSync(join(here, "../../app/globals.css"), "utf8");
     const root = css.match(/:root\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";

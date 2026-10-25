@@ -4,13 +4,20 @@
  * Each key rule has a must-fail that goes red if the formula, cutoff, CO delta,
  * draft exclusion, or query budget is reverted.
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getDb, getDbQueryCount, resetDbQueryCount } from "@/db";
-import { companies, costItems, jobs } from "@/db/schema";
+import {
+  companies,
+  costItems,
+  jobs,
+  progressClaimLines,
+  progressClaims,
+  users,
+} from "@/db/schema";
 import { changeOrderCommand } from "@/server/change-orders";
 import { jobRollupSql } from "@/server/cost-rollups";
 import {
@@ -32,8 +39,35 @@ const hasDb = Boolean(getDb());
 const created: string[] = [];
 const ACTIVE = ["25-031", "24-118", "24-077"] as const;
 const CO_001_DELTA_CENTS = 6_000_000; // $60,000.00
+/** Half-cent EV: 10001¢ × 500‰ (or units 1/2) → 5000.5 → round 5001; floor stays 5000. */
+const HALF_CENT_BUDGET = 10_001;
+const HALF_CENT_EV = 5_001;
 
 const here = dirname(fileURLToPath(import.meta.url));
+const srcRoot = join(here, "..");
+
+function stripComments(src: string) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+}
+
+function countCalls(code: string, name: "least" | "round") {
+  return (code.match(new RegExp(`\\b${name}\\s*\\(`, "g")) ?? []).length;
+}
+
+/** Non-test .ts under v5/src (recursive). */
+function listSrcTs(dir: string): string[] {
+  const out: string[] = [];
+  for (const ent of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, ent.name);
+    if (ent.isDirectory()) {
+      if (ent.name === "node_modules") continue;
+      out.push(...listSrcTs(p));
+    } else if (ent.isFile() && ent.name.endsWith(".ts") && !ent.name.endsWith(".test.ts")) {
+      out.push(p);
+    }
+  }
+  return out;
+}
 
 function db() {
   const client = getDb();
@@ -102,11 +136,23 @@ describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
     // Count definitions in code (not names / comments): EV CASE has one
     // least + two rounds; PV linear has one more round. A duplicated
     // claim-line CASE goes to 2 least / 5 rounds.
-    const code = exprs
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/.*$/gm, "");
-    expect((code.match(/\bleast\s*\(/g) ?? []).length).toBe(1);
-    expect((code.match(/\bround\s*\(/g) ?? []).length).toBe(3);
+    const exprsCode = stripComments(exprs);
+    expect(countCalls(exprsCode, "least")).toBe(1);
+    expect(countCalls(exprsCode, "round")).toBe(3);
+
+    // Consumers: zero private EV CASE bodies (code counts, not just names).
+    // A full CASE inlined in curve.ts as claimEarned (Verify D2/D2b) adds
+    // least/round here. A private % CASE in cost-rollups (D3) adds least or
+    // a second round beyond the known EAC round.
+    const curveCode = stripComments(curve);
+    const rollupsCode = stripComments(rollups);
+    expect(countCalls(curveCode, "least")).toBe(0);
+    expect(countCalls(curveCode, "round")).toBe(0);
+    expect(curveCode).not.toMatch(/evMethod\s*[=!]=\s*['"]units['"]/);
+    expect(curveCode).not.toMatch(/ev_method/);
+    expect(countCalls(rollupsCode, "least")).toBe(0);
+    // Exactly one round: average_performance EAC. An extra EV CASE round fails.
+    expect(countCalls(rollupsCode, "round")).toBe(1);
 
     // Both consumers import the shared module — not a second private copy.
     expect(rollups).toMatch(/from ["']@\/server\/cost-rollup-exprs["']/);
@@ -116,6 +162,7 @@ describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
     expect(rollups).toMatch(/\bplannedAsOfSql\b/);
     expect(curve).toMatch(/\bearnedSql\b/);
     expect(curve).toMatch(/\bplannedAsOfSql\b/);
+    expect(curve).toMatch(/\bearnedFromClaimLineSql\b/);
 
     // Private re-declarations deleted.
     expect(rollups).not.toMatch(/\bconst cbTotalSql\b/);
@@ -126,6 +173,19 @@ describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
     expect(curve).not.toMatch(/\bfunction plannedAsOfSql\b/);
     expect(rollups).not.toMatch(/claimedInstalledQtyMilli/);
     expect(curve).not.toMatch(/claimedInstalledQtyMilli/);
+
+    // Repo-wide: only cost-rollup-exprs may pair EV units + least( (D11).
+    const offenders: string[] = [];
+    for (const file of listSrcTs(srcRoot)) {
+      const rel = file.slice(srcRoot.length + 1);
+      if (rel === "server/cost-rollup-exprs.ts") continue;
+      const code = stripComments(readFileSync(file, "utf8"));
+      const hasUnitsEv =
+        /evMethod\s*[=!]=\s*['"]units['"]/.test(code) ||
+        /ev_method/.test(code);
+      if (hasUnitsEv && countCalls(code, "least") > 0) offenders.push(rel);
+    }
+    expect(offenders).toEqual([]);
   });
 
   it("must-fail: D11 — half-cent percent EV rounds (shared CASE uses round)", () => {
@@ -134,15 +194,140 @@ describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
       earnedCentsOf({
         evMethod: "pm_percent",
         budgetQtyMilli: 0,
-        budgetCents: 10_001,
+        budgetCents: HALF_CENT_BUDGET,
         claimedInstalledQtyMilli: 0,
         claimedPercentMilli: 500,
       }),
-    ).toBe(5_001);
+    ).toBe(HALF_CENT_EV);
+    expect(
+      earnedCentsOf({
+        evMethod: "units",
+        budgetQtyMilli: 2_000,
+        budgetCents: HALF_CENT_BUDGET,
+        claimedInstalledQtyMilli: 1_000,
+        claimedPercentMilli: 0,
+      }),
+    ).toBe(HALF_CENT_EV);
     const exprs = readFileSync(join(here, "cost-rollup-exprs.ts"), "utf8");
     expect(exprs).toMatch(/else\s+round\s*\(/);
     expect(exprs).not.toMatch(/\bfloor\s*\(/);
     expect(exprs).not.toMatch(/\btrunc\s*\(/);
+  });
+
+  /**
+   * Behavior lock for D11: a lone half-cent leaf with two locks. Days on/after
+   * the first lock use claim-line EV; the cutoff day uses tile EV. Both must
+   * equal 5001 (round), matching jobRollupSql — a private floor/CASE copy in
+   * curve.ts or a drifted claim-line path goes RED.
+   */
+  it("must-fail: D11 — cutoff + claim-line EV match tiles on half-cent leaves", async () => {
+    for (const variant of ["pm_percent", "units"] as const) {
+      const companyId = crypto.randomUUID();
+      const jobId = crypto.randomUUID();
+      const itemId = crypto.randomUUID();
+      const userId = crypto.randomUUID();
+      const claim1 = crypto.randomUUID();
+      const claim2 = crypto.randomUUID();
+      created.push(companyId);
+      const lock1At = new Date("2026-10-10T17:00:00.000Z");
+      const lock2At = new Date("2026-10-20T17:00:00.000Z");
+      const isUnits = variant === "units";
+
+      await db().insert(companies).values({
+        id: companyId,
+        name: `Half-cent ${variant}`,
+        isSandbox: true,
+        seededAt: lock2At,
+      });
+      await db().insert(users).values({
+        id: userId,
+        companyId,
+        name: "PM",
+        title: "Project Manager",
+        role: "pm",
+      });
+      await db().insert(jobs).values({
+        id: jobId,
+        companyId,
+        number: `99-HC-${variant === "units" ? "U" : "P"}`,
+        name: "Half-cent EV",
+        shortName: "Half-cent",
+        owner: "Test",
+        pmName: "PM",
+        finishOn: "2026-10-30",
+        contractCents: HALF_CENT_BUDGET,
+        estimateStatus: "approved",
+      });
+      await db().insert(costItems).values({
+        id: itemId,
+        companyId,
+        jobId,
+        path: "/HC/",
+        depth: 0,
+        isLeaf: true,
+        code: "HC-1",
+        description: "Half-cent leaf",
+        unit: isUnits ? "CY" : "LS",
+        evMethod: variant,
+        budgetQtyMilli: isUnits ? 2_000 : 0,
+        installedQtyMilli: isUnits ? 1_000 : 0,
+        claimedInstalledQtyMilli: isUnits ? 1_000 : 0,
+        claimedPercentMilli: isUnits ? 0 : 500,
+        cbLaborCents: HALF_CENT_BUDGET,
+        obLaborCents: HALF_CENT_BUDGET,
+        ceLaborCents: HALF_CENT_BUDGET,
+        plannedStartOn: "2026-10-01",
+        plannedFinishOn: "2026-10-30",
+        plannedCents: HALF_CENT_BUDGET,
+        actualCents: 0,
+        lockedActualCents: 0,
+        earnDerivation: "half-cent fixture",
+        budgetMhPerUnitMilli: 0,
+      });
+      for (const [claimId, lockedAt, label] of [
+        [claim1, lock1At, "P1"],
+        [claim2, lock2At, "P2"],
+      ] as const) {
+        await db().insert(progressClaims).values({
+          id: claimId,
+          companyId,
+          jobId,
+          periodLabel: label,
+          status: "locked",
+          lockedAt,
+          lockedById: userId,
+        });
+        await db().insert(progressClaimLines).values({
+          id: crypto.randomUUID(),
+          companyId,
+          claimId,
+          costItemId: itemId,
+          claimedPercentMilli: isUnits ? 0 : 500,
+          installedQtyMilli: isUnits ? 1_000 : 0,
+          derivation: "half-cent fixture",
+        });
+      }
+
+      const [curve, roll] = await Promise.all([
+        jobCurve(companyId, jobId),
+        jobRollupSql(companyId, jobId, lock2At),
+      ]);
+      expect(curve?.cutoffOn, variant).toBe("2026-10-20");
+      expect(roll.earnedCents, `${variant} tile`).toBe(HALF_CENT_EV);
+      const atCutoff = pointOn(curve!.points, "2026-10-20");
+      expect(atCutoff.earnedCents, `${variant} cutoff`).toBe(HALF_CENT_EV);
+      expect(atCutoff.earnedCents, `${variant} cutoff=tile`).toBe(
+        roll.earnedCents,
+      );
+      // Claim-line path (lock 1 → days before cutoff): must also be round(5000.5).
+      const atLock1 = pointOn(curve!.points, "2026-10-10");
+      expect(atLock1.earnedCents, `${variant} lock1`).toBe(HALF_CENT_EV);
+      const mid = pointOn(curve!.points, "2026-10-15");
+      expect(mid.earnedCents, `${variant} mid`).toBe(HALF_CENT_EV);
+      // Before the first lock: no EV yet.
+      const before = pointOn(curve!.points, "2026-10-05");
+      expect(before.earnedCents, `${variant} before`).toBeNull();
+    }
   });
 
   it("check 1: last planned-value point equals Current Budget on 25-031", async () => {
@@ -302,6 +487,101 @@ describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
     expect(src).toMatch(/JOB_CURVE_LEAF_BUDGET/);
   });
 
+  /**
+   * Query-budget must-fail on a one-leaf company (not the full demo sandbox).
+   * Runs before the 10k stress insert so pool/IO contention cannot flake a
+   * 40 ms call into the default 5 s vitest timeout.
+   */
+  it("must-fail: portfolioCurve stays within a fixed query budget", async () => {
+    const tinyId = crypto.randomUUID();
+    const tinyJob = crypto.randomUUID();
+    const tinyItem = crypto.randomUUID();
+    const tinyUser = crypto.randomUUID();
+    const tinyClaim = crypto.randomUUID();
+    created.push(tinyId);
+    const lockedAt = new Date("2026-10-20T17:00:00.000Z");
+    await db().insert(companies).values({
+      id: tinyId,
+      name: "Portfolio budget tiny",
+      isSandbox: true,
+      seededAt: lockedAt,
+    });
+    await db().insert(users).values({
+      id: tinyUser,
+      companyId: tinyId,
+      name: "PM",
+      title: "PM",
+      role: "pm",
+    });
+    await db().insert(jobs).values({
+      id: tinyJob,
+      companyId: tinyId,
+      number: "99-QB",
+      name: "Budget",
+      shortName: "Budget",
+      owner: "Test",
+      pmName: "PM",
+      finishOn: "2026-10-25",
+      contractCents: 100,
+      estimateStatus: "approved",
+    });
+    await db().insert(costItems).values({
+      id: tinyItem,
+      companyId: tinyId,
+      jobId: tinyJob,
+      path: "/QB/",
+      depth: 0,
+      isLeaf: true,
+      code: "QB-1",
+      description: "Tiny",
+      unit: "LS",
+      evMethod: "pm_percent",
+      budgetQtyMilli: 0,
+      installedQtyMilli: 0,
+      claimedInstalledQtyMilli: 0,
+      claimedPercentMilli: 500,
+      cbLaborCents: 100,
+      obLaborCents: 100,
+      ceLaborCents: 100,
+      plannedStartOn: "2026-10-18",
+      plannedFinishOn: "2026-10-22",
+      plannedCents: 100,
+      actualCents: 0,
+      lockedActualCents: 0,
+      earnDerivation: "qb",
+      budgetMhPerUnitMilli: 0,
+    });
+    await db().insert(progressClaims).values({
+      id: tinyClaim,
+      companyId: tinyId,
+      jobId: tinyJob,
+      periodLabel: "P1",
+      status: "locked",
+      lockedAt,
+      lockedById: tinyUser,
+    });
+    await db().insert(progressClaimLines).values({
+      id: crypto.randomUUID(),
+      companyId: tinyId,
+      claimId: tinyClaim,
+      costItemId: tinyItem,
+      claimedPercentMilli: 500,
+      installedQtyMilli: 0,
+      derivation: "qb",
+    });
+
+    // Warm connection + plan cache; measure only the second call.
+    await portfolioCurve(tinyId);
+    resetDbQueryCount();
+    const t0 = performance.now();
+    await portfolioCurve(tinyId);
+    const ms = performance.now() - t0;
+    expect(getDbQueryCount()).toBeLessThanOrEqual(PORTFOLIO_CURVE_QUERY_BUDGET);
+    expect(PORTFOLIO_CURVE_QUERY_BUDGET).toBe(1);
+    // Tight wall bound on the tiny fixture — flags regressions without a 5s hang.
+    expect(ms).toBeLessThan(1_500);
+  });
+
   it(
     "stress 99-010: jobCurve returns null without days×leaves stall",
     async () => {
@@ -328,14 +608,6 @@ describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
     },
     120_000,
   );
-
-  it("must-fail: portfolioCurve stays within a fixed query budget", async () => {
-    await portfolioCurve(companyId);
-    resetDbQueryCount();
-    await portfolioCurve(companyId);
-    expect(getDbQueryCount()).toBeLessThanOrEqual(PORTFOLIO_CURVE_QUERY_BUDGET);
-    expect(PORTFOLIO_CURVE_QUERY_BUDGET).toBe(1);
-  });
 
   it("EV/AC are null after the cutoff and present at the cutoff", async () => {
     const id = await jobId(companyId, "25-031");

@@ -83,12 +83,14 @@ function stepPath(
 ): string {
   const parts: string[] = [];
   let prev: { x: number; y: number } | null = null;
+  let finite = 0;
   points.forEach((p, i) => {
     const v = p[key];
     if (v == null) {
       prev = null;
       return;
     }
+    finite += 1;
     const x = xAt(i, points.length);
     const y = yAt(v, max);
     if (!prev) {
@@ -99,6 +101,12 @@ function stepPath(
     }
     prev = { x, y };
   });
+  // One lock day → one finite EV point. A lone M has no stroke; extend a short
+  // horizontal so the series (and legend color) stays visible.
+  if (finite === 1 && prev) {
+    const stub = 10;
+    parts.push(`L${(prev.x + stub).toFixed(1)} ${prev.y.toFixed(1)}`);
+  }
   return parts.join(" ");
 }
 
@@ -220,6 +228,20 @@ export function SCurveChart({
             />
           );
         })}
+
+        {/* Markers at finite EV points so a single lock day still reads as a series. */}
+        {points.map((p, i) =>
+          p.earnedCents == null ? null : (
+            <circle
+              key={`ev-${p.on}`}
+              cx={xAt(i, points.length)}
+              cy={yAt(p.earnedCents, max)}
+              r={3}
+              fill="var(--chart-2)"
+              data-series-marker="earnedCents"
+            />
+          ),
+        )}
       </svg>
 
       {cutoffOn ? (
