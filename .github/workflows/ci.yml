@@ -20,8 +20,8 @@ concurrency:
 jobs:
   # The legacy app is frozen at tag legacy-3.8.2-final and has no CI. PRs that touch v5/ or this
   # workflow run the v5 job; PRs that touch v5/, .cursor/skills/verify-v5/, or this workflow run
-  # the skill browser smoke (v5 may still skip for skill-only). Other PRs skip both and ci-gate
-  # still reports. Pushes to main always run both.
+  # the skill browser smoke + must-fail jobs (v5 may still skip for skill-only). Other PRs skip
+  # those and ci-gate still reports. Pushes to main always run v5 and both verify-v5 jobs.
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
@@ -51,13 +51,21 @@ jobs:
           echo "v5 changed: **$v5** (false = v5 job skipped)" >> "$GITHUB_STEP_SUMMARY"
           echo "verify-v5 skill smoke: **$verify_v5** (false = skill smoke skipped)" >> "$GITHUB_STEP_SUMMARY"
 
+  # Full local browser verify (unit smoke + build + run-local-browser.sh). Must-fail Chromium
+  # tests run in verify-v5-mustfail in parallel — same path filter (verify_v5).
+  # Both jobs use the digest-pinned Playwright image from .cursor/skills/verify-v5/Dockerfile
+  # (browsers + OS libs preinstalled — no apt / playwright install step).
   verify-v5-skill:
     name: verify-v5 skill smoke
     needs: changes
     if: needs.changes.outputs.verify_v5 == 'true'
     runs-on: ubuntu-latest
-    # Unit smoke is fast; local build + full browser verify needs headroom (same band as v5).
+    # Post-#729 local verify ~7–9m; no Chromium apt install in this image. 20m is ample.
     timeout-minutes: 20
+    container:
+      # Same tag+digest as .cursor/skills/verify-v5/Dockerfile (matches lockfile @playwright/test 1.64.1).
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      options: --ipc=host
 
     services:
       postgres:
@@ -75,8 +83,8 @@ jobs:
           --health-retries 5
 
     env:
-      # Same prepare path as the v5 job / Railway pre-deploy; separate DB name for clarity.
-      DATABASE_URL: postgres://pcs:pcs_ci@localhost:5432/pcs_v5_verify
+      # Job container + service: reach Postgres by service hostname (not localhost).
+      DATABASE_URL: postgres://pcs:pcs_ci@postgres:5432/pcs_v5_verify
       GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       PORT: "3100"
       # Deterministic /status labels (same as playwright.config.ts webServer env).
@@ -90,6 +98,10 @@ jobs:
         with:
           # default-commit.test needs origin/main for last v5/ touch
           fetch-depth: 0
+
+      # Container user ≠ workspace owner; raw `git fetch` in unit smoke needs this.
+      - name: Git safe.directory for container workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -119,16 +131,6 @@ jobs:
         working-directory: v5
         run: npm run build
 
-      - name: Install Playwright Chromium
-        working-directory: v5
-        run: npx playwright install --with-deps chromium
-
-      - name: Skill must-fail browser tests
-        run: |
-          node .cursor/skills/verify-v5/reset-mustfail.test.mjs
-          node .cursor/skills/verify-v5/crawl-mustfail.test.mjs
-          node .cursor/skills/verify-v5/portfolio-mustfail.test.mjs
-
       - name: Local browser verify
         run: bash .cursor/skills/verify-v5/run-local-browser.sh
 
@@ -139,6 +141,43 @@ jobs:
           name: verify-v5-skill-evidence
           path: .cursor/skills/verify-v5/evidence/**
           if-no-files-found: ignore
+
+  # reset/crawl/portfolio must-fail Chromium tests against fake localhost pages. No Postgres or
+  # Next build — v5/node_modules Playwright + image browsers. Parallel with smoke; same verify_v5 filter.
+  verify-v5-mustfail:
+    name: verify-v5 must-fail browser
+    needs: changes
+    if: needs.changes.outputs.verify_v5 == 'true'
+    runs-on: ubuntu-latest
+    # Must-fail step ~4–5m; image has browsers — no apt. 16m is ample.
+    timeout-minutes: 16
+    container:
+      # Same tag+digest as .cursor/skills/verify-v5/Dockerfile (matches lockfile @playwright/test 1.64.1).
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+      options: --ipc=host
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Git safe.directory for container workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: v5/.nvmrc
+          cache: 'npm'
+          cache-dependency-path: v5/package-lock.json
+
+      - name: Install v5 dependencies
+        working-directory: v5
+        run: npm ci
+
+      - name: Skill must-fail browser tests
+        run: |
+          node .cursor/skills/verify-v5/reset-mustfail.test.mjs
+          node .cursor/skills/verify-v5/crawl-mustfail.test.mjs
+          node .cursor/skills/verify-v5/portfolio-mustfail.test.mjs
 
   v5:
     name: v5 (lint, typecheck, test, build, e2e)
@@ -229,12 +268,12 @@ jobs:
   ci-gate:
     name: ci-gate
     if: always()
-    needs: [changes, v5, verify-v5-skill]
+    needs: [changes, v5, verify-v5-skill, verify-v5-mustfail]
     runs-on: ubuntu-latest
     permissions:
       actions: read
     steps:
-      - name: Require every job to pass or be skipped
+      - name: Require every needed job success or skipped
         env:
           NEEDS: ${{ toJSON(needs) }}
           GH_TOKEN: ${{ github.token }}
@@ -245,12 +284,13 @@ jobs:
             echo "|---|---|"
             jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"' <<<"$NEEDS"
           } >> "$GITHUB_STEP_SUMMARY"
-          bad=$(jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key' <<<"$NEEDS")
-          if [ -z "$bad" ]; then exit 0; fi
+          # Allowlist: every needed job must be success or skipped (not a denylist of known-bad).
+          not_ok=$(jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key)=\(.value.result)"' <<<"$NEEDS")
+          if [ -z "$not_ok" ]; then exit 0; fi
           {
             echo "#### Failing steps"
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" --paginate \
-              --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | "- [\(.name)](\(.html_url)): \([.steps[] | select(.conclusion == "failure") | .name] | join(", "))"' || true
+              --jq '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped" and .conclusion != null) | "- [\(.name)](\(.html_url)): \([.steps[] | select(.conclusion == "failure") | .name] | join(", "))"' || true
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::error::Required jobs did not pass: $(tr '\n' ' ' <<<"$bad")"
+          echo "::error::Required jobs must be success or skipped: $(tr '\n' ' ' <<<"$not_ok")"
           exit 1
