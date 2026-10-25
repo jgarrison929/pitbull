@@ -1,0 +1,57 @@
+# Product band specs
+
+> **Archive — not live.** These bands belonged to the legacy 3.x PM next-gen program (frozen with `src/` @ `legacy-3.8.2-final`). Live increment specs: [`docs/v5/specs/`](../../v5/specs/). Live roadmap: [`docs/roadmap.md`](../../roadmap.md).
+
+**Program (archive):** PM next-gen arc `3.4.0` → `4.0.0`  
+**Epic (archive):** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../../roadmap/pm-nextgen-3.4-to-4.0.md)  
+**Research (still useful background):** [`docs/roadmap/pm-mobile-workflows-and-complaints-2026.md`](../../roadmap/pm-mobile-workflows-and-complaints-2026.md)  
+**Program folder (archive):** [`docs/340-pm-arc/`](../../340-pm-arc/)  
+
+Historical **3.0.0** Arc A–E is also complete (`docs/260712/`). Do not reopen 2.x or 3.8.x numbers as live stamps.
+
+## Production rules
+
+1. Write/expand the band spec to **agent-ready** before implementing that band.  
+2. One VERSION stamp per PR; never skip (`docs/340-pm-arc/VERSION-WORKFLOW.md`).  
+3. Stay one band ahead of current VERSION when expanding stubs.  
+4. Railway gates: [`docs/ci/pm-arc-deploy-safety.md`](../../ci/pm-arc-deploy-safety.md).  
+5. Truth over polish; no invented KPIs; phone = capture + glance + filtered drill.
+
+## PM next-gen ladder (3.4 → 4.0)
+
+| Band | Versions | Spec | Status |
+|------|----------|------|--------|
+| **3.5** RFI + Submittal mobile | `3.4.1` → `3.5.0` | [band-3.5-pm-rfi-submittal-mobile.md](./band-3.5-pm-rfi-submittal-mobile.md) | **Shipped** |
+| **3.6** CO + Contracts mobile | `3.5.1` → `3.6.0` | [band-3.6-pm-co-contracts-mobile.md](./band-3.6-pm-co-contracts-mobile.md) | **Shipped** |
+| **3.7** Schedule Gantt + Kanban | `3.6.1` → `3.7.0` | [band-3.7-pm-schedule-gantt-kanban.md](./band-3.7-pm-schedule-gantt-kanban.md) | **Shipped** |
+| **3.8** CPM practices | `3.7.1` → `3.8.0` | [band-3.8-pm-cpm-practices.md](./band-3.8-pm-cpm-practices.md) | **Partial** (through `3.7.5`; remapped remainder `3.7.9`–`3.8.0`) |
+| **3.9** Safety + Compliance | `3.8.1` → `3.9.0` | [band-3.9-pm-safety-compliance.md](./band-3.9-pm-safety-compliance.md) | Pending stub |
+| **3.10** Vendors + Procurement + Materials | `3.9.1` → `3.10.0` | [band-3.10-pm-vendors-procurement-materials.md](./band-3.10-pm-vendors-procurement-materials.md) | Pending stub |
+| **3.11** Pay apps + Quotes | `3.10.1` → `3.11.0` | [band-3.11-pm-sub-payapps-quotes.md](./band-3.11-pm-sub-payapps-quotes.md) | Pending stub |
+| **3.12** PM hub polish | `3.11.1` → `3.12.0` | [band-3.12-pm-hub-polish.md](./band-3.12-pm-hub-polish.md) | Pending stub |
+| Runway + **4.0.0** | `3.12.1` → `3.12.9` → `4.0.0` | [band-3.12-runway-and-4.0.0.md](./band-3.12-runway-and-4.0.0.md) | Pending stub |
+| **4.0.0 acceptance** (must-win field) | Major bar (OBJECTIVE on 3.12 hub stamps) | [band-4.0.0-acceptance-must-win-field.md](./band-4.0.0-acceptance-must-win-field.md) | **Pending** |
+
+**Product VERSION:** `3.8.0`. **Next free stamp:** `3.8.1` (band 3.8 remapped remainder — do not reclaim diverted `3.7.6`–`3.8.0`).
+
+## Shipped post-3.0 bands (prior)
+
+| File | Role |
+|------|------|
+| `band-3.1-field-mobile.md` | Shipped 3.1.0–3.1.9 |
+| `band-3.2-security-prod.md` | Shipped 3.2.0–3.2.9 |
+| `band-3.3-today-on-site.md` | Shipped 3.3.0–3.3.9 |
+| `band-3.4-checkpoint.md` | Shipped 3.4.0 |
+
+## Historical drafts
+
+| File | Role |
+|------|------|
+| `band-template.md` | Template |
+| `band-2.23.md` | Historical draft — not on live ladder |
+| `band-2.97-tail.md` | Historical tail — not on live ladder |
+
+## Related
+
+- Theme parking lot: [`docs/roadmap/post-3.0-product-bands.md`](../../roadmap/post-3.0-product-bands.md)  
+- Agent-ready bar: [`docs/specs/README.md`](../README.md)  

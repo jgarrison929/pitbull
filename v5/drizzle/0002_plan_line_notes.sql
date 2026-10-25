@@ -1,0 +1,1 @@
+ALTER TABLE "daily_plan_lines" ADD COLUMN "notes" text DEFAULT '' NOT NULL;

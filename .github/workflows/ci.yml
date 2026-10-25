@@ -1,0 +1,256 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Least-privilege default for GITHUB_TOKEN (CodeQL actions/missing-workflow-permissions)
+permissions:
+  contents: read
+
+# PRs: a new push cancels the stale run. Other events get a unique group so no main run is ever
+# cancelled or dropped from the queue (release.yml requires a successful CI run per main SHA).
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  # The legacy app is frozen at tag legacy-3.8.2-final and has no CI. PRs that touch v5/ or this
+  # workflow run the v5 job; PRs that touch v5/, .cursor/skills/verify-v5/, or this workflow run
+  # the skill browser smoke (v5 may still skip for skill-only). Other PRs skip both and ci-gate
+  # still reports. Pushes to main always run both.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      v5: ${{ steps.filter.outputs.v5 }}
+      verify_v5: ${{ steps.filter.outputs.verify_v5 }}
+    steps:
+      - uses: actions/checkout@v7
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+
+      - id: filter
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "v5=true" >> "$GITHUB_OUTPUT"
+            echo "verify_v5=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only HEAD^1 HEAD)
+          echo "$files"
+          if grep -qE '^v5/|^\.github/workflows/ci\.yml$' <<<"$files"; then v5=true; else v5=false; fi
+          # v5-only PRs must run the browser skill smoke (not only skill/CI path changes).
+          if grep -qE '^v5/|^\.cursor/skills/verify-v5/|^\.github/workflows/ci\.yml$' <<<"$files"; then verify_v5=true; else verify_v5=false; fi
+          echo "v5=$v5" >> "$GITHUB_OUTPUT"
+          echo "verify_v5=$verify_v5" >> "$GITHUB_OUTPUT"
+          echo "v5 changed: **$v5** (false = v5 job skipped)" >> "$GITHUB_STEP_SUMMARY"
+          echo "verify-v5 skill smoke: **$verify_v5** (false = skill smoke skipped)" >> "$GITHUB_STEP_SUMMARY"
+
+  verify-v5-skill:
+    name: verify-v5 skill smoke
+    needs: changes
+    if: needs.changes.outputs.verify_v5 == 'true'
+    runs-on: ubuntu-latest
+    # Unit smoke is fast; local build + full browser verify needs headroom (same band as v5).
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pcs
+          POSTGRES_PASSWORD: pcs_ci
+          POSTGRES_DB: pcs_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Same prepare path as the v5 job / Railway pre-deploy; separate DB name for clarity.
+      DATABASE_URL: postgres://pcs:pcs_ci@localhost:5432/pcs_v5_verify
+      GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PORT: "3100"
+      # Deterministic /status labels (same as playwright.config.ts webServer env).
+      CI_GATE_RESULT: pass
+      LAST_VERIFY_AT: "2026-10-20T17:00:00.000Z"
+      # Throwaway token so verify.mjs exercises POST /api/verify/stamp against the local build.
+      VERIFY_TOKEN: "ci-verify-v5-skill-smoke"
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # default-commit.test needs origin/main for last v5/ touch
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: v5/.nvmrc
+          cache: 'npm'
+          cache-dependency-path: v5/package-lock.json
+
+      - name: Skill unit smoke (default-commit + verify --self-check)
+        run: |
+          # resolveDefaultCommit reads origin/main (last v5/ touch).
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          node .cursor/skills/verify-v5/default-commit.test.mjs
+          node .cursor/skills/verify-v5/status-ci-gate.test.mjs
+          node .cursor/skills/verify-v5/checks.test.mjs
+          node .cursor/skills/verify-v5/verify.mjs --self-check
+
+      - name: Install v5 dependencies
+        working-directory: v5
+        run: npm ci
+
+      - name: Prepare database (pre-deploy step)
+        working-directory: v5
+        run: npm run db:prepare
+
+      - name: Build v5
+        working-directory: v5
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        working-directory: v5
+        run: npx playwright install --with-deps chromium
+
+      - name: Skill must-fail browser tests
+        run: |
+          node .cursor/skills/verify-v5/reset-mustfail.test.mjs
+          node .cursor/skills/verify-v5/crawl-mustfail.test.mjs
+          node .cursor/skills/verify-v5/portfolio-mustfail.test.mjs
+
+      - name: Local browser verify
+        run: bash .cursor/skills/verify-v5/run-local-browser.sh
+
+      - name: Upload verify-v5 evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-v5-skill-evidence
+          path: .cursor/skills/verify-v5/evidence/**
+          if-no-files-found: ignore
+
+  v5:
+    name: v5 (lint, typecheck, test, build, e2e)
+    needs: changes
+    if: needs.changes.outputs.v5 == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: v5
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pcs
+          POSTGRES_PASSWORD: pcs_ci
+          POSTGRES_DB: pcs_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # pcs_v5_ci does not exist until db:prepare creates and migrates it, the same path Railway's pre-deploy takes.
+      DATABASE_URL: postgres://pcs:pcs_ci@localhost:5432/pcs_v5_ci
+      GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: v5/.nvmrc
+          cache: 'npm'
+          cache-dependency-path: v5/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --audit-level high --omit=dev
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Drizzle schema sync check
+        run: npm run drizzle:check
+
+      - name: Prepare database (pre-deploy step)
+        run: npm run db:prepare
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E smoke
+        env:
+          # Full 40-char SHA — /health and /status expose the deploy commit untruncated.
+          EXPECT_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npm run e2e
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: v5-playwright
+          # test-results includes *-actual.png / *-diff.png for visual regen
+          # (adopt with: bash v5/scripts/adopt-visual-actuals.sh <unzipped>)
+          path: |
+            v5/test-results/**
+            v5/playwright-report/**
+          if-no-files-found: ignore
+
+  # The only required check on main. Add new required jobs to `needs`; the check name stays ci-gate.
+  ci-gate:
+    name: ci-gate
+    if: always()
+    needs: [changes, v5, verify-v5-skill]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: Require every job to pass or be skipped
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### ci-gate"
+            echo "| job | result |"
+            echo "|---|---|"
+            jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"' <<<"$NEEDS"
+          } >> "$GITHUB_STEP_SUMMARY"
+          bad=$(jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key' <<<"$NEEDS")
+          if [ -z "$bad" ]; then exit 0; fi
+          {
+            echo "#### Failing steps"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" --paginate \
+              --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | "- [\(.name)](\(.html_url)): \([.steps[] | select(.conclusion == "failure") | .name] | join(", "))"' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Required jobs did not pass: $(tr '\n' ' ' <<<"$bad")"
+          exit 1

@@ -1,0 +1,179 @@
+using FluentValidation;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Pitbull.Core.CQRS;
+using Pitbull.Core.Data;
+using Pitbull.Core.MultiTenancy;
+
+namespace Pitbull.Core.Extensions;
+
+public static class ServiceCollectionExtensions
+{
+    /// <summary>
+    /// Register all Pitbull Core services: DbContext, MediatR, validation, multi-tenancy.
+    /// </summary>
+    public static IServiceCollection AddPitbullCore(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment? environment = null)
+    {
+        // Multi-tenancy
+        services.AddScoped<TenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+
+        // Multi-company
+        services.AddScoped<CompanyContext>();
+        services.AddScoped<ICompanyContext>(sp => sp.GetRequiredService<CompanyContext>());
+
+        services.AddScoped<TenantConnectionInterceptor>();
+
+        // Audit interceptor is registered separately in Program.cs (lives in Pitbull.Api)
+
+        // PostgreSQL + EF Core with tenant isolation interceptor
+        // Connection pool settings are configured in the connection string:
+        // - "Maximum Pool Size=50" - prevents connection exhaustion under load
+        // - "Connection Idle Lifetime=300" - closes stale connections after 5 min
+        // - "Pooling=true" - enables connection reuse (default)
+        // See appsettings.Production.json for recommended production values.
+        var isDevelopment = environment?.IsDevelopment() ?? false;
+
+        services.AddDbContext<PitbullDbContext>((serviceProvider, options) =>
+        {
+            options.UseNpgsql(
+                configuration.GetConnectionString("PitbullDb"),
+                npgsql =>
+                {
+                    npgsql.MigrationsAssembly("Pitbull.Api");
+                    npgsql.EnableRetryOnFailure(3);
+                })
+            .AddInterceptors(serviceProvider.GetRequiredService<TenantConnectionInterceptor>())
+            .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>().ToArray())
+            .AddInterceptors(serviceProvider.GetServices<DbCommandInterceptor>().ToArray());
+
+            // Development: Enable detailed errors and N+1 query warnings
+            if (isDevelopment)
+            {
+                options.EnableDetailedErrors();
+                options.EnableSensitiveDataLogging();
+            }
+
+            // Suppress PendingModelChangesWarning - we have orphaned migrations from 
+            // removed HR/Payroll modules that will be cleaned up in a future migration squash.
+            // This is safe because we're not actively developing those modules.
+            options.ConfigureWarnings(w => w
+                .Ignore(RelationalEventId.PendingModelChangesWarning)
+                .Log(RelationalEventId.MultipleCollectionIncludeWarning));
+        });
+
+        MediatRLicense.Apply(configuration);
+
+        // MediatR + pipeline behaviors
+        services.AddMediatR(cfg =>
+        {
+            MediatRLicense.Configure(cfg, configuration);
+            cfg.RegisterServicesFromAssemblyContaining<PitbullDbContext>();
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        });
+
+        // FluentValidation - auto-register validators from all loaded assemblies
+        services.AddValidatorsFromAssemblyContaining<PitbullDbContext>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Register a module's MediatR handlers and validators.
+    /// Call this for each module (Projects, Bids, etc).
+    /// </summary>
+    public static IServiceCollection AddPitbullModule<TAssemblyMarker>(
+        this IServiceCollection services)
+    {
+        services.AddMediatR(cfg =>
+        {
+            // Re-apply license on each AddMediatR call (module registrations)
+            MediatRLicense.Configure(cfg);
+            cfg.RegisterServicesFromAssemblyContaining<TAssemblyMarker>();
+        });
+        services.AddValidatorsFromAssemblyContaining<TAssemblyMarker>();
+        return services;
+    }
+
+    /// <summary>
+    /// Register a module's direct services (replacing MediatR handlers).
+    /// Use during MediatR migration to register both patterns side-by-side.
+    /// </summary>
+    public static IServiceCollection AddPitbullModuleServices<TAssemblyMarker>(
+        this IServiceCollection services)
+    {
+        // Auto-register all services implementing interfaces in the assembly
+        var assembly = typeof(TAssemblyMarker).Assembly;
+
+        var serviceTypes = assembly.GetTypes()
+            .Where(type => type.IsClass && !type.IsAbstract)
+            .Where(type => type.GetInterfaces().Any(i =>
+                i.Name.EndsWith("Service") && i.IsPublic))
+            .ToArray();
+
+        foreach (var serviceType in serviceTypes)
+        {
+            var serviceInterface = serviceType.GetInterfaces()
+                .FirstOrDefault(i => i.Name.EndsWith("Service") && i.IsPublic);
+
+            if (serviceInterface != null)
+            {
+                services.AddScoped(serviceInterface, serviceType);
+            }
+        }
+
+        // Still register validators - needed for the service implementations
+        services.AddValidatorsFromAssemblyContaining<TAssemblyMarker>();
+
+        return services;
+    }
+
+}
+
+/// <summary>
+/// Resolves the Lucky Penny / MediatR community license key and applies it before
+/// MediatR registration so unit/integration tests and API hosts stop logging license warnings.
+/// </summary>
+public static class MediatRLicense
+{
+    /// <summary>
+    /// Precedence: explicit configuration, then MEDIATR_LICENSE_KEY, then LUCKYPENNY_LICENSE_KEY.
+    /// </summary>
+    public static string? Resolve(IConfiguration? configuration = null)
+    {
+        var fromConfig = configuration?["MediatR:LicenseKey"];
+        if (!string.IsNullOrWhiteSpace(fromConfig))
+            return fromConfig.Trim();
+
+        var mediatrEnv = Environment.GetEnvironmentVariable("MEDIATR_LICENSE_KEY");
+        if (!string.IsNullOrWhiteSpace(mediatrEnv))
+            return mediatrEnv.Trim();
+
+        var luckyEnv = Environment.GetEnvironmentVariable("LUCKYPENNY_LICENSE_KEY");
+        if (!string.IsNullOrWhiteSpace(luckyEnv))
+            return luckyEnv.Trim();
+
+        return null;
+    }
+
+    public static void Apply(IConfiguration? configuration = null)
+    {
+        var key = Resolve(configuration);
+        if (!string.IsNullOrWhiteSpace(key))
+            Mediator.LicenseKey = key;
+    }
+
+    public static void Configure(MediatRServiceConfiguration cfg, IConfiguration? configuration = null)
+    {
+        var key = Resolve(configuration);
+        if (!string.IsNullOrWhiteSpace(key))
+            cfg.LicenseKey = key;
+    }
+}

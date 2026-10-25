@@ -1,0 +1,787 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import Link from "next/link";
+import {
+  User,
+  Shield,
+  Building2,
+  Key,
+  Calendar,
+  Mail,
+  Clock,
+  Loader2,
+  Sun,
+  Moon,
+  Monitor,
+  Palette,
+  Bell,
+  MapPin,
+  Layout,
+  FolderOpen,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
+import api from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/auth-context";
+import { useTheme } from "@/contexts/theme-context";
+
+interface UserProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  roles: string[];
+  tenantId: string;
+  tenantName: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+// User preferences stored in localStorage
+const PREFS_KEY = "pitbull-user-preferences";
+
+interface UserPreferences {
+  defaultProjectId: string;
+  defaultProjectName: string;
+  defaultView: "dashboard" | "time-entry";
+  timeZone: string;
+  notifyApprovals: boolean;
+  notifyPayPeriod: boolean;
+  notifyWeeklyDigest: boolean;
+  notifyMentions: boolean;
+}
+
+const DEFAULT_PREFS: UserPreferences = {
+  defaultProjectId: "",
+  defaultProjectName: "",
+  defaultView: "dashboard",
+  timeZone: "America/Los_Angeles",
+  notifyApprovals: true,
+  notifyPayPeriod: true,
+  notifyWeeklyDigest: false,
+  notifyMentions: true,
+};
+
+function loadPrefs(): UserPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const stored = localStorage.getItem(PREFS_KEY);
+    if (stored) return { ...DEFAULT_PREFS, ...JSON.parse(stored) };
+  } catch {
+    // ignore
+  }
+  return DEFAULT_PREFS;
+}
+
+const TIME_ZONES = [
+  { value: "America/New_York", label: "Eastern Time (ET)" },
+  { value: "America/Chicago", label: "Central Time (CT)" },
+  { value: "America/Denver", label: "Mountain Time (MT)" },
+  { value: "America/Phoenix", label: "Arizona (MST)" },
+  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
+  { value: "America/Anchorage", label: "Alaska Time (AKT)" },
+  { value: "Pacific/Honolulu", label: "Hawaii Time (HST)" },
+];
+
+interface ProjectOption {
+  id: string;
+  name: string;
+  number: string;
+}
+
+interface CompanyOvertimeSettings {
+  overtimeEnabled: boolean;
+  dailyOvertimeThreshold: number;
+  weeklyOvertimeThreshold: number;
+  saturdayRule: string;
+  sundayRule: string;
+}
+
+interface CompanyTimecardSettings {
+  timecardMode: number;
+  weekStartDay: number;
+  requirePhase: boolean;
+  requireEquipment: boolean;
+}
+
+function StatusBadge({ configured, label }: { configured: boolean; label: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+        configured
+          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+          : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
+      )}
+    >
+      {configured ? (
+        <CheckCircle2 className="h-3 w-3" />
+      ) : (
+        <AlertCircle className="h-3 w-3" />
+      )}
+      {label}
+    </span>
+  );
+}
+
+export default function SettingsPage() {
+  const { isAdmin } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [prefs, setPrefs] = useState<UserPreferences>(loadPrefs);
+  const [prefsSaved, setPrefsSaved] = useState(false);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [overtimeSettings, setOvertimeSettings] = useState<CompanyOvertimeSettings | null>(null);
+  const [timecardSettings, setTimecardSettings] = useState<CompanyTimecardSettings | null>(null);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [profileData, projectsData, otData, tcData] = await Promise.all([
+        api<UserProfile>("/api/auth/me"),
+        api<{ items: ProjectOption[] }>("/api/projects?pageSize=100").catch(
+          () => ({ items: [] as ProjectOption[] })
+        ),
+        api<CompanyOvertimeSettings>("/api/companies/settings/reports").catch(() => null),
+        api<CompanyTimecardSettings>("/api/companies/settings/time-tracking").catch(() => null),
+      ]);
+      setProfile(profileData);
+      setProjects(projectsData.items || []);
+      setOvertimeSettings(otData);
+      setTimecardSettings(tcData);
+    } catch {
+      toast.error("Failed to load profile");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const updatePref = <K extends keyof UserPreferences>(
+    key: K,
+    value: UserPreferences[K]
+  ) => {
+    setPrefs((prev) => {
+      const next = { ...prev, [key]: value };
+      return next;
+    });
+    setPrefsSaved(false);
+  };
+
+  const savePrefs = () => {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    setPrefsSaved(true);
+    toast.success("Preferences saved");
+    setTimeout(() => setPrefsSaved(false), 3000);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await api("/api/auth/change-password", {
+        method: "POST",
+        body: {
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        },
+      });
+      toast.success("Password changed successfully");
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to change password";
+      toast.error(message);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Never";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings" },
+        ]}
+      />
+
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">
+          Manage your account, preferences, and notifications
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Profile Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Profile Information
+            </CardTitle>
+            <CardDescription>Your personal account details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs uppercase">
+                  First Name
+                </Label>
+                <p className="font-medium">{profile?.firstName}</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs uppercase">
+                  Last Name
+                </Label>
+                <p className="font-medium">{profile?.lastName}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                Email
+              </Label>
+              <p className="font-medium">{profile?.email}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                Roles
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {profile?.roles.map((role) => (
+                  <span
+                    key={role}
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      role === "Admin"
+                        ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200"
+                        : role === "Manager"
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200"
+                        : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                    }`}
+                  >
+                    {role}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 pt-4 border-t">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Member Since
+                </Label>
+                <p className="text-sm">{formatDate(profile?.createdAt ?? null)}</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Last Login
+                </Label>
+                <p className="text-sm">
+                  {formatDate(profile?.lastLoginAt ?? null)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Organization Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Organization
+            </CardTitle>
+            <CardDescription>Your company information and setup status</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs uppercase">
+                Company Name
+              </Label>
+              <p className="font-medium">{profile?.tenantName}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs uppercase">
+                Company ID
+              </Label>
+              <p className="font-mono text-sm text-muted-foreground">
+                {profile?.tenantId}
+              </p>
+            </div>
+
+            {/* Configuration Status Summary */}
+            <div className="pt-4 border-t space-y-3">
+              <Label className="text-muted-foreground text-xs uppercase">
+                Configuration Status
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge
+                  configured={overtimeSettings?.overtimeEnabled ?? false}
+                  label={
+                    overtimeSettings?.overtimeEnabled
+                      ? `Overtime: ${overtimeSettings.dailyOvertimeThreshold}h daily / ${overtimeSettings.weeklyOvertimeThreshold}h weekly`
+                      : "Overtime: Not configured"
+                  }
+                />
+                <StatusBadge
+                  configured={timecardSettings !== null}
+                  label={
+                    timecardSettings
+                      ? `Timecards: ${timecardSettings.timecardMode === 0 ? "Daily" : "Weekly"}`
+                      : "Timecards: Not configured"
+                  }
+                />
+                <StatusBadge
+                  configured={timecardSettings !== null}
+                  label={
+                    timecardSettings
+                      ? `Week Start: ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][timecardSettings.weekStartDay] || "Monday"}`
+                      : "Week Start: Not set"
+                  }
+                />
+                <StatusBadge
+                  configured={!!profile?.email}
+                  label={profile?.email ? "Email: Configured" : "Email: Not set"}
+                />
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground mb-4">
+                  As an administrator, you can manage users and settings for your
+                  organization.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" asChild className="flex-1">
+                    <Link href="/admin/users">Manage Users</Link>
+                  </Button>
+                  <Button variant="outline" asChild className="flex-1">
+                    <Link href="/admin/company">Company Settings</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Appearance Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Palette className="h-5 w-5" />
+              Appearance
+            </CardTitle>
+            <CardDescription>
+              Customize how Pitbull looks on your device
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label
+                htmlFor="theme"
+                className="text-muted-foreground text-xs uppercase"
+              >
+                Theme
+              </Label>
+              <Select
+                value={theme}
+                onValueChange={(value: "light" | "dark" | "system") =>
+                  setTheme(value)
+                }
+              >
+                <SelectTrigger id="theme" className="w-full">
+                  <SelectValue placeholder="Select theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">
+                    <div className="flex items-center gap-2">
+                      <Sun className="h-4 w-4" />
+                      <span>Light</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="dark">
+                    <div className="flex items-center gap-2">
+                      <Moon className="h-4 w-4" />
+                      <span>Dark</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="system">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="h-4 w-4" />
+                      <span>System</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Select your preferred color scheme. System will follow your device
+                settings.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Default Preferences Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layout className="h-5 w-5" />
+              Default Preferences
+            </CardTitle>
+            <CardDescription>
+              Customize your default experience
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1">
+                <FolderOpen className="h-3 w-3" />
+                Default Project
+              </Label>
+              <Select
+                value={prefs.defaultProjectId || "_none"}
+                onValueChange={(v) => {
+                  const proj = projects.find((p) => p.id === v);
+                  updatePref("defaultProjectId", v === "_none" ? "" : v);
+                  updatePref(
+                    "defaultProjectName",
+                    proj ? `${proj.number} – ${proj.name}` : ""
+                  );
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="None (choose each time)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">None (choose each time)</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.number} – {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Pre-selected when creating new time entries
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Default Start Page</Label>
+              <Select
+                value={prefs.defaultView}
+                onValueChange={(v) =>
+                  updatePref("defaultView", v as UserPreferences["defaultView"])
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dashboard">Dashboard</SelectItem>
+                  <SelectItem value="time-entry">Time Entry</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                Time Zone
+              </Label>
+              <Select
+                value={prefs.timeZone}
+                onValueChange={(v) => updatePref("timeZone", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_ZONES.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="pt-2">
+              <Button
+                onClick={savePrefs}
+                size="sm"
+                className="gap-2 bg-amber-500 hover:bg-amber-600"
+              >
+                <Save className="h-3.5 w-3.5" />
+                Save Preferences
+              </Button>
+              {prefsSaved && (
+                <span className="ml-3 text-sm text-green-600 inline-flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Saved
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notifications Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Notification Preferences
+            </CardTitle>
+            <CardDescription>
+              Control in-app and email notifications by category, including deadlines
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Configure which notifications you receive for time entries, approvals,
+              RFIs, deadlines, and system events.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/settings/notifications">
+                <Bell className="mr-2 h-4 w-4" />
+                Manage Notifications
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Change Password Card */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Change Password
+            </CardTitle>
+            <CardDescription>
+              Update your password to keep your account secure
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form
+              onSubmit={handlePasswordChange}
+              className="space-y-4 max-w-md"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      currentPassword: e.target.value,
+                    })
+                  }
+                  placeholder="Enter current password"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      newPassword: e.target.value,
+                    })
+                  }
+                  placeholder="Enter new password"
+                  minLength={8}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Must be at least 8 characters
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  placeholder="Confirm new password"
+                  required
+                />
+              </div>
+
+              <LoadingButton
+                type="submit"
+                loading={isChangingPassword}
+                loadingText="Changing..."
+                className="bg-amber-500 hover:bg-amber-600"
+              >
+                Change Password
+              </LoadingButton>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Links */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Quick Admin Links</CardTitle>
+            <CardDescription>
+              Manage company-wide configuration
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Link
+                href="/settings/overtime"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Overtime Rules</span>
+                </div>
+                {overtimeSettings?.overtimeEnabled ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                )}
+              </Link>
+              <Link
+                href="/settings/time-tracking"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Timecard Settings</span>
+                </div>
+                {timecardSettings ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                )}
+              </Link>
+              <Link
+                href="/admin/pay-periods"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Pay Periods</span>
+                </div>
+              </Link>
+              <Link
+                href="/admin/company"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Company Settings</span>
+                </div>
+              </Link>
+              <Link
+                href="/admin/users"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">User Management</span>
+                </div>
+              </Link>
+              <Link
+                href="/admin/audit-logs"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Audit Logs</span>
+                </div>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

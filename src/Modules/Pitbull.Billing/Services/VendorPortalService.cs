@@ -1,0 +1,334 @@
+using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Pitbull.Billing.Features.LienWaivers;
+using Pitbull.Core.CQRS;
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
+
+namespace Pitbull.Billing.Services;
+
+/// <summary>
+/// Public portal access is token-bound: lookup ignores tenant filters, then binds
+/// TenantContext / CompanyContext + PostgreSQL session vars from the token (never from client headers).
+/// </summary>
+public class VendorPortalService(
+    PitbullDbContext db,
+    ILogger<VendorPortalService> logger,
+    TenantContext tenantContext,
+    CompanyContext companyContext) : IVendorPortalService
+{
+    private const decimal MaxWaiverAmount = 1_000_000_000m;
+    private const int MaxDescriptionLength = 500;
+    private const int MaxListTake = 100;
+    private const int MaxRawTokenLength = 200;
+
+    public async Task<Result<VendorPortalTokenDto>> GenerateTokenAsync(Guid vendorId, Guid projectId, int expirationDays, CancellationToken ct = default)
+    {
+        // Cap at 90 days so long-lived public capability tokens cannot linger for a year.
+        if (expirationDays < 1 || expirationDays > 90)
+            return Result.Failure<VendorPortalTokenDto>("Expiration must be between 1 and 90 days", "VALIDATION_ERROR");
+
+        var vendor = await db.Vendors.AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == vendorId, ct);
+        if (vendor is null)
+            return Result.Failure<VendorPortalTokenDto>("Vendor not found", "NOT_FOUND");
+
+        var projectExists = await db.Set<Pitbull.Projects.Domain.Project>()
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == projectId, ct);
+        if (!projectExists)
+            return Result.Failure<VendorPortalTokenDto>("Project not found", "NOT_FOUND");
+
+        var tokenBytes = RandomNumberGenerator.GetBytes(32);
+        var tokenString = Convert.ToBase64String(tokenBytes)
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+
+        var tokenHash = HashToken(tokenString);
+
+        var portalToken = new VendorPortalToken
+        {
+            VendorId = vendorId,
+            ProjectId = projectId,
+            Token = tokenHash,
+            ExpiresAt = DateTime.UtcNow.AddDays(expirationDays),
+            IsRevoked = false,
+            AccessCount = 0
+        };
+
+        db.VendorPortalTokens.Add(portalToken);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            // Return the raw token to the caller (only time it's visible)
+            var dto = MapToDto(portalToken, vendor.Name);
+            return Result.Success(dto with { Token = tokenString });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to generate vendor portal token for vendor {VendorId}", vendorId);
+            return Result.Failure<VendorPortalTokenDto>("Failed to generate portal token", "DATABASE_ERROR");
+        }
+    }
+
+    public async Task<Result<List<VendorPortalTokenSummaryDto>>> GetTokensForVendorAsync(Guid vendorId, CancellationToken ct = default)
+    {
+        var tokens = await db.VendorPortalTokens
+            .AsNoTracking()
+            .Include(t => t.Vendor)
+            .Where(t => t.VendorId == vendorId)
+            .OrderByDescending(t => t.CreatedAt)
+            .Take(MaxListTake)
+            .ToListAsync(ct);
+
+        return Result.Success(tokens.Select(t => MapToSummaryDto(t, t.Vendor?.Name ?? "")).ToList());
+    }
+
+    public async Task<Result> RevokeTokenAsync(Guid tokenId, CancellationToken ct = default)
+    {
+        var token = await db.VendorPortalTokens
+            .FirstOrDefaultAsync(t => t.Id == tokenId, ct);
+
+        if (token is null)
+            return Result.Failure("Portal token not found", "NOT_FOUND");
+
+        if (token.IsRevoked)
+            return Result.Failure("Token is already revoked", "INVALID_STATUS");
+
+        token.IsRevoked = true;
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to revoke portal token {TokenId}", tokenId);
+            return Result.Failure("Failed to revoke token", "DATABASE_ERROR");
+        }
+    }
+
+    public async Task<Result<VendorPortalContextDto>> ValidateTokenAsync(string token, CancellationToken ct = default)
+    {
+        var portalTokenResult = await LoadAndBindPortalTokenAsync(token, includeVendor: true, ct);
+        if (!portalTokenResult.IsSuccess)
+            return Result.Failure<VendorPortalContextDto>(portalTokenResult.Error!, portalTokenResult.ErrorCode);
+
+        var portalToken = portalTokenResult.Value!;
+
+        var projectName = await db.Set<Pitbull.Projects.Domain.Project>()
+            .AsNoTracking()
+            .Where(p => p.Id == portalToken.ProjectId)
+            .Select(p => p.Name)
+            .FirstOrDefaultAsync(ct) ?? "Unknown Project";
+
+        var companyName = await db.Companies
+            .AsNoTracking()
+            .Where(c => c.Id == portalToken.CompanyId)
+            .Select(c => c.Name)
+            .FirstOrDefaultAsync(ct) ?? "Unknown Company";
+
+        return Result.Success(new VendorPortalContextDto(
+            VendorId: portalToken.VendorId,
+            VendorName: portalToken.Vendor?.Name ?? "",
+            ProjectId: portalToken.ProjectId,
+            ProjectName: projectName,
+            CompanyName: companyName));
+    }
+
+    public async Task<Result<List<VendorPortalLienWaiverDto>>> GetLienWaiversAsync(string token, CancellationToken ct = default)
+    {
+        var validation = await ValidateTokenInternalAsync(token, ct);
+        if (!validation.IsSuccess)
+            return Result.Failure<List<VendorPortalLienWaiverDto>>(validation.Error!, validation.ErrorCode);
+
+        var portalToken = validation.Value!;
+
+        var waivers = await db.LienWaivers
+            .AsNoTracking()
+            .Where(w => w.VendorId == portalToken.VendorId && w.ProjectId == portalToken.ProjectId)
+            .OrderByDescending(w => w.ThroughDate)
+            .ThenByDescending(w => w.CreatedAt)
+            .Take(MaxListTake)
+            .ToListAsync(ct);
+
+        return Result.Success(waivers.Select(MapToPortalLienWaiverDto).ToList());
+    }
+
+    public async Task<Result<VendorPortalLienWaiverDto>> SubmitLienWaiverAsync(string token, SubmitLienWaiverDto dto, CancellationToken ct = default)
+    {
+        var validation = await ValidateTokenInternalAsync(token, ct);
+        if (!validation.IsSuccess)
+            return Result.Failure<VendorPortalLienWaiverDto>(validation.Error!, validation.ErrorCode);
+
+        var portalToken = validation.Value!;
+
+        if (dto.Amount <= 0)
+            return Result.Failure<VendorPortalLienWaiverDto>("Amount must be positive", "VALIDATION_ERROR");
+        if (dto.Amount > MaxWaiverAmount)
+            return Result.Failure<VendorPortalLienWaiverDto>("Amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
+        if (dto.Description is { Length: > MaxDescriptionLength })
+            return Result.Failure<VendorPortalLienWaiverDto>($"Description cannot exceed {MaxDescriptionLength} characters", "VALIDATION_ERROR");
+        if (!Enum.IsDefined(typeof(LienWaiverType), dto.WaiverType))
+            return Result.Failure<VendorPortalLienWaiverDto>("Invalid waiver type", "VALIDATION_ERROR");
+
+        var waiver = new LienWaiver
+        {
+            ProjectId = portalToken.ProjectId,
+            VendorId = portalToken.VendorId,
+            CompanyId = portalToken.CompanyId,
+            WaiverType = dto.WaiverType,
+            Amount = dto.Amount,
+            ThroughDate = dto.ThroughDate,
+            Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+            Status = LienWaiverStatus.Received
+        };
+
+        db.LienWaivers.Add(waiver);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return Result.Success(MapToPortalLienWaiverDto(waiver));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to submit lien waiver via portal for vendor {VendorId}", portalToken.VendorId);
+            return Result.Failure<VendorPortalLienWaiverDto>("Failed to submit lien waiver", "DATABASE_ERROR");
+        }
+    }
+
+    public async Task<Result<List<PaymentHistoryDto>>> GetPaymentHistoryAsync(string token, CancellationToken ct = default)
+    {
+        var validation = await ValidateTokenInternalAsync(token, ct);
+        if (!validation.IsSuccess)
+            return Result.Failure<List<PaymentHistoryDto>>(validation.Error!, validation.ErrorCode);
+
+        var portalToken = validation.Value!;
+
+        var waivers = await db.LienWaivers
+            .AsNoTracking()
+            .Where(w => w.VendorId == portalToken.VendorId
+                     && w.ProjectId == portalToken.ProjectId
+                     && w.Status == LienWaiverStatus.Approved)
+            .OrderByDescending(w => w.ThroughDate)
+            .Take(MaxListTake)
+            .ToListAsync(ct);
+
+        return Result.Success(waivers.Select(w => new PaymentHistoryDto(
+            Id: w.Id,
+            Amount: w.Amount,
+            ThroughDate: w.ThroughDate,
+            Status: w.Status,
+            CreatedAt: w.CreatedAt)).ToList());
+    }
+
+    private async Task<Result<VendorPortalToken>> ValidateTokenInternalAsync(string token, CancellationToken ct)
+        => await LoadAndBindPortalTokenAsync(token, includeVendor: false, ct);
+
+    /// <summary>
+    /// Lookup portal token without tenant filters, then bind request tenant/company from the token.
+    /// Isolation must not depend on client-supplied X-Tenant-Id / X-Company-Id.
+    /// </summary>
+    private async Task<Result<VendorPortalToken>> LoadAndBindPortalTokenAsync(
+        string token,
+        bool includeVendor,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(token) || token.Length > MaxRawTokenLength)
+            return Result.Failure<VendorPortalToken>("Invalid token", "INVALID_TOKEN");
+
+        var tokenHash = HashToken(token);
+        var query = db.VendorPortalTokens.IgnoreQueryFilters().AsQueryable();
+        if (includeVendor)
+            query = query.Include(t => t.Vendor);
+
+        var portalToken = await query.FirstOrDefaultAsync(t => t.Token == tokenHash && !t.IsDeleted, ct);
+
+        if (portalToken is null)
+            return Result.Failure<VendorPortalToken>("Invalid token", "INVALID_TOKEN");
+
+        if (portalToken.IsRevoked)
+            return Result.Failure<VendorPortalToken>("Token has been revoked", "TOKEN_REVOKED");
+
+        if (portalToken.ExpiresAt < DateTime.UtcNow)
+            return Result.Failure<VendorPortalToken>("Token has expired", "TOKEN_EXPIRED");
+
+        await BindPortalContextAsync(portalToken, ct);
+
+        // Update access tracking under the bound tenant context
+        portalToken.LastAccessedAt = DateTime.UtcNow;
+        portalToken.AccessCount++;
+        await db.SaveChangesAsync(ct);
+
+        return Result.Success(portalToken);
+    }
+
+    private async Task BindPortalContextAsync(VendorPortalToken portalToken, CancellationToken ct)
+    {
+        tenantContext.TenantId = portalToken.TenantId;
+        companyContext.CompanyId = portalToken.CompanyId;
+
+        // PostgreSQL RLS session vars — skip on non-relational providers (in-memory unit tests).
+        if (!db.Database.IsRelational())
+            return;
+
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_tenant', {portalToken.TenantId.ToString()}, false)",
+            ct);
+
+        if (portalToken.CompanyId != Guid.Empty)
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_company', {portalToken.CompanyId.ToString()}, false)",
+                ct);
+        }
+    }
+
+    private static VendorPortalTokenDto MapToDto(VendorPortalToken t, string vendorName) => new(
+        Id: t.Id,
+        VendorId: t.VendorId,
+        VendorName: vendorName,
+        ProjectId: t.ProjectId,
+        Token: t.Token,
+        ExpiresAt: t.ExpiresAt,
+        IsRevoked: t.IsRevoked,
+        LastAccessedAt: t.LastAccessedAt,
+        AccessCount: t.AccessCount,
+        CreatedAt: t.CreatedAt);
+
+    private static VendorPortalTokenSummaryDto MapToSummaryDto(VendorPortalToken t, string vendorName) => new(
+        Id: t.Id,
+        VendorId: t.VendorId,
+        VendorName: vendorName,
+        ProjectId: t.ProjectId,
+        TokenHint: t.Token.Length > 4 ? $"***{t.Token[^4..]}" : "***",
+        ExpiresAt: t.ExpiresAt,
+        IsRevoked: t.IsRevoked,
+        LastAccessedAt: t.LastAccessedAt,
+        AccessCount: t.AccessCount,
+        CreatedAt: t.CreatedAt);
+
+    private static string HashToken(string rawToken)
+    {
+        var hash = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(rawToken));
+        return Convert.ToHexStringLower(hash);
+    }
+
+    private static VendorPortalLienWaiverDto MapToPortalLienWaiverDto(LienWaiver w) => new(
+        Id: w.Id,
+        ProjectId: w.ProjectId,
+        WaiverType: w.WaiverType,
+        Amount: w.Amount,
+        ThroughDate: w.ThroughDate,
+        Status: w.Status,
+        Description: w.Description,
+        CreatedAt: w.CreatedAt,
+        UpdatedAt: w.UpdatedAt);
+}

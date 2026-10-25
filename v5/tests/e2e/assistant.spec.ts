@@ -1,0 +1,395 @@
+import { expect, test, type Page } from "@playwright/test";
+
+/** Keep in sync with SEED_*_RUNS in src/seed/history.ts. */
+const SEED_FOREMAN_RUNS = 2;
+const SEED_PM_RUNS = 15;
+const SEED_SUPERINTENDENT_RUNS = 5;
+
+async function signIn(page: Page, role: string) {
+  await page.goto("/login");
+  await page.getByTestId(`role-${role}`).click();
+  await expect(page).toHaveURL(/\/app$/);
+}
+
+async function ask(scope: ReturnType<Page["getByTestId"]>, prompt: string) {
+  // The transcript streams in after navigation; count runs only once the composer has rendered.
+  await expect(scope.getByTestId("assistant-input")).toBeVisible();
+  const before = await scope.getByTestId("action-run").count();
+  await scope.getByTestId("assistant-input").fill(prompt);
+  await scope.getByRole("button", { name: "Send" }).click();
+  await expect(scope.getByTestId("action-run")).toHaveCount(before + 1);
+  return scope.getByTestId("action-run").last();
+}
+
+test("the rail answers by running a typed action and shows which one", async ({
+  page,
+}) => {
+  await signIn(page, "pm");
+  const rail = page.getByTestId("assistant-rail");
+  const run = await ask(rail, "Why is Cedar Creek over budget?");
+  await expect(run).toHaveAttribute("data-action", "job.costVariance");
+  await expect(run.getByTestId("action-name")).toHaveText(
+    "Cost variance on 25-031",
+  );
+  await expect(run.getByTestId("action-summary")).toContainText(
+    /Cedar Creek Bridge is .+ over/,
+  );
+});
+
+test("a foreman submits tomorrow's plan from the rail, the screen agrees, reset undoes it", async ({
+  page,
+}) => {
+  await signIn(page, "foreman");
+  const rail = page.getByTestId("assistant-rail");
+  const run = await ask(rail, "Submit tomorrow's plan");
+  await expect(run).toHaveAttribute("data-action", "dailyPlan.submit");
+  await expect(run.getByTestId("action-summary")).toContainText(
+    "Issued Bridge Crew 2's plan",
+  );
+  // The request named no job, so the history records the one the action picked.
+  await expect(run.getByTestId("action-name")).toHaveText(
+    "Submitted plan on 25-031",
+  );
+  await expect(run.getByTestId("job-picked")).toBeVisible();
+  await page.goto("/app/jobs/25-031");
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "issued",
+  );
+
+  await page.getByTestId("user-menu").click();
+  await page.getByRole("button", { name: "Reset demo" }).click();
+  await expect(page).toHaveURL(/reset=1/);
+  // Reset clears visitor runs then re-seeds history (foreman's plan note).
+  await expect(
+    page.getByTestId("assistant-rail").getByTestId("action-run"),
+  ).toHaveCount(SEED_FOREMAN_RUNS);
+  await page.goto("/app/jobs/25-031");
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "draft",
+  );
+});
+
+test("roles are enforced inside the action, and the refusal is logged", async ({
+  page,
+}) => {
+  await signIn(page, "executive");
+  const run = await ask(
+    page.getByTestId("assistant-rail"),
+    "Submit the plan for Cedar Creek",
+  );
+  await expect(run.getByTestId("action-summary")).toContainText(
+    "needs a foreman or a superintendent",
+  );
+  await page.goto("/app/jobs/25-031");
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "draft",
+  );
+  await expect(page.getByTestId("submit-plan")).toHaveCount(0);
+});
+
+test("superintendent rail has seeded history after login and reset", async ({
+  page,
+}) => {
+  await signIn(page, "superintendent");
+  const rail = page.getByTestId("assistant-rail");
+  await expect(rail.getByTestId("assistant-input")).toBeVisible();
+  // Not the empty-rail copy — seed wrote real runs for Ray.
+  await expect(
+    rail.getByText(/Ask about cost, schedule or tomorrow's crew plan/),
+  ).toHaveCount(0);
+  await expect(rail.getByTestId("action-run")).toHaveCount(
+    SEED_SUPERINTENDENT_RUNS,
+  );
+  // Human labels + summaries that trace to seeded plan / CO / costs.
+  await expect(
+    rail.getByTestId("action-run").filter({ hasText: "Returned daily report" }),
+  ).toHaveCount(1);
+  await expect(rail.getByTestId("action-summary").filter({ hasText: /I-5 Culverts/ })).toHaveCount(2);
+  await expect(
+    rail
+      .getByTestId("action-summary")
+      .filter({ hasText: /Catch basin invert elevations don't match the mark-out/ }),
+  ).toHaveCount(1);
+  await expect(
+    rail
+      .getByTestId("action-summary")
+      .filter({ hasText: /Bridge Crew 2 on Cedar Creek Bridge.+110 man-hours/ }),
+  ).toHaveCount(1);
+  await expect(
+    rail
+      .getByTestId("action-summary")
+      .filter({ hasText: /Issued Culvert Crew A's plan.+110 man-hours/ }),
+  ).toHaveCount(1);
+  await expect(
+    rail.getByTestId("action-summary").filter({ hasText: /Cedar Creek Bridge is .+ over/ }),
+  ).toHaveCount(1);
+  // CO-001 priced at 18,500+23,250+6,100+12,150 = $60,000.00
+  await expect(
+    rail.getByTestId("action-summary").filter({ hasText: /CO-001.+\$60,000\.00/ }),
+  ).toHaveCount(1);
+
+  await page.goto("/app/jobs/25-031");
+  await expect(rail.getByTestId("action-run")).toHaveCount(
+    SEED_SUPERINTENDENT_RUNS,
+  );
+  await expect(
+    rail.getByText(/Ask about cost, schedule or tomorrow's crew plan/),
+  ).toHaveCount(0);
+
+  await page.getByTestId("user-menu").click();
+  await page.getByRole("button", { name: "Reset demo" }).click();
+  await expect(page).toHaveURL(/reset=1/);
+  await expect(
+    page.getByTestId("assistant-rail").getByTestId("action-run"),
+  ).toHaveCount(SEED_SUPERINTENDENT_RUNS);
+  await expect(
+    page
+      .getByTestId("assistant-rail")
+      .getByText(/Ask about cost, schedule or tomorrow's crew plan/),
+  ).toHaveCount(0);
+});
+
+test("the on-screen Submit button runs the same action and lands in the transcript", async ({
+  page,
+}) => {
+  await signIn(page, "superintendent");
+  await page.goto("/app/jobs/25-031");
+  await page.getByTestId("submit-plan").click();
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "issued",
+  );
+  const run = page
+    .getByTestId("assistant-rail")
+    .getByTestId("action-run")
+    .last();
+  await expect(run).toHaveAttribute("data-action", "dailyPlan.submit");
+  await expect(run).toContainText("Submit plan (button)");
+});
+
+test("requests it can't map get examples, not a guess", async ({ page }) => {
+  await signIn(page, "pm");
+  const rail = page.getByTestId("assistant-rail");
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
+  await rail.getByTestId("assistant-input").fill("order pizza for lunch");
+  await rail.getByRole("button", { name: "Send" }).click();
+  await expect(rail.getByTestId("assistant-help")).toContainText("Try:");
+  // Unmapped prompts do not add a run; the seeded history remains.
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
+});
+
+test("on a phone the foreman lands on the chat view", async ({ browser }) => {
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  await signIn(page, "foreman");
+  await expect(page.getByTestId("foreman-phone")).toBeVisible();
+  await expect(page.getByTestId("portfolio-table")).toBeHidden();
+  const run = await ask(
+    page.getByTestId("assistant-page"),
+    "Show tomorrow's plan for Cedar Creek",
+  );
+  await expect(run).toHaveAttribute("data-action", "dailyPlan.show");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+  await page.close();
+});
+
+test("other roles on a phone keep the portfolio and reach the assistant from the nav", async ({
+  browser,
+}) => {
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  await signIn(page, "pm");
+  await expect(page.getByTestId("portfolio-table")).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Assistant" })
+    .filter({ visible: true })
+    .click();
+  await expect(page.getByTestId("assistant-page")).toBeVisible();
+  await page.close();
+});
+
+for (const role of ["executive", "pm", "superintendent", "foreman"]) {
+  test(`nav crawl as ${role} is clean`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(`pageerror ${e.message}`));
+    page.on(
+      "console",
+      (m) => m.type() === "error" && errors.push(`console ${m.text()}`),
+    );
+    await signIn(page, role);
+    for (const path of [
+      "/app",
+      "/app/assistant",
+      "/app/jobs/24-118",
+      "/app/jobs/25-031",
+      "/app/jobs/24-077",
+      "/status",
+      "/changelog",
+      "/roadmap",
+    ]) {
+      const res = await page.goto(path);
+      expect(res?.status(), path).toBeLessThan(400);
+      await expect(page.locator("main, body").first()).toBeVisible();
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
+test("PM percent by cost code or job name + description", async ({ page }) => {
+  await signIn(page, "pm");
+  const rail = page.getByTestId("assistant-rail");
+
+  // Cost code alone must not be read as a job number.
+  const byCode = await ask(
+    rail,
+    "Set 08-100 to 50% complete because field walk confirmed devices",
+  );
+  await expect(byCode).toHaveAttribute("data-action", "costItem.setPmPercent");
+  await expect(byCode.getByTestId("action-summary")).toContainText(
+    /Logged PM percent on 08-100/,
+  );
+  await expect(byCode.getByTestId("action-summary")).toContainText("50%");
+
+  // Job number + description (not “Cedar Creek traffic control” only).
+  const byJob = await ask(
+    rail,
+    "Set traffic control to 55% complete on 25-031 because night shift premium",
+  );
+  await expect(byJob).toHaveAttribute("data-action", "costItem.setPmPercent");
+  await expect(byJob.getByTestId("action-summary")).toContainText(
+    /Logged PM percent on 08-100/,
+  );
+  await expect(byJob.getByTestId("action-summary")).toContainText("55%");
+});
+
+test("milestone by name on a named job, not every mobilization match", async ({
+  page,
+}) => {
+  await signIn(page, "pm");
+  const rail = page.getByTestId("assistant-rail");
+
+  const reopen = await ask(
+    rail,
+    "Mark Mobilization complete milestone open on 25-031 because punch list open",
+  );
+  await expect(reopen).toHaveAttribute("data-action", "costItem.setMilestone");
+  await expect(reopen.getByTestId("action-summary")).toContainText(
+    /Reopened milestone “Mobilization complete”/,
+  );
+  await expect(reopen.getByTestId("action-summary")).not.toContainText(
+    "Which milestone?",
+  );
+
+  const complete = await ask(
+    rail,
+    "Complete milestone Mobilization complete on Cedar Creek because punch list closed",
+  );
+  await expect(complete).toHaveAttribute(
+    "data-action",
+    "costItem.setMilestone",
+  );
+  await expect(complete.getByTestId("action-summary")).toContainText(
+    /Completed milestone “Mobilization complete”/,
+  );
+});
+
+test("a job number that isn't in the sandbox is refused, not swapped for another job", async ({
+  page,
+}) => {
+  await signIn(page, "foreman");
+  const run = await ask(
+    page.getByTestId("assistant-rail"),
+    "Submit the plan for 99-999",
+  );
+  await expect(run.getByTestId("action-summary")).toHaveText(
+    "There is no job 99-999. Try 24-077, 24-118, or 25-031",
+  );
+  await expect(run.getByTestId("action-name")).toHaveText(
+    "Couldn't submit plan on 99-999",
+  );
+
+  // The Submit button posts the job number; a forged one is refused the same way.
+  await page.goto("/app/jobs/25-031");
+  const submitForm = page.locator("form").filter({ has: page.getByTestId("submit-plan") });
+  await submitForm
+    .locator('input[name="job"]')
+    .evaluate((el) => ((el as HTMLInputElement).value = "99-999"));
+  await page.getByTestId("submit-plan").click();
+  await expect(
+    page.getByTestId("assistant-rail").getByTestId("action-run").last(),
+  ).toContainText("There is no job 99-999");
+  await expect(page.getByTestId("plan-card")).toHaveAttribute(
+    "data-status",
+    "draft",
+  );
+});
+
+test("refused runs get a refusal chip, never success wording", async ({
+  page,
+}) => {
+  await signIn(page, "superintendent");
+  const lock = await ask(
+    page.getByTestId("assistant-rail"),
+    "Lock Period 2 on 25-031",
+  );
+  await expect(lock).toHaveAttribute("data-action", "progressClaim.lock");
+  await expect(lock.getByTestId("action-summary")).toContainText(
+    /project manager|executive|Switch role/i,
+  );
+  await expect(lock.getByTestId("action-name")).toHaveText(
+    "Couldn't lock progress claim on 25-031",
+  );
+  await expect(lock.getByTestId("action-name")).not.toContainText(/^Locked/);
+});
+
+test("each role has its own conversation; the job page keeps everyone's changes", async ({
+  page,
+}) => {
+  await signIn(page, "foreman");
+  const rail = page.getByTestId("assistant-rail");
+  await ask(rail, "Submit tomorrow's plan");
+
+  // A new role starts its own conversation (PM seed history only — no foreman submit).
+  await signIn(page, "pm");
+  await expect(rail.getByTestId("assistant-input")).toBeVisible();
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
+  await expect(
+    rail.getByTestId("action-run").filter({ hasText: "Submit tomorrow's plan" }),
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(rail.getByTestId("assistant-input")).toBeVisible();
+  await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
+  await expect(
+    rail.getByTestId("action-run").filter({ hasText: "Submit tomorrow's plan" }),
+  ).toHaveCount(0);
+
+  // The audit trail on the screen still says who changed what.
+  await page.goto("/app/jobs/25-031");
+  await expect(page.getByTestId("job-changes")).toContainText("Luis Ortega");
+  await expect(page.getByTestId("job-changes")).toContainText(
+    "Issued Bridge Crew 2's plan",
+  );
+
+  await signIn(page, "foreman");
+  await expect(rail.getByTestId("assistant-input")).toBeVisible();
+  await expect(rail.getByTestId("action-run")).toHaveCount(
+    SEED_FOREMAN_RUNS + 1,
+  );
+  await expect(
+    rail.getByTestId("action-run").filter({ hasText: "Submit tomorrow's plan" }),
+  ).toHaveCount(1);
+});

@@ -1,0 +1,114 @@
+using Microsoft.EntityFrameworkCore;
+using Pitbull.Billing.Domain;
+using Pitbull.Billing.Features.Wip;
+using Pitbull.Contracts.Domain;
+using Pitbull.Core.CQRS;
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Projects.Domain;
+using Pitbull.TimeTracking.Domain;
+
+namespace Pitbull.Billing.Services;
+
+public class WipCalculationService(PitbullDbContext db) : IWipCalculationService
+{
+    public async Task<Result<WipReportLineCalculationResult>> CalculateProjectLineAsync(
+        Project project,
+        decimal estimatedCostToComplete,
+        CancellationToken cancellationToken = default)
+    {
+        List<Guid> subcontractIds = await db.Set<Subcontract>()
+            .AsNoTracking()
+            .Where(s => s.ProjectId == project.Id)
+            .Select(s => s.Id)
+            .ToListAsync(cancellationToken);
+
+        decimal approvedChangeOrders = 0m;
+        decimal billedToDate = 0m;
+
+        if (subcontractIds.Count > 0)
+        {
+            approvedChangeOrders = await db.Set<ChangeOrder>()
+                .AsNoTracking()
+                .Where(co => subcontractIds.Contains(co.SubcontractId) && co.Status == ChangeOrderStatus.Approved)
+                .SumAsync(co => (decimal?)co.Amount, cancellationToken) ?? 0m;
+
+        }
+
+        var billableStatuses = new[]
+        {
+            BillingApplicationStatus.SubmittedToOwner,
+            BillingApplicationStatus.Disputed,
+            BillingApplicationStatus.ArchitectCertified,
+            BillingApplicationStatus.PaymentDue,
+            BillingApplicationStatus.PartiallyPaid,
+            BillingApplicationStatus.Paid,
+        };
+
+        // G702 TotalEarnedLessRetainage is cumulative per application. Summing all apps double-counts.
+        // Match dashboard pattern: latest ApplicationNumber per owner contract, then sum contracts.
+        var billableApps = await db.Set<BillingApplication>()
+            .AsNoTracking()
+            .Where(ba => ba.ProjectId == project.Id && billableStatuses.Contains(ba.Status))
+            .Select(ba => new
+            {
+                ba.OwnerContractId,
+                ba.ApplicationNumber,
+                ba.TotalEarnedLessRetainage
+            })
+            .ToListAsync(cancellationToken);
+
+        billedToDate = billableApps
+            .GroupBy(a => a.OwnerContractId)
+            .Select(g => g.OrderByDescending(x => x.ApplicationNumber).First().TotalEarnedLessRetainage)
+            .DefaultIfEmpty(0m)
+            .Sum();
+
+        decimal totalCostToDate = await db.Set<TimeEntry>()
+            .AsNoTracking()
+            .Where(te => te.ProjectId == project.Id && te.Status == TimeEntryStatus.Approved)
+            .SumAsync(te =>
+                (te.RegularHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m)) +
+                (te.OvertimeHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m) * 1.5m) +
+                (te.DoubletimeHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m) * 2.0m) +
+                (te.EquipmentId.HasValue
+                    ? te.EquipmentHours * (te.Equipment != null ? te.Equipment.HourlyRate : 0m)
+                    : 0m),
+                cancellationToken);
+
+        decimal revisedContractAmount = project.ContractAmount + approvedChangeOrders;
+        decimal normalizedEstimatedCostToComplete = estimatedCostToComplete < 0m ? 0m : estimatedCostToComplete;
+        decimal estimatedTotalCost = totalCostToDate + normalizedEstimatedCostToComplete;
+
+        decimal percentComplete = estimatedTotalCost <= 0m
+            ? 0m
+            : totalCostToDate / estimatedTotalCost;
+
+        if (percentComplete < 0m)
+            percentComplete = 0m;
+
+        if (percentComplete > 1m)
+            percentComplete = 1m;
+
+        decimal earnedRevenue = revisedContractAmount * percentComplete;
+        decimal overUnderBilling = earnedRevenue - billedToDate;
+
+        WipReportLineCalculationResult result = new(
+            ProjectId: project.Id,
+            ProjectNumber: project.Number,
+            ProjectName: project.Name,
+            ContractAmount: project.ContractAmount,
+            ApprovedChangeOrders: approvedChangeOrders,
+            RevisedContractAmount: revisedContractAmount,
+            TotalCostToDate: totalCostToDate,
+            EstimatedCostToComplete: normalizedEstimatedCostToComplete,
+            EstimatedTotalCost: estimatedTotalCost,
+            PercentComplete: percentComplete,
+            EarnedRevenue: earnedRevenue,
+            BilledToDate: billedToDate,
+            OverUnderBilling: overUnderBilling,
+            OverUnderClassification: WipMapper.ClassifyOverUnder(overUnderBilling));
+
+        return Result.Success(result);
+    }
+}

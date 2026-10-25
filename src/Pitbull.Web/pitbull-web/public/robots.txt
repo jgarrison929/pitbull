@@ -1,0 +1,12 @@
+# Pitbull Construction Solutions
+# https://pitbullconstructionsolutions.com
+
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes from indexing
+Disallow: /admin/
+Disallow: /api/
+
+# Sitemap (add when available)
+# Sitemap: https://app.pitbullconstructionsolutions.com/sitemap.xml

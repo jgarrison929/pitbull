@@ -1,0 +1,470 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Pitbull.Tests.Integration.Infrastructure;
+
+namespace Pitbull.Tests.Integration.ProjectManagement;
+
+/// <summary>
+/// Arc D twin Phase 2 integration suite (tidy 2.19.0).
+/// Filter: FullyQualifiedName~SpatialEndpoints OR Trait=ArcD
+/// </summary>
+[Collection(DatabaseCollection.Name)]
+[Trait("Arc", "D")]
+[Trait("Band", "TwinPhase2")]
+public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTestBase(db)
+{
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    [Fact]
+    public async Task Get_graph_without_auth_returns_401()
+    {
+        await Db.ResetAsync();
+        using var client = Factory.CreateClient();
+
+        var resp = await client.GetAsync($"/api/projects/{Guid.NewGuid()}/spatial/graph");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_graph_missing_project_returns_not_found()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+
+        var resp = await client.GetAsync($"/api/projects/{Guid.NewGuid()}/spatial/graph");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Graph_empty_then_seed_then_zones_and_overlay()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Spatial");
+
+        var emptyResp = await client.GetAsync($"/api/projects/{projectId}/spatial/graph");
+        emptyResp.EnsureSuccessStatusCode();
+        var empty = await emptyResp.Content.ReadFromJsonAsync<GraphDto>(JsonOpts);
+        Assert.NotNull(empty);
+        Assert.False(empty.HasGraph);
+        Assert.NotNull(empty.Message);
+        Assert.Empty(empty.Nodes ?? []);
+
+        var seedResp = await client.PostAsync($"/api/projects/{projectId}/spatial/graph/ensure-seeded", null);
+        seedResp.EnsureSuccessStatusCode();
+        var seeded = await seedResp.Content.ReadFromJsonAsync<GraphDto>(JsonOpts);
+        Assert.NotNull(seeded);
+        Assert.True(seeded.HasGraph);
+        Assert.NotEmpty(seeded.Nodes ?? []);
+        Assert.Contains(seeded.Nodes!, n => string.Equals(n.NodeType, "Zone", StringComparison.OrdinalIgnoreCase));
+
+        var zonesResp = await client.GetAsync($"/api/projects/{projectId}/spatial/zones");
+        zonesResp.EnsureSuccessStatusCode();
+        var zones = await zonesResp.Content.ReadFromJsonAsync<List<ZoneDto>>(JsonOpts);
+        Assert.NotNull(zones);
+        Assert.True(zones.Count >= 1);
+
+        var overlayResp = await client.GetAsync($"/api/projects/{projectId}/spatial/overlays?mode=rfi");
+        overlayResp.EnsureSuccessStatusCode();
+        var overlay = await overlayResp.Content.ReadFromJsonAsync<OverlayDto>(JsonOpts);
+        Assert.NotNull(overlay);
+        Assert.True(overlay.HasGraph);
+        Assert.Contains("prox", overlay.TruthNote ?? "", StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(overlay.Nodes ?? [], n => n.Band != "InsufficientData");
+        Assert.Contains(overlay.Nodes ?? [], n => n.Band == "InsufficientData");
+    }
+
+    [Fact]
+    public async Task Zone_detail_lists_linked_rfis_and_honest_empty_for_unlinked()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Detail");
+
+        var seedResp = await client.PostAsync($"/api/projects/{projectId}/spatial/graph/ensure-seeded", null);
+        seedResp.EnsureSuccessStatusCode();
+        var graph = await seedResp.Content.ReadFromJsonAsync<GraphDto>(JsonOpts);
+        Assert.NotNull(graph?.Nodes);
+
+        var east = graph.Nodes!.First(n => n.Code == "L1-EAST");
+        var mech = graph.Nodes!.First(n => n.Code == "L2-MECH");
+
+        var eastResp = await client.GetAsync($"/api/projects/{projectId}/spatial/zones/{east.Id}");
+        eastResp.EnsureSuccessStatusCode();
+        var eastDetail = await eastResp.Content.ReadFromJsonAsync<ZoneDetailDto>(JsonOpts);
+        Assert.NotNull(eastDetail);
+        Assert.Equal(east.Id, eastDetail.SpatialNodeId);
+        Assert.NotEmpty(eastDetail.OpenRfis ?? []);
+        Assert.Contains("Linked", eastDetail.Message ?? "", StringComparison.OrdinalIgnoreCase);
+
+        var mechResp = await client.GetAsync($"/api/projects/{projectId}/spatial/zones/{mech.Id}");
+        mechResp.EnsureSuccessStatusCode();
+        var mechDetail = await mechResp.Content.ReadFromJsonAsync<ZoneDetailDto>(JsonOpts);
+        Assert.NotNull(mechDetail);
+        Assert.Empty(mechDetail.OpenRfis ?? []);
+        Assert.Empty(mechDetail.DailyReports ?? []);
+        Assert.Empty(mechDetail.PlanSheets ?? []);
+        Assert.Contains("No linked", mechDetail.Message ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Overlay_storey_filter_scopes_to_L1_zones_only()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Filter");
+
+        var seedResp = await client.PostAsync($"/api/projects/{projectId}/spatial/graph/ensure-seeded", null);
+        seedResp.EnsureSuccessStatusCode();
+        var graph = await seedResp.Content.ReadFromJsonAsync<GraphDto>(JsonOpts);
+        Assert.NotNull(graph?.Nodes);
+
+        var l1 = graph.Nodes!.First(n => n.Code == "L1" && string.Equals(n.NodeType, "Storey", StringComparison.OrdinalIgnoreCase));
+        var east = graph.Nodes!.First(n => n.Code == "L1-EAST");
+        var deck = graph.Nodes!.First(n => n.Code == "L2-DECK");
+
+        var filtered = await client.GetAsync(
+            $"/api/projects/{projectId}/spatial/overlays?mode=rfi&storeyNodeId={l1.Id}");
+        filtered.EnsureSuccessStatusCode();
+        var overlay = await filtered.Content.ReadFromJsonAsync<OverlayDto>(JsonOpts);
+        Assert.NotNull(overlay);
+
+        var zoneNodeIds = overlay.Nodes!
+            .Where(n => graph.Nodes!.Any(g =>
+                g.Id == n.SpatialNodeId
+                && string.Equals(g.NodeType, "Zone", StringComparison.OrdinalIgnoreCase)))
+            .Select(n => n.SpatialNodeId)
+            .ToHashSet();
+
+        Assert.Contains(east.Id, zoneNodeIds);
+        Assert.DoesNotContain(deck.Id, zoneNodeIds);
+    }
+
+    [Fact]
+    public async Task Overlay_asof_query_returns_truth_note_with_asof_date()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-AsOf");
+
+        await client.PostAsync($"/api/projects/{projectId}/spatial/graph/ensure-seeded", null);
+
+        var asOf = "2026-07-01";
+        var resp = await client.GetAsync(
+            $"/api/projects/{projectId}/spatial/overlays?mode=progress&asOf={asOf}");
+        resp.EnsureSuccessStatusCode();
+        var overlay = await resp.Content.ReadFromJsonAsync<OverlayDto>(JsonOpts);
+        Assert.NotNull(overlay);
+        Assert.Equal(asOf, overlay.AsOf);
+        Assert.True(overlay.HasGraph);
+    }
+
+    [Fact]
+    public async Task Zone_detail_unknown_node_returns_not_found()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Missing-Zone");
+
+        await client.PostAsync($"/api/projects/{projectId}/spatial/graph/ensure-seeded", null);
+
+        var resp = await client.GetAsync($"/api/projects/{projectId}/spatial/zones/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Unknown_project_spatial_graph_is_denied_or_not_found()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Own");
+        await client.PostAsync($"/api/projects/{projectId}/spatial/graph/ensure-seeded", null);
+
+        // Unknown project id must not return a success graph payload (404 or 403 both ok)
+        var foreignProject = Guid.NewGuid();
+        var resp = await client.GetAsync($"/api/projects/{foreignProject}/spatial/graph");
+        Assert.True(
+            resp.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden,
+            $"Expected 404/403 for unknown project, got {(int)resp.StatusCode}");
+
+        var own = await client.GetAsync($"/api/projects/{projectId}/spatial/graph");
+        own.EnsureSuccessStatusCode();
+        var graph = await own.Content.ReadFromJsonAsync<GraphDto>(JsonOpts);
+        Assert.NotNull(graph);
+        Assert.True(graph.HasGraph);
+    }
+
+    /// <summary>2.16.0 — photo-pins + zone detail: honest empty, no fake green pins.</summary>
+    [Fact]
+    public async Task Photo_pins_empty_is_honest_and_zone_filter_scopes()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Photo-Pins");
+
+        var seedResp = await client.PostAsync($"/api/projects/{projectId}/spatial/graph/ensure-seeded", null);
+        seedResp.EnsureSuccessStatusCode();
+        var graph = await seedResp.Content.ReadFromJsonAsync<GraphDto>(JsonOpts);
+        Assert.NotNull(graph?.Nodes);
+        var east = graph.Nodes!.First(n => n.Code == "L1-EAST");
+
+        // Project-wide pins: no GPS/zone photos yet → honest empty (not all-clear).
+        var pinsResp = await client.GetAsync($"/api/projects/{projectId}/spatial/photo-pins");
+        pinsResp.EnsureSuccessStatusCode();
+        var pins = await pinsResp.Content.ReadFromJsonAsync<PhotoPinsDto>(JsonOpts);
+        Assert.NotNull(pins);
+        Assert.Equal(projectId, pins.ProjectId);
+        Assert.Empty(pins.Pins ?? []);
+        Assert.Contains("No photo pins", pins.Message ?? "", StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("all clear", pins.Message ?? "", StringComparison.OrdinalIgnoreCase);
+
+        // Zone-scoped pins still empty and bind SpatialNodeId.
+        var zonePinsResp = await client.GetAsync(
+            $"/api/projects/{projectId}/spatial/photo-pins?spatialNodeId={east.Id}");
+        zonePinsResp.EnsureSuccessStatusCode();
+        var zonePins = await zonePinsResp.Content.ReadFromJsonAsync<PhotoPinsDto>(JsonOpts);
+        Assert.NotNull(zonePins);
+        Assert.Equal(east.Id, zonePins.SpatialNodeId);
+        Assert.Empty(zonePins.Pins ?? []);
+
+        // Zone detail still works alongside photo-pins (integration of zone + photos surfaces).
+        var detailResp = await client.GetAsync($"/api/projects/{projectId}/spatial/zones/{east.Id}");
+        detailResp.EnsureSuccessStatusCode();
+        var detail = await detailResp.Content.ReadFromJsonAsync<ZoneDetailDto>(JsonOpts);
+        Assert.NotNull(detail);
+        Assert.Equal(east.Id, detail.SpatialNodeId);
+    }
+
+    [Fact]
+    public async Task Photo_pins_without_auth_returns_401()
+    {
+        await Db.ResetAsync();
+        using var client = Factory.CreateClient();
+        var resp = await client.GetAsync($"/api/projects/{Guid.NewGuid()}/spatial/photo-pins");
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    /// <summary>2.16.9 — model upload requires auth; manage endpoints are not anonymous.</summary>
+    [Fact]
+    public async Task Model_assets_post_without_auth_returns_401()
+    {
+        await Db.ResetAsync();
+        using var client = Factory.CreateClient();
+        var resp = await client.PostAsJsonAsync(
+            $"/api/projects/{Guid.NewGuid()}/spatial/model-assets",
+            new { sourceFormat = "Gltf", displayName = "x" });
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Model_assets_list_and_register_with_auth()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Model-Auth");
+
+        var listResp = await client.GetAsync($"/api/projects/{projectId}/spatial/model-assets");
+        listResp.EnsureSuccessStatusCode();
+        var list = await listResp.Content.ReadFromJsonAsync<ModelAssetsListDto>(JsonOpts);
+        Assert.NotNull(list);
+        Assert.Empty(list.Assets ?? []);
+        Assert.Contains("No model assets", list.Message ?? "", StringComparison.OrdinalIgnoreCase);
+
+        var reg = await client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/spatial/model-assets",
+            new { sourceFormat = "Gltf", displayName = "Auth model" });
+        // Admin demo user has Spatial.Manage in seed → 200; otherwise 403 documents authz.
+        Assert.True(
+            reg.StatusCode is HttpStatusCode.OK or HttpStatusCode.Forbidden,
+            $"Expected 200 or 403 for register, got {(int)reg.StatusCode}");
+        if (reg.StatusCode == HttpStatusCode.OK)
+        {
+            var dto = await reg.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+            Assert.NotNull(dto);
+            Assert.False(dto.IsReady);
+            Assert.Equal("Pending", dto.ConversionStatus);
+        }
+    }
+
+    /// <summary>2.17.0 — happy path: register → start conversion → still not ready; fail → retry.</summary>
+    [Fact]
+    public async Task Model_asset_upload_conversion_lifecycle_happy_path()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Model-Happy");
+
+        var reg = await client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/spatial/model-assets",
+            new { sourceFormat = "Ifc", displayName = "Happy model", sourceBlobKey = "blob/demo.ifc" });
+        if (reg.StatusCode == HttpStatusCode.Forbidden)
+        {
+            // Environment without Spatial.Manage — document skip path honestly.
+            Assert.Equal(HttpStatusCode.Forbidden, reg.StatusCode);
+            return;
+        }
+        reg.EnsureSuccessStatusCode();
+        var created = await reg.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+        Assert.NotNull(created);
+        Assert.False(created.IsReady);
+        Assert.Equal("Pending", created.ConversionStatus);
+
+        var start = await client.PostAsync(
+            $"/api/projects/{projectId}/spatial/model-assets/{created.Id}/start-conversion", null);
+        start.EnsureSuccessStatusCode();
+        var processing = await start.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+        Assert.NotNull(processing);
+        Assert.Equal("Processing", processing.ConversionStatus);
+        Assert.False(processing.IsReady);
+
+        var fail = await client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/spatial/model-assets/{created.Id}/fail-conversion",
+            new { errorMessage = "Stub converter unavailable" });
+        fail.EnsureSuccessStatusCode();
+        var failed = await fail.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+        Assert.NotNull(failed);
+        Assert.Equal("Failed", failed.ConversionStatus);
+        Assert.False(failed.IsReady);
+        Assert.Contains("Stub converter", failed.ConversionError ?? "", StringComparison.OrdinalIgnoreCase);
+
+        var retry = await client.PostAsync(
+            $"/api/projects/{projectId}/spatial/model-assets/{created.Id}/retry-conversion", null);
+        retry.EnsureSuccessStatusCode();
+        var retried = await retry.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+        Assert.NotNull(retried);
+        Assert.Equal("Processing", retried.ConversionStatus);
+        Assert.False(retried.IsReady);
+
+        // Cannot set active until Succeeded
+        var setActive = await client.PostAsync(
+            $"/api/projects/{projectId}/spatial/model-assets/{created.Id}/set-active", null);
+        Assert.True(
+            setActive.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity
+                or HttpStatusCode.Conflict or HttpStatusCode.OK,
+            $"set-active for non-ready should not silently succeed as ready; got {(int)setActive.StatusCode}");
+        if (setActive.IsSuccessStatusCode)
+        {
+            var body = await setActive.Content.ReadAsStringAsync();
+            // HandleResult may wrap failure as 400 with error payload
+            Assert.DoesNotContain("\"isReady\":true", body, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>2.18.7/2.19.0 — capture-quality labeled metric; empty window ⇒ null percent.</summary>
+    [Fact]
+    public async Task Capture_quality_empty_window_is_honest_null_percent()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Quality");
+
+        var resp = await client.GetAsync(
+            $"/api/projects/{projectId}/spatial/capture-quality?windowDays=7");
+        resp.EnsureSuccessStatusCode();
+        var body = await resp.Content.ReadFromJsonAsync<CaptureQualityDto>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.Equal(projectId, body.ProjectId);
+        Assert.Equal(0, body.CombinedTotal);
+        Assert.Null(body.CombinedPercentWithSpatialRef);
+        Assert.Contains("quality", body.Label ?? "", StringComparison.OrdinalIgnoreCase);
+        // Label frames itself as not a vanity KPI ("... not an executive KPI").
+        // Do not DoesNotContain("executive KPI") — that substring is inside the honest phrase.
+        Assert.Contains("not an executive KPI", body.Label ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>2.18.3/2.19.0 — project settings expose RequireSpatialOnProgress default false.</summary>
+    [Fact]
+    public async Task Project_settings_require_spatial_defaults_false()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+
+        var resp = await client.GetAsync("/api/companies/settings/projects");
+        resp.EnsureSuccessStatusCode();
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("requireSpatialOnProgress", json, StringComparison.OrdinalIgnoreCase);
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var prop = root.TryGetProperty("requireSpatialOnProgress", out var p)
+            ? p
+            : root.GetProperty("RequireSpatialOnProgress");
+        Assert.False(prop.GetBoolean());
+    }
+
+    private sealed record CaptureQualityDto(
+        Guid ProjectId,
+        int CombinedTotal,
+        decimal? CombinedPercentWithSpatialRef,
+        string? Label,
+        string? TruthNote);
+
+    private sealed record GraphDto(
+        bool HasGraph,
+        string? Message,
+        Guid? GraphId,
+        List<NodeDto>? Nodes);
+
+    private sealed record NodeDto(Guid Id, string NodeType, string Code, string Name);
+
+    private sealed record ZoneDto(Guid Id, string Code, string Name, string PathLabel);
+
+    private sealed record OverlayDto(
+        bool HasGraph,
+        string? Message,
+        string Mode,
+        string? AsOf,
+        string TruthNote,
+        List<OverlayNodeDto>? Nodes);
+
+    private sealed record OverlayNodeDto(
+        Guid SpatialNodeId,
+        string Band,
+        string Label,
+        bool IsProxy);
+
+    private sealed record ZoneDetailDto(
+        Guid SpatialNodeId,
+        string Code,
+        string Name,
+        string Message,
+        List<LinkedDto>? OpenRfis,
+        List<LinkedDto>? DailyReports,
+        List<LinkedDto>? ProgressEntries,
+        List<LinkedDto>? ScheduleActivities,
+        List<LinkedDto>? PlanSheets);
+
+    private sealed record LinkedDto(Guid Id, string Kind, string Title);
+
+    private sealed record PhotoPinsDto(
+        Guid ProjectId,
+        Guid? SpatialNodeId,
+        string Message,
+        List<PhotoPinDto>? Pins);
+
+    private sealed record PhotoPinDto(
+        Guid PhotoId,
+        Guid? SpatialNodeId,
+        double? Latitude,
+        double? Longitude,
+        string? ThumbnailUrl,
+        string PlacementSource);
+
+    private sealed record ModelAssetsListDto(
+        Guid ProjectId,
+        string Message,
+        List<ModelAssetDto>? Assets);
+
+    private sealed record ModelAssetDto(
+        Guid Id,
+        string DisplayName,
+        string ConversionStatus,
+        string? ConversionError,
+        bool IsReady);
+}

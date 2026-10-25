@@ -1,0 +1,95 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+*.nupkg
+.vs/
+*.DotSettings.user
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent/session artifacts
+agent-tools/
+terminals/
+mcps/
+.railway-config-pull-*/
+posthog-self-driving-report.md
+coverage/
+.next/
+# Docker
+pitbull-pgdata/
+pitbull-redis/
+
+# Railway local env templates (generated secrets)
+deploy/railway.env.template
+
+# Agent local settings (machine-specific permissions)
+.claude/settings.local.json
+
+# Internal-only content (kept out of public history)
+memory/
+docs/sales/
+docs/feedback/
+planning/
+
+# Secrets
+appsettings.Production.json
+*.pfx
+*.key
+.env
+.env.local
+.env.production
+docs/josh-built-cover-letter.txt
+
+# Internal dev notes (not for public repo)
+memory/
+.private/
+
+# Agent prompts (used locally for AI coding agents)
+prompts/
+
+# Root package-lock (not a Node project at root level)
+/package-lock.json
+
+# Playwright e2e recordings and auth state
+e2e/recordings/**
+!e2e/recordings/.gitkeep
+e2e/.auth/
+e2e/.env
+e2e/test-results/
+e2e/playwright-report/
+e2e/playwright-*.txt
+e2e/playwright-*.log
+
+# Test results with machine names/PII (tracked artifacts)
+tests/**/TestResults/
+tests/Pitbull.Tests.*/TestResults/
+TestResults/
+*.trx
+
+# Local marketing / draft content
+tweet-series*.md
+
+# Local deps for scripts/capture-readme-screenshots.mjs (sharp)
+scripts/.capture-tools/
+

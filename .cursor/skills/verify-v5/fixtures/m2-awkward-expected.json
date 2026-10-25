@@ -1,0 +1,86 @@
+{
+ "total": 10071336,
+ "cats": {
+  "L": 2866741,
+  "M": 4263020,
+  "E": 1131576,
+  "S": 1809999
+ },
+ "tree": {
+  "02": {
+   "cents": 3578210,
+   "mhMilli": 132871,
+   "leaf": false
+  },
+  "02-100": {
+   "cents": 1345678,
+   "mhMilli": 67901,
+   "leaf": true
+  },
+  "02-200": {
+   "cents": 2232532,
+   "mhMilli": 64970,
+   "leaf": true
+  },
+  "03": {
+   "cents": 6247699,
+   "mhMilli": 427130,
+   "leaf": false
+  },
+  "03-200": {
+   "cents": 4535613,
+   "mhMilli": 425380,
+   "leaf": false
+  },
+  "03-210": {
+   "cents": 3565899,
+   "mhMilli": 180400,
+   "leaf": true
+  },
+  "03-220": {
+   "cents": 969714,
+   "mhMilli": 244980,
+   "leaf": true
+  },
+  "03-300": {
+   "cents": 1712086,
+   "mhMilli": 1750,
+   "leaf": false
+  },
+  "03-310": {
+   "cents": 1710000,
+   "mhMilli": 0,
+   "leaf": true
+  },
+  "03-320": {
+   "cents": 2086,
+   "mhMilli": 1750,
+   "leaf": true
+  },
+  "04": {
+   "cents": 245427,
+   "mhMilli": 20000,
+   "leaf": false
+  },
+  "04-100": {
+   "cents": 225049,
+   "mhMilli": 16000,
+   "leaf": true
+  },
+  "04-200": {
+   "cents": 19875,
+   "mhMilli": 4000,
+   "leaf": true
+  },
+  "04-300": {
+   "cents": 2,
+   "mhMilli": 0,
+   "leaf": true
+  },
+  "04-400": {
+   "cents": 501,
+   "mhMilli": 0,
+   "leaf": true
+  }
+ }
+}

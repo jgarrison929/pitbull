@@ -1,0 +1,437 @@
+import "server-only";
+import { cache } from "react";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { requireDb } from "@/db";
+import {
+  costItemMilestones,
+  costItems,
+  crews,
+  dailyPlanLines,
+  dailyPlans,
+  jobs,
+  pmPercentLogs,
+  progressClaims,
+  users,
+} from "@/db/schema";
+import { buildWbsMoney, currentBudgetCents } from "@/lib/budget";
+import {
+  costLine,
+  plannedValueCents,
+  rollup,
+  rollupFromTotals,
+  type CostLine,
+  type ForecastMethod,
+  type Rollup,
+} from "@/lib/ev";
+import { isEstimateDraft } from "@/lib/portfolio";
+import { overallStatus, type Status } from "@/lib/status";
+import { portfolioRollupsSql } from "@/server/cost-rollups";
+import { seedNow } from "@/server/seed-clock";
+
+// The tenant boundary: every read takes the signed-in user's companyId and filters on it.
+
+type ItemRow = typeof costItems.$inferSelect;
+
+function rollupFromSql(r: Rollup): Rollup & { status: Status } {
+  return { ...r, status: overallStatus(r) };
+}
+
+/** Last locked period date for a job (UTC calendar day), or null if never locked. */
+export async function lastLockDate(
+  companyId: string,
+  jobId: string,
+): Promise<Date | null> {
+  const db = requireDb();
+  const [row] = await db
+    .select({ lockedAt: progressClaims.lockedAt })
+    .from(progressClaims)
+    .where(
+      and(
+        eq(progressClaims.companyId, companyId),
+        eq(progressClaims.jobId, jobId),
+        eq(progressClaims.status, "locked"),
+      ),
+    )
+    .orderBy(desc(progressClaims.lockedAt))
+    .limit(1);
+  return row?.lockedAt ?? null;
+}
+
+/**
+ * Map a cost-item row to EV input at one cutoff.
+ * budgetCents = Current Budget. AC/PV/EV use the last lock; live deltas are separate.
+ */
+function toCostLineInput(
+  item: ItemRow,
+  cutoff: Date,
+  readAsOf: Date,
+) {
+  const budgetCents = currentBudgetCents(item);
+  const lockedActual = item.lockedActualCents ?? 0;
+  return {
+    id: item.id,
+    code: item.code,
+    description: item.description,
+    unit: item.unit,
+    budgetQtyMilli: item.budgetQtyMilli,
+    installedQtyMilli: item.installedQtyMilli,
+    claimedInstalledQtyMilli: item.claimedInstalledQtyMilli ?? 0,
+    budgetCents,
+    plannedCents: plannedValueCents(
+      budgetCents,
+      item.plannedStartOn,
+      item.plannedFinishOn,
+      cutoff,
+    ),
+    livePlannedCents: plannedValueCents(
+      budgetCents,
+      item.plannedStartOn,
+      item.plannedFinishOn,
+      readAsOf,
+    ),
+    actualCents: lockedActual,
+    liveActualCents: item.actualCents,
+    budgetMhPerUnitMilli: item.budgetMhPerUnitMilli,
+    claimedPercentMilli: item.claimedPercentMilli ?? 0,
+    evMethod: item.evMethod,
+    forecastMethod: (item.forecastMethod ??
+      "current_budget") as ForecastMethod,
+    earnDerivation: item.earnDerivation,
+  };
+}
+
+function lineAtCutoff(item: ItemRow, cutoff: Date, readAsOf: Date) {
+  return costLine(toCostLineInput(item, cutoff, readAsOf));
+}
+
+/** Leaf lines only, for EV math and plan-line pickers. */
+function leafLines(items: ItemRow[], cutoff: Date, readAsOf: Date) {
+  return items
+    .filter((i) => i.isLeaf)
+    .map((i) => lineAtCutoff(i, cutoff, readAsOf));
+}
+
+/**
+ * Portfolio: jobs + SQL leaf roll-ups. Does not hydrate every cost item into memory
+ * (required once a company can hold a 10k-code stress job).
+ */
+export const getPortfolio = cache(async function getPortfolio(
+  companyId: string,
+  asOf = seedNow(),
+) {
+  const db = requireDb();
+  const jobRows = await db
+    .select()
+    .from(jobs)
+    .where(eq(jobs.companyId, companyId))
+    .orderBy(asc(jobs.number));
+
+  const sums = await portfolioRollupsSql(companyId, asOf);
+  const byJob = new Map(sums.map((s) => [s.job_id, s]));
+  const portfolio = jobRows.map((job) => {
+    const draft = isEstimateDraft(job);
+    const s = byJob.get(job.id);
+    const r = rollupFromTotals({
+      budgetCents: Number(s?.budget_cents ?? 0),
+      plannedCents: Number(s?.planned_cents ?? 0),
+      earnedCents: Number(s?.earned_cents ?? 0),
+      actualCents: Number(s?.actual_cents ?? 0),
+      eacCents: Number(s?.eac_cents ?? 0),
+      etcCents: Number(s?.etc_cents ?? 0),
+      sinceLockActualCents: Number(s?.since_lock_actual_cents ?? 0),
+      sinceLockPlannedCents: Number(s?.since_lock_planned_cents ?? 0),
+    });
+    // Draft estimates are not active: no CPI/SPI/On-track, EAC shown as "—".
+    if (draft) {
+      return {
+        job,
+        lines: [] as CostLine[],
+        ...r,
+        cpi: null,
+        spi: null,
+        status: null as Status | null,
+        estimateDraft: true as const,
+      };
+    }
+    const withStatus = rollupFromSql(r);
+    return {
+      job,
+      lines: [] as CostLine[],
+      ...withStatus,
+      estimateDraft: false as const,
+    };
+  });
+  const active = portfolio.filter((p) => !p.estimateDraft);
+  const totals = rollup(
+    active.map((p) => ({
+      ...p,
+      // Synthetic single line per job for portfolio totals (active only).
+      code: p.job.number,
+      description: p.job.name,
+      unit: "LS",
+      budgetQtyMilli: 0,
+      installedQtyMilli: 0,
+      claimedInstalledQtyMilli: 0,
+      budgetMhPerUnitMilli: 0,
+      claimedPercentMilli: Math.round(p.percent * 1000),
+      evMethod: "units" as const,
+      forecastMethod: "current_budget" as const,
+      earnDerivation: "",
+      percent: p.percent,
+      earnedCents: p.earnedCents,
+      varianceCents: p.costVarianceCents,
+      scheduleVarianceCents: p.scheduleVarianceCents,
+      cpi: p.cpi,
+      spi: p.spi,
+      budgetCents: p.budgetCents,
+      plannedCents: p.plannedCents,
+      actualCents: p.actualCents,
+      eacCents: p.eacCents,
+      etcCents: p.etcCents,
+      overBudgetQtyMilli: 0,
+      earnedMhMilli: 0,
+      forecastFallback: false,
+      forecastDerivation: "",
+      sinceLockActualCents: p.sinceLockActualCents,
+      sinceLockPlannedCents: p.sinceLockPlannedCents,
+    })),
+  );
+  return {
+    jobs: portfolio,
+    activeJobs: active,
+    activeJobCount: active.length,
+    totals,
+    contractCents: active.reduce((s, p) => s + p.job.contractCents, 0),
+  };
+});
+
+export type PortfolioJob = Awaited<
+  ReturnType<typeof getPortfolio>
+>["jobs"][number];
+
+/** Job id only — for search/typeahead paths that must not hydrate the WBS. */
+export async function resolveJobId(companyId: string, number: string) {
+  const db = requireDb();
+  const [row] = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
+    .limit(1);
+  return row?.id ?? null;
+}
+
+/**
+ * One job with its full WBS (ordered by path) and leaf EV lines.
+ * Job-scoped reads — does not pull other jobs' cost items.
+ * EV/AC/PV share the last lock date; live changes since lock are on each line.
+ */
+export async function getJob(
+  companyId: string,
+  number: string,
+  asOf = seedNow(),
+) {
+  const db = requireDb();
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
+    .limit(1);
+  if (!job) return null;
+  // Lock date and WBS are independent once we have job.id — overlap the RTTs.
+  const [lockAt, items] = await Promise.all([
+    lastLockDate(companyId, job.id),
+    db
+      .select()
+      .from(costItems)
+      .where(
+        and(eq(costItems.companyId, companyId), eq(costItems.jobId, job.id)),
+      )
+      .orderBy(asc(costItems.path)),
+  ]);
+  const cutoff = lockAt ?? asOf;
+  const lines = leafLines(items, cutoff, asOf);
+  // Prefer JS leaf rollup so claimed-installed / as-of PV match costLine exactly.
+  const r = rollup(lines);
+  const draft = isEstimateDraft(job);
+  return {
+    job,
+    items,
+    lines,
+    /** Original, Current, and Estimate per WBS node and for the job, summed from leaves. */
+    money: buildWbsMoney(items),
+    lockAt,
+    cutoff,
+    ...r,
+    ...(draft
+      ? { cpi: null, spi: null, status: null as Status | null }
+      : { status: overallStatus(r) as Status | null }),
+    estimateDraft: draft,
+  };
+}
+
+export type JobDetail = NonNullable<Awaited<ReturnType<typeof getJob>>>;
+
+export async function getPlansForJob(companyId: string, jobId: string) {
+  const db = requireDb();
+  // LEFT JOIN: pre-0013 writers insert with crew_id NULL. Fall back to the
+  // legacy text column so those plans still appear on the job page / assistant.
+  const plans = await db
+    .select({
+      plan: dailyPlans,
+      foreman: users.name,
+      crew: sql<string>`coalesce(${crews.name}, ${dailyPlans.crew})`.mapWith(
+        String,
+      ),
+    })
+    .from(dailyPlans)
+    .innerJoin(users, eq(users.id, dailyPlans.foremanId))
+    .leftJoin(crews, eq(crews.id, dailyPlans.crewId))
+    .where(
+      and(eq(dailyPlans.companyId, companyId), eq(dailyPlans.jobId, jobId)),
+    )
+    .orderBy(asc(dailyPlans.planDate));
+  // Fixed query count: one lines fetch for every plan on this job (not per-plan
+  // and not company-wide). History length must not add round-trips.
+  const planIds = plans.map(({ plan }) => plan.id);
+  const lines = planIds.length
+    ? await db
+        .select({ line: dailyPlanLines, item: costItems })
+        .from(dailyPlanLines)
+        .innerJoin(costItems, eq(costItems.id, dailyPlanLines.costItemId))
+        .where(
+          and(
+            eq(dailyPlanLines.companyId, companyId),
+            inArray(dailyPlanLines.planId, planIds),
+          ),
+        )
+        .orderBy(asc(dailyPlanLines.sort))
+    : [];
+  const linesByPlan = new Map<string, typeof lines>();
+  for (const row of lines) {
+    const list = linesByPlan.get(row.line.planId);
+    if (list) list.push(row);
+    else linesByPlan.set(row.line.planId, [row]);
+  }
+  return plans.map(({ plan, foreman, crew }) => ({
+    ...plan,
+    crew,
+    foreman,
+    lines: (linesByPlan.get(plan.id) ?? []).map(({ line, item }) =>
+      planLine(line, item),
+    ),
+  }));
+}
+
+export type PlanLine = ReturnType<typeof planLine>;
+export function planLine(
+  line: typeof dailyPlanLines.$inferSelect,
+  item: typeof costItems.$inferSelect,
+) {
+  const manHours = (line.workers * line.hoursTenths) / 10;
+  const planned = line.qtyMilli === 0 ? 0 : manHours / (line.qtyMilli / 1000);
+  const budget = item.budgetMhPerUnitMilli / 1000;
+  return {
+    ...line,
+    code: item.code,
+    description: item.description,
+    unit: item.unit,
+    manHours,
+    plannedRate: planned,
+    budgetRate: budget,
+    withinRate: budget === 0 || planned <= budget * 1.05,
+  };
+}
+
+/** Leaf cost-code options for a job (capped) — prefer searchCostItems for large WBS. */
+export async function listLeafCostOptions(
+  companyId: string,
+  jobId: string,
+  limit = 50,
+) {
+  const db = requireDb();
+  return db
+    .select({
+      id: costItems.id,
+      code: costItems.code,
+      description: costItems.description,
+      unit: costItems.unit,
+    })
+    .from(costItems)
+    .where(
+      and(
+        eq(costItems.companyId, companyId),
+        eq(costItems.jobId, jobId),
+        eq(costItems.isLeaf, true),
+      ),
+    )
+    .orderBy(asc(costItems.code))
+    .limit(limit);
+}
+
+/** Milestones + latest PM percent logs for on-screen EV method controls. */
+export async function getJobEvControls(companyId: string, jobId: string) {
+  const db = requireDb();
+  // Three independent reads — overlap RTTs; scope logs to this job's leaves.
+  const [milestones, pmItems, logs] = await Promise.all([
+    db
+      .select({
+        id: costItemMilestones.id,
+        costItemId: costItemMilestones.costItemId,
+        code: costItems.code,
+        name: costItemMilestones.name,
+        weightMilli: costItemMilestones.weightMilli,
+        complete: costItemMilestones.complete,
+      })
+      .from(costItemMilestones)
+      .innerJoin(costItems, eq(costItems.id, costItemMilestones.costItemId))
+      .where(
+        and(
+          eq(costItemMilestones.companyId, companyId),
+          eq(costItems.jobId, jobId),
+          eq(costItems.isLeaf, true),
+        ),
+      )
+      .orderBy(asc(costItems.code), asc(costItemMilestones.sort)),
+    db
+      .select({
+        costItemId: costItems.id,
+        code: costItems.code,
+        description: costItems.description,
+      })
+      .from(costItems)
+      .where(
+        and(
+          eq(costItems.companyId, companyId),
+          eq(costItems.jobId, jobId),
+          eq(costItems.evMethod, "pm_percent"),
+          eq(costItems.isLeaf, true),
+        ),
+      )
+      .orderBy(asc(costItems.code)),
+    db
+      .select({
+        log: pmPercentLogs,
+      })
+      .from(pmPercentLogs)
+      .innerJoin(costItems, eq(costItems.id, pmPercentLogs.costItemId))
+      .where(
+        and(
+          eq(pmPercentLogs.companyId, companyId),
+          eq(costItems.jobId, jobId),
+        ),
+      )
+      .orderBy(desc(pmPercentLogs.at)),
+  ]);
+
+  return {
+    milestones,
+    pmItems: pmItems.map((p) => {
+      // Latest PM percent log wins, including an explicit 0% entry.
+      const latest = logs.find((l) => l.log.costItemId === p.costItemId)?.log;
+      return {
+        ...p,
+        percentMilli: latest?.percentMilli ?? 0,
+      };
+    }),
+  };
+}

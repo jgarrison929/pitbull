@@ -1,0 +1,18 @@
+{
+  "name": "pitbull-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright e2e tests and PR demo recordings for Pitbull Construction Solutions",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:roles": "npx playwright test --project=role-workflows",
+    "test:roles:setup": "npx playwright test --project=setup-roles",
+    "test:mobile-field": "npx playwright test --project=mobile-field-report",
+    "test:mobile-field:list": "npx playwright test --project=mobile-field-report --list",
+    "record-demo": "npx playwright test --project=demo-recording",
+    "record-demo:headed": "npx playwright test --project=demo-recording --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

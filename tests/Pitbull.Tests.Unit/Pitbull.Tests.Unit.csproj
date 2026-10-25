@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="10.1.0" />
+    <PackageReference Include="DotNetCore.CAP" Version="10.0.2" />
+    <PackageReference Include="FluentAssertions" Version="8.11.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.13" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="NetArchTest.Rules" Version="1.3.2" />
+    <PackageReference Include="PostHog" Version="2.15.1" />
+    <PackageReference Include="Resend" Version="0.15.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Pitbull.Core.Domain.AssignmentRole" Alias="AssignmentRole" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Core\Pitbull.Core.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Projects\Pitbull.Projects.csproj" />
+    <ProjectReference Include="..\..\src\Pitbull.Api\Pitbull.Api.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Bids\Pitbull.Bids.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.TimeTracking\Pitbull.TimeTracking.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Contracts\Pitbull.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Billing\Pitbull.Billing.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.AI\Pitbull.AI.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.ProjectManagement\Pitbull.ProjectManagement.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Documents\Pitbull.Documents.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.SystemAdmin\Pitbull.SystemAdmin.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Notifications\Pitbull.Notifications.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\Pitbull.Storage\Pitbull.Storage.csproj" />
+  </ItemGroup>
+
+</Project>

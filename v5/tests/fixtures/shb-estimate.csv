@@ -1,0 +1,7 @@
+code,parent_code,description,unit,qty,mh_per_unit,labor_unit,material_unit,equipment_unit,sub_unit
+02,,Earthwork,,,,,,,
+02-100,02,Excavation,CY,1200,0.05,4.50,0,6.25,0
+02-200,02,Structural backfill,CY,800,0.08,5.00,18.00,3.50,0
+03,,Concrete,,,,,,,
+03-100,03,Footing concrete,CY,150,1.2,72.00,165.00,0,0
+03-200,03,Rebar install (sub),LB,18000,0,0,0,0,0.95

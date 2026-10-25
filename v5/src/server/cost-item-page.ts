@@ -1,0 +1,292 @@
+import "server-only";
+import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { requireDb } from "@/db";
+import {
+  costEntries,
+  costItems,
+  dailyPlanLines,
+  dailyPlans,
+  jobs,
+  progressClaims,
+  users,
+} from "@/db/schema";
+import { currentBudgetCents } from "@/lib/budget";
+import {
+  earnedMhMilliOf,
+  itemForecast,
+  type ForecastMethod,
+} from "@/lib/ev";
+import {
+  entryInLockSnapshot,
+  laborMhMilliByLock,
+  pathRollupSql,
+} from "@/server/cost-rollups";
+import { seedNow } from "@/server/seed-clock";
+
+export type CostEntryRow =
+  | {
+      id: string;
+      kind: "labor";
+      at: string;
+      crew: string | null;
+      manHours: number;
+      rateCents: number | null;
+      amountCents: number;
+      approverName: string | null;
+      planId: string | null;
+      note: string;
+      /** True when this row is not in the lock snapshot (pending the next lock). */
+      sinceLock: boolean;
+    }
+  | {
+      id: string;
+      kind: "other";
+      at: string;
+      note: string;
+      amountCents: number;
+      sinceLock: boolean;
+    };
+
+/** Internal approve marker — not shown on the cost-item table. */
+function isApprovedQtyMarker(entry: {
+  kind: string;
+  note: string;
+  amountCents: number;
+}) {
+  return (
+    entry.kind === "other" &&
+    entry.note === "approved-qty" &&
+    entry.amountCents === 0
+  );
+}
+
+/**
+ * Cost item drill-down. Posted dollars are the rollup lock snapshot
+ * (`locked_actual_cents`). A row is pending only when `entryInLockSnapshot`
+ * says it was not stamped into that snapshot — never by comparing its date.
+ * Actual MH uses the same predicate.
+ *
+ * Query shape (fixed count, independent reads overlapped after job+item):
+ *   1) job ⋈ leaf item
+ *   2) last lock (period label + cutoff)
+ *   3) path rollup ∥ cost entries ∥ labor MH-by-lock
+ */
+export async function getCostItemPage(
+  companyId: string,
+  jobNumber: string,
+  code: string,
+  asOf = seedNow(),
+) {
+  const db = requireDb();
+  // One round-trip for job + leaf (was two serial selects).
+  const [row] = await db
+    .select({ job: jobs, item: costItems })
+    .from(jobs)
+    .innerJoin(
+      costItems,
+      and(
+        eq(costItems.jobId, jobs.id),
+        eq(costItems.companyId, companyId),
+        eq(costItems.code, code),
+        eq(costItems.isLeaf, true),
+      ),
+    )
+    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
+    .limit(1);
+  if (!row) return null;
+  const { job, item } = row;
+
+  const [lock] = await db
+    .select({
+      periodLabel: progressClaims.periodLabel,
+      lockedOn: sql<string>`(${progressClaims.lockedAt} at time zone 'UTC')::date::text`,
+    })
+    .from(progressClaims)
+    .where(
+      and(
+        eq(progressClaims.companyId, companyId),
+        eq(progressClaims.jobId, job.id),
+        eq(progressClaims.status, "locked"),
+      ),
+    )
+    .orderBy(desc(progressClaims.lockedAt))
+    .limit(1);
+  const periodLabel = lock?.periodLabel ?? null;
+  const cutoffIso = lock?.lockedOn ?? null;
+
+  const budgetCents = currentBudgetCents(item);
+  const earnedMhMilli = earnedMhMilliOf({
+    code: item.code,
+    description: item.description,
+    unit: item.unit,
+    evMethod: item.evMethod,
+    budgetQtyMilli: item.budgetQtyMilli,
+    installedQtyMilli: item.installedQtyMilli,
+    budgetCents,
+    plannedCents: 0,
+    actualCents: 0,
+    claimedInstalledQtyMilli: item.claimedInstalledQtyMilli ?? 0,
+    claimedPercentMilli: item.claimedPercentMilli ?? 0,
+    budgetMhPerUnitMilli: item.budgetMhPerUnitMilli,
+    forecastMethod: (item.forecastMethod ??
+      "current_budget") as ForecastMethod,
+    earnDerivation: item.earnDerivation,
+  });
+
+  // Rollup / entries / MH split are independent once we have item + cutoff.
+  const [rollup, entryRows, mhSplit] = await Promise.all([
+    pathRollupSql(companyId, job.id, item.path, asOf, cutoffIso),
+    db
+      .select({
+        entry: costEntries,
+        planId: dailyPlans.id,
+        crew: dailyPlans.crew,
+        approverName: users.name,
+      })
+      .from(costEntries)
+      .leftJoin(
+        dailyPlanLines,
+        and(
+          eq(dailyPlanLines.id, costEntries.sourcePlanLineId),
+          eq(dailyPlanLines.companyId, companyId),
+        ),
+      )
+      .leftJoin(
+        dailyPlans,
+        and(
+          eq(dailyPlans.id, dailyPlanLines.planId),
+          eq(dailyPlans.companyId, companyId),
+        ),
+      )
+      .leftJoin(
+        users,
+        and(
+          eq(users.id, dailyPlans.approvedById),
+          eq(users.companyId, companyId),
+        ),
+      )
+      .where(
+        and(
+          eq(costEntries.companyId, companyId),
+          eq(costEntries.costItemId, item.id),
+        ),
+      )
+      .orderBy(desc(costEntries.at), desc(costEntries.id)),
+    laborMhMilliByLock(companyId, item.id),
+  ]);
+
+  const entries: CostEntryRow[] = [];
+  for (const { entry, planId, crew, approverName } of entryRows) {
+    if (isApprovedQtyMarker(entry)) continue;
+    const atIso = entry.at.toISOString();
+    const sinceLock = !entryInLockSnapshot(entry.lockedInAt);
+    if (entry.kind === "labor") {
+      entries.push({
+        id: entry.id,
+        kind: "labor",
+        at: atIso,
+        crew: crew ?? null,
+        manHours: (entry.hoursTenths ?? 0) / 10,
+        rateCents: entry.rateCents,
+        amountCents: entry.amountCents,
+        approverName: approverName ?? null,
+        planId: planId ?? null,
+        note: entry.note,
+        sinceLock,
+      });
+    } else {
+      entries.push({
+        id: entry.id,
+        kind: "other",
+        at: atIso,
+        note: entry.note,
+        amountCents: entry.amountCents,
+        sinceLock,
+      });
+    }
+  }
+
+  /** Posted MH uses the lock-snapshot predicate in cost-rollups (not entry dates). */
+  const actualMhMilli = mhSplit.lockedMhMilli;
+  const pendingMhMilli = mhSplit.pendingMhMilli;
+
+  /** Posted total — rollup AC (locked snapshot). Pending dollars are live − locked. */
+  const postedTotalCents = rollup.actualCents;
+  const sinceLockCents = Math.max(0, item.actualCents - rollup.actualCents);
+
+  const forecastMethod = (item.forecastMethod ??
+    "current_budget") as ForecastMethod;
+  const forecast = itemForecast({
+    forecastMethod,
+    budgetCents: rollup.budgetCents,
+    earnedCents: rollup.earnedCents,
+    actualCents: rollup.actualCents,
+  });
+
+  return {
+    job: {
+      id: job.id,
+      number: job.number,
+      name: job.name,
+      shortName: job.shortName,
+    },
+    item: {
+      id: item.id,
+      code: item.code,
+      description: item.description,
+      unit: item.unit,
+      evMethod: item.evMethod,
+      budgetQtyMilli: item.budgetQtyMilli,
+      installedQtyMilli: item.installedQtyMilli,
+      claimedInstalledQtyMilli: item.claimedInstalledQtyMilli ?? 0,
+      claimedPercentMilli: item.claimedPercentMilli ?? 0,
+      forecastMethod,
+    },
+    forecast,
+    rollup,
+    periodLabel,
+    earnedMhMilli,
+    actualMhMilli,
+    pendingMhMilli,
+    entries,
+    /** @deprecated use postedTotalCents — kept equal to rollup AC. */
+    entriesTotalCents: postedTotalCents,
+    postedTotalCents,
+    sinceLockCents,
+    hasDailyReportLabor: entries.some(
+      (e) => e.kind === "labor" && e.planId != null,
+    ),
+    hasLaborEntries: entries.some((e) => e.kind === "labor"),
+  };
+}
+
+export type CostItemPage = NonNullable<
+  Awaited<ReturnType<typeof getCostItemPage>>
+>;
+
+/** Resolve a plan id that posted labor for this cost item (for crawl / tests). */
+export async function firstLaborPlanIdForCostItem(
+  companyId: string,
+  costItemId: string,
+) {
+  const db = requireDb();
+  const [row] = await db
+    .select({ planId: dailyPlans.id })
+    .from(costEntries)
+    .innerJoin(
+      dailyPlanLines,
+      eq(dailyPlanLines.id, costEntries.sourcePlanLineId),
+    )
+    .innerJoin(dailyPlans, eq(dailyPlans.id, dailyPlanLines.planId))
+    .where(
+      and(
+        eq(costEntries.companyId, companyId),
+        eq(costEntries.costItemId, costItemId),
+        eq(costEntries.kind, "labor"),
+        isNotNull(costEntries.sourcePlanLineId),
+      ),
+    )
+    .orderBy(asc(costEntries.at))
+    .limit(1);
+  return row?.planId ?? null;
+}

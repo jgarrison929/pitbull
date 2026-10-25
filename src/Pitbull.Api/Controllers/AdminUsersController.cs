@@ -1,0 +1,425 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Pitbull.Api.Infrastructure;
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
+
+namespace Pitbull.Api.Controllers;
+
+/// <summary>
+/// Admin user management - list, update roles, activate/deactivate users
+/// </summary>
+[ApiController]
+[Route("api/admin/users")]
+[Authorize(Policy = "Admin.Users")]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[Tags("Admin - Users")]
+public class AdminUsersController(
+    PitbullDbContext db,
+    UserManager<AppUser> userManager,
+    RoleManager<AppRole> roleManager,
+    RoleSeeder roleSeeder,
+    ITenantContext tenantContext,
+    SignInManager<AppUser> signInManager) : ControllerBase
+{
+    /// <summary>
+    /// List all users in the tenant with their roles
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(AdminListUsersResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListUsers(
+        [FromQuery] string? search,
+        [FromQuery] string? role,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100)
+    {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize < 1 ? 25 : Math.Min(pageSize, 100);
+
+        var query = db.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.Trim();
+            if (searchLower.Length > 200)
+                searchLower = searchLower[..200];
+            searchLower = searchLower.ToLower();
+            query = query.Where(u =>
+                u.Email!.ToLower().Contains(searchLower) ||
+                u.FirstName!.ToLower().Contains(searchLower) ||
+                u.LastName!.ToLower().Contains(searchLower));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<UserStatus>(status, ignoreCase: true, out var parsedStatus))
+        {
+            query = query.Where(u => u.Status == parsedStatus);
+        }
+
+        // When filtering by role, we must check all users (roles are in Identity tables, not directly queryable).
+        // Without a role filter, paginate at DB level first to avoid loading all users into memory.
+        List<AdminUserDto> items;
+        int totalCount;
+
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            var users = await query.OrderBy(u => u.LastName).ThenBy(u => u.FirstName).ToListAsync();
+            var rolesByUser = await LoadRolesByUserIdAsync(users.Select(u => u.Id).ToList());
+            var filtered = users
+                .Select(u =>
+                {
+                    var roles = rolesByUser.GetValueOrDefault(u.Id, []);
+                    return (User: u, Roles: roles);
+                })
+                .Where(x => x.Roles.Contains(role, StringComparer.OrdinalIgnoreCase))
+                .Select(x => MapToDto(x.User, x.Roles))
+                .ToList();
+            totalCount = filtered.Count;
+            items = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        }
+        else
+        {
+            totalCount = await query.CountAsync();
+            var users = await query
+                .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // Batch role load — avoids N+1 GetUserRolesAsync per row (PostHog n_plus_one_detected).
+            var userIds = users.Select(u => u.Id).ToList();
+            var rolesByUser = await LoadRolesByUserIdAsync(userIds);
+            items = users
+                .Select(u => MapToDto(u, rolesByUser.GetValueOrDefault(u.Id, [])))
+                .ToList();
+        }
+
+        return Ok(new AdminListUsersResult
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
+    }
+
+    /// <summary>
+    /// Get a single user by ID
+    /// </summary>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(AdminUserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetUser(Guid id)
+    {
+        var user = await db.Users.FindAsync(id);
+        if (user == null)
+            return NotFound(new { error = "User not found" });
+
+        var roles = await roleSeeder.GetUserRolesAsync(user);
+
+        return Ok(MapToDto(user, roles.ToList()));
+    }
+
+    /// <summary>
+    /// Update a user's role and status
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(AdminUserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
+    {
+        var user = await db.Users.FindAsync(id);
+        if (user == null)
+            return NotFound(new { error = "User not found" });
+
+        // Update basic info
+        if (!string.IsNullOrWhiteSpace(request.FirstName))
+        {
+            if (request.FirstName.Trim().Length > 100)
+                return BadRequest(new { error = "First name cannot exceed 100 characters" });
+            user.FirstName = request.FirstName.Trim();
+        }
+        if (!string.IsNullOrWhiteSpace(request.LastName))
+        {
+            if (request.LastName.Trim().Length > 100)
+                return BadRequest(new { error = "Last name cannot exceed 100 characters" });
+            user.LastName = request.LastName.Trim();
+        }
+        if (request.Status != null)
+        {
+            if (!Enum.TryParse<UserStatus>(request.Status, out var status))
+                return BadRequest(new { error = "Invalid user status value" });
+            user.Status = status;
+            // Leaving Active invalidates refresh so the account cannot rotate tokens until reactivated.
+            if (status != UserStatus.Active)
+            {
+                user.RefreshToken = null;
+                user.RefreshTokenExpiryTime = null;
+            }
+        }
+
+        // Update employee link — validate it belongs to the same tenant
+        if (request.EmployeeId.HasValue)
+        {
+            if (request.EmployeeId.Value == Guid.Empty)
+            {
+                user.EmployeeId = null; // Explicitly unlink
+            }
+            else
+            {
+                var employeeExists = await db.Set<Pitbull.TimeTracking.Domain.Employee>()
+                    .AnyAsync(e => e.Id == request.EmployeeId.Value);
+                if (!employeeExists)
+                    return BadRequest(new { error = "Employee not found in this tenant" });
+                user.EmployeeId = request.EmployeeId.Value;
+            }
+        }
+
+        // Update company link — validate it belongs to the same tenant
+        if (request.CompanyId.HasValue)
+        {
+            if (request.CompanyId.Value == Guid.Empty)
+            {
+                user.CompanyId = null; // Explicitly unlink
+            }
+            else
+            {
+                var companyExists = await db.Companies.AnyAsync(c => c.Id == request.CompanyId.Value);
+                if (!companyExists)
+                    return BadRequest(new { error = "Company not found in this tenant" });
+                user.CompanyId = request.CompanyId.Value;
+            }
+        }
+
+        // Update roles if provided (frontend sends short names like "Admin", DB stores "{tenantId}:Admin")
+        if (request.Roles != null)
+        {
+            var currentRoles = await userManager.GetRolesAsync(user);
+            await userManager.RemoveFromRolesAsync(user, currentRoles);
+
+            foreach (var roleName in request.Roles)
+            {
+                var tenantRoleName = $"{user.TenantId}:{roleName}";
+                if (await roleManager.RoleExistsAsync(tenantRoleName))
+                {
+                    await userManager.AddToRoleAsync(user, tenantRoleName);
+                }
+            }
+        }
+
+        await db.SaveChangesAsync();
+
+        var roles = await roleSeeder.GetUserRolesAsync(user);
+        return Ok(MapToDto(user, roles.ToList()));
+    }
+
+    /// <summary>
+    /// Get all available roles
+    /// </summary>
+    [HttpGet("roles")]
+    [ProducesResponseType(typeof(List<RoleDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRoles()
+    {
+        var tenantClaim = User.FindFirst("tenant_id")?.Value;
+        var tenantId = Guid.TryParse(tenantClaim, out var tid) ? tid : Guid.Empty;
+        var tenantPrefix = $"{tenantId}:";
+        var roles = await roleManager.Roles
+            .Where(r => r.Name != null && r.Name.StartsWith(tenantPrefix))
+            .ToListAsync();
+        return Ok(roles.Select(r =>
+        {
+            // Strip tenant prefix (e.g., "{guid}:Admin" → "Admin")
+            var name = r.Name ?? string.Empty;
+            var colonIdx = name.IndexOf(':');
+            var displayName = colonIdx >= 0 ? name[(colonIdx + 1)..] : name;
+
+            return new RoleDto
+            {
+                Id = r.Id,
+                Name = displayName,
+                Description = r.Description ?? displayName
+            };
+        }).ToList());
+    }
+
+    /// <summary>
+    /// Bootstrap: promote a user to Admin when the tenant has no admin yet (one-time setup).
+    /// Requires email + password (not email alone) so knowing a GUID/email cannot escalate.
+    /// Once any admin exists, this endpoint is permanently disabled for that tenant.
+    /// </summary>
+    [HttpPost("bootstrap-admin")]
+    [AllowAnonymous] // First user may lack Admin.Users policy; password is the gate.
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BootstrapAdmin([FromBody] BootstrapAdminRequest request)
+    {
+        // All non-success branches return the same generic 400 to prevent email/tenant enumeration.
+        const string genericError = "Bootstrap failed. Verify credentials and try again.";
+
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new { error = genericError });
+
+        // Bound untrusted inputs before Identity lookup / password hash (same generic error).
+        var email = request.Email.Trim();
+        if (email.Length > 256 || request.Password.Length > 100)
+            return BadRequest(new { error = genericError });
+
+        var user = await userManager.FindByEmailAsync(email);
+        if (user is null || user.Status != UserStatus.Active)
+            return BadRequest(new { error = genericError });
+
+        // Password proof required — never promote by email alone.
+        var passwordOk = await signInManager.CheckPasswordSignInAsync(
+            user, request.Password, lockoutOnFailure: true);
+        if (!passwordOk.Succeeded)
+            return BadRequest(new { error = genericError });
+
+        var tenantId = user.TenantId;
+        var adminRoleName = $"{tenantId}:Admin";
+
+        // Guard: once an admin exists for this tenant, bootstrap is permanently disabled.
+        var existingAdminRole = await roleManager.FindByNameAsync(adminRoleName);
+        if (existingAdminRole != null)
+        {
+            var adminExists = await db.UserRoles
+                .AnyAsync(ur => ur.RoleId == existingAdminRole.Id);
+
+            if (adminExists)
+                return BadRequest(new { error = genericError });
+        }
+
+        var adminRole = existingAdminRole;
+        if (adminRole is null)
+        {
+            adminRole = new AppRole
+            {
+                Id = Guid.NewGuid(),
+                Name = adminRoleName,
+                NormalizedName = adminRoleName.ToUpperInvariant(),
+                TenantId = tenantId,
+                Description = "Full system access. Can manage users, roles, and all settings.",
+                IsSystemRole = true
+            };
+            await roleManager.CreateAsync(adminRole);
+        }
+
+        if (await userManager.IsInRoleAsync(user, adminRoleName))
+            return BadRequest(new { error = genericError });
+
+        // Least privilege: Admin only (do not auto-grant Manager/Supervisor/User).
+        var result = await userManager.AddToRoleAsync(user, adminRoleName);
+        if (!result.Succeeded)
+            return BadRequest(new { error = genericError });
+
+        return Ok(new
+        {
+            message = "User is now an Admin for this tenant",
+            roles = new[] { "Admin" }
+        });
+    }
+
+    private static AdminUserDto MapToDto(AppUser user, List<string> roles) => new()
+    {
+        Id = user.Id,
+        Email = user.Email!,
+        FirstName = user.FirstName,
+        LastName = user.LastName,
+        FullName = user.FullName,
+        Status = user.Status.ToString(),
+        LastLoginAt = user.LastLoginAt,
+        CreatedAt = user.CreatedAt,
+        Roles = roles,
+        EmployeeId = user.EmployeeId,
+        CompanyId = user.CompanyId
+    };
+
+    /// <summary>
+    /// One join for all user roles on the page (not per-user GetRolesAsync).
+    /// </summary>
+    private async Task<Dictionary<Guid, List<string>>> LoadRolesByUserIdAsync(List<Guid> userIds)
+    {
+        if (userIds.Count == 0)
+            return new Dictionary<Guid, List<string>>();
+
+        var tenantId = tenantContext.TenantId;
+        var prefix = $"{tenantId}:";
+
+        var rows = await db.Set<IdentityUserRole<Guid>>()
+            .Where(ur => userIds.Contains(ur.UserId))
+            .Join(
+                db.Set<AppRole>().Where(r => r.TenantId == tenantId),
+                ur => ur.RoleId,
+                r => r.Id,
+                (ur, r) => new { ur.UserId, r.Name })
+            .ToListAsync();
+
+        return rows
+            .GroupBy(x => x.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .Select(x => x.Name ?? "")
+                    .Where(n => n.StartsWith(prefix, StringComparison.Ordinal))
+                    .Select(n => n[prefix.Length..])
+                    .ToList());
+    }
+}
+
+public record BootstrapAdminRequest
+{
+    public string Email { get; init; } = string.Empty;
+    /// <summary>Required. Password proof for the account being elevated.</summary>
+    public string Password { get; init; } = string.Empty;
+}
+
+public record AdminUserDto
+{
+    public Guid Id { get; init; }
+    public string Email { get; init; } = string.Empty;
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public string FullName { get; init; } = string.Empty;
+    public string Status { get; init; } = "Active";
+    public DateTime? LastLoginAt { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public List<string> Roles { get; init; } = [];
+    public Guid? EmployeeId { get; init; }
+    public Guid? CompanyId { get; init; }
+}
+
+public record AdminListUsersResult
+{
+    public List<AdminUserDto> Items { get; init; } = [];
+    public int TotalCount { get; init; }
+    public int Page { get; init; }
+    public int PageSize { get; init; }
+}
+
+public record UpdateUserRequest
+{
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public string? Status { get; init; }
+    public List<string>? Roles { get; init; }
+    /// <summary>
+    /// Link user to an employee record. Send Guid.Empty to unlink.
+    /// </summary>
+    public Guid? EmployeeId { get; init; }
+    /// <summary>
+    /// Set user's default company. Send Guid.Empty to unlink.
+    /// </summary>
+    public Guid? CompanyId { get; init; }
+}
+
+public record RoleDto
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
+}

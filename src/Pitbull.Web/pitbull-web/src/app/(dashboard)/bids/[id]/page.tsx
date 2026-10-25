@@ -1,0 +1,506 @@
+"use client";
+
+import { use, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Link2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import api from "@/lib/api";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
+import { BidStatus, type Bid, type Project, type UpdateBidCommand } from "@/lib/types";
+import { getNextBidStatuses } from "@/lib/workflow-transitions";
+import { toast } from "sonner";
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
+function statusColor(status: BidStatus) {
+  switch (status) {
+    case BidStatus.Submitted:
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
+    case BidStatus.Draft:
+      return "bg-neutral-100 text-neutral-600";
+    case BidStatus.Won:
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
+    case BidStatus.Lost:
+      return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
+    case BidStatus.NoResponse:
+      return "bg-neutral-100 text-neutral-500";
+    case BidStatus.Cancelled:
+      return "bg-neutral-200 text-neutral-500";
+    case BidStatus.Converted:
+      return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300";
+    default:
+      return "";
+  }
+}
+
+function statusLabel(status: BidStatus) {
+  switch (status) {
+    case BidStatus.Draft:
+      return "Draft";
+    case BidStatus.Submitted:
+      return "Submitted";
+    case BidStatus.Won:
+      return "Won";
+    case BidStatus.Lost:
+      return "Lost";
+    case BidStatus.NoResponse:
+      return "No Response";
+    case BidStatus.Cancelled:
+      return "Cancelled";
+    case BidStatus.Converted:
+      return "Converted";
+    default:
+      return "Unknown";
+  }
+}
+
+export default function BidDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const router = useRouter();
+  const [bid, setBid] = useState<Bid | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [projectNumber, setProjectNumber] = useState("");
+  const [isConverting, setIsConverting] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const { addRecentItem } = useRecentlyViewed();
+
+  useEffect(() => {
+    async function fetchBid() {
+      try {
+        const data = await api<Bid>(`/api/bids/${id}`);
+        setBid(data);
+        // Track for recently viewed (dashboard widget)
+        addRecentItem({
+          id: data.id,
+          type: "bid",
+          name: data.name,
+          identifier: data.number,
+        });
+      } catch {
+        setError("Failed to load bid");
+        toast.error("Failed to load bid");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchBid();
+  }, [id, addRecentItem]);
+
+  async function handleStatusTransition(nextStatus: BidStatus) {
+    if (!bid || bid.status === nextStatus) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const command: UpdateBidCommand = {
+        id: bid.id,
+        name: bid.name,
+        number: bid.number,
+        status: nextStatus,
+        estimatedValue: bid.estimatedValue,
+        bidDate: bid.bidDate || undefined,
+        dueDate: bid.dueDate || undefined,
+        owner: bid.owner || undefined,
+        description: bid.description || undefined,
+        notes: bid.description || undefined,
+        items: bid.items?.map((item) => ({
+          description: item.description,
+          category: item.category,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+        })),
+      };
+      const updated = await api<Bid>(`/api/bids/${bid.id}`, { method: "PUT", body: command });
+      setBid(updated);
+      toast.success(`Bid status updated to ${statusLabel(nextStatus)}`);
+    } catch (err) {
+      toast.error("Failed to update bid status", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }
+
+  async function handleConvertToProject() {
+    if (!projectNumber.trim()) {
+      toast.error("Please enter a project number");
+      return;
+    }
+    setIsConverting(true);
+    try {
+      const project = await api<Project>(
+        `/api/bids/${id}/convert-to-project`,
+        {
+          method: "POST",
+          body: { projectNumber: projectNumber.trim() },
+        }
+      );
+      toast.success("Bid converted to project successfully!");
+      setConvertOpen(false);
+      router.push(`/projects/${project.id}`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to convert bid"
+      );
+    } finally {
+      setIsConverting(false);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-80" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !bid) {
+    return (
+      <div className="space-y-6">
+        <div className="py-12 text-center">
+          <p className="text-muted-foreground">
+            {error || "Bid not found"}
+          </p>
+          <Button asChild variant="outline" className="mt-4">
+            <Link href="/bids">Back to Bids</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Bids", href: "/bids" },
+          { label: bid.name },
+        ]}
+      />
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">{bid.name}</h1>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success("Link copied to clipboard");
+              }}
+              title="Copy link" aria-label="Copy link"
+            >
+              <Link2 className="h-4 w-4" />
+            </Button>
+            <Badge
+              variant="secondary"
+              className={statusColor(bid.status)}
+            >
+              {statusLabel(bid.status)}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground font-mono text-sm">
+            {bid.number}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {getNextBidStatuses(bid.status).map((next) => (
+            <Button
+              key={next}
+              className={
+                next === BidStatus.Won
+                  ? "bg-green-600 hover:bg-green-700 text-white min-h-[44px]"
+                  : next === BidStatus.Cancelled || next === BidStatus.Lost
+                    ? "min-h-[44px]"
+                    : "bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
+              }
+              variant={next === BidStatus.Cancelled || next === BidStatus.Lost ? "outline" : "default"}
+              disabled={isUpdatingStatus}
+              onClick={() => handleStatusTransition(next)}
+            >
+              {statusLabel(next)}
+            </Button>
+          ))}
+          <Button asChild variant="outline" className="min-h-[44px]">
+            <Link href={`/bids/${bid.id}/edit`}>Edit Bid</Link>
+          </Button>
+          {bid.status === BidStatus.Won && !bid.projectId && (
+            <>
+            <Button asChild className="bg-green-600 hover:bg-green-700 text-white min-h-[44px]">
+              <Link href={`/bids/${bid.id}/convert`}>
+                Convert to Project
+              </Link>
+            </Button>
+            <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="min-h-[44px]">
+                  Quick Convert
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Convert Bid to Project</DialogTitle>
+                  <DialogDescription>
+                    Create a new project from this winning bid. Enter a project
+                    number to get started.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="projectNumber">Project Number</Label>
+                    <Input
+                      id="projectNumber"
+                      placeholder="P-2024-001"
+                      value={projectNumber}
+                      onChange={(e) => setProjectNumber(e.target.value)}
+                    />
+                  </div>
+                  <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
+                    <p className="text-sm font-medium">Data that will carry over:</p>
+                    <div className="grid grid-cols-2 gap-1 text-sm">
+                      <span className="text-muted-foreground">Project Name</span>
+                      <span className="font-medium">{bid.name}</span>
+                      <span className="text-muted-foreground">Client / Owner</span>
+                      <span className="font-medium">{bid.owner || "—"}</span>
+                      <span className="text-muted-foreground">Estimated Value</span>
+                      <span className="font-medium font-mono">
+                        {bid.estimatedValue ? formatCurrency(bid.estimatedValue) : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    className="min-h-[44px]"
+                    onClick={() => setConvertOpen(false)}
+                    disabled={isConverting}
+                  >
+                    Cancel
+                  </Button>
+                  <LoadingButton
+                    className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
+                    onClick={handleConvertToProject}
+                    loading={isConverting}
+                    loadingText="Converting..."
+                  >
+                    Convert
+                  </LoadingButton>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            </>
+          )}
+          {(bid.status === BidStatus.Won || bid.status === BidStatus.Converted) && bid.projectId && (
+            <Button asChild variant="outline" className="min-h-[44px]">
+              <Link href={`/projects/${bid.projectId}`}>
+                View Project
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Bid Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <span className="text-muted-foreground">Client / Owner</span>
+              <span className="font-medium">
+                {bid.owner || "—"}
+              </span>
+              <span className="text-muted-foreground">Bid Value</span>
+              <span className="font-medium font-mono">
+                {bid.estimatedValue
+                  ? formatCurrency(bid.estimatedValue)
+                  : "—"}
+              </span>
+              <span className="text-muted-foreground">Bid Date</span>
+              <span className="font-medium">
+                {bid.bidDate
+                  ? new Date(bid.bidDate).toLocaleDateString()
+                  : "Not set"}
+              </span>
+              <span className="text-muted-foreground">Due Date</span>
+              <span className="font-medium">
+                {bid.dueDate
+                  ? new Date(bid.dueDate).toLocaleDateString()
+                  : "—"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Scope of Work</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {bid.description || "No description provided."}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Bid Items</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {bid.items && bid.items.length > 0 ? (
+            <>
+              {/* Mobile card layout for bid items */}
+              <div className="sm:hidden space-y-3">
+                {bid.items.map((item) => (
+                  <div key={item.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="font-medium text-sm">{item.description}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Category</span>
+                        <p className="font-medium">{item.category}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Quantity</span>
+                        <p className="font-medium font-mono">{item.quantity}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Unit Cost</span>
+                        <p className="font-medium font-mono">{formatCurrency(item.unitCost)}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Total</span>
+                        <p className="font-medium font-mono">{formatCurrency(item.totalCost)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="border-t pt-3 mt-4">
+                  <div className="flex justify-between items-center font-bold">
+                    <span>Total</span>
+                    <span className="font-mono">
+                      {formatCurrency(
+                        bid.items.reduce(
+                          (sum, item) => sum + item.totalCost,
+                          0
+                        )
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop table layout for bid items */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Unit Cost</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bid.items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatCurrency(item.unitCost)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-medium">
+                          {formatCurrency(item.totalCost)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold">
+                      <TableCell colSpan={4} className="text-right">
+                        Total
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(
+                          bid.items.reduce(
+                            (sum, item) => sum + item.totalCost,
+                            0
+                          )
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          ) : (
+            <div className="py-8 text-center">
+              <p className="text-muted-foreground text-sm">
+                No line items added yet.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      <div className="flex">
+        <Button variant="ghost" asChild className="min-h-[44px]">
+          <Link href="/bids">← Back to Bids</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}

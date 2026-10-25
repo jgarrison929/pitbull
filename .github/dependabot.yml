@@ -1,0 +1,30 @@
+version: 2
+# The legacy app (src/, e2e/) is frozen at tag legacy-3.8.2-final, so only v5 and Actions get updates.
+updates:
+  - package-ecosystem: "npm"
+    directory: "/v5"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 8
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "deps"
+    ignore:
+      # @types/node must match the Node major in v5/.nvmrc and engines; bump it with the runtime, not alone.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    # react-dom pins an exact react peer, so a solo bump of either fails npm ci.
+    groups:
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 4
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "ci"

@@ -1,0 +1,16 @@
+code,parent_code,description,unit,qty,mh_per_unit,labor_unit,material_unit,equipment_unit,sub_unit
+02,,Earthwork,,,,,,,
+02-100,02,Excavation,CY,1234.567,0.055,4.57,0,6.33,0
+02-200,02,Structural backfill,CY,812.125,0.08,5.01,18.99,3.49,0
+03,,Concrete,,,,,,,
+03-200,03,Footings,,,,,,,
+03-210,03-200,Footing concrete,CY,150.333,1.2,72.15,165.05,0,0
+03-220,03-200,Footing forms,SF,2041.5,0.12,3.33,1.17,0.25,0
+03-300,03,Reinforcing,,,,,,,
+03-310,03-300,Rebar install (sub),LB,18000.001,0,0,0,0,0.95
+03-320,03-300,Rebar chairs,EA,7,0.25,1.99,0.99,0,0
+04,,General conditions,,,,,,,
+04-100,04,"Mobilization, demob ""lump""",LS,1,16,1250.50,0,0,999.99
+04-200,04,Dewatering,DAY,0.5,8,85.00,0,312.50,0
+04-300,04,Survey stakes,EA,0.333,0,0.05,0,0,0
+04-400,04,Traffic cones,EA,1.001,0,5.00,0,0,0

@@ -1,0 +1,166 @@
+using Pitbull.Core.Domain;
+using Pitbull.Projects.Domain;
+
+namespace Pitbull.TimeTracking.Domain;
+
+/// <summary>
+/// Represents a daily time entry for an employee working on a specific project and cost code.
+/// This is the core entity for tracking labor hours that will be used for job costing.
+/// </summary>
+public class TimeEntry : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    /// <summary>
+    /// The date this time entry applies to (date only, no time component)
+    /// </summary>
+    public DateOnly Date { get; set; }
+
+    /// <summary>
+    /// Employee who performed the work
+    /// </summary>
+    public Guid EmployeeId { get; set; }
+
+    /// <summary>
+    /// Project the work was performed on
+    /// </summary>
+    public Guid ProjectId { get; set; }
+
+    /// <summary>
+    /// Specific cost code for the type of work performed
+    /// </summary>
+    public Guid CostCodeId { get; set; }
+
+    /// <summary>
+    /// Optional: Which project phase this time entry is for.
+    /// Allows breakdown of labor by phase within a project.
+    /// </summary>
+    public Guid? PhaseId { get; set; }
+
+    /// <summary>
+    /// Optional: Equipment used during this time entry.
+    /// Used for job costing equipment hours to projects.
+    /// </summary>
+    public Guid? EquipmentId { get; set; }
+
+    /// <summary>
+    /// Hours the equipment was used (may differ from labor hours).
+    /// E.g., a crew of 4 might use one excavator for 6 hours while each works 8.
+    /// </summary>
+    public decimal EquipmentHours { get; set; }
+
+    /// <summary>
+    /// Number of regular hours worked (8 hours = normal day)
+    /// </summary>
+    public decimal RegularHours { get; set; }
+
+    /// <summary>
+    /// Number of overtime hours worked (typically 1.5x pay rate)
+    /// </summary>
+    public decimal OvertimeHours { get; set; }
+
+    /// <summary>
+    /// Number of double-time hours worked (typically 2.0x pay rate, weekends/holidays)
+    /// </summary>
+    public decimal DoubletimeHours { get; set; }
+
+    /// <summary>
+    /// Total hours for this entry (calculated property)
+    /// </summary>
+    public decimal TotalHours => RegularHours + OvertimeHours + DoubletimeHours;
+
+    /// <summary>
+    /// Description of work performed (optional, for detailed records)
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Current approval status of this time entry
+    /// </summary>
+    public TimeEntryStatus Status { get; set; } = TimeEntryStatus.Submitted;
+
+    /// <summary>
+    /// Who approved this time entry (if approved)
+    /// </summary>
+    public Guid? ApprovedById { get; set; }
+
+    /// <summary>
+    /// When this time entry was approved (if approved)
+    /// </summary>
+    public DateTime? ApprovedAt { get; set; }
+
+    /// <summary>
+    /// Comments from approver (if any)
+    /// </summary>
+    public string? ApprovalComments { get; set; }
+
+    /// <summary>
+    /// Rejection reason (if rejected)
+    /// </summary>
+    public string? RejectionReason { get; set; }
+
+    /// <summary>
+    /// When this time entry was submitted (if submitted from Draft)
+    /// </summary>
+    public DateTime? SubmittedAt { get; set; }
+
+    /// <summary>
+    /// Who submitted this time entry (foreman who clicked Submit)
+    /// </summary>
+    public Guid? SubmittedById { get; set; }
+
+    // GPS location capture for prevailing wage compliance
+    /// <summary>
+    /// Latitude of the device when the time entry was created (WGS 84)
+    /// </summary>
+    public decimal? Latitude { get; set; }
+
+    /// <summary>
+    /// Longitude of the device when the time entry was created (WGS 84)
+    /// </summary>
+    public decimal? Longitude { get; set; }
+
+    /// <summary>
+    /// GPS accuracy in meters at time of capture
+    /// </summary>
+    public decimal? GpsAccuracy { get; set; }
+
+    /// <summary>
+    /// When the GPS position was captured (may differ from entry creation time)
+    /// </summary>
+    public DateTime? GpsCapturedAt { get; set; }
+
+    // Navigation properties
+    public Employee? SubmittedBy { get; set; }
+    public Employee Employee { get; set; } = null!;
+    public Project Project { get; set; } = null!;
+    public CostCode CostCode { get; set; } = null!;
+    public Employee? ApprovedBy { get; set; }
+    public Phase? Phase { get; set; }
+    public Equipment? Equipment { get; set; }
+}
+
+/// <summary>
+/// Status workflow for time entries
+/// </summary>
+public enum TimeEntryStatus
+{
+    /// <summary>
+    /// Time entry has been submitted by employee but not yet reviewed
+    /// </summary>
+    Submitted = 0,
+
+    /// <summary>
+    /// Time entry has been approved by supervisor/foreman
+    /// </summary>
+    Approved = 1,
+
+    /// <summary>
+    /// Time entry has been rejected and needs to be corrected
+    /// </summary>
+    Rejected = 2,
+
+    /// <summary>
+    /// Draft time entry, not yet submitted (allows employee to save progress)
+    /// </summary>
+    Draft = 3
+}

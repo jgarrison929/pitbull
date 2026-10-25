@@ -1,0 +1,20 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/node_modules/
+**/.next/
+**/out/
+
+# Git
+.git/
+
+# Tests
+tests/
+
+# Docs
+docs/
+
+# IDE
+.vs/
+.vscode/
+.idea/
