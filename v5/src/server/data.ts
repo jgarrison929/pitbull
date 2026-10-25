@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { requireDb } from "@/db";
 import {
   costItemMilestones,
@@ -273,19 +273,16 @@ export type JobDetail = NonNullable<Awaited<ReturnType<typeof getJob>>>;
 
 export async function getPlansForJob(companyId: string, jobId: string) {
   const db = requireDb();
-  // LEFT JOIN: pre-0013 writers insert with crew_id NULL. Fall back to the
-  // legacy text column so those plans still appear on the job page / assistant.
+  // crew_id is NOT NULL after 0019; name always comes from crews.
   const plans = await db
     .select({
       plan: dailyPlans,
       foreman: users.name,
-      crew: sql<string>`coalesce(${crews.name}, ${dailyPlans.crew})`.mapWith(
-        String,
-      ),
+      crew: crews.name,
     })
     .from(dailyPlans)
     .innerJoin(users, eq(users.id, dailyPlans.foremanId))
-    .leftJoin(crews, eq(crews.id, dailyPlans.crewId))
+    .innerJoin(crews, eq(crews.id, dailyPlans.crewId))
     .where(
       and(eq(dailyPlans.companyId, companyId), eq(dailyPlans.jobId, jobId)),
     )

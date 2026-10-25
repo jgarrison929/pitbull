@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, isNull, max, or, sql } from "drizzle-orm";
+import { and, asc, eq, max, sql } from "drizzle-orm";
 import { requireDb, type Db } from "@/db";
 import {
   costItems,
@@ -31,29 +31,19 @@ export { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0] | Db;
 
 /**
- * Labor rate on a plan row already joined in a query that LEFT JOINs `crews`
- * on `daily_plans.crew_id`. Coalesce: joined rate → name match → expand DEFAULT.
- * Never null — pending/approve always get a sane cents/MH.
+ * Labor rate on a plan row INNER JOINed to `crews` on `daily_plans.crew_id`
+ * (required after 0019). Coalesce joined rate → expand DEFAULT so pending/
+ * approve never see null cents/MH.
  */
 export const planLaborRateCentsSql = sql<number>`coalesce(
   ${crews.laborRateCents},
-  (
-    select c.labor_rate_cents from crews c
-    where c.company_id = ${dailyPlans.companyId}
-      and c.name = ${dailyPlans.crew}
-    limit 1
-  ),
   ${CREW_RATE_EXPAND_DEFAULT_CENTS}
 )`.mapWith(Number);
 
 /**
- * Labor rate (cents per MH) for a plan's crew.
- *
- * 1. `crew_id` → crews.labor_rate_cents
- * 2. else match crews by (company_id, daily_plans.crew) — 0013-window NULL crew_id
- * 3. else expand DEFAULT 8500
- *
- * Never throws on a missing crew. Posted cost_entries snapshot this rate.
+ * Labor rate (cents per MH) for a plan's crew via `crew_id`.
+ * Falls back to expand DEFAULT 8500 only if the join misses (should not
+ * happen after 0019). Never throws on a missing crew.
  */
 export async function laborRateForPlan(
   tx: Tx,
@@ -66,21 +56,6 @@ export async function laborRateForPlan(
     .where(eq(dailyPlans.id, planId))
     .limit(1);
   if (byId) return byId.rateCents;
-
-  const [byName] = await tx
-    .select({ rateCents: crews.laborRateCents })
-    .from(dailyPlans)
-    .innerJoin(
-      crews,
-      and(
-        eq(crews.companyId, dailyPlans.companyId),
-        eq(crews.name, dailyPlans.crew),
-      ),
-    )
-    .where(eq(dailyPlans.id, planId))
-    .limit(1);
-  if (byName) return byName.rateCents;
-
   return CREW_RATE_EXPAND_DEFAULT_CENTS;
 }
 
@@ -168,11 +143,6 @@ export async function createDailyPlan(
     .limit(1);
   if (!crew) return refused("Pick a crew from this company's list.");
 
-  // Match crew_id, or legacy NULL crew_id rows with the same text crew name.
-  const sameCrew = or(
-    eq(dailyPlans.crewId, crew.id),
-    and(isNull(dailyPlans.crewId), eq(dailyPlans.crew, crew.name)),
-  );
   // Same keep rule as 0013: issued (and later) over draft, then newest.
   const dups = await db
     .select({
@@ -187,7 +157,7 @@ export async function createDailyPlan(
       and(
         eq(dailyPlans.companyId, user.companyId),
         eq(dailyPlans.jobId, job.id),
-        sameCrew,
+        eq(dailyPlans.crewId, crew.id),
         eq(dailyPlans.planDate, input.planDate),
       ),
     );
@@ -206,8 +176,7 @@ export async function createDailyPlan(
         id: planId,
         companyId: user.companyId,
         jobId: job.id,
-        // Dual-write legacy text until a later contract migration drops it.
-        crew: crew.name,
+        // crew text column dropped by 0019 — crew_id only.
         crewId: crew.id,
         foremanId: crew.foremanId,
         planDate: input.planDate,
@@ -245,7 +214,7 @@ export async function createDailyPlan(
           and(
             eq(dailyPlans.companyId, user.companyId),
             eq(dailyPlans.jobId, job.id),
-            sameCrew,
+            eq(dailyPlans.crewId, crew.id),
             eq(dailyPlans.planDate, input.planDate),
           ),
         );
@@ -269,14 +238,12 @@ async function loadPlan(companyId: string, planId: string) {
   const [row] = await db
     .select({
       plan: dailyPlans,
-      crewName: sql<string>`coalesce(${crews.name}, ${dailyPlans.crew})`.mapWith(
-        String,
-      ),
+      crewName: crews.name,
       jobNumber: jobs.number,
       jobShortName: jobs.shortName,
     })
     .from(dailyPlans)
-    .leftJoin(crews, eq(crews.id, dailyPlans.crewId))
+    .innerJoin(crews, eq(crews.id, dailyPlans.crewId))
     .innerJoin(jobs, eq(jobs.id, dailyPlans.jobId))
     .where(
       and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
@@ -313,14 +280,12 @@ export async function resolvePlanForWrite(
   const rows = await db
     .select({
       plan: dailyPlans,
-      crewName: sql<string>`coalesce(${crews.name}, ${dailyPlans.crew})`.mapWith(
-        String,
-      ),
+      crewName: crews.name,
       jobNumber: jobs.number,
       jobShortName: jobs.shortName,
     })
     .from(dailyPlans)
-    .leftJoin(crews, eq(crews.id, dailyPlans.crewId))
+    .innerJoin(crews, eq(crews.id, dailyPlans.crewId))
     .innerJoin(jobs, eq(jobs.id, dailyPlans.jobId))
     .where(
       and(

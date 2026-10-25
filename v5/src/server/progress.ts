@@ -52,12 +52,12 @@ export async function getApprovalPendingByCostItem(
       costItemId: dailyPlanLines.costItemId,
       reportedQtyMilli: dailyPlanLines.reportedQtyMilli,
       reportedHoursTenths: dailyPlanLines.reportedHoursTenths,
-      // LEFT JOIN crews: null crew_id still gets a rate (name → DEFAULT).
+      // INNER JOIN crews: crew_id is required after 0019.
       rateCents: planLaborRateCentsSql,
     })
     .from(dailyPlanLines)
     .innerJoin(dailyPlans, eq(dailyPlans.id, dailyPlanLines.planId))
-    .leftJoin(crews, eq(crews.id, dailyPlans.crewId))
+    .innerJoin(crews, eq(crews.id, dailyPlans.crewId))
     .where(
       and(
         eq(dailyPlanLines.companyId, companyId),

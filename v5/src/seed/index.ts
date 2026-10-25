@@ -923,7 +923,6 @@ export function seed(companyId: string, today: Date): SeedRows {
     id: planId,
     companyId,
     jobId: id("job:cedar"),
-    crew: "Bridge Crew 2",
     crewId: bridgeCrewId,
     foremanId,
     // Job-zone calendar — never UTC day (breaks after 00:00Z for US demos).
@@ -998,7 +997,6 @@ export function seed(companyId: string, today: Date): SeedRows {
       id: i5PlanId,
       companyId,
       jobId: id("job:i5"),
-      crew: "Culvert Crew A",
       crewId: culvertCrewId,
       foremanId,
       planDate: planDateToday(today, timeZoneForJob()),

@@ -204,7 +204,6 @@ export function buildFieldHistory(args: {
         id: planId,
         companyId,
         jobId: job.id,
-        crew: job.crew.name,
         crewId: job.crew.id,
         foremanId,
         planDate: day,

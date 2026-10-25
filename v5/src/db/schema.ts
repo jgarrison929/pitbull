@@ -400,18 +400,14 @@ export const dailyPlans = pgTable(
       .notNull()
       .references(() => jobs.id, { onDelete: "cascade" }),
     /**
-     * Legacy free-text crew name. Kept through the expand-only 0013 deploy
-     * window so a pre-0013 build still reads the column. New writes dual-write
-     * this alongside crewId; a later contract migration drops it.
+     * Required after 0019 crews contract. Migration backfills nulls from the
+     * legacy text column, then drops that column.
      */
-    crew: text("crew").notNull(),
-    /**
-     * Nullable through the 0013 expand window so pre-0013 builds can INSERT
-     * without crew_id. New code always writes it. Later contract: SET NOT NULL.
-     */
-    crewId: uuid("crew_id").references(() => crews.id, {
-      onDelete: "restrict",
-    }),
+    crewId: uuid("crew_id")
+      .notNull()
+      .references(() => crews.id, {
+        onDelete: "restrict",
+      }),
     foremanId: uuid("foreman_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

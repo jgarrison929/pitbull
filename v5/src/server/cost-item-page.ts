@@ -4,6 +4,7 @@ import { requireDb } from "@/db";
 import {
   costEntries,
   costItems,
+  crews,
   dailyPlanLines,
   dailyPlans,
   jobs,
@@ -140,7 +141,7 @@ export async function getCostItemPage(
       .select({
         entry: costEntries,
         planId: dailyPlans.id,
-        crew: dailyPlans.crew,
+        crew: crews.name,
         approverName: users.name,
       })
       .from(costEntries)
@@ -158,6 +159,7 @@ export async function getCostItemPage(
           eq(dailyPlans.companyId, companyId),
         ),
       )
+      .leftJoin(crews, eq(crews.id, dailyPlans.crewId))
       .leftJoin(
         users,
         and(
