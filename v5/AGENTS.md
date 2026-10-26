@@ -24,7 +24,7 @@ Prefer **truth over polish**. Assume the next editor only opened the nearest fil
 | Working-day math is **indexed** (binary search on day numbers) — no per-day `Date` walks | `calendarUsesIndexedArithmetic` when calendar ships |
 | No raw Tailwind palette / hex / oklch in product UI — theme tokens only | `no-raw-colors.ts` (+ allowlist until Part C lands; expiry 2026-11-30) |
 | Never call Pitbull an "ERP"; no coming-soon / stub / lorem user copy | `banned-strings.test.ts` + roadmap bans |
-| Do not edit `.cursor/skills/verify-v5` or `src/proxy.ts` in a feature PR | `npm run check:owned-paths` in CI (fail closed); bypass via exact PR title `[owned-path-ok]` (case-sensitive) or label `owned-path-ok` |
+| Do not edit `.cursor/skills/verify-v5` or `src/proxy.ts` in a feature PR | `npm run check:owned-paths` in CI (fail closed); bypass via exact PR title `[owned-path-ok]` or exact label element `owned-path-ok` (case-sensitive, no trim; labels passed as JSON array) |
 | Job / cost-item pages: fixed query budgets — no N+1 over history | `getDbQueryCount` + `*-query-budget.test.ts` |
 | Staging `DATABASE_URL` = private `*.railway.internal`, not `DATABASE_PUBLIC_URL` / `*.proxy.rlwy.net` | `classifyDatabaseUrl` on `/health` as `dbNetwork` |
 | No Recharts (or other heavy client chart) for simple SVG series | `no-recharts.test.ts` |

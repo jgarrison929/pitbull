@@ -5,8 +5,10 @@ import { BUILDER_FORBIDDEN_TOUCH } from "./paths";
  * as product work — those files are owned by dedicated slices.
  *
  * Bypass (CI): PR title contains exact `[owned-path-ok]` (case-sensitive),
- * or label `owned-path-ok`. Not the last commit subject — that was too easy
- * to forget on later pushes. Lookalikes like `[OWNED-PATH-OK]` must not bypass.
+ * or an exact label element `owned-path-ok` (case-sensitive, no trim).
+ * Not the last commit subject — that was too easy to forget on later pushes.
+ * Lookalikes (`OWNED-PATH-OK`, `x,owned-path-ok`, leading space) must not bypass.
+ * CI passes labels as a JSON array (`toJSON(...labels.*.name)`), never comma-joined.
  */
 
 export const OWNED_PATH_OK_TITLE = /\[owned-path-ok\]/;
@@ -31,14 +33,31 @@ export function touchesBuilderForbidden(paths: string[]): string[] {
   return [...new Set(hits)];
 }
 
+/**
+ * Parse OWNED_PATHS_PR_LABELS from CI. Expects a JSON string array.
+ * Never comma-splits or trims — a label literally named `x,owned-path-ok`
+ * must stay one element and must not grant bypass.
+ */
+export function parseOwnedPathPrLabels(raw: string | null | undefined): string[] {
+  if (raw == null || raw === "") return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((x): x is string => typeof x === "string");
+}
+
 /** True when bypass is granted via PR title or labels. */
 export function ownedPathBypassAllowed(opts: {
   prTitle?: string | null;
   labels?: readonly string[] | null;
 }): boolean {
   if (opts.prTitle && OWNED_PATH_OK_TITLE.test(opts.prTitle)) return true;
-  if (opts.labels?.some((l) => l.toLowerCase() === OWNED_PATH_OK_LABEL))
-    return true;
+  // Exact element match only — no toLowerCase, trim, or substring/includes.
+  if (opts.labels?.some((l) => l === OWNED_PATH_OK_LABEL)) return true;
   return false;
 }
 

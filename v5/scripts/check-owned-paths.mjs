@@ -4,8 +4,9 @@
  *
  * Bypass (not the last commit subject):
  *   - PR title contains exact `[owned-path-ok]` (case-sensitive), or
- *   - PR has label `owned-path-ok`
- * Lookalikes like `[OWNED-PATH-OK]` must not bypass.
+ *   - PR labels JSON array contains exact element `owned-path-ok`
+ * Lookalikes (`[OWNED-PATH-OK]`, `OWNED-PATH-OK`, `x,owned-path-ok`) must not bypass.
+ * OWNED_PATHS_PR_LABELS must be a JSON array (CI: toJSON(labels.*.name)), never comma-joined.
  *
  * Fail closed in CI when the base ref/SHA cannot be resolved / diffed.
  *
@@ -43,6 +44,22 @@ function fail(msg, detail) {
   process.exit(1);
 }
 
+/**
+ * Parse OWNED_PATHS_PR_LABELS as a JSON string array.
+ * No comma-split / trim / toLowerCase — those accept lookalikes.
+ */
+function parsePrLabels(raw) {
+  if (raw == null || raw === "") return [];
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((x) => typeof x === "string");
+}
+
 /** Bypass via PR title or label — never last-commit subject. */
 function bypassGranted() {
   const title = process.env.OWNED_PATHS_PR_TITLE || "";
@@ -51,12 +68,9 @@ function bypassGranted() {
     console.log("check-owned-paths: skipped ([owned-path-ok] in PR title)");
     return true;
   }
-  const labelsRaw = process.env.OWNED_PATHS_PR_LABELS || "";
-  const labels = labelsRaw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  if (labels.includes("owned-path-ok")) {
+  const labels = parsePrLabels(process.env.OWNED_PATHS_PR_LABELS || "");
+  // Exact element match only — not labelsRaw.includes / substring.
+  if (labels.some((l) => l === "owned-path-ok")) {
     console.log("check-owned-paths: skipped (label owned-path-ok)");
     return true;
   }

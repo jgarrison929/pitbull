@@ -242,7 +242,8 @@ jobs:
           OWNED_PATHS_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           OWNED_PATHS_BASE: origin/${{ github.base_ref || 'main' }}
           OWNED_PATHS_PR_TITLE: ${{ github.event.pull_request.title || '' }}
-          OWNED_PATHS_PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          # JSON array — never comma-join (a label named "x,owned-path-ok" must stay one element).
+          OWNED_PATHS_PR_LABELS: ${{ github.event.pull_request && toJSON(github.event.pull_request.labels.*.name) || '[]' }}
         run: |
           if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
             git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.sha }}"
