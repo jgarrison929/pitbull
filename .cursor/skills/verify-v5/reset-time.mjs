@@ -19,11 +19,15 @@
 //
 // Fail fast with a reason (the 502b sign-off incident: the reset server action was cut off, Railway
 // logged POST 499, and the sample only said "not ready" 20 s later). A sample fails AT ONCE, without
-// waiting for the timeout, when the reset POST itself fails (HTTP >= 400 such as 499/5xx, or the request
-// is aborted), or when a check sees an error screen (Next's built-in error screen or the app's
+// waiting for the timeout, when the reset POST itself answers HTTP >= 400 (499/5xx) or fails on the
+// network with a hard disconnect (ERR_CONNECTION_*, ERR_EMPTY_RESPONSE, …) — not net::ERR_ABORTED —
+// or when a check sees an error screen (Next's built-in error screen or the app's
 // "Page load failed" / "Shell load failed" boundary, by text or by its data-testid marker): neither can
-// turn into a ready page. Every failure reason names the URL with its query and what <main> and its job
-// rows showed on the last check. The pass rule above is unchanged.
+// turn into a ready page. net::ERR_ABORTED is ignored in fail-fast: Next.js aborts the server-action
+// POST when soft-navigating after redirect("/app?reset=1"); treating that abort as failure raced READY
+// and flaked CI (#11 / #20). Keep polling for READY / the 20 s timeout instead. Every failure reason
+// names the URL with its query and what <main> and its job rows showed on the last check. The pass
+// rule above is unchanged.
 // When verify.mjs registered an evidence folder on the page (setFailureEvidence), each failed sample is
 // captured there (screenshot, HTML, URL, console/page errors, failed requests; see evidence.mjs).
 import { ERROR_BOUNDARY, ERROR_BOUNDARY_SELECTOR } from "./checks.mjs";
@@ -91,7 +95,10 @@ function watchResetPost(page, origin) {
   };
   const onFailed = (req) => {
     if (state.failure || !isPost(req)) return;
-    state.failure = `${label(req)} failed: ${req.failure?.()?.errorText ?? "request failed"}`;
+    const err = req.failure?.()?.errorText ?? "request failed";
+    // Next server-action redirect aborts the action fetch; not a Railway cut-off.
+    if (err === "net::ERR_ABORTED") return;
+    state.failure = `${label(req)} failed: ${err}`;
   };
   const offs = [];
   for (const [e, f] of [["request", onRequest], ["response", onResponse], ["requestfailed", onFailed]]) {

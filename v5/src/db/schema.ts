@@ -12,6 +12,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -650,3 +651,86 @@ export const appSettings = pgTable("app_settings", {
     .notNull()
     .defaultNow(),
 });
+
+// --- 5.1.0-a schedule (migration 0020). Types also exported from @/lib/schedule. ---
+
+/** One working calendar per job. Holidays are dates with no work. */
+export const jobCalendars = pgTable(
+  "job_calendars",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Bitmask: bit 0 = Monday … bit 6 = Sunday. Default Mon–Fri = 31. */
+    workdaysMask: integer("workdays_mask").notNull().default(31),
+  },
+  (t) => [uniqueIndex("job_calendars_job_uidx").on(t.jobId)],
+);
+
+export const calendarHolidays = pgTable(
+  "calendar_holidays",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    calendarId: uuid("calendar_id")
+      .notNull()
+      .references(() => jobCalendars.id, { onDelete: "cascade" }),
+    on: date("on").notNull(),
+    name: text("name").notNull().default(""),
+  },
+  (t) => [uniqueIndex("calendar_holidays_day_uidx").on(t.calendarId, t.on)],
+);
+
+export const activities = pgTable(
+  "activities",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    /** Whole working days. */
+    durationDays: integer("duration_days").notNull(),
+    /** Optional "start no earlier than" constraint (used by 5.1.1). */
+    startNoEarlierOn: date("start_no_earlier_on"),
+    earlyStartOn: date("early_start_on").notNull(),
+    earlyFinishOn: date("early_finish_on").notNull(),
+    lateStartOn: date("late_start_on").notNull(),
+    lateFinishOn: date("late_finish_on").notNull(),
+    totalFloatDays: integer("total_float_days").notNull().default(0),
+    isCritical: boolean("is_critical").notNull().default(false),
+    /** Bumped on every write. A save with a stale version is refused (I8). */
+    version: integer("version").notNull().default(1),
+  },
+  (t) => [
+    uniqueIndex("activities_job_code_uidx").on(t.jobId, t.code),
+    index("activities_job_idx").on(t.jobId),
+    check(
+      "activities_duration_days_ck",
+      sql`${t.durationDays} >= 1 and ${t.durationDays} <= 3650`,
+    ),
+  ],
+);
+
+/** Many activities ↔ many leaf cost items. */
+export const activityCostItems = pgTable(
+  "activity_cost_items",
+  {
+    activityId: uuid("activity_id")
+      .notNull()
+      .references(() => activities.id, { onDelete: "cascade" }),
+    costItemId: uuid("cost_item_id")
+      .notNull()
+      .references(() => costItems.id, { onDelete: "cascade" }),
+    companyId: companyRef(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.activityId, t.costItemId] }),
+    index("activity_cost_items_item_idx").on(t.costItemId),
+  ],
+);

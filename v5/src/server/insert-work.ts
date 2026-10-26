@@ -9,6 +9,9 @@
 import type { Db } from "@/db";
 import {
   actionRuns,
+  activities,
+  activityCostItems,
+  calendarHolidays,
   changeOrderEvents,
   changeOrderLines,
   changeOrders,
@@ -19,6 +22,7 @@ import {
   dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
+  jobCalendars,
   jobs,
   milestoneLogs,
   pmPercentLogs,
@@ -54,6 +58,11 @@ export function insertWorkStatementCount(rows: SeedRows): number {
     n += Math.ceil(rows.dailyPlanEvents.length / INSERT_WORK_CHUNK);
   if (rows.dailyPlanLines.length)
     n += Math.ceil(rows.dailyPlanLines.length / INSERT_WORK_CHUNK);
+  // 5.1.0-a schedule (calendars → holidays → activities → links).
+  if (rows.jobCalendars.length) n += 1;
+  if (rows.calendarHolidays.length) n += 1;
+  if (rows.activities.length) n += 1;
+  if (rows.activityCostItems.length) n += 1;
   if (rows.changeOrders.length) n += 1;
   if (rows.changeOrderLines.length) n += 1;
   if (rows.changeOrderEvents.length) n += 1;
@@ -63,10 +72,11 @@ export function insertWorkStatementCount(rows: SeedRows): number {
 
 /**
  * Upper bound for insertWork statements on the default (non-stress) seed.
- * Field history is bulk-chunked; COs + action_runs are single statements each.
- * Going row-by-row for ~90 plans would be 90+.
+ * Field history is bulk-chunked; COs + action_runs + schedule are single
+ * statements each. Going row-by-row for ~90 plans would be 90+.
+ * +4 vs pre-5.1.0-a for job calendars / holidays / activities / links.
  */
-export const INSERT_WORK_MAX_STATEMENTS = 24;
+export const INSERT_WORK_MAX_STATEMENTS = 28;
 
 /**
  * Statements in a full reset transaction: parallel-safe deletes + insertWork +
@@ -83,7 +93,7 @@ export function resetTransactionStatementCount(rows: SeedRows): number {
 }
 
 /** Whole-reset statement budget — must stay well under 600ms at ~5ms RTT. */
-export const RESET_MAX_STATEMENTS = 30;
+export const RESET_MAX_STATEMENTS = 34;
 
 function chunk<T>(rows: T[], size: number): T[][] {
   if (rows.length === 0) return [];
@@ -132,6 +142,14 @@ export function enqueueInsertWork(
   for (const part of chunk(rows.dailyPlanLines, INSERT_WORK_CHUNK)) {
     enqueue(tx.insert(dailyPlanLines).values(part));
   }
+  if (rows.jobCalendars.length)
+    enqueue(tx.insert(jobCalendars).values(rows.jobCalendars));
+  if (rows.calendarHolidays.length)
+    enqueue(tx.insert(calendarHolidays).values(rows.calendarHolidays));
+  if (rows.activities.length)
+    enqueue(tx.insert(activities).values(rows.activities));
+  if (rows.activityCostItems.length)
+    enqueue(tx.insert(activityCostItems).values(rows.activityCostItems));
   if (rows.changeOrders.length)
     enqueue(tx.insert(changeOrders).values(rows.changeOrders));
   if (rows.changeOrderLines.length)

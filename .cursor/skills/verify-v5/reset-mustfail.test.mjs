@@ -41,6 +41,9 @@ const VARIANTS = {
   // Fail fast with a reason (502b: the reset server action was cut off, Railway logged POST 499).
   "post-499": { delay: 200, postStatus: 499 }, // the reset POST answers 499: no redirect is coming
   "post-abort": { delay: 200, abort: true }, // the reset POST's connection is dropped with no answer
+  // Client aborts the Reset demo POST (net::ERR_ABORTED) but still navigates to /app?reset=1 — must PASS
+  // (Next.js server-action redirect abort; #11 / #20 fail-fast flake).
+  "post-aborted-ok": { delay: 200, clientAbortNavigate: true },
   // The reset lands, but the new page's own same-origin POST (a fetch, like a server action) answers 500
   // and the rows never come: still fails fast, but the reason must name that POST, not call it the reset POST.
   "side-post-500": { delay: 200, rows: 0, sidePost: true },
@@ -85,11 +88,22 @@ ${c.landing === "app-boundary-marker" ? boundaryHtml("Could not show the portfol
 <script>document.cookie = "sid=${CANARY_COOKIE}; path=/"; console.error("[error] boom ${CANARY_TOKEN}");</script></body></html>`;
   }
   if (afterReset && c.landing === "no-seeded") return `<!doctype html><html><body><button data-testid="user-menu">Marcus</button>${content}</body></html>`;
+  const abortNav = !afterReset && c.clientAbortNavigate
+    ? `<script>
+document.querySelector("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const c = new AbortController();
+  fetch("/v/${v}/reset", { method: "POST", headers: { "Next-Action": "reset-demo" }, signal: c.signal }).catch(() => {});
+  setTimeout(() => c.abort(), 30);
+  setTimeout(() => { location.href = "/v/${v}/app?reset=1"; }, ${c.delay + 50});
+});
+</script>`
+    : "";
   return `<!doctype html><html><body>
 <button data-testid="user-menu">Marcus</button>
 <time data-testid="seeded-at" datetime="seed-${seeded[v]}">seeded</time>
 <form method="post" action="/v/${v}/reset"><button type="submit">Reset demo</button></form>
-${content}${late}${chatter}${detach}${side}</body></html>`;
+${content}${late}${chatter}${detach}${side}${abortNav}</body></html>`;
 };
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, "http://x");
@@ -109,6 +123,19 @@ const server = http.createServer((req, res) => {
     return res.end("no");
   }
   if (m[2] === "reset") {
+    // Reseed immediately; delay the response so AbortController surfaces net::ERR_ABORTED first.
+    if (VARIANTS[v].clientAbortNavigate) {
+      resets[v] += 1;
+      if (!VARIANTS[v].stale) seeded[v] += 1;
+      return setTimeout(() => {
+        try {
+          res.writeHead(204);
+          res.end();
+        } catch {
+          // client already aborted
+        }
+      }, VARIANTS[v].delay);
+    }
     return setTimeout(() => {
       resets[v] += 1;
       if (!VARIANTS[v].stale) seeded[v] += 1;
@@ -153,6 +180,9 @@ try {
 const show = (v) => `${v}: ${out[v].detail}`;
 assert.ok(out.good.ok && out.good.median < 1000, show("good"));
 lines.push(`passes: ${show("good")}`);
+assert.ok(out["post-aborted-ok"].ok && out["post-aborted-ok"].median < 1000, `ERR_ABORTED + navigate must pass: ${show("post-aborted-ok")}`);
+assert.equal(out["post-aborted-ok"].values.length, 5, "all 5 aborted-ok samples must record a ready time");
+lines.push(`passes (net::ERR_ABORTED then /app?reset=1, no fail-fast): ${show("post-aborted-ok")}`);
 assert.ok(out.chatty.ok && out.chatty.median < 1000 && out.chatty.idleMedian > 2000, `idle is info only: ${show("chatty")}`);
 lines.push(`passes (idle info only): ${show("chatty")}`);
 assert.ok(out["chatty-forever"].ok && out["chatty-forever"].idleValues.every((x) => x === "capped"), `idle capped and info only: ${show("chatty-forever")}`);
