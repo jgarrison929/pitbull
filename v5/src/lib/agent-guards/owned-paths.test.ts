@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -21,6 +28,26 @@ function runOwnedPathsCheck(env: Record<string, string>) {
     encoding: "utf8",
     env: { ...process.env, CI: "1", ...env },
   });
+}
+
+function git(cwd: string, args: string[]): string {
+  const r = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "owned-paths-test",
+      GIT_AUTHOR_EMAIL: "owned-paths-test@example.com",
+      GIT_COMMITTER_NAME: "owned-paths-test",
+      GIT_COMMITTER_EMAIL: "owned-paths-test@example.com",
+    },
+  });
+  if (r.status !== 0) {
+    throw new Error(
+      `git ${args.join(" ")} failed: ${r.stderr || r.stdout || r.status}`,
+    );
+  }
+  return (r.stdout ?? "").trim();
 }
 
 describe("owned paths — verify-v5 / proxy.ts", () => {
@@ -198,5 +225,75 @@ describe("owned paths — verify-v5 / proxy.ts", () => {
     expect(checkOwnedPathsScript).not.toMatch(
       /\.map\(\(s\)\s*=>\s*s\.trim\(\)\.toLowerCase\(\)\)/,
     );
+  });
+
+  it("G3 must-fail: CI=1 + undiffable base SHA exits nonzero (fail closed)", () => {
+    // Mutant G3: `if (inCi)` → `if (false)` warn-skips and stays GREEN without this.
+    const r = runOwnedPathsCheck({
+      CI: "1",
+      GITHUB_ACTIONS: "1",
+      OWNED_PATHS_PR_TITLE: "feat: product change",
+      OWNED_PATHS_PR_LABELS: "[]",
+      // Valid-looking SHA that is not in this repo and cannot be fetched.
+      OWNED_PATHS_BASE_SHA: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    });
+    const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+    expect(r.status, out).not.toBe(0);
+    expect(out).toMatch(/fail closed/i);
+    expect(out).toMatch(/cannot diff/i);
+  });
+
+  it("G5 must-fail: feature file + v5/src/proxy.ts → script exits 1", () => {
+    // Mutant G5: drop `v5/src/proxy.ts` from script forbiddenPrefixes → survives
+    // without a script-level change-set test (TS helper uses paths.ts separately).
+    expect(checkOwnedPathsScript).toMatch(
+      /forbiddenPrefixes\s*=\s*\[[^\]]*["']v5\/src\/proxy\.ts["']/,
+    );
+
+    const root = mkdtempSync(join(tmpdir(), "owned-paths-g5-"));
+    try {
+      git(root, ["init"]);
+      git(root, ["checkout", "-b", "main"]);
+
+      mkdirSync(join(root, "v5", "scripts"), { recursive: true });
+      writeFileSync(
+        join(root, "v5", "scripts", "check-owned-paths.mjs"),
+        checkOwnedPathsScript,
+      );
+      writeFileSync(join(root, "README.md"), "base\n");
+      git(root, ["add", "."]);
+      git(root, ["commit", "-m", "base"]);
+      const baseSha = git(root, ["rev-parse", "HEAD"]);
+
+      mkdirSync(join(root, "v5", "src", "server"), { recursive: true });
+      writeFileSync(join(root, "v5", "src", "server", "a.ts"), "export {};\n");
+      writeFileSync(join(root, "v5", "src", "proxy.ts"), "export {};\n");
+      git(root, ["add", "."]);
+      git(root, ["commit", "-m", "feature + proxy"]);
+
+      const scriptInScratch = join(
+        root,
+        "v5",
+        "scripts",
+        "check-owned-paths.mjs",
+      );
+      const r = spawnSync(process.execPath, [scriptInScratch], {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CI: "1",
+          GITHUB_ACTIONS: "1",
+          OWNED_PATHS_PR_TITLE: "feat: product change",
+          OWNED_PATHS_PR_LABELS: "[]",
+          OWNED_PATHS_BASE_SHA: baseSha,
+        },
+      });
+      const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+      expect(r.status, out).toBe(1);
+      expect(out).toMatch(/feature PR also touches owned paths/);
+      expect(out).toMatch(/v5\/src\/proxy\.ts/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
