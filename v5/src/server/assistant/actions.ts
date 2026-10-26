@@ -60,8 +60,11 @@ import {
 import { importErrorLines } from "@/lib/estimate-reconcile";
 import { approveEstimate } from "@/server/estimate";
 import { importEstimateCsv } from "@/server/estimate-import";
-import { importXerSchedule } from "@/server/schedule-import";
-import type { ScheduleImportMode } from "@/lib/schedule-import";
+import {
+  formatSkippedLines,
+  importXerSchedule,
+} from "@/server/schedule-import";
+import type { ScheduleImportResult } from "@/lib/schedule-import";
 import {
   addPlanLine,
   createDailyPlan,
@@ -98,6 +101,8 @@ export type ActionResult = {
   errors?: Record<string, string>;
   /** Multi-line feedback (e.g. CSV row errors) shown as a list under the summary. */
   detailLines?: string[];
+  /** schedule.import*: skipped constructs with counts (shown under the summary). */
+  skipped?: { kind: string; count: number; sample?: string }[];
   /** Role, unknown job, or domain refusal — rail chip must not use success wording. */
   refused?: true;
 };
@@ -110,6 +115,30 @@ type ActionDef = {
   writes?: true;
   run(user: CurrentUser, args: JobArgs): Promise<ActionResult>;
 };
+
+function scheduleImportActionResult(
+  result: ScheduleImportResult,
+  href: string,
+): ActionResult {
+  if (result.ok) {
+    const skippedLines = formatSkippedLines(result.skipped);
+    return {
+      summary: result.summary,
+      href,
+      job: result.jobNumber,
+      ...(result.skipped.length ? { skipped: result.skipped } : {}),
+      ...(skippedLines.length ? { detailLines: skippedLines } : {}),
+    };
+  }
+  return {
+    summary: result.summary,
+    href,
+    job: result.jobNumber,
+    refused: true,
+    ...(result.detailLines?.length ? { detailLines: result.detailLines } : {}),
+    ...(result.skipped?.length ? { skipped: result.skipped } : {}),
+  };
+}
 
 const day = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -1316,7 +1345,7 @@ export const actions: Record<ActionName, ActionDef> = {
     title: "Import schedule XER",
     writes: true,
     roles: ["pm"],
-    async run(user, { job, file, mode }) {
+    async run(user, { job, fileBytes, fileName, mode }) {
       if (!job)
         return {
           summary:
@@ -1324,35 +1353,21 @@ export const actions: Record<ActionName, ActionDef> = {
         };
       const j = await resolveJob(user, job);
       if (!j) return unknownJob(user, job);
-      if (!file) {
+      const scheduleHref = `/app/jobs/${j.job.number}/schedule`;
+      if (!fileBytes?.byteLength) {
         return {
-          summary: `Import reads an XER file. Open the schedule on ${j.job.shortName} and choose the file under Import schedule.`,
-          href: jobHref(j),
+          summary: `Import reads a Primavera XER file. Open ${j.job.shortName}'s Schedule page and choose the file under Import schedule.`,
+          href: scheduleHref,
           job: j.job.number,
         };
       }
-      const importMode: ScheduleImportMode =
-        mode === "merge" ? "merge" : "replace";
       const result = await importXerSchedule(
         user.companyId,
         j.job.number,
-        file,
-        importMode,
+        fileBytes,
+        { fileName, mode },
       );
-      return {
-        summary: result.summary,
-        href: jobHref(j),
-        job: j.job.number,
-        ...(!result.ok ? { refused: true as const } : {}),
-        ...(result.ok && result.skipped.length
-          ? {
-              detailLines: result.skipped.map(
-                (s) =>
-                  `${s.count} ${s.kind}${s.sample ? ` (e.g. ${s.sample})` : ""}`,
-              ),
-            }
-          : {}),
-      };
+      return scheduleImportActionResult(result, scheduleHref);
     },
   },
   "estimate.approve": {

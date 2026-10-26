@@ -22,16 +22,27 @@ import {
   DEFAULT_WORKDAYS_MASK,
 } from "@/lib/schedule";
 import {
+  formatSkippedLines,
   isScheduleImportParseErr,
+  MAX_SCHEDULE_IMPORT_BYTES,
   parseXer,
-  SCHEDULE_IMPORT_MAX_BYTES,
   type ScheduleImportDraft,
+  type ScheduleImportFail,
   type ScheduleImportLink,
   type ScheduleImportMode,
-  type ScheduleImportSkipped,
+  type ScheduleImportOk,
+  type ScheduleImportResult,
 } from "@/lib/schedule-import";
 import { createWorkingCalendar } from "@/lib/working-calendar";
 import { seedNow } from "@/server/seed-clock";
+
+export {
+  formatSkippedLines,
+  MAX_SCHEDULE_IMPORT_BYTES,
+  type ScheduleImportFail,
+  type ScheduleImportOk,
+  type ScheduleImportResult,
+};
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -58,34 +69,37 @@ export type ScheduleImportApplyOptions = {
   runCpm?: ScheduleImportCpmRunner;
 };
 
-export type ScheduleImportOk = {
-  ok: true;
-  jobNumber: string;
-  shortName: string;
-  activityCount: number;
-  linkCount: number;
-  holidayCount: number;
-  skipped: ScheduleImportSkipped[];
-  mode: ScheduleImportMode;
-  summary: string;
-};
+export type ScheduleImportCallOpts = {
+  fileName?: string;
+  mode?: string;
+} & ScheduleImportApplyOptions;
 
-export type ScheduleImportErr = {
-  ok: false;
-  jobNumber: string;
-  shortName?: string;
-  reason:
-    | "not_found"
-    | "draft_estimate"
-    | "too_large"
-    | "invalid_file"
-    | "apply"
-    | "code_conflict";
-  summary: string;
-  errors?: string[];
-};
+function parseMode(raw: string | undefined): ScheduleImportMode | null {
+  if (raw === undefined || raw === "") return "replace";
+  if (raw === "replace" || raw === "merge") return raw;
+  return null;
+}
 
-export type ScheduleImportResult = ScheduleImportOk | ScheduleImportErr;
+function oversizeSummary(fileName: string, size: number): string {
+  const mb = (size / 1_000_000).toFixed(1);
+  return `${fileName} is ${mb} MB. The schedule import limit is ${MAX_SCHEDULE_IMPORT_BYTES / 1_000_000} MB.`;
+}
+
+function fail(
+  jobNumber: string,
+  shortName: string,
+  summary: string,
+  extra: Partial<ScheduleImportFail> = {},
+): ScheduleImportFail {
+  return {
+    ok: false,
+    jobNumber,
+    shortName,
+    summary,
+    refused: true,
+    ...extra,
+  };
+}
 
 function earlyFinishOn(
   cal: ReturnType<typeof createWorkingCalendar>,
@@ -330,12 +344,16 @@ export async function applyScheduleImportDraft(
   return { activityIds, linksWritten };
 }
 
-async function importScheduleDraft(
+/**
+ * Shared apply entry for parsers that already produced a draft (XER / MSP XML).
+ * 5.1.3-c UI calls this name via soft shell; keep the alias stable.
+ */
+export async function importScheduleDraft(
   companyId: string,
   jobNumber: string,
   draft: ScheduleImportDraft,
   mode: ScheduleImportMode,
-  opts: ScheduleImportApplyOptions,
+  opts: ScheduleImportApplyOptions = {},
 ): Promise<ScheduleImportResult> {
   const db = requireDb();
   const [job] = await db
@@ -344,21 +362,17 @@ async function importScheduleDraft(
     .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
     .limit(1);
   if (!job) {
-    return {
-      ok: false,
-      jobNumber,
+    return fail(jobNumber, jobNumber, `Couldn't find job ${jobNumber}.`, {
       reason: "not_found",
-      summary: `Couldn't find job ${jobNumber}.`,
-    };
+    });
   }
   if (job.estimateStatus === "draft") {
-    return {
-      ok: false,
-      jobNumber: job.number,
-      shortName: job.shortName,
-      reason: "draft_estimate",
-      summary: `Approve the estimate before scheduling on ${job.shortName}.`,
-    };
+    return fail(
+      job.number,
+      job.shortName,
+      `Approve the estimate before scheduling on ${job.shortName}.`,
+      { reason: "draft_estimate" },
+    );
   }
 
   try {
@@ -369,13 +383,12 @@ async function importScheduleDraft(
         .where(eq(jobs.id, job.id))
         .for("update");
       if (locked.estimateStatus === "draft") {
-        return {
-          ok: false as const,
-          jobNumber: locked.number,
-          shortName: locked.shortName,
-          reason: "draft_estimate" as const,
-          summary: `Approve the estimate before scheduling on ${locked.shortName}.`,
-        };
+        return fail(
+          locked.number,
+          locked.shortName,
+          `Approve the estimate before scheduling on ${locked.shortName}.`,
+          { reason: "draft_estimate" },
+        );
       }
 
       // Default start: earliest startOn in the file, else seed clock day.
@@ -398,8 +411,8 @@ async function importScheduleDraft(
         opts,
       );
 
-      return {
-        ok: true as const,
+      const ok: ScheduleImportOk = {
+        ok: true,
         jobNumber: locked.number,
         shortName: locked.shortName,
         activityCount: draft.activities.length,
@@ -409,6 +422,7 @@ async function importScheduleDraft(
         mode,
         summary: summarizeOk(locked.shortName, draft, mode, linksWritten),
       };
+      return ok;
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -421,60 +435,100 @@ async function importScheduleDraft(
             message.includes("missing successor")
           ? message
           : `Couldn't import schedule on ${job.shortName}: ${message}`;
-    const reason: ScheduleImportErr["reason"] = message.includes(
+    const reason: ScheduleImportFail["reason"] = message.includes(
       "already exists",
     )
       ? "code_conflict"
       : "apply";
-    return {
-      ok: false,
-      jobNumber: job.number,
-      shortName: job.shortName,
-      reason,
-      summary: text.startsWith("Couldn't")
+    return fail(
+      job.number,
+      job.shortName,
+      text.startsWith("Couldn't")
         ? text
         : `Couldn't import schedule on ${job.shortName}: ${text}`,
-      errors: [message],
-    };
+      { reason, errors: [message], detailLines: [message] },
+    );
   }
 }
 
+/** Alias used by 5.1.3-c soft shell / UI rebase. */
+export const applyScheduleDraft = importScheduleDraft;
+
 /**
  * Import a P6 XER into a job. PM-only at the action layer.
+ * Signature matches 5.1.3-c UI: `(companyId, jobNumber, bytes, { fileName?, mode? })`.
  * Default mode is `replace` (5.1.3 verify).
  */
 export async function importXerSchedule(
   companyId: string,
   jobNumber: string,
   file: Uint8Array | string,
-  mode: ScheduleImportMode = "replace",
-  opts: ScheduleImportApplyOptions = {},
+  opts: ScheduleImportCallOpts = {},
 ): Promise<ScheduleImportResult> {
+  const db = requireDb();
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
+    .limit(1);
+  if (!job) {
+    return fail(jobNumber, jobNumber, `Couldn't import schedule on ${jobNumber}.`, {
+      reason: "not_found",
+    });
+  }
+  const base = { jobNumber: job.number, shortName: job.shortName };
+
+  if (job.estimateStatus === "draft") {
+    return fail(
+      base.jobNumber,
+      base.shortName,
+      `Approve the estimate before scheduling on ${job.shortName}.`,
+      { reason: "draft_estimate" },
+    );
+  }
+
   const bytes =
     typeof file === "string" ? new TextEncoder().encode(file) : file;
-  if (bytes.byteLength > SCHEDULE_IMPORT_MAX_BYTES) {
-    return {
-      ok: false,
-      jobNumber,
-      reason: "too_large",
-      summary: `Schedule file is over ${SCHEDULE_IMPORT_MAX_BYTES / (1024 * 1024)} MB and was refused before parse.`,
-    };
+  const fileName = opts.fileName?.trim() || "schedule.xer";
+  const mode = parseMode(opts.mode);
+  if (!mode) {
+    return fail(
+      base.jobNumber,
+      base.shortName,
+      `Import mode must be replace or merge on ${job.shortName}.`,
+      { reason: "bad_mode" },
+    );
+  }
+  if (bytes.byteLength > MAX_SCHEDULE_IMPORT_BYTES) {
+    return fail(
+      base.jobNumber,
+      base.shortName,
+      oversizeSummary(fileName, bytes.byteLength),
+      { reason: "too_large" },
+    );
+  }
+  if (bytes.byteLength === 0) {
+    return fail(
+      base.jobNumber,
+      base.shortName,
+      `Choose a Primavera XER file to import on ${job.shortName}.`,
+      { reason: "invalid_file" },
+    );
   }
   const parsed = parseXer(bytes);
   if (isScheduleImportParseErr(parsed)) {
-    return {
-      ok: false,
-      jobNumber,
+    return fail(base.jobNumber, base.shortName, parsed.error, {
       reason: "invalid_file",
-      summary: parsed.error,
       errors: [parsed.error],
-    };
+      detailLines: [parsed.error],
+    });
   }
-  return importScheduleDraft(companyId, jobNumber, parsed, mode, opts);
+  const { writeLinks, runCpm } = opts;
+  return importScheduleDraft(companyId, job.number, parsed, mode, {
+    writeLinks,
+    runCpm,
+  });
 }
-
-/** Re-export for 5.1.3-b MSP XML to call the same apply path. */
-export { importScheduleDraft };
 
 /** Test helper: delete activities by job number (clean import target). */
 export async function clearJobActivitiesForTests(
