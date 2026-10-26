@@ -1,8 +1,9 @@
 // Browser half of the nav crawl: signs in by role card and measures each page. Evaluation lives in
 // checks.mjs (evaluateCrawlRow) so the must-fail tests can drive the same code against a fake server.
 import path from "node:path";
-import { EMPTY_STATE, evaluateCrawlRow, PAGE_BUDGET_MS } from "./checks.mjs";
-import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillPath, partCItemFor } from "./drill.mjs";
+import { EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, PAGE_BUDGET_MS } from "./checks.mjs";
+import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillDiscoveryFailures, drillPath, partCItemFor } from "./drill.mjs";
+import { captureFailure, secretValues, startFailureRecorder } from "./evidence.mjs";
 
 export const CRAWL_ROLES = ["executive", "pm", "superintendent", "foreman"];
 export const CRAWL_WIDTHS = [320, 390, 768, 1280];
@@ -81,7 +82,7 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir } 
   await page.waitForLoadState("networkidle");
   const idleMs = Date.now() - t0;
   const dom = await page.evaluate(
-    ({ intendedW, emptySrc }) => {
+    ({ intendedW, emptySrc, boundarySel }) => {
       const doc = document.documentElement;
       const vw = Math.min(intendedW, window.visualViewport?.width ?? intendedW);
       const sw = Math.max(doc.scrollWidth, document.body?.scrollWidth ?? 0);
@@ -101,6 +102,7 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir } 
       return {
         text: document.body?.innerText ?? "",
         hasMain: !!document.querySelector("main"),
+        errorBoundaryMarkers: [...document.querySelectorAll(boundarySel)].map((e) => `[data-testid="${e.getAttribute("data-testid")}"]`),
         scrollWidth: sw,
         viewportW: vw,
         overflowPx: sw - Math.ceil(vw),
@@ -113,7 +115,7 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir } 
         },
       };
     },
-    { intendedW: width ?? page.viewportSize()?.width ?? 1280, emptySrc: EMPTY_STATE.source },
+    { intendedW: width ?? page.viewportSize()?.width ?? 1280, emptySrc: EMPTY_STATE.source, boundarySel: ERROR_BOUNDARY_SELECTOR },
   );
   if (shotDir) {
     await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });
@@ -142,27 +144,60 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir } 
  * With `drill.partC` ({ active, planLinked, records }): Part C crawl check 4 — per active job, one cost item
  * page (a discovered link to a plan-linked item) and one plan page (a labor row's plan link on that cost
  * item page, else the job page's plan card link); rows get `partC: "cost-item" | "plan"`.
+ * With `evidence` ({ dir, budgetMs?, secrets? }): every load that fails evaluateCrawlRow, every load that
+ * throws, and every job page whose drill-down discovery differs from the seed is captured into `dir`
+ * (screenshot, HTML, URL with query, console/page errors, failed requests; see evidence.mjs) while the
+ * page still shows it; the failing row gets `evidence: <json file>`. Capture never changes a verdict.
  */
-export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths = CRAWL_WIDTHS, shotDir, onRow, drill } = {}) {
+export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths = CRAWL_WIDTHS, shotDir, onRow, drill, evidence } = {}) {
   const rows = [];
+  const secrets = evidence ? (evidence.secrets ?? secretValues()) : [];
   for (const [ri, role] of roles.entries()) {
     for (const [wi, width] of widths.entries()) {
       const ctx = await browser.newContext(contextFor(width));
       const page = await ctx.newPage();
       const sink = { responses: [], console: [], page: [] };
       watch(page, sink);
+      const failureRecorder = evidence ? startFailureRecorder(page) : null;
+      let mark = 0;
+      const capture = (kind, label, reason) =>
+        captureFailure(page, { dir: evidence.dir, kind, label: `${role}-w${width}-${label}`, reason, recorder: failureRecorder, mark, secrets, extra: { role, width } }).catch(() => null);
+      /** measurePage + evidence: a failing or throwing load is captured before the page moves on. */
+      const load = async (href, extra = {}) => {
+        mark = failureRecorder?.mark() ?? 0;
+        let row;
+        try {
+          row = { ...(await measurePage(page, base, href, sink, { width, role, shotDir })), ...extra };
+        } catch (error) {
+          if (evidence) await capture(extra.drill ? "drill" : extra.partC ? `partc-${extra.partC}` : "crawl", href, `load threw: ${String(error?.message ?? error).split("\n")[0]}`);
+          throw error;
+        }
+        if (evidence) {
+          const f = evaluateCrawlRow(row, { budgetMs: evidence.budgetMs ?? PAGE_BUDGET_MS });
+          if (f.length) {
+            const files = await capture(row.drill ? "drill" : row.partC ? `partc-${row.partC}` : "crawl", href, f.join("; "));
+            if (files?.json) row.evidence = files.json;
+          }
+        }
+        return row;
+      };
       try {
         await signInRole(page, base, role);
         const found = new Set();
         const planCards = {};
         for (const p of pages) {
-          const row = await measurePage(page, base, p, sink, { width, role, shotDir });
+          const row = await load(p);
           rows.push(row);
           onRow?.(row);
           const job = drill && p.match(/^\/app\/jobs\/([^/]+)$/)?.[1];
           if (job && drill.seedItems[job]) {
             const d = await discoverDrillLinks(page);
-            drill.records.push({ role, width, job, containers: d.containers, hrefs: d.hrefs, estimateStatus: d.estimateStatus, planCardHrefs: d.planCardHrefs });
+            const record = { role, width, job, containers: d.containers, hrefs: d.hrefs, estimateStatus: d.estimateStatus, planCardHrefs: d.planCardHrefs };
+            drill.records.push(record);
+            if (evidence) {
+              const f = drillDiscoveryFailures([record], { [job]: drill.seedItems[job] }, { roles: [role], widths: [width], access: drill.access ?? DRILL_ROLE_ACCESS });
+              if (f.length) await capture("drill-discovery", p, f.join("; "));
+            }
             for (const h of d.hrefs) found.add(h);
             planCards[job] = d.planCardHrefs;
           }
@@ -172,38 +207,39 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
           // Only discovered links are followed; an undiscovered item stays unloaded and fails coverage.
           const href = access[role] === false ? drillPath(it.job, it.code) : found.has(it.path) ? it.path : null;
           if (!href) continue;
-          const row = { ...(await measurePage(page, base, href, sink, { width, role, shotDir })), drill: true };
+          const row = await load(href, { drill: true });
           rows.push(row);
           onRow?.(row);
         }
         for (const job of drill?.partC?.active ?? []) {
           // Part C crawl check 4: one cost item page + one plan page for this active job at this role×width.
-          const rec = { role, width, job, costItemPath: null, planPath: null, planSource: null, why: {} };
-          drill.partC.records.push(rec);
+          const partCRecord = { role, width, job, costItemPath: null, planPath: null, planSource: null, why: {} };
+          drill.partC.records.push(partCRecord);
           const code = partCItemFor(drill.partC.planLinked, job, ri, wi, widths.length);
           const want = code && drillPath(job, code);
-          if (!code) rec.why["cost-item"] = "seed has no plan-linked cost item";
-          else if (!found.has(want)) rec.why["cost-item"] = `${want} not linked from the job page`;
+          if (!code) partCRecord.why["cost-item"] = "seed has no plan-linked cost item";
+          else if (!found.has(want)) partCRecord.why["cost-item"] = `${want} not linked from the job page`;
           let planLinks = [];
           if (want && found.has(want)) {
-            rec.costItemPath = want;
-            const row = { ...(await measurePage(page, base, want, sink, { width, role, shotDir })), partC: "cost-item", job };
+            partCRecord.costItemPath = want;
+            const row = await load(want, { partC: "cost-item", job });
             rows.push(row);
             onRow?.(row);
             planLinks = await costItemPlanLinks(page);
           }
           const planHref = planLinks[0] ?? planCards[job]?.[0] ?? null;
           if (!planHref) {
-            rec.why.plan = "no plan link on the cost item's labor rows or the job page";
+            partCRecord.why.plan = "no plan link on the cost item's labor rows or the job page";
             continue;
           }
-          rec.planPath = planHref;
-          rec.planSource = planLinks[0] ? "cost item labor row" : "job page plan card";
-          const row = { ...(await measurePage(page, base, planHref, sink, { width, role, shotDir })), partC: "plan", job };
+          partCRecord.planPath = planHref;
+          partCRecord.planSource = planLinks[0] ? "cost item labor row" : "job page plan card";
+          const row = await load(planHref, { partC: "plan", job });
           rows.push(row);
           onRow?.(row);
         }
       } finally {
+        failureRecorder?.stop();
         await ctx.close();
       }
     }

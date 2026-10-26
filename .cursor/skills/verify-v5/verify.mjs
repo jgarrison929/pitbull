@@ -8,7 +8,7 @@
 //        [--main-ci auto|on|off] [--max-green-age-hours 24] [--page-budget-ms 1500] [--self-check]
 // Writes evidence to .cursor/skills/verify-v5/evidence/<timestamp>/ and exits 1 on any failed check.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +37,15 @@ import { runM2, runM4M5 } from "./numbers.mjs";
 import { ciGateIsPass } from "./status-ci-gate.mjs";
 import { PORTFOLIO_STEP, runPortfolioStep } from "./portfolio.mjs";
 import { RESET_BUDGET_MS, RESET_STEP, runResetTimeStep } from "./reset-time.mjs";
+import { redactText, safeJson, secretValues, setFailureEvidence } from "./evidence.mjs";
+
+// Any crash prints one redacted line: never a DATABASE_URL, password or VERIFY_TOKEN from an error message.
+for (const ev of ["uncaughtException", "unhandledRejection"]) {
+  process.on(ev, (error) => {
+    console.error(`verify-v5 crashed: ${redactText(String(error?.stack ?? error?.message ?? error), secretValues(process.env))}`);
+    process.exit(1);
+  });
+}
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, "../../..");
@@ -129,6 +138,11 @@ mkdirSync(outDir, { recursive: true });
 
 const shotDir = args.shots ? path.resolve(args.shots) : outDir;
 mkdirSync(shotDir, { recursive: true });
+/** Failed reset samples, crawl pages and drill-downs are captured here (evidence.mjs), secrets redacted. */
+const failureDir = path.join(outDir, "failures");
+/** Secret values (VERIFY_TOKEN, GH tokens, DATABASE_URL + password, …) never printed or written. */
+const SECRETS = secretValues(process.env);
+const safe = (x) => redactText(x, SECRETS);
 
 const checks = [];
 const check = (name, ok, detail) => checks.push({ name, ok: Boolean(ok), detail });
@@ -156,7 +170,7 @@ while (!commitMatches(health.body.commit).ok && Date.now() < deadline) {
   await new Promise((r) => setTimeout(r, 15000));
   health = await fetchHealth().catch((error) => ({ status: 0, body: { error: String(error) } }));
 }
-writeFileSync(path.join(outDir, "health.json"), JSON.stringify(health, null, 2));
+writeFileSync(path.join(outDir, "health.json"), safeJson(health, SECRETS));
 check("/health returns 200", health.status === 200, health.status);
 check("/health status ok", health.body.status === "ok", health.body.status);
 check("/health db ok", health.body.db === "ok", health.body.db);
@@ -168,7 +182,7 @@ check("/health db ok", health.body.db === "ok", health.body.db);
 if (mainCiOn) {
   const deployedFull = resolveSha(String(health.body.commit ?? "")) ?? null;
   const results = commitResults({ target, mainCi, mainCiError, release, releaseError, deployedFull, maxAgeHours: Number(args["max-green-age-hours"]) });
-  writeFileSync(path.join(outDir, "main-ci.json"), JSON.stringify({ target, ...mainCi, release, deployedFull, results }, null, 2));
+  writeFileSync(path.join(outDir, "main-ci.json"), safeJson({ target, ...mainCi, release, deployedFull, results }, SECRETS));
   for (const r of results) {
     if (r.severity === "WARN") warnings.push({ name: r.name, detail: r.detail });
     else check(r.name, r.severity === "PASS", r.detail);
@@ -233,7 +247,7 @@ try {
     built: await text("status-built"),
     database: await text("status-database"),
   };
-  writeFileSync(path.join(outDir, "status.json"), JSON.stringify(status, null, 2));
+  writeFileSync(path.join(outDir, "status.json"), safeJson(status, SECRETS));
   await page.screenshot({ path: path.join(outDir, "status.png"), fullPage: true });
   check("/status shows Operational", status.health === "Operational", status.health);
   {
@@ -317,7 +331,7 @@ async function navCrawl(browser) {
   };
   await step("nav crawl: 4 roles × pages × 320/390/768/1280", async () => {
     const rows = [];
-    for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined })));
+    for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
     const failures = rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs }));
     const slow = slowestRow(rows);
     const drillRows = rows.filter((r) => r.drill);
@@ -330,7 +344,7 @@ async function navCrawl(browser) {
     const coverageFailures = drillCoverageFailures(rows, seedDrill, { roles: CRAWL_ROLES, budgetMs });
     writeFileSync(
       path.join(outDir, "crawl.json"),
-      JSON.stringify({ pages, plan, roles: CRAWL_ROLES, widths: CRAWL_WIDTHS, budgetMs, slowest: slow && { ...slow, text: undefined }, slowestDrill: slowDrill && { ...slowDrill, text: undefined }, drill: { seedItems: seedDrill, itemCount: drillItemCount(seedDrill), access: DRILL_ROLE_ACCESS, plan: Object.fromEntries([...drill.plan].map(([k, v]) => [k, v.map((x) => x.path)])), discovery: drill.records, discoveryFailures, coverageFailures }, partC: { name: PART_C_CHECK_4, active: seedTargets.active, planLinked: seedTargets.planLinked, records: drill.partC.records, failures: partC, slowest: slowPartC && { ...slowPartC, text: undefined } }, failures, rows: rows.map((r) => ({ ...r, text: undefined, textChars: r.text.length })) }, null, 2),
+      safeJson({ pages, plan, roles: CRAWL_ROLES, widths: CRAWL_WIDTHS, budgetMs, slowest: slow && { ...slow, text: undefined }, slowestDrill: slowDrill && { ...slowDrill, text: undefined }, drill: { seedItems: seedDrill, itemCount: drillItemCount(seedDrill), access: DRILL_ROLE_ACCESS, plan: Object.fromEntries([...drill.plan].map(([k, v]) => [k, v.map((x) => x.path)])), discovery: drill.records, discoveryFailures, coverageFailures }, partC: { name: PART_C_CHECK_4, active: seedTargets.active, planLinked: seedTargets.planLinked, records: drill.partC.records, failures: partC, slowest: slowPartC && { ...slowPartC, text: undefined } }, failures, rows: rows.map((r) => ({ ...r, text: undefined, textChars: r.text.length })) }, SECRETS),
     );
     const expectedLoads = expectedNavLoads(plan);
     check(
@@ -410,7 +424,7 @@ async function numberChecks(browser) {
         (m5.failures.length ? ` — ${m5.failures.join("; ")}` : ""),
     );
   });
-  writeFileSync(path.join(outDir, "numbers.json"), JSON.stringify(numbers, null, 2));
+  writeFileSync(path.join(outDir, "numbers.json"), safeJson(numbers, SECRETS));
 }
 
 async function flows(browser) {
@@ -556,13 +570,14 @@ async function flows(browser) {
       `${action}: plan ${submitted} → ${after}, seeded ${seeded} → ${reseeded}, submit runs after reset ${submitRuns}, sandbox ${sandbox} → ${same}`,
     );
   });
+  setFailureEvidence(page, { dir: failureDir, secrets: SECRETS });
   await step(RESET_STEP, async () => {
     // Hard FAIL, every target: median of 5 timed resets (click → new seeded-at + main content rendered)
     // ≤ RESET_BUDGET_MS (reset-time.mjs). No flag. Idle-inclusive times are information only.
     const r = await runResetTimeStep(page, base, { expectedRows: expectedJobCount });
     writeFileSync(
       path.join(outDir, "reset-times.json"),
-      JSON.stringify(
+      safeJson(
         {
           budgetMs: RESET_BUDGET_MS,
           ready: "path <base>/app with reset=1 + new seeded-at + <main> visible with exactly the seeded job rows, all within 20 s of the click",
@@ -573,8 +588,7 @@ async function flows(browser) {
           failures: r.failures,
           infoOnlyNotInPassRule: { definition: "ready + no request in flight for 500 ms, watched at most 3000 ms after ready (capped)", idleValues: r.idleValues, idleMedian: r.idleMedian },
         },
-        null,
-        2,
+        SECRETS,
       ),
     );
     check(RESET_STEP, r.ok, r.detail);
@@ -710,7 +724,7 @@ const result = {
   checks,
   warnings,
 };
-writeFileSync(path.join(outDir, "result.json"), JSON.stringify(result, null, 2));
+writeFileSync(path.join(outDir, "result.json"), safeJson(result, SECRETS));
 
 // Stamp the deploy so /status can show last-verify (requires VERIFY_TOKEN on the app + runner).
 // When VERIFY_TOKEN is set, a stamp failure fails the run (non-zero exit).
@@ -736,11 +750,11 @@ if (passed && process.env.VERIFY_TOKEN) {
         console.log(`stamped last-verify ${body.lastVerifyAt ?? checkedAt}`);
       } else {
         stampFailed = true;
-        console.log(`stamp failed HTTP ${res.status}: ${JSON.stringify(body)}`);
+        console.log(`stamp failed HTTP ${res.status}: ${safeJson(body, SECRETS, 0)}`);
       }
     } catch (error) {
       stampFailed = true;
-      console.log(`stamp failed: ${error.message ?? error}`);
+      console.log(`stamp failed: ${safe(error.message ?? error)}`);
     }
   }
 } else if (passed && !process.env.VERIFY_TOKEN) {
@@ -748,8 +762,8 @@ if (passed && process.env.VERIFY_TOKEN) {
 }
 
 const verified = passed && !stampFailed;
-for (const c of checks) console.log(`${c.ok ? "PASS" : "FAIL"} ${c.name} (${c.detail})`);
-for (const w of warnings) console.log(`WARN ${w.name} (${w.detail})`);
+for (const c of checks) console.log(safe(`${c.ok ? "PASS" : "FAIL"} ${c.name} (${c.detail})`));
+for (const w of warnings) console.log(safe(`WARN ${w.name} (${w.detail})`));
 if (stampFailed) console.log("FAIL stamp last-verify (VERIFY_TOKEN set but stamp failed)");
 const failedCount = checks.filter((c) => !c.ok).length;
 console.log(
@@ -758,5 +772,6 @@ console.log(
 );
 console.log(`${verified ? "VERIFIED" : "NOT VERIFIED"} ${base} at ${expectedFull}${warnings.length ? ` (${warnings.length} WARN)` : ""}`);
 console.log(`evidence: ${path.relative(repo, outDir)}`);
+if (existsSync(failureDir)) console.log(`failure evidence: ${path.relative(repo, failureDir)} (${readdirSync(failureDir).filter((f) => f.endsWith(".json")).length} captures)`);
 if (shotDir !== outDir) console.log(`screenshots: ${shotDir}`);
 process.exit(verified ? 0 : 1);

@@ -16,6 +16,18 @@
 // reported as information only; it can never change pass or fail.
 // Playwright's networkidle state is not re-armed by the client-side redirect a server action does, so
 // the informational idle time tracks in-flight requests from page request events.
+//
+// Fail fast with a reason (the 502b sign-off incident: the reset server action was cut off, Railway
+// logged POST 499, and the sample only said "not ready" 20 s later). A sample fails AT ONCE, without
+// waiting for the timeout, when the reset POST itself fails (HTTP >= 400 such as 499/5xx, or the request
+// is aborted), or when a check sees an error screen (Next's built-in error screen or the app's
+// "Page load failed" / "Shell load failed" boundary, by text or by its data-testid marker): neither can
+// turn into a ready page. Every failure reason names the URL with its query and what <main> and its job
+// rows showed on the last check. The pass rule above is unchanged.
+// When verify.mjs registered an evidence folder on the page (setFailureEvidence), each failed sample is
+// captured there (screenshot, HTML, URL, console/page errors, failed requests; see evidence.mjs).
+import { ERROR_BOUNDARY, ERROR_BOUNDARY_SELECTOR } from "./checks.mjs";
+import { captureFailure, failureEvidenceFor, startFailureRecorder } from "./evidence.mjs";
 
 export const RESET_STEP = "sandbox reset median ≤ 1.5 s (5 resets)";
 export const RESET_SAMPLES = 5;
@@ -29,6 +41,74 @@ export const RESET_IDLE_CAP_MS = 3000;
 
 const sleepReal = (ms) => new Promise((r) => setTimeout(r, ms));
 const firstLine = (e) => String(e?.message ?? e).split("\n")[0];
+const ERROR_SCREEN_SOURCES = ERROR_BOUNDARY.map((re) => re.source);
+
+/** "main visible, 3/4 job rows" for whatever the last check could read. */
+function contentState(seen, expectedRows) {
+  if (!seen) return "nothing read yet";
+  const main = seen.main === undefined ? "main unknown" : `main ${seen.main ? "visible" : "missing"}`;
+  return `${main}, ${Number.isInteger(seen.rows) ? seen.rows : "?"}/${expectedRows} job rows`;
+}
+
+/**
+ * Watches same-origin POSTs after the Reset demo click and returns { failure } once one answers HTTP >= 400
+ * or fails on the network. The reset request itself (the Reset demo form submit, a navigation POST, or
+ * the Next server action, a POST carrying a Next-Action header) is reported as "reset POST <path>"; any
+ * other failing same-origin POST is named by its own method and path and marked as not the reset request.
+ * Tolerates page doubles without these events.
+ */
+function watchResetPost(page, origin) {
+  const state = { failure: null, reset: null };
+  const sameOrigin = (u) => {
+    try {
+      return new URL(u).origin === origin;
+    } catch {
+      return false;
+    }
+  };
+  const where = (u) => {
+    const x = new URL(u);
+    return `${x.pathname}${x.search}`;
+  };
+  const isPost = (req) => typeof req?.method === "function" && req.method() === "POST" && sameOrigin(req.url());
+  const isResetRequest = (req) => {
+    let headers = {};
+    try {
+      headers = req.headers?.() ?? {};
+    } catch {
+      // diagnostics only
+    }
+    return Boolean(req.isNavigationRequest?.()) || Object.keys(headers).some((k) => k.toLowerCase() === "next-action");
+  };
+  const label = (req) => (req === state.reset ? `reset POST ${where(req.url())}` : `POST ${where(req.url())} (not the reset request)`);
+  const onRequest = (req) => {
+    if (!state.reset && isPost(req) && isResetRequest(req)) state.reset = req;
+  };
+  const onResponse = (r) => {
+    const req = typeof r?.request === "function" ? r.request() : null;
+    if (state.failure || !isPost(req) || !(r.status() >= 400)) return;
+    state.failure = `${label(req)} answered HTTP ${r.status()}`;
+  };
+  const onFailed = (req) => {
+    if (state.failure || !isPost(req)) return;
+    state.failure = `${label(req)} failed: ${req.failure?.()?.errorText ?? "request failed"}`;
+  };
+  const offs = [];
+  for (const [e, f] of [["request", onRequest], ["response", onResponse], ["requestfailed", onFailed]]) {
+    try {
+      page.on(e, f);
+      offs.push(() => page.off(e, f));
+    } catch {
+      // page double without this event
+    }
+  }
+  return {
+    get failure() {
+      return state.failure;
+    },
+    stop: () => offs.forEach((off) => off()),
+  };
+}
 
 /** Median of a non-empty list (odd: middle value; even: mean of the two middle values). */
 export function median(values) {
@@ -108,7 +188,7 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
    */
   const readCheck = async () => {
     try {
-      const snap = await page.evaluate(() => {
+      const snap = await page.evaluate(({ screenSources, boundarySel }) => {
         const visible = (el) => {
           const r = el.getBoundingClientRect();
           return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden";
@@ -116,13 +196,20 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
         const seeded = document.querySelector('[data-testid="seeded-at"]');
         const main = document.querySelector("main");
         const rows = [...document.querySelectorAll('main [data-testid="portfolio-table"] [data-testid="job-link"]')].filter(visible).length;
-        return { href: location.href, after: seeded ? seeded.getAttribute("datetime") : null, hasSeeded: Boolean(seeded), main: Boolean(main) && visible(main), rows };
-      });
+        // Error screens: the app boundary's stable marker first, then Next's built-in / boundary wording.
+        const marker = document.querySelector(boundarySel);
+        const text = document.body ? document.body.innerText : "";
+        const hit = screenSources.map((src) => text.match(new RegExp(src, "i"))).find(Boolean);
+        const errorScreen = marker ? `marker [data-testid="${marker.getAttribute("data-testid")}"]${hit ? ` "${hit[0]}"` : ""}` : hit ? `"${hit[0]}"` : null;
+        return { href: location.href, after: seeded ? seeded.getAttribute("datetime") : null, hasSeeded: Boolean(seeded), main: Boolean(main) && visible(main), rows, errorScreen };
+      }, { screenSources: ERROR_SCREEN_SOURCES, boundarySel: ERROR_BOUNDARY_SELECTOR });
       const here = new URL(snap.href);
       const href = `${here.pathname}${here.search}`;
-      if (!snap.hasSeeded) return { ok: false, href, error: "seeded-at element missing" };
+      const errorScreen = snap.errorScreen ?? null;
+      if (!snap.hasSeeded) return { ok: false, href, error: "seeded-at element missing", main: snap.main, rows: snap.rows, errorScreen };
       return {
         ok: true,
+        errorScreen,
         href,
         url: here.pathname === appPath && here.searchParams.get("reset") === "1",
         seeded: Boolean(snap.after) && snap.after !== before,
@@ -141,6 +228,7 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
     }
   };
   const net = trackRequests(page, now);
+  const post = watchResetPost(page, new URL(base).origin);
   try {
     const t0 = now();
     const deadline = t0 + timeoutMs;
@@ -150,17 +238,24 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
     // over, ready is not evaluated, and the loop sleeps and re-checks (bounded by the deadline).
     let seen = null;
     let readyAt = null;
+    const stateOf = (c) =>
+      c.ok
+        ? `seeded-at ${c.seeded ? "new" : "unchanged"}, main ${c.main ? "visible" : "missing"}, ${c.rows}/${expectedRows} job rows`
+        : `page read failed: ${c.error}${c.main !== undefined || c.rows !== undefined ? `; ${contentState(c, expectedRows)}` : ""}`;
     while (readyAt === null) {
       seen = await readCheck();
-      const all = seen.ok && seen.url && seen.seeded && seen.main && seen.rows === expectedRows;
+      const all = seen.ok && seen.url && seen.seeded && seen.main && seen.rows === expectedRows && !seen.errorScreen;
       const at = now();
       if (all && at - t0 <= timeoutMs) readyAt = at;
       else if (all) throw new Error(`reset ready at ${at - t0} ms, after the ${timeoutMs} ms timeout`);
-      else if (at >= deadline) {
-        const state = seen.ok
-          ? `seeded-at ${seen.seeded ? "new" : "unchanged"}, main ${seen.main ? "visible" : "missing"}, ${seen.rows}/${expectedRows} job rows`
-          : `page read failed: ${seen.error}`;
-        throw new Error(`reset not ready after ${timeoutMs} ms (url ${seen.href ?? "unknown"}, ${state})`);
+      else if (seen.errorScreen) {
+        // An error screen never becomes the reseeded portfolio: fail now, not at the timeout.
+        throw new Error(`reset failed fast at ${at - t0} ms: error screen ${seen.errorScreen} (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
+      } else if (post.failure) {
+        // A same-origin POST was cut off or refused (the 502b reset POST got 499): no redirect is coming.
+        throw new Error(`reset failed fast at ${at - t0} ms: ${post.failure} (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
+      } else if (at >= deadline) {
+        throw new Error(`reset not ready after ${timeoutMs} ms (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
       } else await sleep(Math.min(pollMs, Math.max(1, deadline - at)));
     }
     // Information only: watch until the network has been quiet for RESET_IDLE_MS, at most RESET_IDLE_CAP_MS after READY.
@@ -174,6 +269,7 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
     }
   } finally {
     net.stop();
+    post.stop();
   }
 }
 
@@ -184,13 +280,23 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
  */
 export async function runResetTimeStep(page, base, opts = {}) {
   const samples = [];
+  const evidence = failureEvidenceFor(page);
+  const recorder = evidence ? startFailureRecorder(page) : null;
   for (let i = 0; i < RESET_SAMPLES; i++) {
+    const mark = recorder?.mark() ?? 0;
     try {
       samples.push(await timeOneReset(page, base, opts));
     } catch (error) {
-      samples.push({ error: firstLine(error) });
+      const sample = { error: firstLine(error) };
+      if (evidence) {
+        // Captured while the page still shows the failed reset; capture never changes the verdict.
+        const files = await captureFailure(page, { dir: evidence.dir, kind: "reset", label: `sample-${i + 1}`, reason: sample.error, recorder, mark, secrets: evidence.secrets }).catch(() => null);
+        if (files?.json) sample.evidence = files.json;
+      }
+      samples.push(sample);
     }
   }
+  recorder?.stop();
   const verdict = evaluateResetTimes(samples);
   const idle = resetIdleInfo(samples);
   return { ...verdict, ...idle, detail: `${verdict.detail}; ${idle.idleDetail}`, samples };

@@ -142,7 +142,7 @@ jobs:
           path: .cursor/skills/verify-v5/evidence/**
           if-no-files-found: ignore
 
-  # reset/crawl/portfolio must-fail Chromium tests against fake localhost pages. No Postgres or
+  # reset/crawl/portfolio/stress-seed must-fail tests (Chromium vs fake localhost pages; stress-seed vs a closed port). No Postgres or
   # Next build — v5/node_modules Playwright + image browsers. Parallel with smoke; same verify_v5 filter.
   verify-v5-mustfail:
     name: verify-v5 must-fail browser
@@ -178,6 +178,7 @@ jobs:
           node .cursor/skills/verify-v5/reset-mustfail.test.mjs
           node .cursor/skills/verify-v5/crawl-mustfail.test.mjs
           node .cursor/skills/verify-v5/portfolio-mustfail.test.mjs
+          node .cursor/skills/verify-v5/stress-seed-mustfail.test.mjs
 
   v5:
     name: v5 (lint, typecheck, test, build, e2e)
