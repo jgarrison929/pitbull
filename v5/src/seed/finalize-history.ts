@@ -17,14 +17,13 @@ import type {
 } from "@/db/schema";
 import { coLabel } from "@/lib/change-order";
 import { snapshotClaimPercent } from "@/lib/ev";
+import { addCalendarDays, calendarDateInTz } from "@/lib/plan-date";
 import { seedId } from "./ids";
 import type { SeedRows } from "./index";
 
 type Insert<T extends { $inferInsert: unknown }> = T["$inferInsert"];
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
-const addDays = (d: Date, n: number) =>
-  new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n));
 
 /** Jobs that Period 1 lock covers (Harbor stays draft/unlocked). */
 const LOCK_JOB_KEYS = ["sr99", "cedar", "i5"] as const;
@@ -321,8 +320,8 @@ function actionRunSpecs(today: Date, id: (k: string) => string) {
   const pm = id("user:pm");
   const executive = id("user:executive");
   const superintendent = id("user:superintendent");
-  const todayIso = isoDate(today);
-  const tomorrowIso = isoDate(addDays(today, 1));
+  const todayIso = calendarDateInTz(today);
+  const tomorrowIso = addCalendarDays(todayIso, 1);
   const todayDay = dayLabel(todayIso);
   const tomorrowDay = dayLabel(tomorrowIso);
   type Run = {

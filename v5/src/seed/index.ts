@@ -36,6 +36,7 @@ import {
   type EvMethod,
 } from "@/lib/ev";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
+import { addCalendarDays, calendarDateInTz } from "@/lib/plan-date";
 import {
   buildFieldHistory,
   type FieldHistoryItem,
@@ -909,9 +910,11 @@ export function seed(companyId: string, today: Date): SeedRows {
 
   const planId = id("plan:cedar:tomorrow");
   const cost = (code: string) => id(`cost:cedar:${code}`);
-  const tomorrowCreatedAt = new Date(
-    `${isoDate(addDays(today, 1))}T06:00:00.000Z`,
-  );
+  // Same Los Angeles calendar as assistant today/tomorrow. A UTC date puts
+  // "Submit tomorrow's plan" on the I-5 plan after 00:00Z.
+  const openToday = calendarDateInTz(today);
+  const openTomorrow = addCalendarDays(openToday, 1);
+  const tomorrowCreatedAt = new Date(`${openTomorrow}T06:00:00.000Z`);
   out.dailyPlans.push({
     id: planId,
     companyId,
@@ -919,7 +922,7 @@ export function seed(companyId: string, today: Date): SeedRows {
     crew: "Bridge Crew 2",
     crewId: bridgeCrewId,
     foremanId,
-    planDate: isoDate(addDays(today, 1)),
+    planDate: openTomorrow,
     status: "draft",
     weather: "Overcast, 54°F, 10% rain",
     equipment: [
@@ -993,7 +996,7 @@ export function seed(companyId: string, today: Date): SeedRows {
       crew: "Culvert Crew A",
       crewId: culvertCrewId,
       foremanId,
-      planDate: isoDate(today),
+      planDate: openToday,
       status: "draft",
       weather: "Clear, 62°F, 5% rain",
       equipment: [

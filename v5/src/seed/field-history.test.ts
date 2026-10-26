@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
+import { calendarDateInTz } from "@/lib/plan-date";
 import { seed, seedId } from "./index";
 import {
   CEDAR_RETURN_REASON,
@@ -19,11 +20,22 @@ describe("workingDaysBefore / distributeInt", () => {
     expect(days).toHaveLength(30);
     expect(days[0]! < days[29]!).toBe(true);
     expect(days.every((d) => d < "2026-10-20")).toBe(true);
+    expect(days.every((d) => d < calendarDateInTz(today))).toBe(true);
     for (const d of days) {
       const dow = new Date(`${d}T12:00:00.000Z`).getUTCDay();
       expect(dow).not.toBe(0);
       expect(dow).not.toBe(6);
     }
+  });
+
+  it("leaves the Los Angeles today free after UTC has rolled to the next day", () => {
+    // Tuesday 00:05 UTC is still Monday evening in Los Angeles.
+    const evening = new Date("2026-10-27T00:05:00.000Z");
+    const laToday = calendarDateInTz(evening);
+    const prior = workingDaysBefore(evening, 5);
+    expect(laToday).toBe("2026-10-26");
+    expect(prior.every((d) => d < laToday)).toBe(true);
+    expect(prior.at(-1)).toBe("2026-10-23");
   });
 
   it("distributeInt parts sum to total", () => {

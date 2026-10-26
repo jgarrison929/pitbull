@@ -10,6 +10,7 @@ import type {
   dailyPlans,
 } from "@/db/schema";
 import { laborCents } from "@/lib/ev";
+import { addCalendarDays, calendarDateInTz } from "@/lib/plan-date";
 
 type Insert<T extends { $inferInsert: unknown }> = T["$inferInsert"];
 
@@ -20,14 +21,19 @@ const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (d: Date, n: number) =>
   new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n));
 
-/** Mon–Fri calendar dates strictly before `today`, oldest first. */
+/**
+ * Mon–Fri dates strictly before today's America/Los_Angeles calendar day,
+ * oldest first. The assistant resolves "today" and "tomorrow" in that zone
+ * (`calendarDateInTz`). History must leave that day free for the open I-5 plan
+ * (`daily_plans_job_crew_date_uidx`).
+ */
 export function workingDaysBefore(today: Date, count: number): string[] {
   const out: string[] = [];
-  let cursor = addDays(today, -1);
+  let cursor = addCalendarDays(calendarDateInTz(today), -1);
   while (out.length < count) {
-    const dow = cursor.getUTCDay(); // 0 Sun … 6 Sat
-    if (dow !== 0 && dow !== 6) out.push(isoDate(cursor));
-    cursor = addDays(cursor, -1);
+    const dow = new Date(`${cursor}T12:00:00.000Z`).getUTCDay(); // 0 Sun … 6 Sat
+    if (dow !== 0 && dow !== 6) out.push(cursor);
+    cursor = addCalendarDays(cursor, -1);
   }
   return out.reverse();
 }

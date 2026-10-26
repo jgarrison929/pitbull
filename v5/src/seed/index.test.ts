@@ -11,6 +11,7 @@ import {
   reconcileByCode,
 } from "@/lib/estimate-reconcile";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
+import { addCalendarDays, calendarDateInTz } from "@/lib/plan-date";
 import { costLine, plannedValueCents } from "@/lib/ev";
 import { SEED_ACTIVE_JOB_COUNT, seed, seedId } from "./index";
 
@@ -194,14 +195,15 @@ describe("seed", () => {
     const i5 = rows.dailyPlans.find(
       (p) => p.id === seedId(company, "plan:i5:today"),
     )!;
+    // 2026-10-19T00:00:00Z is still 2026-10-18 in America/Los_Angeles.
     expect(cedar).toMatchObject({
-      planDate: "2026-10-20",
+      planDate: "2026-10-19",
       status: "draft",
       crew: "Bridge Crew 2",
       crewId: seedId(company, "crew:bridge-2"),
     });
     expect(i5).toMatchObject({
-      planDate: "2026-10-19",
+      planDate: "2026-10-18",
       status: "issued",
       crew: "Culvert Crew A",
       crewId: seedId(company, "crew:culvert-a"),
@@ -214,6 +216,33 @@ describe("seed", () => {
       "superintendent",
       "foreman",
     ]);
+  });
+
+  it("keeps open plans on the Los Angeles calendar after UTC midnight", () => {
+    // 2026-10-27 00:05 UTC is still Monday 2026-10-26 in Los Angeles.
+    // UTC today/tomorrow would put I-5 on the assistant's "tomorrow".
+    const evening = new Date("2026-10-27T00:05:00.000Z");
+    const bag = seed(company, evening);
+    const laToday = calendarDateInTz(evening);
+    const laTomorrow = addCalendarDays(laToday, 1);
+    const cedar = bag.dailyPlans.find(
+      (p) => p.id === seedId(company, "plan:cedar:tomorrow"),
+    )!;
+    const i5 = bag.dailyPlans.find(
+      (p) => p.id === seedId(company, "plan:i5:today"),
+    )!;
+    expect(laToday).toBe("2026-10-26");
+    expect(laTomorrow).toBe("2026-10-27");
+    expect(i5.planDate).toBe(laToday);
+    expect(cedar.planDate).toBe(laTomorrow);
+    expect(i5.planDate).not.toBe(evening.toISOString().slice(0, 10));
+
+    const seen = new Set<string>();
+    for (const plan of bag.dailyPlans) {
+      const key = `${plan.jobId}:${plan.crewId}:${plan.planDate}`;
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
+    }
   });
 
   it("stores money and quantities as integers", () => {
