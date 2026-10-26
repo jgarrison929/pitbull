@@ -32,7 +32,6 @@ import { requireUser, type CurrentUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
 import { actions, jobChanges } from "@/server/assistant/actions";
 import { LocalTime } from "@/components/app/local-time";
-import { ScrollHash } from "@/components/app/scroll-hash";
 
 export default function JobPage({ params }: PageProps<"/app/jobs/[number]">) {
   return (
@@ -173,7 +172,6 @@ export async function Job({
   }));
   return (
     <>
-      <ScrollHash />
       <div id="estimate">
         <PageHeader
           title={p.job.name}
