@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { requireDb } from "@/db";
 import {
   costItemMilestones,
@@ -232,23 +232,46 @@ export async function getJob(
   asOf = seedNow(),
 ) {
   const db = requireDb();
-  const [job] = await db
-    .select()
-    .from(jobs)
-    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
-    .limit(1);
-  if (!job) return null;
-  // Lock date and WBS are independent once we have job.id — overlap the RTTs.
-  const [lockAt, items] = await Promise.all([
-    lastLockDate(companyId, job.id),
+  // Job row, WBS, and last lock are independent when keyed by company+number —
+  // overlap all three RTTs (avoids serial job-then-rest under crawl burst).
+  const [jobRows, itemRows, lockRows] = await Promise.all([
     db
       .select()
+      .from(jobs)
+      .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
+      .limit(1),
+    db
+      .select({ item: costItems })
       .from(costItems)
+      .innerJoin(
+        jobs,
+        and(eq(jobs.id, costItems.jobId), eq(jobs.companyId, companyId)),
+      )
       .where(
-        and(eq(costItems.companyId, companyId), eq(costItems.jobId, job.id)),
+        and(eq(costItems.companyId, companyId), eq(jobs.number, number)),
       )
       .orderBy(asc(costItems.path)),
+    db
+      .select({ lockedAt: progressClaims.lockedAt })
+      .from(progressClaims)
+      .innerJoin(
+        jobs,
+        and(eq(jobs.id, progressClaims.jobId), eq(jobs.companyId, companyId)),
+      )
+      .where(
+        and(
+          eq(progressClaims.companyId, companyId),
+          eq(jobs.number, number),
+          eq(progressClaims.status, "locked"),
+        ),
+      )
+      .orderBy(desc(progressClaims.lockedAt))
+      .limit(1),
   ]);
+  const job = jobRows[0];
+  if (!job) return null;
+  const items = itemRows.map((r) => r.item);
+  const lockAt = lockRows[0]?.lockedAt ?? null;
   const cutoff = lockAt ?? asOf;
   const lines = leafLines(items, cutoff, asOf);
   // Prefer JS leaf rollup so claimed-installed / as-of PV match costLine exactly.

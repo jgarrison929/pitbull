@@ -79,9 +79,14 @@ export async function getCostItemPage(
   asOf = seedNow(),
 ) {
   const db = requireDb();
-  // One round-trip for job + leaf (was two serial selects).
+  // Job ⋈ leaf + last lock in one round-trip (was job+item then serial lock).
   const [row] = await db
-    .select({ job: jobs, item: costItems })
+    .select({
+      job: jobs,
+      item: costItems,
+      periodLabel: progressClaims.periodLabel,
+      lockedOn: sql<string | null>`(${progressClaims.lockedAt} at time zone 'UTC')::date::text`,
+    })
     .from(jobs)
     .innerJoin(
       costItems,
@@ -92,28 +97,29 @@ export async function getCostItemPage(
         eq(costItems.isLeaf, true),
       ),
     )
+    .leftJoin(
+      progressClaims,
+      and(
+        eq(progressClaims.jobId, jobs.id),
+        eq(progressClaims.companyId, companyId),
+        eq(progressClaims.status, "locked"),
+        // Distinct-on style: only the latest lock — correlated via subquery.
+        sql`${progressClaims.id} = (
+          select pc.id from progress_claims pc
+          where pc.job_id = ${jobs.id}
+            and pc.company_id = ${companyId}
+            and pc.status = 'locked'
+          order by pc.locked_at desc
+          limit 1
+        )`,
+      ),
+    )
     .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
     .limit(1);
   if (!row) return null;
   const { job, item } = row;
-
-  const [lock] = await db
-    .select({
-      periodLabel: progressClaims.periodLabel,
-      lockedOn: sql<string>`(${progressClaims.lockedAt} at time zone 'UTC')::date::text`,
-    })
-    .from(progressClaims)
-    .where(
-      and(
-        eq(progressClaims.companyId, companyId),
-        eq(progressClaims.jobId, job.id),
-        eq(progressClaims.status, "locked"),
-      ),
-    )
-    .orderBy(desc(progressClaims.lockedAt))
-    .limit(1);
-  const periodLabel = lock?.periodLabel ?? null;
-  const cutoffIso = lock?.lockedOn ?? null;
+  const periodLabel = row.periodLabel ?? null;
+  const cutoffIso = row.lockedOn ?? null;
 
   const budgetCents = currentBudgetCents(item);
   const earnedMhMilli = earnedMhMilliOf({
