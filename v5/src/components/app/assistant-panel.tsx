@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   useActionState,
@@ -158,12 +157,15 @@ export function AssistantPanel({
                   {r.userName} · <LocalTime iso={r.createdAt} />
                 </span>
                 {r.args.href && (
-                  <Link
+                  // Plain <a>: next/link still fires ?_rsc= after paint (even with
+                  // prefetch={false}) and the desktop rail is visible at lg+, so
+                  // those prefetches held cost-item networkidle in CI @1280.
+                  <a
                     href={r.args.href}
                     className="font-medium text-foreground underline underline-offset-2"
                   >
                     Open
-                  </Link>
+                  </a>
                 )}
               </div>
             </div>
