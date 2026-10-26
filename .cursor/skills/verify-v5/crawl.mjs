@@ -39,9 +39,12 @@ function gitFailureLine(text) {
 }
 
 /**
- * Whether `<sha>:<SCHEDULE_ROUTE_FILE>` exists. `git` is `(args) => string` and throws on a git error
+ * Whether SCHEDULE_ROUTE_FILE is in `<sha>`. `git` is `(args) => string` and throws on a git error
  * (execFileSync). The sha must be a commit first: a bad object is an error, not "absent".
- * A missing path on a real commit is "not in this commit". Any other git error is returned, not treated as absent.
+ * Absence is trustworthy only when `git ls-tree --name-only <sha> -- :(literal)<file>` exits 0.
+ * Empty output means the path is not in this commit. Any non-zero exit — an unreadable tree or
+ * object, including `error: Could not read <tree>` and `fatal: not a tree object` — is returned
+ * so the check fails. "exists on disk, but not in" is not absence.
  */
 export function scheduleRouteAtCommit(sha, git) {
   try {
@@ -49,14 +52,14 @@ export function scheduleRouteAtCommit(sha, git) {
   } catch (error) {
     return { present: false, error: gitFailureLine(gitFailureText(error)) ?? "schedule route could not be read at this commit" };
   }
+  let listed;
   try {
-    git(["cat-file", "-e", `${sha}:${SCHEDULE_ROUTE_FILE}`]);
-    return { present: true, error: null };
+    listed = git(["ls-tree", "--name-only", sha, "--", `:(literal)${SCHEDULE_ROUTE_FILE}`]);
   } catch (error) {
-    const text = gitFailureText(error);
-    if (/does not exist in|exists on disk, but not in|pathspec .* did not match/i.test(text)) return { present: false, error: null };
-    return { present: false, error: gitFailureLine(text) ?? "schedule route could not be read at this commit" };
+    return { present: false, error: gitFailureLine(gitFailureText(error)) ?? "schedule route could not be read at this commit" };
   }
+  const names = String(listed ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
+  return { present: names.length > 0, error: null };
 }
 
 /**

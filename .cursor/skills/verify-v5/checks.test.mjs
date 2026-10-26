@@ -2,7 +2,7 @@
 // Must-fail self-tests for the pure checks in checks.mjs. Each new check must FAIL on bad input and
 // PASS on the good twin of that input. No network, no Playwright. Run: node checks.test.mjs
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -329,7 +329,10 @@ mustFail("M5 reset did not restore", evaluateM5({ ...m5good, afterReset: { ...m5
   assert.doesNotMatch(verifySrc, /5\.1\.0/, "the crawl gate is not a version string");
   const gateSrc = scheduleRouteAtCommit.toString();
   assert.match(gateSrc, /cat-file/);
+  assert.match(gateSrc, /ls-tree/);
+  assert.match(gateSrc, /:\(literal\)/);
   assert.match(gateSrc, /SCHEDULE_ROUTE_FILE/);
+  assert.doesNotMatch(gateSrc, /exists on disk, but not in/, "an unreadable tree is not treated as absent");
   assert.doesNotMatch(gateSrc, /5\.1\.0/);
   assert.equal(SCHEDULE_ROUTE_FILE, "v5/src/app/app/jobs/[number]/schedule/page.tsx");
   assert.deepEqual(SCHEDULE_ROLE_ACCESS, { executive: true, pm: true, superintendent: true, foreman: true });
@@ -353,10 +356,32 @@ mustFail("M5 reset did not restore", evaluateM5({ ...m5good, afterReset: { ...m5
     const bad = scheduleRouteAtCommit("f".repeat(40), gitAt(fix.dir));
     assert.equal(bad.present, false);
     assert.match(bad.error ?? "", /^fatal:/, `an unreadable commit fails closed; got ${JSON.stringify(bad)}`);
+    const srcTree = execFileSync("git", ["rev-parse", `${sha}:v5/src`], { cwd: fix.dir, encoding: "utf8" }).trim();
+    const rootTree = execFileSync("git", ["rev-parse", `${sha}^{tree}`], { cwd: fix.dir, encoding: "utf8" }).trim();
+    const broken = [];
+    try {
+      for (const [label, oid, re] of [
+        ["b8 missing v5/src tree object", srcTree, /Could not read/],
+        ["b7 missing root tree object", rootTree, /not a tree object/],
+      ]) {
+        const dir = mkdtempSync(path.join(os.tmpdir(), "verify-v5-tree-"));
+        broken.push(dir);
+        cpSync(fix.dir, dir, { recursive: true });
+        const objectFile = path.join(dir, ".git", "objects", oid.slice(0, 2), oid.slice(2));
+        assert.equal(existsSync(objectFile), true, `${label}: loose object ${oid} must be deleted, not a packed no-op`);
+        rmSync(objectFile);
+        const gate = scheduleRouteAtCommit(sha, gitAt(dir));
+        assert.equal(gate.present, false, label);
+        assert.match(gate.error ?? "", re, `${label} must fail closed; got ${JSON.stringify(gate)}`);
+        mustFail(label, [gate.error]);
+      }
+    } finally {
+      for (const dir of broken) rmSync(dir, { recursive: true, force: true });
+    }
   } finally {
     rmSync(fix.dir, { recursive: true, force: true });
   }
-  results.push("schedule gate: route file at the verified commit; absent on this HEAD; present only once committed; bad sha fails closed");
+  results.push("schedule gate: route file at the verified commit; absent on this HEAD; present only once committed; bad sha, missing v5/src tree, and missing root tree fail closed");
 
   const sched = {
     ...good,
@@ -395,6 +420,16 @@ mustFail("M5 reset did not restore", evaluateM5({ ...m5good, afterReset: { ...m5
   const covered = CRAWL_ROLES.flatMap((role) => scheduleWidths().flatMap((width) => active.map((job) => load(role, width, job))));
   mustPass("schedule crawled for 4 roles × 6 widths × active jobs", scheduleCoverageFailures(covered, active));
   mustFail("schedule missing for an allowed role at one width", scheduleCoverageFailures(covered.filter((r) => !(r.role === "foreman" && r.width === 768 && r.path.endsWith("/25-031/schedule"))), active));
+  for (const width of scheduleWidths()) {
+    const failures = scheduleCoverageFailures(covered.filter((r) => r.width !== width), active);
+    mustFail(`schedule missing at width ${width}`, failures);
+    assert.ok(failures.some((m) => m.includes(`@${width} `)), `dropping width ${width} must name that width: ${failures[0] ?? "(none)"}`);
+  }
+  for (const role of CRAWL_ROLES) {
+    const failures = scheduleCoverageFailures(covered.filter((r) => r.role !== role), active);
+    mustFail(`schedule missing for role ${role}`, failures);
+    assert.ok(failures.some((m) => m.startsWith(`${role}@`)), `dropping role ${role} must name that role: ${failures[0] ?? "(none)"}`);
+  }
   mustPass("excluded role is not required to have a 200 schedule load", scheduleCoverageFailures(covered.filter((r) => r.role !== "foreman"), active, { access: foremanOff }));
 
   const denial = { role: "pm", width: 390, path: schedulePath("26-010"), status: 404, seededCounts: { activityRows: 0 } };
