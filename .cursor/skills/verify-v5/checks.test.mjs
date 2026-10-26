@@ -2,7 +2,7 @@
 // Must-fail self-tests for the pure checks in checks.mjs. Each new check must FAIL on bad input and
 // PASS on the good twin of that input. No network, no Playwright. Run: node checks.test.mjs
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,7 +39,7 @@ import { capRawText, captureFailure, RAW_TEXT_CAP, redactHeaders, redactText, re
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
 import { execFileSync } from "node:child_process";
 import { PORTFOLIO_ROWS_TIMEOUT_MS, PORTFOLIO_SETTLE_MS, PORTFOLIO_STEP, portfolioOk, runPortfolioStep, waitForRowCount } from "./portfolio.mjs";
-import { CRAWL_ROLES, CRAWL_WIDTHS, changesPath, expectedNavLoads, navCrawlPages, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
+import { CRAWL_ROLES, CRAWL_WIDTHS, changesPath, expectedNavLoads, navCrawlPages, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_PATH, SCHEDULE_ROLE_ACCESS, SCHEDULE_ROUTE_FILE, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, schedulePath, scheduleRouteAtCommit, scheduleWidths } from "./crawl.mjs";
 import { csvLeafCodes, drillCoverageFailures, drillDiscoveryFailures, drillItemCount, drillItemList, drillLoadPlan, drillPath, expectedDrillLoads, partCFailures, partCItemFor, seedChildEnv, leakedSeedEnvKeys, SEED_CHILD_ENV_ALLOW, seedDrillItems } from "./drill.mjs";
 import {
   acceptanceItems,
@@ -333,6 +333,166 @@ mustFail("M5 reset did not restore", evaluateM5({ ...m5good, afterReset: { ...m5
   mustFail("/roadmap 1501 ms", roadmapCoverageFailures(full.map((r, i) => (i === 3 ? { ...r, idleMs: 1501 } : r))));
   mustFail("/roadmap banned word", roadmapCoverageFailures(full.map((r, i) => (i === 5 ? { ...r, text: "5.0.2 coming soon" } : r))));
   mustFail("/roadmap error boundary", roadmapCoverageFailures(full.map((r, i) => (i === 7 ? { ...r, text: "Something went wrong" } : r))));
+}
+
+// ---- 5.1.0-c /schedule in the nav crawl (gated on the route file, not a version) ----
+{
+  const jobs = ["24-118", "25-031", "24-077", "26-010"];
+  const active = ["24-077", "24-118", "25-031"];
+  const off = navCrawlPlan(jobs);
+  assert.deepEqual(off[0].pages, [
+    "/app",
+    "/app/jobs/24-118", "/app/jobs/24-118/changes",
+    "/app/jobs/25-031", "/app/jobs/25-031/changes",
+    "/app/jobs/24-077", "/app/jobs/24-077/changes",
+    "/app/jobs/26-010", "/app/jobs/26-010/changes",
+    "/app/assistant", "/changelog", "/status", "/roadmap",
+  ]);
+  assert.deepEqual(off[1], { pages: ["/roadmap"], widths: [375, 1440] });
+  assert.equal(expectedNavLoads(off), 216, "no schedule jobs leaves the 216-load plan");
+  const plan = navCrawlPlan(jobs, active);
+  const schedulePages = active.map((j) => `/app/jobs/${j}/schedule`);
+  assert.deepEqual(plan[0].pages, [
+    "/app",
+    "/app/jobs/24-118", "/app/jobs/24-118/changes",
+    "/app/jobs/25-031", "/app/jobs/25-031/changes",
+    "/app/jobs/24-077", "/app/jobs/24-077/changes",
+    "/app/jobs/26-010", "/app/jobs/26-010/changes",
+    ...schedulePages,
+    "/app/assistant", "/changelog", "/status", "/roadmap",
+  ]);
+  assert.deepEqual(plan[0].pages.filter((p) => SCHEDULE_PATH.test(p)), schedulePages);
+  assert.deepEqual(plan[1].pages, ["/roadmap", ...schedulePages]);
+  assert.ok(!plan[0].pages.some((p) => p.includes("26-010/schedule")), "Harbor is not a schedule page");
+  assert.deepEqual(plan[0].widths, [320, 390, 768, 1280]);
+  assert.deepEqual(plan[1].widths, [375, 1440]);
+  assert.deepEqual(scheduleWidths(), [320, 390, 768, 1280, 375, 1440]);
+  // 4 roles × (16 pages × 4 widths + 4 pages × 2 extra widths) = 288.
+  // 16 = /app + 4 job pages + 4 /changes + 3 active /schedule + assistant + changelog + status + /roadmap.
+  // The extra pass is /roadmap plus those same 3 /schedule pages. Without /schedule the count stays 216.
+  assert.equal(expectedNavLoads(plan), 288);
+  const withoutChanges = plan.map((pass) => ({ ...pass, pages: pass.pages.filter((p) => !p.endsWith("/changes")) }));
+  assert.equal(expectedNavLoads(withoutChanges), 224, "dropping /changes from the schedule plan is the 224-load count");
+  const verifySrc = readFileSync(path.join(here, "verify.mjs"), "utf8");
+  assert.match(verifySrc, /scheduleRouteAtCommit\(expectedFull/);
+  assert.match(verifySrc, /scheduleGate\.present \? seedTargets\.active : \[\]/);
+  assert.doesNotMatch(verifySrc, /5\.1\.0/, "the crawl gate is not a version string");
+  const gateSrc = scheduleRouteAtCommit.toString();
+  assert.match(gateSrc, /cat-file/);
+  assert.match(gateSrc, /ls-tree/);
+  assert.match(gateSrc, /:\(literal\)/);
+  assert.match(gateSrc, /SCHEDULE_ROUTE_FILE/);
+  assert.doesNotMatch(gateSrc, /exists on disk, but not in/, "an unreadable tree is not treated as absent");
+  assert.doesNotMatch(gateSrc, /5\.1\.0/);
+  assert.equal(SCHEDULE_ROUTE_FILE, "v5/src/app/app/jobs/[number]/schedule/page.tsx");
+  assert.deepEqual(SCHEDULE_ROLE_ACCESS, { executive: true, pm: true, superintendent: true, foreman: true });
+  const repo = path.resolve(here, "../../..");
+  const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim();
+  const gitAt = (cwd) => (args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  assert.deepEqual(scheduleRouteAtCommit(head, gitAt(repo)), { present: false, error: null }, "this commit has no schedule route");
+  const fix = specFixture(false);
+  try {
+    const absentOnDisk = scheduleRouteAtCommit(fix.sha, gitAt(fix.dir));
+    assert.deepEqual(absentOnDisk, { present: false, error: null });
+    const page = path.join(fix.dir, "v5/src/app/app/jobs/[number]/schedule/page.tsx");
+    mkdirSync(path.dirname(page), { recursive: true });
+    writeFileSync(page, "export default function Page(){return null}\n");
+    const onDiskOnly = scheduleRouteAtCommit(fix.sha, gitAt(fix.dir));
+    assert.deepEqual(onDiskOnly, { present: false, error: null }, "a file only in the worktree is not in the commit");
+    execFileSync("git", ["add", "."], { cwd: fix.dir });
+    execFileSync("git", ["-c", "commit.gpgsign=false", "commit", "-m", "schedule route"], { cwd: fix.dir });
+    const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: fix.dir, encoding: "utf8" }).trim();
+    assert.deepEqual(scheduleRouteAtCommit(sha, gitAt(fix.dir)), { present: true, error: null });
+    const bad = scheduleRouteAtCommit("f".repeat(40), gitAt(fix.dir));
+    assert.equal(bad.present, false);
+    assert.match(bad.error ?? "", /^fatal:/, `an unreadable commit fails closed; got ${JSON.stringify(bad)}`);
+    const srcTree = execFileSync("git", ["rev-parse", `${sha}:v5/src`], { cwd: fix.dir, encoding: "utf8" }).trim();
+    const rootTree = execFileSync("git", ["rev-parse", `${sha}^{tree}`], { cwd: fix.dir, encoding: "utf8" }).trim();
+    const broken = [];
+    try {
+      for (const [label, oid, re] of [
+        ["b8 missing v5/src tree object", srcTree, /Could not read/],
+        ["b7 missing root tree object", rootTree, /not a tree object/],
+      ]) {
+        const dir = mkdtempSync(path.join(os.tmpdir(), "verify-v5-tree-"));
+        broken.push(dir);
+        cpSync(fix.dir, dir, { recursive: true });
+        const objectFile = path.join(dir, ".git", "objects", oid.slice(0, 2), oid.slice(2));
+        assert.equal(existsSync(objectFile), true, `${label}: loose object ${oid} must be deleted, not a packed no-op`);
+        rmSync(objectFile);
+        const gate = scheduleRouteAtCommit(sha, gitAt(dir));
+        assert.equal(gate.present, false, label);
+        assert.match(gate.error ?? "", re, `${label} must fail closed; got ${JSON.stringify(gate)}`);
+        mustFail(label, [gate.error]);
+      }
+    } finally {
+      for (const dir of broken) rmSync(dir, { recursive: true, force: true });
+    }
+  } finally {
+    rmSync(fix.dir, { recursive: true, force: true });
+  }
+  results.push("schedule gate: route file at the verified commit; absent on this HEAD; present only once committed; bad sha, missing v5/src tree, and missing root tree fail closed");
+
+  const sched = {
+    ...good,
+    path: "/app/jobs/25-031/schedule",
+    final: "/app/jobs/25-031/schedule",
+    seededCounts: { costRows: 0, activityRows: 5 },
+    text: "A Mobilize. B. C Pier columns. D. E.",
+  };
+  mustPass("schedule page with activities and no cost rows", evaluateCrawlRow(sched));
+  mustPass("schedule page at exactly 1500 ms", evaluateCrawlRow({ ...sched, idleMs: 1500 }));
+  mustFail("schedule page with no activities", evaluateCrawlRow({ ...sched, seededCounts: { costRows: 12, activityRows: 0 } }));
+  mustFail("schedule page 1501 ms", evaluateCrawlRow({ ...sched, idleMs: 1501 }));
+  mustFail("schedule page 'coming soon'", evaluateCrawlRow({ ...sched, text: "Coming soon" }));
+  mustFail("schedule page HTTP 500", evaluateCrawlRow({ ...sched, status: 500 }));
+  mustFail("schedule page horizontal overflow", evaluateCrawlRow({ ...sched, overflowPx: 1 }));
+  mustFail("schedule page ERP", evaluateCrawlRow({ ...sched, text: "Export to ERP" }));
+  mustFail("schedule page error boundary", evaluateCrawlRow({ ...sched, text: "Application error: a client-side exception has occurred" }));
+  mustFail("job page still needs cost rows", evaluateCrawlRow({ ...good, seededCounts: { costRows: 0, activityRows: 5 } }));
+  const clipped = { ...sched, width: 320, clips: [{ kind: "money", text: "$1,234.56", ellipsis: true, reachable: false }], clipCount: 1 };
+  mustPass("schedule clip ignored when phone checks are off", evaluateCrawlRow(clipped));
+  mustFail("schedule clip fails when phone checks are on", evaluateCrawlRow(clipped, { phoneChecks: true }));
+
+  const jobRow = (job, links, role = "pm", width = 390) => ({
+    role, width, path: `/app/jobs/${job}`, scheduleLinks: links,
+  });
+  const linked = CRAWL_ROLES.flatMap((role) => CRAWL_WIDTHS.map((width) => jobRow("25-031", [schedulePath("25-031")], role, width)));
+  const harbor = CRAWL_ROLES.flatMap((role) => CRAWL_WIDTHS.map((width) => jobRow("26-010", [], role, width)));
+  mustPass("schedule link on each active job, none on Harbor", scheduleNavFailures([...linked, ...harbor], { scheduleJobs: active }));
+  mustFail("schedule link missing at one width", scheduleNavFailures(linked.map((r) => (r.role === "pm" && r.width === 320 ? { ...r, scheduleLinks: [] } : r)), { scheduleJobs: ["25-031"] }));
+  mustFail("schedule link on a job with no schedule", scheduleNavFailures([jobRow("26-010", [schedulePath("26-010")])], { scheduleJobs: active }));
+  const foremanOff = { ...SCHEDULE_ROLE_ACCESS, foreman: false };
+  mustFail("excluded role sees the schedule link", scheduleNavFailures([jobRow("25-031", [schedulePath("25-031")], "foreman", 320)], { scheduleJobs: active, access: foremanOff }));
+  mustPass("excluded role with no schedule link", scheduleNavFailures([jobRow("25-031", [], "foreman", 320)], { scheduleJobs: active, access: foremanOff }));
+
+  const load = (role, width, job) => ({ role, width, path: schedulePath(job) });
+  const covered = CRAWL_ROLES.flatMap((role) => scheduleWidths().flatMap((width) => active.map((job) => load(role, width, job))));
+  mustPass("schedule crawled for 4 roles × 6 widths × active jobs", scheduleCoverageFailures(covered, active));
+  mustFail("schedule missing for an allowed role at one width", scheduleCoverageFailures(covered.filter((r) => !(r.role === "foreman" && r.width === 768 && r.path.endsWith("/25-031/schedule"))), active));
+  for (const width of scheduleWidths()) {
+    const failures = scheduleCoverageFailures(covered.filter((r) => r.width !== width), active);
+    mustFail(`schedule missing at width ${width}`, failures);
+    assert.ok(failures.some((m) => m.includes(`@${width} `)), `dropping width ${width} must name that width: ${failures[0] ?? "(none)"}`);
+  }
+  for (const role of CRAWL_ROLES) {
+    const failures = scheduleCoverageFailures(covered.filter((r) => r.role !== role), active);
+    mustFail(`schedule missing for role ${role}`, failures);
+    assert.ok(failures.some((m) => m.startsWith(`${role}@`)), `dropping role ${role} must name that role: ${failures[0] ?? "(none)"}`);
+  }
+  mustPass("excluded role is not required to have a 200 schedule load", scheduleCoverageFailures(covered.filter((r) => r.role !== "foreman"), active, { access: foremanOff }));
+
+  const denial = { role: "pm", width: 390, path: schedulePath("26-010"), status: 404, seededCounts: { activityRows: 0 } };
+  mustPass("direct schedule URL 404 is a denial", scheduleDenialFailures(denial));
+  mustPass("direct schedule URL 403 is a denial", scheduleDenialFailures({ ...denial, status: 403 }));
+  mustFail("direct schedule URL 500 is not a denial", scheduleDenialFailures({ ...denial, status: 500 }));
+  mustFail("direct schedule URL 200 showed the schedule", scheduleDenialFailures({ ...denial, status: 200 }));
+  mustFail("direct schedule URL 404 that still lists activities", scheduleDenialFailures({ ...denial, seededCounts: { activityRows: 1 } }));
+  assert.match(scheduleNavFailures([jobRow("25-031", [], "pm", 768)], { scheduleJobs: ["25-031"] })[0], /pm@768 \/app\/jobs\/25-031: schedule link missing/);
+  assert.match(scheduleCoverageFailures(covered.filter((r) => !(r.role === "foreman" && r.width === 768 && r.path.endsWith("/25-031/schedule"))), active)[0], /foreman@768 \/app\/jobs\/25-031\/schedule: schedule missing/);
+  assert.match(scheduleDenialFailures({ ...denial, status: 500 })[0], /HTTP 500 is not a denial/);
+  assert.match(evaluateCrawlRow({ ...sched, idleMs: 1501 })[0], /1501 ms > 1500 ms budget/);
+  assert.match(evaluateCrawlRow({ ...sched, text: "coming soon" })[0], /banned "coming soon"/);
 }
 
 // ---- #706 cost-item drill-downs in the nav crawl ----

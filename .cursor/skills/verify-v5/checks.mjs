@@ -242,14 +242,18 @@ export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS, phoneChecks =
   if (row.path === "/app" && !(c.portfolioRows > 0)) f.push(`${where}: portfolio has no job rows`);
   // Cost-item drill-downs (#706) render the item's tiles, not the job cost tree; every other job path keeps the cost-rows rule.
   // Plan pages (#706, read-only) render the plan's status and lines.
+  // A job schedule (5.1.0-c) is crawled with the same 1.5 s budget and the other per-load checks. It renders
+  // the Gantt (`gantt-activity`), not the cost tree, the way a plan page renders plan status.
   const costItemPage = /^\/app\/jobs\/[^/]+\/cost-items\/[^/]+$/.test(row.path);
   const planPage = /^\/app\/jobs\/[^/]+\/plans\/[^/]+$/.test(row.path);
   // /changes renders the changes list (job-changes-full li), not the cost tree. ≥1 item is the seeded-row rule.
   const changesPage = /^\/app\/jobs\/[^/]+\/changes$/.test(row.path);
-  if (row.path.startsWith("/app/jobs/") && !costItemPage && !planPage && !changesPage && !(c.costRows > 0)) f.push(`${where}: job has no cost rows`);
+  const schedulePage = /^\/app\/jobs\/[^/]+\/schedule$/.test(row.path);
+  if (row.path.startsWith("/app/jobs/") && !costItemPage && !planPage && !changesPage && !schedulePage && !(c.costRows > 0)) f.push(`${where}: job has no cost rows`);
   if (costItemPage && !(c.costItemTiles > 0)) f.push(`${where}: cost item page has no budget tile`);
   if (planPage && !(c.planStatus > 0)) f.push(`${where}: plan page has no plan status`);
   if (changesPage && !(c.changeItems > 0)) f.push(`${where}: changes page has 0 items`);
+  if (schedulePage && !(c.activityRows > 0)) f.push(`${where}: schedule page has no activities`);
   // Phone layout is off for the default crawl and for 5.0.2 / 5.0.3 per-PR verifies.
   // --rc (5.0.4 or later) and --phone-checks turn it on. The must-fail tests call evaluatePhoneUx directly.
   if (phoneChecks) f.push(...evaluatePhoneUx(row));

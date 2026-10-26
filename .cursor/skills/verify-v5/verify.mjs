@@ -2,7 +2,8 @@
 // Verifies a deployed v5 app: /health and /status report the expected commit and Database ok, then
 // walks the real flows (login, portfolio from Postgres, one assistant action, sandbox reset) on
 // desktop and phone viewports.
-// Also crawls 4 roles × every app page (incl. /roadmap, also at 375/1440, and every seeded cost-item drill-down) × 320/390/768/1280, checks the M2/M4/M5 numbers, and checks main's CI
+// Also crawls 4 roles × every app page (incl. /roadmap, also at 375/1440, every seeded job's /changes, and every seeded cost-item drill-down) × 320/390/768/1280.
+// When the verified commit contains the schedule route file, each active job's /schedule is in that crawl. Checks the M2/M4/M5 numbers, and checks main's CI
 // (last green commit, red main HEAD) — see SKILL.md.
 // Usage: node .cursor/skills/verify-v5/verify.mjs [--url URL] [--commit SHA] [--wait SECONDS] [--shots DIR]
 //        [--main-ci auto|on|off] [--max-green-age-hours 24] [--page-budget-ms 1500] [--self-check]
@@ -30,7 +31,7 @@ import {
   shaMatches,
   slowestRow,
 } from "./checks.mjs";
-import { crawl, CRAWL_ROLES, CRAWL_WIDTHS, expectedNavLoads, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
+import { crawl, CRAWL_ROLES, CRAWL_WIDTHS, expectedNavLoads, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_PATH, SCHEDULE_ROLE_ACCESS, SCHEDULE_ROUTE_FILE, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, scheduleRouteAtCommit, scheduleWidths } from "./crawl.mjs";
 import { DRILL_ROLE_ACCESS, drillCoverageFailures, drillDiscoveryFailures, drillItemCount, drillLoadPlan, expectedDrillLoads, loadSeedCrawlTargets, PART_C_CHECK_4, partCFailures, seedChildEnv } from "./drill.mjs";
 import { resolveDefaultCommit } from "./default-commit.mjs";
 import { readMainCi, readRelease, resolvePrefix } from "./main-ci.mjs";
@@ -395,7 +396,12 @@ check(
  * error boundary, console/page error, overflow, banned word, unallowed empty state, or a page over budget.
  */
 async function navCrawl(browser) {
-  const plan = navCrawlPlan(seedJobNumbers);
+  const scheduleGate = scheduleRouteAtCommit(expectedFull, (args) => execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }));
+  const scheduleJobs = scheduleGate.present ? seedTargets.active : [];
+  const plan = navCrawlPlan(seedJobNumbers, scheduleJobs);
+  const schedule = scheduleGate.present
+    ? { jobs: scheduleJobs, deniedJobs: seedJobNumbers.filter((j) => !scheduleJobs.includes(j)), access: SCHEDULE_ROLE_ACCESS }
+    : undefined;
   const pages = plan[0].pages;
   const crawlShots = path.join(shotDir, "crawl");
   mkdirSync(crawlShots, { recursive: true });
@@ -412,22 +418,32 @@ async function navCrawl(browser) {
   };
   await step("nav crawl: 4 roles × pages × 320/390/768/1280", async () => {
     const rows = [];
-    for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined, phoneChecks, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
-    const failures = rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks }));
+    for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined, schedule, phoneChecks, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
+    const failures = rows.filter((r) => !r.scheduleDenial).flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks }));
     rcSignals.crawlRan = true;
     rcSignals.crawlFailures = failures;
     const slow = slowestRow(rows);
     const drillRows = rows.filter((r) => r.drill);
-    const pageRows = rows.filter((r) => !r.drill && !r.partC);
+    const pageRows = rows.filter((r) => !r.drill && !r.partC && !r.scheduleDenial);
     const partCRows = rows.filter((r) => r.partC);
     const partC = partCFailures(rows, drill.partC.records, drill.records, seedTargets.active, { roles: CRAWL_ROLES, widths: CRAWL_WIDTHS, budgetMs });
     const slowPartC = slowestRow(partCRows);
     const slowDrill = slowestRow(drillRows);
     const discoveryFailures = drillDiscoveryFailures(drill.records, seedDrill, { roles: CRAWL_ROLES, widths: CRAWL_WIDTHS });
     const coverageFailures = drillCoverageFailures(rows, seedDrill, { roles: CRAWL_ROLES, budgetMs });
+    // Schedule crawl is on only when the route file exists at the commit being verified. A 404 cannot
+    // tell "not shipped" from "broken", so the gate is git, not a probe and not a version string.
+    const scheduleNav = scheduleGate.present ? scheduleNavFailures(rows, { scheduleJobs, access: SCHEDULE_ROLE_ACCESS }) : [];
+    const scheduleCover = scheduleGate.present
+      ? scheduleCoverageFailures(rows, scheduleJobs, { roles: CRAWL_ROLES, widths: scheduleWidths(), access: SCHEDULE_ROLE_ACCESS })
+      : [];
+    const scheduleDeny = rows.filter((r) => r.scheduleDenial).flatMap((r) => scheduleDenialFailures(r));
+    const scheduleLoads = rows.filter((r) => scheduleGate.present && SCHEDULE_PATH.test(r.path) && !r.scheduleDenial);
+    const scheduleLoadFailures = scheduleLoads.flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks }));
+    const scheduleFailures = scheduleGate.error ? [scheduleGate.error] : [...scheduleNav, ...scheduleCover, ...scheduleDeny, ...scheduleLoadFailures];
     writeFileSync(
       path.join(outDir, "crawl.json"),
-      safeJson({ pages, plan, roles: CRAWL_ROLES, widths: CRAWL_WIDTHS, budgetMs, slowest: slow && { ...slow, text: undefined }, slowestDrill: slowDrill && { ...slowDrill, text: undefined }, drill: { seedItems: seedDrill, itemCount: drillItemCount(seedDrill), access: DRILL_ROLE_ACCESS, plan: Object.fromEntries([...drill.plan].map(([k, v]) => [k, v.map((x) => x.path)])), discovery: drill.records, discoveryFailures, coverageFailures }, partC: { name: PART_C_CHECK_4, active: seedTargets.active, planLinked: seedTargets.planLinked, records: drill.partC.records, failures: partC, slowest: slowPartC && { ...slowPartC, text: undefined } }, failures, rows: rows.map((r) => ({ ...r, text: undefined, textChars: r.text.length })) }, SECRETS),
+      safeJson({ pages, plan, roles: CRAWL_ROLES, widths: CRAWL_WIDTHS, budgetMs, slowest: slow && { ...slow, text: undefined }, slowestDrill: slowDrill && { ...slowDrill, text: undefined }, drill: { seedItems: seedDrill, itemCount: drillItemCount(seedDrill), access: DRILL_ROLE_ACCESS, plan: Object.fromEntries([...drill.plan].map(([k, v]) => [k, v.map((x) => x.path)])), discovery: drill.records, discoveryFailures, coverageFailures }, schedule: { routeFile: SCHEDULE_ROUTE_FILE, present: scheduleGate.present, error: scheduleGate.error, jobs: scheduleJobs, widths: scheduleGate.present ? scheduleWidths() : [], failures: scheduleFailures }, partC: { name: PART_C_CHECK_4, active: seedTargets.active, planLinked: seedTargets.planLinked, records: drill.partC.records, failures: partC, slowest: slowPartC && { ...slowPartC, text: undefined } }, failures, rows: rows.map((r) => ({ ...r, text: undefined, textChars: r.text.length })) }, SECRETS),
     );
     const expectedLoads = expectedNavLoads(plan);
     check(
@@ -439,6 +455,17 @@ async function navCrawl(browser) {
     // /roadmap gets the same per-load checks; this names its coverage (5.0.1 acceptance check 12).
     const roadmapRows = rows.filter((r) => r.path === "/roadmap");
     const roadmapFailures = roadmapCoverageFailures(rows, { budgetMs, phoneChecks });
+    check(
+      "nav crawl includes /schedule",
+      scheduleFailures.length === 0,
+      scheduleGate.error
+        ? scheduleGate.error
+        : !scheduleGate.present
+          ? `schedule route is not in this commit (${SCHEDULE_ROUTE_FILE}); /schedule not crawled`
+          : scheduleFailures.length
+            ? scheduleFailures.slice(0, 8).join("; ")
+            : `${scheduleJobs.join(", ")} × ${CRAWL_ROLES.length} roles × ${scheduleWidths().join("/")} (${scheduleLoads.length} loads)`,
+    );
     check(
       "nav crawl includes /roadmap",
       roadmapFailures.length === 0,
