@@ -15,7 +15,7 @@ import { NewPlanForm } from "@/components/app/new-plan-form";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { mh, pct, usdShort } from "@/lib/ev";
-import { calendarDateInTz } from "@/lib/plan-date";
+import { planDateToday, timeZoneForJob } from "@/lib/plan-date";
 import { getJob, getJobEvControls, getPlansForJob } from "@/server/data";
 import {
   draftClaimForJob,
@@ -68,14 +68,14 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     listChangeOrders(user.companyId, p.job.number),
     listCrews(user.companyId),
   ]);
-  const todayLA = calendarDateInTz(seedNow());
+  const todayPlan = planDateToday(seedNow(), timeZoneForJob());
   // Working surface: today and any future plan (seed tomorrow draft included).
   // Past days (any status) collapse into field history — not peer primary cards.
   const openPlans = plans
-    .filter((pl) => pl.planDate >= todayLA)
+    .filter((pl) => pl.planDate >= todayPlan)
     .sort((a, b) => a.planDate.localeCompare(b.planDate));
   const historyPlans = plans
-    .filter((pl) => pl.planDate < todayLA)
+    .filter((pl) => pl.planDate < todayPlan)
     .slice()
     .sort((a, b) => b.planDate.localeCompare(a.planDate));
   const historyDay = (iso: string) =>
@@ -245,7 +245,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
           <NewPlanForm
             jobNumber={p.job.number}
             crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
-            defaultDate={todayLA}
+            defaultDate={todayPlan}
           />
         </div>
       ) : null}

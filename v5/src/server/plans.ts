@@ -16,8 +16,9 @@ import {
   type LineValues,
 } from "@/lib/plan-line";
 import {
-  calendarDateInTz,
   planDateInWindow,
+  planDateToday,
+  timeZoneForJob,
 } from "@/lib/plan-date";
 import { preferPlanKeep } from "@/lib/plan-keep";
 import { recordPlanEvent } from "@/server/plan-events";
@@ -152,7 +153,7 @@ export async function createDailyPlan(
   if (job.estimateStatus === "draft")
     return refused("Approve the estimate before planning field work.");
 
-  const today = calendarDateInTz(seedNow());
+  const today = planDateToday(seedNow(), timeZoneForJob(job));
   if (!planDateInWindow(input.planDate, today))
     return refused(
       `Pick a plan date within 14 days of today (${today}).`,
@@ -302,7 +303,7 @@ export async function resolvePlanForWrite(
   }
   const job = opts.job ? await jobRow(user.companyId, opts.job) : null;
   if (!job) return null;
-  const today = calendarDateInTz(seedNow());
+  const today = planDateToday(seedNow(), timeZoneForJob(job));
   const planDate = opts.date ?? today;
   let crewId = opts.crewId;
   if (!crewId && opts.crew) {
@@ -454,4 +455,4 @@ export async function removePlanLine(
   return { ok: true };
 }
 
-export { calendarDateInTz, planDateInWindow };
+export { planDateToday, planDateInWindow };

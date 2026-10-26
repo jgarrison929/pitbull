@@ -15,7 +15,8 @@ import { costLine, plannedValueCents } from "@/lib/ev";
 import { SEED_ACTIVE_JOB_COUNT, seed, seedId } from "./index";
 
 const company = "00000000-0000-4000-8000-000000000001";
-const today = new Date("2026-10-19T00:00:00Z");
+// Midday Pacific-aligned instant so UTC day === job-zone plan day in tests.
+const today = new Date("2026-10-19T17:00:00Z");
 const rows = seed(company, today);
 
 function asLine(c: (typeof rows.costItems)[number]) {
