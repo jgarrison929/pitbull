@@ -27,3 +27,10 @@ export {
   type JobCalendar,
   type JobCalendarInsert,
 } from "./types";
+
+export {
+  barPlacement,
+  enumerateIsoDays,
+  ganttAxisRange,
+  holidaysOnAxis,
+} from "./gantt";
