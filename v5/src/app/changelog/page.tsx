@@ -11,7 +11,7 @@ export default function ChangelogPage() {
       <div>
         <Link
           href="/app"
-          className="text-sm text-muted-foreground hover:underline"
+          className="tap-target inline-flex items-center text-body text-muted-foreground hover:underline"
         >
           ← Back to Pitbull
         </Link>
@@ -21,12 +21,18 @@ export default function ChangelogPage() {
             purpose="What each release changed."
           />
         </div>
-        <p className="mt-2 text-sm">
-          <Link href="/roadmap" className="underline hover:no-underline">
+        <p className="mt-2 text-body">
+          <Link
+            href="/roadmap"
+            className="tap-target inline-flex items-center underline hover:no-underline"
+          >
             Roadmap
           </Link>
           {" · "}
-          <Link href="/status" className="underline hover:no-underline">
+          <Link
+            href="/status"
+            className="tap-target inline-flex items-center underline hover:no-underline"
+          >
             Status
           </Link>
         </p>
@@ -39,12 +45,18 @@ export default function ChangelogPage() {
             className="flex scroll-mt-6 flex-col gap-2"
           >
             <div className="flex items-baseline gap-2">
-              <h2 className="font-mono text-sm font-semibold">{r.version}</h2>
-              <time className="text-xs text-muted-foreground" dateTime={r.date}>
+              <h2 className="font-mono text-section font-semibold">
+                {r.version}
+              </h2>
+              <time
+                data-text="label"
+                className="text-label text-muted-foreground"
+                dateTime={r.date}
+              >
                 {r.date}
               </time>
             </div>
-            <ul className="list-disc pl-5 text-sm">
+            <ul className="list-disc pl-5 text-body">
               {r.items.map((i) => (
                 <li key={i}>{i}</li>
               ))}

@@ -6,13 +6,14 @@ import {
 } from "@/lib/role-fit";
 import type { Role } from "@/server/session";
 import type { PortfolioJob } from "@/server/data";
-import { Money, Progress, StatusIndex, StatusPill } from "./format";
+import { Figure, Money, Progress, StatusIndex, StatusPill } from "./format";
 import { Td, Th } from "./page";
 
 function DraftLabel() {
   return (
     <span
-      className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+      data-text="label"
+      className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-label font-medium text-muted-foreground"
       data-status="draft"
       data-testid="draft-label"
     >
@@ -38,6 +39,9 @@ export function PortfolioTable({
 }) {
   const costIndexes = showsCostIndexes(role);
   const statusBadge = showsStatusRiskBadge(role);
+  // Superintendent phone cards lead with % done; cost roles lead with EAC.
+  const percentPrimary = role === "superintendent";
+
   return (
     <div data-testid="portfolio-table">
       {/*
@@ -45,6 +49,8 @@ export function PortfolioTable({
         rail is hidden. Cards through lg; full table from lg up. (#671)
         Draft rows show — / Draft label instead of $0 / fake CPI. (#675)
         Role-fit (5.0.4-b): foreman and superintendent omit CPI/SPI columns.
+        5.0.4-f: type scale + 44px taps on phone cards; desktop rail sizing
+        unchanged so job visuals stay stable.
       */}
       <div className="hidden min-w-0 lg:block">
         {/*
@@ -52,7 +58,7 @@ export function PortfolioTable({
           desktop table fits the main column beside the assistant — full header
           text and STATUS pills ("At risk", "Watch"), no mid-word clip.
         */}
-        <table className="w-full text-sm">
+        <table className="w-full text-body">
           <thead>
             <tr className="border-b">
               <Th>Job</Th>
@@ -83,7 +89,10 @@ export function PortfolioTable({
                   >
                     {p.job.name}
                   </Link>
-                  <div className="whitespace-nowrap text-xs text-muted-foreground">
+                  <div
+                    data-text="label"
+                    className="whitespace-nowrap text-label text-muted-foreground"
+                  >
                     {p.job.number} · PM {p.job.pmName}
                   </div>
                 </Td>
@@ -96,7 +105,12 @@ export function PortfolioTable({
                   ) : (
                     <div className="flex items-center gap-2">
                       <Progress value={p.percent} className="w-14" />
-                      <span className="text-xs tabular-nums">{pct(p.percent)}</span>
+                      <span
+                        data-text="label"
+                        className="text-label tabular-nums"
+                      >
+                        {pct(p.percent)}
+                      </span>
                     </div>
                   )}
                 </Td>
@@ -147,17 +161,26 @@ export function PortfolioTable({
       </div>
       <ul className="divide-y lg:hidden" data-testid="portfolio-cards">
         {jobs.map((p) => (
-          <li key={p.job.id} data-estimate={p.job.estimateStatus}>
+          <li
+            key={p.job.id}
+            data-card
+            data-estimate={p.job.estimateStatus}
+            className="py-1"
+          >
             <Link
               href={`/app/jobs/${p.job.number}`}
-              className="flex flex-col gap-2 py-3"
+              className="tap-target flex flex-col gap-2 py-3"
+              data-testid="job-link"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-medium whitespace-normal">
+                  <div className="text-body font-medium whitespace-normal">
                     {p.job.name}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div
+                    data-text="label"
+                    className="text-label text-muted-foreground"
+                  >
                     {p.job.number} · PM {p.job.pmName}
                   </div>
                 </div>
@@ -167,49 +190,131 @@ export function PortfolioTable({
                   <StatusPill value={p.status!} />
                 ) : null}
               </div>
-              <div
-                className={
-                  costIndexes
-                    ? "grid grid-cols-3 gap-2 text-xs"
-                    : "grid grid-cols-1 gap-2 text-xs"
-                }
-              >
-                <div>
-                  <div className="text-muted-foreground">Done</div>
-                  {p.estimateDraft ? <MetricDash /> : pct(p.percent)}
+              {p.estimateDraft ? (
+                <div className="flex items-baseline gap-3">
+                  <span
+                    data-text="label"
+                    className="text-label font-medium text-muted-foreground"
+                  >
+                    {percentPrimary || !costIndexes ? "Done" : "EAC"}
+                  </span>
+                  <MetricDash />
                 </div>
-                {costIndexes ? (
-                  <>
-                    <div>
-                      <div className="text-muted-foreground">
-                        Cost performance (CPI)
-                      </div>
-                      {p.estimateDraft ? (
-                        <MetricDash />
-                      ) : (
+              ) : percentPrimary || !costIndexes ? (
+                <>
+                  <div>
+                    <div
+                      data-text="label"
+                      className="text-label font-medium text-muted-foreground"
+                    >
+                      Done
+                    </div>
+                    <Figure variant="primary" className="mt-0.5 block">
+                      {pct(p.percent)}
+                    </Figure>
+                  </div>
+                  {costIndexes ? (
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                      <Figure variant="secondary">
+                        CPI{" "}
                         <StatusIndex
                           index={p.cpi}
                           varianceCents={p.costVarianceCents}
                         />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">
-                        Schedule performance (SPI)
-                      </div>
-                      {p.estimateDraft ? (
-                        <MetricDash />
-                      ) : (
+                      </Figure>
+                      <Figure variant="secondary">
+                        SPI{" "}
                         <StatusIndex
                           index={p.spi}
                           varianceCents={p.scheduleVarianceCents}
                         />
-                      )}
+                      </Figure>
                     </div>
-                  </>
-                ) : null}
-              </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <div
+                      data-text="label"
+                      className="text-label font-medium text-muted-foreground"
+                    >
+                      EAC
+                    </div>
+                    <Figure variant="primary" className="mt-0.5 block">
+                      <Money cents={p.eacCents} />
+                    </Figure>
+                  </div>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                    <Figure variant="secondary">Done {pct(p.percent)}</Figure>
+                    <Figure variant="secondary">
+                      CPI{" "}
+                      <StatusIndex
+                        index={p.cpi}
+                        varianceCents={p.costVarianceCents}
+                      />
+                    </Figure>
+                  </div>
+                </>
+              )}
             </Link>
+            {!p.estimateDraft && costIndexes && !percentPrimary ? (
+              <details className="pb-2">
+                <summary
+                  data-text="label"
+                  className="tap-target flex cursor-pointer list-none items-center text-label font-medium text-muted-foreground [&::-webkit-details-marker]:hidden"
+                >
+                  More metrics
+                </summary>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-1 text-body">
+                  <Figure variant="secondary">
+                    SPI{" "}
+                    <StatusIndex
+                      index={p.spi}
+                      varianceCents={p.scheduleVarianceCents}
+                    />
+                  </Figure>
+                  <Figure variant="secondary">
+                    Contract <Money cents={p.job.contractCents} />
+                  </Figure>
+                </div>
+              </details>
+            ) : null}
+            {!p.estimateDraft && percentPrimary ? (
+              <details className="pb-2">
+                <summary
+                  data-text="label"
+                  className="tap-target flex cursor-pointer list-none items-center text-label font-medium text-muted-foreground [&::-webkit-details-marker]:hidden"
+                >
+                  More metrics
+                </summary>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-1 text-body">
+                  {costIndexes ? (
+                    <Figure variant="secondary">
+                      EAC <Money cents={p.eacCents} />
+                    </Figure>
+                  ) : null}
+                  <Figure variant="secondary">
+                    Contract <Money cents={p.job.contractCents} />
+                  </Figure>
+                </div>
+              </details>
+            ) : null}
+            {!p.estimateDraft && !costIndexes && !percentPrimary ? (
+              <details className="pb-2">
+                <summary
+                  data-text="label"
+                  className="tap-target flex cursor-pointer list-none items-center text-label font-medium text-muted-foreground [&::-webkit-details-marker]:hidden"
+                >
+                  More metrics
+                </summary>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 pt-1 text-body">
+                  <Figure variant="secondary">
+                    Contract <Money cents={p.job.contractCents} />
+                  </Figure>
+                </div>
+              </details>
+            ) : null}
           </li>
         ))}
       </ul>
