@@ -62,15 +62,17 @@ export function Section({
   actions,
   children,
   className,
+  id,
 }: {
   title: string;
   meta?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
-    <section className={cn("rounded-lg border bg-card", className)}>
+    <section id={id} className={cn("rounded-lg border bg-card", className)}>
       <header className="flex items-start justify-between gap-3 border-b px-4 py-3 lg:px-6">
         <div className="min-w-0">
           <h2 className="text-section font-semibold">{title}</h2>

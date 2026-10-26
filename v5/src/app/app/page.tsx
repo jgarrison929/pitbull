@@ -2,9 +2,11 @@ import { Suspense } from "react";
 import { Assistant } from "@/components/app/assistant";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { Money, StatusIndex } from "@/components/app/format";
+import { NextSteps } from "@/components/app/next-steps";
 import { PortfolioTable } from "@/components/app/portfolio-table";
 import { usdShort } from "@/lib/ev";
 import { getPortfolio } from "@/server/data";
+import { getNextSteps } from "@/server/next-steps";
 import { requireUser } from "@/server/session";
 
 export default function PortfolioPage() {
@@ -17,11 +19,15 @@ export default function PortfolioPage() {
 
 async function Portfolio() {
   const user = await requireUser();
-  const { jobs, activeJobCount, totals, contractCents } = await getPortfolio(
-    user.companyId,
-  );
+  const [{ jobs, activeJobCount, totals, contractCents }, nextSteps] =
+    await Promise.all([
+      getPortfolio(user.companyId),
+      getNextSteps(user),
+    ]);
+  const next = <NextSteps data={nextSteps} />;
   const portfolio = (
     <>
+      {next}
       <PageHeader
         title="Portfolio"
         meta={`${activeJobCount} active jobs · earned value to date`}
@@ -63,6 +69,7 @@ async function Portfolio() {
         />
       </KpiStrip>
       <Section
+        id="jobs"
         title="Jobs"
         meta="EAC is the sum of each job's per-item forecasts · EV/AC/PV at last lock"
       >
@@ -71,7 +78,7 @@ async function Portfolio() {
     </>
   );
   if (user.role !== "foreman") return portfolio;
-  // A foreman on a phone gets the chat and voice view first; wider screens keep the portfolio.
+  // A foreman on a phone gets next steps first, then a compact assistant.
   return (
     <>
       <div
@@ -82,7 +89,8 @@ async function Portfolio() {
           title={`Hi, ${user.name.split(" ")[0]}`}
           meta={user.title}
         />
-        <Assistant variant="page" />
+        {next}
+        <Assistant variant="page" compact />
       </div>
       <div className="hidden md:contents">{portfolio}</div>
     </>
