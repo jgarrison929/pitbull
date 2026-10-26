@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/app/page";
 import { seedUsers, SEED_ACTIVE_JOB_COUNT, SEED_COMPANY_NAME } from "@/seed";
-import { signIn } from "./actions";
+import { RoleSignInForm } from "./role-sign-in-form";
 
 export const metadata: Metadata = { title: "Sign in · Pitbull demo" };
 
@@ -60,8 +60,7 @@ export default function LoginPage() {
           const { icon: Icon, sees } = roleCopy[u.role];
           return (
             <li key={u.role}>
-              <form action={signIn}>
-                <input type="hidden" name="role" value={u.role} />
+              <RoleSignInForm role={u.role}>
                 <button
                   type="submit"
                   data-testid={`role-${u.role}`}
@@ -81,7 +80,7 @@ export default function LoginPage() {
                   </div>
                   <p className="text-sm text-muted-foreground">{sees}</p>
                 </button>
-              </form>
+              </RoleSignInForm>
             </li>
           );
         })}

@@ -4,9 +4,10 @@ async function signIn(page: Page, role = "executive") {
   await page.goto("/login");
   await page.getByTestId(`role-${role}`).click();
   await expect(page).toHaveURL(/\/app/);
-  // Soft redirect can briefly leave /login in the tree; wait until it is gone.
+  // Hard nav after role card — login page (and its purpose) must leave the DOM.
+  await expect(page.locator('[data-testid="page-purpose"]')).toHaveCount(1);
   await expect(
-    page.getByRole("heading", { name: "Pick a role" }),
+    page.getByText("Each card signs you in to your own demo sandbox."),
   ).toHaveCount(0);
 }
 
