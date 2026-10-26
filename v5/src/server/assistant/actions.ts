@@ -62,6 +62,7 @@ import { approveEstimate } from "@/server/estimate";
 import { importEstimateCsv } from "@/server/estimate-import";
 import {
   formatSkippedLines,
+  importMspXmlSchedule,
   importXerSchedule,
 } from "@/server/schedule-import";
 import type { ScheduleImportResult } from "@/lib/schedule-import";
@@ -1362,6 +1363,35 @@ export const actions: Record<ActionName, ActionDef> = {
         };
       }
       const result = await importXerSchedule(
+        user.companyId,
+        j.job.number,
+        fileBytes,
+        { fileName, mode },
+      );
+      return scheduleImportActionResult(result, scheduleHref);
+    },
+  },
+  "schedule.importMspXml": {
+    title: "Import Microsoft Project XML",
+    writes: true,
+    roles: ["pm"],
+    async run(user, { job, fileBytes, fileName, mode }) {
+      if (!job)
+        return {
+          summary:
+            "Which job's schedule should I import? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      const scheduleHref = `/app/jobs/${j.job.number}/schedule`;
+      if (!fileBytes?.byteLength) {
+        return {
+          summary: `Import reads a Microsoft Project XML file. Open ${j.job.shortName}'s Schedule page and choose the file under Import schedule.`,
+          href: scheduleHref,
+          job: j.job.number,
+        };
+      }
+      const result = await importMspXmlSchedule(
         user.companyId,
         j.job.number,
         fileBytes,

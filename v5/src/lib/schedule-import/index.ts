@@ -18,3 +18,9 @@ export {
   type ScheduleImportSkipped,
 } from "./types";
 export { parseXer } from "./xer";
+export {
+  durationToWorkingDays,
+  linkLagToDays,
+  parseMspXml,
+  parseMspXmlText,
+} from "./msp-xml";

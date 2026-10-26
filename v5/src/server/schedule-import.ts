@@ -25,6 +25,7 @@ import {
   formatSkippedLines,
   isScheduleImportParseErr,
   MAX_SCHEDULE_IMPORT_BYTES,
+  parseMspXml,
   parseXer,
   type ScheduleImportDraft,
   type ScheduleImportFail,
@@ -516,6 +517,81 @@ export async function importXerSchedule(
     );
   }
   const parsed = parseXer(bytes);
+  if (isScheduleImportParseErr(parsed)) {
+    return fail(base.jobNumber, base.shortName, parsed.error, {
+      reason: "invalid_file",
+      errors: [parsed.error],
+      detailLines: [parsed.error],
+    });
+  }
+  const { writeLinks, runCpm } = opts;
+  return importScheduleDraft(companyId, job.number, parsed, mode, {
+    writeLinks,
+    runCpm,
+  });
+}
+
+/**
+ * Import Microsoft Project XML into a job (5.1.3-b).
+ * Same call shape as {@link importXerSchedule} for the 5.1.3-c UI contract.
+ */
+export async function importMspXmlSchedule(
+  companyId: string,
+  jobNumber: string,
+  file: Uint8Array | string,
+  opts: ScheduleImportCallOpts = {},
+): Promise<ScheduleImportResult> {
+  const db = requireDb();
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
+    .limit(1);
+  if (!job) {
+    return fail(jobNumber, jobNumber, `Couldn't import schedule on ${jobNumber}.`, {
+      reason: "not_found",
+    });
+  }
+  const base = { jobNumber: job.number, shortName: job.shortName };
+
+  if (job.estimateStatus === "draft") {
+    return fail(
+      base.jobNumber,
+      base.shortName,
+      `Approve the estimate before scheduling on ${job.shortName}.`,
+      { reason: "draft_estimate" },
+    );
+  }
+
+  const bytes =
+    typeof file === "string" ? new TextEncoder().encode(file) : file;
+  const fileName = opts.fileName?.trim() || "schedule.xml";
+  const mode = parseMode(opts.mode);
+  if (!mode) {
+    return fail(
+      base.jobNumber,
+      base.shortName,
+      `Import mode must be replace or merge on ${job.shortName}.`,
+      { reason: "bad_mode" },
+    );
+  }
+  if (bytes.byteLength > MAX_SCHEDULE_IMPORT_BYTES) {
+    return fail(
+      base.jobNumber,
+      base.shortName,
+      oversizeSummary(fileName, bytes.byteLength),
+      { reason: "too_large" },
+    );
+  }
+  if (bytes.byteLength === 0) {
+    return fail(
+      base.jobNumber,
+      base.shortName,
+      `Choose a Microsoft Project XML file to import on ${job.shortName}.`,
+      { reason: "invalid_file" },
+    );
+  }
+  const parsed = parseMspXml(bytes);
   if (isScheduleImportParseErr(parsed)) {
     return fail(base.jobNumber, base.shortName, parsed.error, {
       reason: "invalid_file",

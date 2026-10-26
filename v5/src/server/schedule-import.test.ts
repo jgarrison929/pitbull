@@ -14,6 +14,7 @@ import { MAX_SCHEDULE_IMPORT_BYTES } from "@/lib/schedule-import";
 import { createSandbox } from "./sandbox";
 import {
   clearJobActivitiesForTests,
+  importMspXmlSchedule,
   importXerSchedule,
 } from "./schedule-import";
 
@@ -169,5 +170,114 @@ describe.skipIf(!db)("importXerSchedule", () => {
     if (r.ok) return;
     expect(r.summary).toMatch(/huge\.xer/);
     expect(r.summary).toMatch(/10 MB/);
+  });
+});
+
+describe.skipIf(!db)("importMspXmlSchedule", () => {
+  afterAll(async () => {
+    for (const id of created)
+      await db!.delete(companies).where(eq(companies.id, id));
+  });
+
+  it("imports cedar-ok.xml onto a cleared approved job (replace)", async () => {
+    const companyId = await sandbox();
+    await clearJobActivitiesForTests(companyId, "25-031");
+
+    const r = await importMspXmlSchedule(
+      companyId,
+      "25-031",
+      fixture("cedar-ok.xml"),
+      { mode: "replace", fileName: "cedar-ok.xml" },
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.activityCount).toBe(5);
+    expect(r.holidayCount).toBe(1);
+    expect(r.skipped.some((s) => s.kind === "constraint")).toBe(true);
+    expect(r.summary).toContain("5 activities");
+    expect(r.summary).toMatch(/Skipped:/);
+
+    const rows = await db!
+      .select()
+      .from(activities)
+      .innerJoin(jobs, eq(jobs.id, activities.jobId))
+      .where(and(eq(jobs.companyId, companyId), eq(jobs.number, "25-031")))
+      .orderBy(asc(activities.code));
+    expect(rows.map((row) => row.activities.code)).toEqual([
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+    ]);
+    expect(
+      rows.find((row) => row.activities.code === "A")?.activities,
+    ).toMatchObject({
+      name: "Drive piles",
+      durationDays: 5,
+    });
+
+    const links = await db!
+      .select({ n: activityCostItems.activityId })
+      .from(activityCostItems)
+      .innerJoin(activities, eq(activities.id, activityCostItems.activityId))
+      .innerJoin(jobs, eq(jobs.id, activities.jobId))
+      .where(and(eq(jobs.companyId, companyId), eq(jobs.number, "25-031")));
+    expect(links).toHaveLength(0);
+
+    const holidays = await db!
+      .select({ on: calendarHolidays.on })
+      .from(calendarHolidays)
+      .innerJoin(jobCalendars, eq(jobCalendars.id, calendarHolidays.calendarId))
+      .innerJoin(jobs, eq(jobs.id, jobCalendars.jobId))
+      .where(and(eq(jobs.companyId, companyId), eq(jobs.number, "25-031")));
+    expect(holidays.some((h) => h.on === "2026-11-26")).toBe(true);
+  });
+
+  it("writes nothing when a predecessor UID is missing", async () => {
+    const companyId = await sandbox();
+    const before = await db!
+      .select({ id: activities.id, code: activities.code })
+      .from(activities)
+      .innerJoin(jobs, eq(jobs.id, activities.jobId))
+      .where(and(eq(jobs.companyId, companyId), eq(jobs.number, "25-031")))
+      .orderBy(asc(activities.code));
+    expect(before.map((r) => r.code)).toEqual(["A", "B", "C", "D", "E"]);
+
+    const r = await importMspXmlSchedule(
+      companyId,
+      "25-031",
+      fixture("cedar-missing-pred.xml"),
+      { mode: "replace", fileName: "cedar-missing-pred.xml" },
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.summary).toMatch(/missing predecessor "99"/);
+
+    const after = await db!
+      .select({ id: activities.id, code: activities.code })
+      .from(activities)
+      .innerJoin(jobs, eq(jobs.id, activities.jobId))
+      .where(and(eq(jobs.companyId, companyId), eq(jobs.number, "25-031")))
+      .orderBy(asc(activities.code));
+    expect(after.map((r) => r.code)).toEqual(["A", "B", "C", "D", "E"]);
+    expect(after.map((r) => r.id)).toEqual(before.map((r) => r.id));
+  });
+
+  it("refuses draft Harbor with estimate wording", async () => {
+    const companyId = await sandbox();
+    const r = await importMspXmlSchedule(
+      companyId,
+      "26-010",
+      fixture("cedar-ok.xml"),
+      { mode: "replace", fileName: "cedar-ok.xml" },
+    );
+    expect(r).toMatchObject({
+      ok: false,
+      reason: "draft_estimate",
+      refused: true,
+    });
+    if (r.ok) return;
+    expect(r.summary).toMatch(/Approve the estimate before scheduling/);
   });
 });
