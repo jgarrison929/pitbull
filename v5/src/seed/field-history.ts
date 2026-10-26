@@ -10,6 +10,11 @@ import type {
   dailyPlans,
 } from "@/db/schema";
 import { laborCents } from "@/lib/ev";
+import {
+  addCalendarDays,
+  planDateToday,
+  timeZoneForJob,
+} from "@/lib/plan-date";
 
 type Insert<T extends { $inferInsert: unknown }> = T["$inferInsert"];
 
@@ -20,14 +25,18 @@ const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (d: Date, n: number) =>
   new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + n));
 
-/** Mon–Fri calendar dates strictly before `today`, oldest first. */
+/**
+ * Mon–Fri plan dates strictly before plan-today in the job zone, oldest first.
+ * Must use the same calendar as seeded open plans / assistant "today".
+ */
 export function workingDaysBefore(today: Date, count: number): string[] {
+  const tz = timeZoneForJob();
   const out: string[] = [];
-  let cursor = addDays(today, -1);
+  let cursor = addCalendarDays(planDateToday(today, tz), -1);
   while (out.length < count) {
-    const dow = cursor.getUTCDay(); // 0 Sun … 6 Sat
-    if (dow !== 0 && dow !== 6) out.push(isoDate(cursor));
-    cursor = addDays(cursor, -1);
+    const dow = new Date(`${cursor}T12:00:00.000Z`).getUTCDay(); // 0 Sun … 6 Sat
+    if (dow !== 0 && dow !== 6) out.push(cursor);
+    cursor = addCalendarDays(cursor, -1);
   }
   return out.reverse();
 }

@@ -42,7 +42,11 @@ import {
   REPORT_LIMITS,
   type LineValues,
 } from "@/lib/plan-line";
-import { addCalendarDays, calendarDateInTz } from "@/lib/plan-date";
+import {
+  addCalendarDays,
+  planDateToday,
+  timeZoneForJob,
+} from "@/lib/plan-date";
 import {
   changeOrderCommand,
   listChangeOrders,
@@ -158,7 +162,7 @@ async function unknownJob(
 
 function normalizePlanDate(date: string | undefined): string | undefined {
   if (!date) return undefined;
-  const today = calendarDateInTz(seedNow());
+  const today = planDateToday(seedNow(), timeZoneForJob());
   if (date === "today") return today;
   if (date === "tomorrow") return addCalendarDays(today, 1);
   return date;
@@ -249,7 +253,7 @@ async function scopedPlan(
     return { status: "none" };
   }
 
-  const todayIso = calendarDateInTz(seedNow());
+  const todayIso = planDateToday(seedNow(), timeZoneForJob());
   if (planDate) {
     candidates = candidates.filter((p) => p.planDate === planDate);
   } else {
@@ -580,7 +584,7 @@ export const actions: Record<ActionName, ActionDef> = {
         };
       const j = await resolveJob(user, job);
       if (!j) return unknownJob(user, job);
-      const today = calendarDateInTz(seedNow());
+      const today = planDateToday(seedNow(), timeZoneForJob());
       const planDate =
         !date || date === "today"
           ? today

@@ -3,6 +3,11 @@
 import type { costItems, dailyPlanEvents } from "@/db/schema";
 import { plugLabor, valueSetColumns } from "@/lib/budget";
 import { plannedValueCents } from "@/lib/ev";
+import {
+  addCalendarDays,
+  planDateToday,
+  timeZoneForJob,
+} from "@/lib/plan-date";
 import { seedId, type WorkSeedPatch } from "./index";
 
 type Insert<T extends { $inferInsert: unknown }> = T["$inferInsert"];
@@ -153,7 +158,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
   }
 
   const planId = id("plan:stress:draft");
-  const planDate = isoDate(addDays(today, 1));
+  const planDate = addCalendarDays(planDateToday(today, timeZoneForJob()), 1);
   const foremanId = id("user:foreman");
   const stressCrewId = id("crew:stress");
 

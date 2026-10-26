@@ -11,12 +11,12 @@ import { Money, StatusIndex, StatusPill } from "@/components/app/format";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { EvMethodControls } from "@/components/app/ev-method-controls";
 import { ImportEstimateForm } from "@/components/app/import-estimate-form";
-import { NewPlanForm } from "@/components/app/new-plan-form";
+import { JobNewPlanSlot } from "@/components/app/job-new-plan-slot";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { mh, pct, usdShort } from "@/lib/ev";
-import { calendarDateInTz } from "@/lib/plan-date";
 import { getJob, getJobEvControls, getPlansForJob } from "@/server/data";
+import { jobPagePlanSurface } from "@/server/job-page-plans";
 import {
   draftClaimForJob,
   getApprovalPendingByCostItem,
@@ -24,8 +24,7 @@ import {
 } from "@/server/progress";
 import { listChangeOrders } from "@/server/change-orders";
 import { listCrews } from "@/server/plans";
-import { seedNow } from "@/server/seed-clock";
-import { requireUser } from "@/server/session";
+import { requireUser, type CurrentUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
 import { actions, jobChanges } from "@/server/assistant/actions";
 import { LocalTime } from "@/components/app/local-time";
@@ -45,9 +44,19 @@ export default function JobPage({ params }: PageProps<"/app/jobs/[number]">) {
   );
 }
 
-async function Job({ params }: { params: Promise<{ number: string }> }) {
+/**
+ * Job page body. Optional `user` is a test seam so vitest can server-render
+ * the real page (M8t-page) without cookies — production always uses requireUser.
+ */
+export async function Job({
+  params,
+  user: userOverride,
+}: {
+  params: Promise<{ number: string }>;
+  user?: CurrentUser;
+}) {
   const { number } = await params;
-  const user = await requireUser();
+  const user = userOverride ?? (await requireUser());
   const p = await getJob(user.companyId, number);
   // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
   if (!p) notFound();
@@ -68,16 +77,10 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     listChangeOrders(user.companyId, p.job.number),
     listCrews(user.companyId),
   ]);
-  const todayLA = calendarDateInTz(seedNow());
   // Working surface: today and any future plan (seed tomorrow draft included).
   // Past days (any status) collapse into field history — not peer primary cards.
-  const openPlans = plans
-    .filter((pl) => pl.planDate >= todayLA)
-    .sort((a, b) => a.planDate.localeCompare(b.planDate));
-  const historyPlans = plans
-    .filter((pl) => pl.planDate < todayLA)
-    .slice()
-    .sort((a, b) => b.planDate.localeCompare(a.planDate));
+  const { open: openPlans, history: historyPlans } =
+    jobPagePlanSurface(plans);
   const historyDay = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
       weekday: "short",
@@ -241,13 +244,11 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
       ) : null}
       {/* Plans lead so Submit + crew footer stay reachable after KPI growth (#662). */}
       {canCreatePlan && !estimateDraft ? (
-        <div className="mb-3" data-testid="new-plan-slot">
-          <NewPlanForm
-            jobNumber={p.job.number}
-            crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
-            defaultDate={todayLA}
-          />
-        </div>
+        <JobNewPlanSlot
+          jobNumber={p.job.number}
+          crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
+          plans={plans}
+        />
       ) : null}
       {openPlans.map((plan) => (
         <PlanCard

@@ -37,6 +37,11 @@ import {
 } from "@/lib/ev";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
 import {
+  addCalendarDays,
+  planDateToday,
+  timeZoneForJob,
+} from "@/lib/plan-date";
+import {
   buildFieldHistory,
   type FieldHistoryItem,
   type FieldHistoryJob,
@@ -909,9 +914,11 @@ export function seed(companyId: string, today: Date): SeedRows {
 
   const planId = id("plan:cedar:tomorrow");
   const cost = (code: string) => id(`cost:cedar:${code}`);
-  const tomorrowCreatedAt = new Date(
-    `${isoDate(addDays(today, 1))}T06:00:00.000Z`,
+  const cedarTomorrow = addCalendarDays(
+    planDateToday(today, timeZoneForJob()),
+    1,
   );
+  const tomorrowCreatedAt = new Date(`${cedarTomorrow}T06:00:00.000Z`);
   out.dailyPlans.push({
     id: planId,
     companyId,
@@ -919,7 +926,8 @@ export function seed(companyId: string, today: Date): SeedRows {
     crew: "Bridge Crew 2",
     crewId: bridgeCrewId,
     foremanId,
-    planDate: isoDate(addDays(today, 1)),
+    // Job-zone calendar — never UTC day (breaks after 00:00Z for US demos).
+    planDate: addCalendarDays(planDateToday(today, timeZoneForJob()), 1),
     status: "draft",
     weather: "Overcast, 54°F, 10% rain",
     equipment: [
@@ -993,7 +1001,7 @@ export function seed(companyId: string, today: Date): SeedRows {
       crew: "Culvert Crew A",
       crewId: culvertCrewId,
       foremanId,
-      planDate: isoDate(today),
+      planDate: planDateToday(today, timeZoneForJob()),
       status: "draft",
       weather: "Clear, 62°F, 5% rain",
       equipment: [
