@@ -108,7 +108,8 @@ async function measureTtfb(cookie, path) {
         const { done, value } = await reader.read();
         if (done) break;
         bytes += value.byteLength;
-        if (html.length < 64_000) html += dec.decode(value, { stream: true });
+        // Keep enough of the stream to catch late RSC payloads with v5-timing.
+        if (html.length < 256_000) html += dec.decode(value, { stream: true });
       }
       try {
         await reader.cancel();
@@ -118,9 +119,14 @@ async function measureTtfb(cookie, path) {
     }
     const totalMs = performance.now() - t0;
     const timing = parseServerTiming(res.headers.get("server-timing"));
-    const meta = html.match(
-      /data-testid="v5-timing"[^>]*data-db-ms="(\d+)"[^>]*data-queries="(\d+)"[^>]*data-total-ms="(\d+)"/,
-    );
+    // HTML attrs or RSC flight JSON (`"data-testid":"v5-timing","data-db-ms":N`).
+    const meta =
+      html.match(
+        /data-testid="v5-timing"[^>]*data-db-ms="(\d+)"[^>]*data-queries="(\d+)"[^>]*data-total-ms="(\d+)"/,
+      ) ||
+      html.match(
+        /"data-testid":"v5-timing","data-db-ms":(\d+),"data-queries":(\d+),"data-total-ms":(\d+)/,
+      );
     return {
       path,
       status: res.status,
