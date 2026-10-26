@@ -8,10 +8,12 @@
 import type {
   activities,
   activityCostItems,
+  baselineActivities,
   calendarHolidays,
   costItems,
   jobCalendars,
   jobs,
+  scheduleBaselines,
 } from "@/db/schema";
 import { addCalendarDays } from "@/lib/plan-date";
 import {
@@ -104,6 +106,8 @@ export type ScheduleSeedRows = {
   calendarHolidays: Insert<typeof calendarHolidays>[];
   activities: Insert<typeof activities>[];
   activityCostItems: Insert<typeof activityCostItems>[];
+  scheduleBaselines: Insert<typeof scheduleBaselines>[];
+  baselineActivities: Insert<typeof baselineActivities>[];
 };
 
 type JobRef = Pick<(typeof jobs)["$inferSelect"], "id" | "number">;
@@ -269,8 +273,51 @@ function seedShortGraph(
 }
 
 /**
+ * Snapshot current activity dates into an immutable baseline (5.1.2-a seed).
+ * Harbor never gets a baseline (no activities).
+ */
+function pushBaseline(
+  out: ScheduleSeedRows,
+  args: {
+    companyId: string;
+    jobId: string;
+    jobKey: string;
+    id: (key: string) => string;
+    name: string;
+    reason: string;
+    setById: string;
+    setAt: Date;
+  },
+) {
+  const acts = out.activities.filter((a) => a.jobId === args.jobId);
+  if (acts.length === 0) return;
+  const baselineId = args.id(`baseline:${args.jobKey}`);
+  out.scheduleBaselines.push({
+    id: baselineId,
+    companyId: args.companyId,
+    jobId: args.jobId,
+    name: args.name,
+    reason: args.reason,
+    setAt: args.setAt,
+    setById: args.setById,
+  });
+  for (const a of acts) {
+    out.baselineActivities.push({
+      id: args.id(`baseline-activity:${args.jobKey}:${a.code}`),
+      companyId: args.companyId,
+      baselineId,
+      activityId: a.id!,
+      startOn: a.earlyStartOn!,
+      finishOn: a.earlyFinishOn!,
+      durationDays: a.durationDays!,
+    });
+  }
+}
+
+/**
  * Build schedule rows for approved jobs. Harbor (26-010) is never included.
  * Activity dates come from `createWorkingCalendar` + the intel graph shape.
+ * After the graph, seeds Award / portfolio baselines (5.1.2-a).
  */
 export function buildScheduleSeed(args: {
   companyId: string;
@@ -280,6 +327,8 @@ export function buildScheduleSeed(args: {
   costItems: CostRef[];
   /** ISO date of Cedar Bridge Crew 2 draft plan (covers activity E). */
   cedarPlanDate: string;
+  /** PM user id recorded on seeded baselines. */
+  setById: string;
 }): ScheduleSeedRows {
   const { companyId, today, id } = args;
   const out: ScheduleSeedRows = {
@@ -287,6 +336,8 @@ export function buildScheduleSeed(args: {
     calendarHolidays: [],
     activities: [],
     activityCostItems: [],
+    scheduleBaselines: [],
+    baselineActivities: [],
   };
 
   const shiftedStart = seedJobStartOn(today);
@@ -448,6 +499,44 @@ export function buildScheduleSeed(args: {
   // Must never seed Harbor (draft estimate).
   if (byNumber.has("26-010")) {
     // Intentionally empty — acceptance: zero schedule rows for draft jobs.
+  }
+
+  // 5.1.2-a: one baseline on each approved job with activities. Harbor: none.
+  if (cedar) {
+    pushBaseline(out, {
+      companyId,
+      jobId: cedar.id,
+      jobKey: "cedar",
+      id,
+      name: "Award baseline",
+      reason: "Award",
+      setById: args.setById,
+      setAt: today,
+    });
+  }
+  if (sr99) {
+    pushBaseline(out, {
+      companyId,
+      jobId: sr99.id,
+      jobKey: "sr99",
+      id,
+      name: "Award baseline",
+      reason: "Award",
+      setById: args.setById,
+      setAt: today,
+    });
+  }
+  if (i5) {
+    pushBaseline(out, {
+      companyId,
+      jobId: i5.id,
+      jobKey: "i5",
+      id,
+      name: "Award baseline",
+      reason: "Award",
+      setById: args.setById,
+      setAt: today,
+    });
   }
 
   return out;

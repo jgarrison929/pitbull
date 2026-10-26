@@ -28,6 +28,8 @@ const LABELS: Record<string, string> = {
   "changeOrder.approve": "Approved change order",
   "changeOrder.reject": "Rejected change order",
   "changeOrder.void": "Voided change order",
+  "schedule.setBaseline": "Set baseline",
+  "schedule.rebaseline": "Re-baselined",
 };
 
 /** Past-tense success → "Couldn't …" so a role/unknown/domain refusal never reads as done. */
@@ -55,6 +57,8 @@ const REFUSAL_LABELS: Record<string, string> = {
   "changeOrder.approve": "Couldn't approve change order",
   "changeOrder.reject": "Couldn't reject change order",
   "changeOrder.void": "Couldn't void change order",
+  "schedule.setBaseline": "Couldn't set baseline",
+  "schedule.rebaseline": "Couldn't re-baseline",
 };
 
 /** e.g. "Rejected change order on 24-118" — never `changeOrder.reject(24-118)`. */

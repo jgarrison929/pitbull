@@ -23,7 +23,9 @@ export type ActionName =
   | "costItem.setMilestone"
   | "costItem.setForecastMethod"
   | `changeOrder.${CoCommandName}`
-  | "changeOrder.show";
+  | "changeOrder.show"
+  | "schedule.setBaseline"
+  | "schedule.rebaseline";
 
 /** Per-line actuals for dailyReport.post (screen form or assistant). */
 export type ReportActualArg = {
@@ -74,6 +76,8 @@ export type JobArgs = {
   qty?: string;
   workers?: string;
   hours?: string;
+  /** schedule.setBaseline / rebaseline: baseline display name. */
+  name?: string;
 };
 export type Intent = { action: ActionName; args: JobArgs };
 
@@ -135,6 +139,11 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
       : undefined);
   const args: JobArgs = jobArg ? { job: jobArg } : {};
   const has = (re: RegExp) => re.test(text);
+
+  // Baselines before change orders: reason text often names "CO-001 scope" and
+  // must not steal re-baseline onto changeOrder.show.
+  const baseline = routeBaseline(prompt, args);
+  if (baseline) return baseline;
 
   // Before plan-line, estimate, and daily-report rules. "Approve the change order"
   // must not land on estimate.approve or dailyPlan.approve.
@@ -319,6 +328,45 @@ function coTitle(prompt: string): string {
     .slice(i + 1)
     .replace(/\s+\b(?:because|reason)\b[\s\S]*$/i, "")
     .trim();
+}
+
+/**
+ * "Set Award baseline on 25-031 because Award" / "Re-baseline Cedar because CO-001 scope".
+ * Cue requires baseline / re-baseline so "set forecast" and plan edits stay put.
+ */
+export function routeBaseline(prompt: string, args: JobArgs): Intent | null {
+  const text = prompt.toLowerCase();
+  const isRe =
+    /\bre-?baselin/.test(text) ||
+    (/\bbaseline\b/.test(text) && /\bre-?set\b/.test(text));
+  const isSet =
+    /\bset\b/.test(text) &&
+    /\bbaseline\b/.test(text) &&
+    !isRe;
+  if (!isSet && !isRe) return null;
+
+  const reason = because(prompt);
+  // Name: quoted, "named X", or "Set <Name> baseline …".
+  const quoted =
+    prompt.match(/["“]([^"”]+)["”]/)?.[1]?.trim() ??
+    prompt.match(/\bnamed\s+([^,]+?)(?:\s+on\b|\s+because\b|$)/i)?.[1]?.trim();
+  const setName = prompt.match(
+    /\bset\s+(.+?)\s+baseline\b/i,
+  )?.[1]?.trim();
+  let name = quoted;
+  if (!name && setName && !/^(a|the|this|new)$/i.test(setName)) {
+    name = /baseline$/i.test(setName) ? setName : `${setName} baseline`;
+  }
+  if (!name && isSet) name = "Award baseline";
+
+  return {
+    action: isRe ? "schedule.rebaseline" : "schedule.setBaseline",
+    args: {
+      ...args,
+      ...(name ? { name } : {}),
+      ...(reason ? { reason } : {}),
+    },
+  };
 }
 
 /**
