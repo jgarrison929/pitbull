@@ -280,9 +280,9 @@ export type CostItemRouteTiming = {
 };
 
 /**
- * Wall-clock getCostItemPage with query count. Kept free of `requireUser` /
- * next/headers so vitest importers of getCostItemPage do not pull the session
- * graph (Verify #60 hang in unknown-job.test.ts under LA / merged runs).
+ * Wall-clock getCostItemPage with query count. Kept free of @/server/session
+ * so vitest importers of getCostItemPage do not pull next/headers (Verify #60
+ * hang in unknown-job.test.ts under LA / merged runs).
  * `dbMs` is real await time — not V5_DB_LATENCY_MS.
  */
 export async function timedGetCostItemPage(
