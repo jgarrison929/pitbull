@@ -667,19 +667,30 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     let url = "/app";
     let seeded = "seed-0";
     let pending = null;
-    const handlers = { request: new Set(), requestfinished: new Set(), requestfailed: new Set() };
-    const emit = (e, r) => handlers[e].forEach((f) => f(r));
+    const handlers = { request: new Set(), requestfinished: new Set(), requestfailed: new Set(), response: new Set() };
+    const emit = (e, r) => handlers[e]?.forEach((f) => f(r));
     const cur = () => {
       const r = resets[n] ?? {};
       const serverMs = r.serverMs ?? 0;
-      return { urlAt: serverMs, seededAt: serverMs, contentFrom: 0, contentUntil: Infinity, rows: 4, busyUntil: serverMs, redirect: "/app?reset=1", readMs: 0, readThrows: null, throwIn: "all", ...r };
+      return { urlAt: serverMs, seededAt: serverMs, contentFrom: 0, contentUntil: Infinity, rows: 4, busyUntil: serverMs, redirect: "/app?reset=1", readMs: 0, readThrows: null, throwIn: "all", postFailAt: null, postFailText: null, ...r };
     };
     const since = () => (clickAt === null ? -1 : t - clickAt);
+    const makeResetPost = () => ({
+      method: () => "POST",
+      url: () => "http://fake/app",
+      isNavigationRequest: () => true,
+      headers: () => ({ "next-action": "fake-reset" }),
+      failure: () => (cur().postFailText ? { errorText: cur().postFailText } : null),
+    });
     const tick = () => {
       if (clickAt === null) return;
       const r = cur();
       if (since() >= r.urlAt) url = r.redirect;
       if (since() >= r.seededAt) seeded = `seed-${n + 1}`;
+      if (pending && r.postFailAt != null && since() >= r.postFailAt) {
+        emit("requestfailed", pending);
+        pending = null;
+      }
       if (pending && since() >= r.busyUntil) {
         emit(r.failed ? "requestfailed" : "requestfinished", pending);
         pending = null;
@@ -735,7 +746,8 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
           const r = resets[n];
           if (r.error) throw new Error(r.error);
           clickAt = t;
-          pending = {};
+          // Reset-shaped POST only when testing watchResetPost fail-fast; else bare object for idle.
+          pending = r.postFailAt != null ? makeResetPost() : {};
           emit("request", pending);
           tick();
         },
@@ -817,6 +829,20 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     assert.ok(r.failures.some((x) => /reset 3 failed: Reset demo button detached/.test(x)) && r.samples.length === 5, `error recorded as sample 3; got ${JSON.stringify(r)}`);
   }
   mustPass("runResetTimeStep: request failed still settles (idle info counts it)", verdict(await step(fast(700).map((x) => ({ ...x, failed: true })))));
+  // #20 fail-fast must ignore net::ERR_ABORTED (Next soft-nav after reset redirect) and still fail-fast hard disconnects.
+  {
+    const abortedOk = await step(five({ serverMs: 700, postFailAt: 100, postFailText: "net::ERR_ABORTED" }));
+    mustPass("runResetTimeStep: reset POST net::ERR_ABORTED then ready (no fail-fast)", verdict(abortedOk));
+    assert.deepEqual(abortedOk.values, [700, 700, 700, 700, 700], JSON.stringify(abortedOk));
+  }
+  {
+    const hard = await step(five({ serverMs: 700, postFailAt: 100, postFailText: "net::ERR_CONNECTION_RESET", seededAt: Infinity }));
+    mustFail("runResetTimeStep: reset POST ERR_CONNECTION_RESET fails fast", verdict(hard));
+    const hardHits = hard.failures.filter((f) => /^reset \d+ failed:/.test(f));
+    assert.equal(hardHits.length, 5, JSON.stringify(hard.failures));
+    assert.ok(hardHits.every((f) => /reset failed fast at \d+ ms: reset POST \/app failed: net::ERR_CONNECTION_RESET/.test(f)), JSON.stringify(hard.failures));
+    assert.ok(!hard.failures.some((f) => /after 20000 ms/.test(f)), "hard POST failure must not wait for the timeout");
+  }
 
   // Stale page: main content is up the whole time but seeded-at never changes → never ready → timeout.
   {
