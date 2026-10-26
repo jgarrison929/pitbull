@@ -124,6 +124,11 @@ function argsFromForm(formData: FormData): JobArgs {
     qty: str("qty"),
     workers: str("workers"),
     hours: str("hours"),
+    code: str("code"),
+    name: str("name"),
+    durationDays: str("durationDays"),
+    startOn: str("startOn"),
+    version: str("version"),
     complete:
       completeRaw === undefined
         ? undefined

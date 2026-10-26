@@ -42,6 +42,10 @@ describe("honesty: assistant rail labels", () => {
     expect(
       actionRailLabel("changeOrder.approve", "25-031", { refused: true }),
     ).not.toMatch(/^Approved/);
+    // 5.1.0-b: superintendent role refusal chip.
+    expect(
+      actionRailLabel("schedule.addActivity", "25-031", { refused: true }),
+    ).toBe("Couldn't add activity on 25-031");
   });
 
   it("labels plan create without the action key", () => {
