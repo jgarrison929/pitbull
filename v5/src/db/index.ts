@@ -11,7 +11,6 @@ import {
   PROXY_DB_POOL_MAX,
   dbPoolMaxFromEnv,
 } from "./pool-config";
-import { recordDbQuery } from "./query-timing";
 import * as schema from "./schema";
 
 export type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -145,10 +144,9 @@ function wrapClient(client: ReturnType<typeof postgres>) {
     // Sync RTT: serializes parallel callers (pessimistic vs real network overlap)
     // but preserves ThenableQuery (.values / transactions).
     if (delay > 0) sleepSync(delay);
-    // Count immediately; duration is attributed when the statement is issued
-    // (sync latency wrapper already applied). Fine-grained await timing is
-    // measured at the route ALS boundary via wall clock + query delta.
-    recordDbQuery(delay);
+    // Real per-route DB wall time is measured in loadCostItemRoute (await
+    // boundaries). Do not attribute V5_DB_LATENCY_MS here — that made
+    // data-db-ms always 0 in production and misled Verify.
     return originalUnsafe(query, params as never, opts as never);
   }) as typeof client.unsafe;
   return client;

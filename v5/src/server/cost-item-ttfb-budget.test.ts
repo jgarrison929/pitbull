@@ -58,11 +58,11 @@ describe.skipIf(!db)("cost-item TTFB budget", () => {
     await resetDbClient();
   });
 
-  it("pool defaults leave headroom for crawl Suspense fan-out", () => {
-    expect(DEFAULT_DB_POOL_MAX).toBeGreaterThanOrEqual(40);
-    expect(PROXY_DB_POOL_MAX).toBeGreaterThanOrEqual(24);
-    // Stay under typical Railway max_connections=100 with headroom.
-    expect(DEFAULT_DB_POOL_MAX + PROXY_DB_POOL_MAX).toBeLessThanOrEqual(80);
+  it("pool defaults stay modest (oversized pools regress TTFB tails)", () => {
+    // Verify #60: max=40/24 raised Phase A foreman TTFB max vs main’s 20/8.
+    expect(DEFAULT_DB_POOL_MAX).toBe(20);
+    expect(PROXY_DB_POOL_MAX).toBe(8);
+    expect(DEFAULT_DB_POOL_MAX + PROXY_DB_POOL_MAX).toBe(28);
   });
 
   it("getCostItemPage stays ≤5 queries on 07-150", async () => {

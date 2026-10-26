@@ -6,22 +6,24 @@
 
 /**
  * Default shared-app pool size. Override with V5_DB_POOL_MAX (positive int).
- * Sized for verify crawl bursts: Suspense fan-out (shell portfolio + page +
- * assistant) holds several connections per in-flight document; too-small
- * pools queue and spike TTFB (staging saw 60 ms → 836 ms on the same cost
- * item under Part C concurrency).
+ *
+ * Keep this modest: Verify #60 showed larger defaults (40) oversubscribed
+ * Postgres under crawl-like concurrency and *raised* TTFB tails vs main.
+ * Suspense still fans out a few queries per document; 20 covers that without
+ * inviting a stampeded of parallel statements across 24 browser contexts.
  */
-export const DEFAULT_DB_POOL_MAX = 40;
+export const DEFAULT_DB_POOL_MAX = 20;
 
 /**
- * Proxy drill-down 404-check pool. Every matched document (and historically
- * every RSC flight) hits this before SSR. Undersizing here directly inflates
- * TTFB under role×width crawl overlap.
+ * Proxy drill-down 404-check pool. Document navigations (and soft-nav RSC)
+ * hit this before SSR. Prefer a small warm pool: oversized max lets many
+ * concurrent lookups thrash Postgres and inflate `v5proxy` dur (Verify saw
+ * 440 ms tails at max=24; main’s max=8 stayed under the TTFB gate).
  */
-export const PROXY_DB_POOL_MAX = 24;
+export const PROXY_DB_POOL_MAX = 8;
 
 /** Soft-cap for V5_DB_POOL_MAX typos (app pool only; proxy uses its constant). */
-export const DB_POOL_MAX_SOFT_CAP = 80;
+export const DB_POOL_MAX_SOFT_CAP = 50;
 
 /**
  * App pool `max` from env. Invalid / missing → DEFAULT_DB_POOL_MAX.

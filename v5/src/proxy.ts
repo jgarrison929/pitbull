@@ -76,10 +76,15 @@ export async function proxy(request: NextRequest) {
   const parsed = parseJobDrillPath(path);
   if (!parsed) return NextResponse.next();
 
-  // Router prefetches re-hit this matcher and contended the proxy pool under
-  // verify crawl bursts (TTFB 60 ms → 800 ms+ on the same cost-item). Document
+  // Prefetch / PPR segment flights re-hit this matcher and stampede the proxy
+  // pool under crawl bursts (Verify #60: v5proxy tails to 440 ms). Document
   // navigations and soft navigations still run the 404 check.
-  if (request.headers.get("Next-Router-Prefetch") === "1") {
+  if (
+    request.headers.get("Next-Router-Prefetch") === "1" ||
+    request.headers.get("Next-Router-Segment-Prefetch") === "1" ||
+    request.headers.get("Purpose") === "prefetch" ||
+    request.headers.get("Sec-Purpose") === "prefetch"
+  ) {
     return NextResponse.next();
   }
 

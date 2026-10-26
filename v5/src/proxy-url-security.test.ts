@@ -41,6 +41,7 @@ describe("proxySql connection-string security", () => {
     expect(src).toMatch(/Server-Timing/);
     expect(src).toMatch(/v5proxy;dur=/);
     expect(src).toMatch(/Next-Router-Prefetch/);
+    expect(src).toMatch(/Next-Router-Segment-Prefetch/);
     // Old shape: session⋈job, then a second `select id from cost_items`.
     expect(src).not.toMatch(
       /select id from cost_items\s+where job_id = \$\{jobId\}/,

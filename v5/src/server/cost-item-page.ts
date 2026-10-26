@@ -22,11 +22,7 @@ import {
   laborMhMilliByLock,
   pathRollupSql,
 } from "@/server/cost-rollups";
-import {
-  createTimingStore,
-  logRouteTiming,
-  runWithTiming,
-} from "@/server/request-timing";
+import { getDbQueryCount } from "@/db";
 import { seedNow } from "@/server/seed-clock";
 import { requireUser } from "@/server/session";
 
@@ -285,22 +281,31 @@ export type CostItemRouteTiming = {
 };
 
 /**
- * Session + cost-item load with Server-Timing-style metrics. Timing lives here
- * (not in the page component) so react-hooks/purity stays clean — no
- * `performance.now()` during render.
+ * Session + cost-item load with honest wall-clock timing. Lives here (not in
+ * the page component) so react-hooks/purity stays clean — no `performance.now()`
+ * during render. `dbMs` is await time for getCostItemPage (real DB work), not
+ * the simulated V5_DB_LATENCY_MS issue-time that previously always reported 0
+ * in production.
  */
 export async function loadCostItemRoute(jobNumber: string, code: string) {
-  const timing = createTimingStore(`cost-item:${jobNumber}/${code}`);
-  const { user, data } = await runWithTiming(timing, async () => {
-    const user = await requireUser();
-    const data = await getCostItemPage(user.companyId, jobNumber, code);
-    return { user, data };
-  });
-  const timingPayload: CostItemRouteTiming = logRouteTiming(timing, {
-    job: jobNumber,
-    code,
-    entries: data?.entries.length ?? 0,
-  });
+  const startedAt = performance.now();
+  const q0 = getDbQueryCount();
+  const user = await requireUser();
+  const dbStarted = performance.now();
+  const data = await getCostItemPage(user.companyId, jobNumber, code);
+  const dbMs = Math.round(performance.now() - dbStarted);
+  const queries = getDbQueryCount() - q0;
+  const totalMs = Math.round(performance.now() - startedAt);
+  const timingPayload: CostItemRouteTiming = { dbMs, queries, totalMs };
+  console.info(
+    `[v5-timing] ${JSON.stringify({
+      route: `cost-item:${jobNumber}/${code}`,
+      ...timingPayload,
+      job: jobNumber,
+      code,
+      entries: data?.entries.length ?? 0,
+    })}`,
+  );
   return { user, data, timing: timingPayload };
 }
 

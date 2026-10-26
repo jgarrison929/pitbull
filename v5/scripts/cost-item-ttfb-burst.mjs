@@ -181,17 +181,37 @@ for (let round = 0; round < ROUNDS; round++) {
   if (round === 0) {
     await measureTtfb(paths[0].cookie, paths[0].path);
   }
-  const results = await Promise.all(
-    paths.map((p) => measureTtfb(p.cookie, p.path)),
+  // Bound concurrency with a small wave so a wedged stream cannot kill the
+  // whole Promise.all (Verify Phase A uses many contexts but sequential pages
+  // per context; we still want overlapping documents).
+  // Default = full concurrency (matches Verify). WAVE=N can shard if needed.
+  const wave = Math.min(
+    paths.length,
+    Number(process.env.WAVE ?? paths.length),
   );
-  for (const r of results) {
-    if (r.status !== 200) {
-      console.error(`FAIL ${r.path} HTTP ${r.status}`);
-      process.exitCode = 1;
-    }
-    allSamples.push(r.ttfbMs);
-    if (typeof r.serverTiming.v5proxy === "number") {
-      proxyDurs.push(r.serverTiming.v5proxy);
+  for (let i = 0; i < paths.length; i += wave) {
+    const chunk = paths.slice(i, i + wave);
+    const results = await Promise.all(
+      chunk.map(async (p) => {
+        try {
+          return await measureTtfb(p.cookie, p.path);
+        } catch (err) {
+          console.error(`FAIL ${p.path} ${err instanceof Error ? err.message : err}`);
+          process.exitCode = 1;
+          return null;
+        }
+      }),
+    );
+    for (const r of results) {
+      if (!r) continue;
+      if (r.status !== 200) {
+        console.error(`FAIL ${r.path} HTTP ${r.status}`);
+        process.exitCode = 1;
+      }
+      allSamples.push(r.ttfbMs);
+      if (typeof r.serverTiming.v5proxy === "number") {
+        proxyDurs.push(r.serverTiming.v5proxy);
+      }
     }
   }
 }
