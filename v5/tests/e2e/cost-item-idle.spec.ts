@@ -1,12 +1,11 @@
 /**
  * Regression lock for cost-item drill networkidle:
- * next/link (even with prefetch={false}) still fired ?_rsc= for shell/job
- * chrome after document load and held idle past 1.5 s at desktop. Chrome
- * links are plain <a> now.
+ * next/link (even with prefetch={false}) still fired ?_rsc= after document —
+ * shell/job-strip first, then desktop assistant-rail Open hrefs (aside is
+ * lg:flex → @1280 only). Those are plain <a> now.
  *
- * CI: no shell/job-strip RSC after load + idle ≤ 1.5 s at 320 and 1280 on the
- * failing drill. Full 20-load p95 acceptance:
- *   node scripts/cost-item-idle-acceptance.mjs
+ * CI: no shell/job RSC after load + idle ≤ 1.5 s at 320 and 1280.
+ * Full 20-load p95: node scripts/cost-item-idle-acceptance.mjs
  */
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
