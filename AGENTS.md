@@ -118,3 +118,15 @@ Root `CHANGELOG.md` remains the Keep a Changelog file for the **legacy** 3.x lin
 
 - Demo sandboxes are isolated and resettable; never point demo tooling at production data stores you do not own
 - Never commit secrets; Railway env via platform config
+
+## Rule → enforcement
+
+Repeated agent mistakes are rejected by a check. The prose here names the rule; the check is what makes it stick. `node v5/scripts/agent-guards.mjs --prove` is the same command locally and in the v5 CI job.
+
+| Rule | Where it is enforced |
+|------|----------------------|
+| At ≥768, money, a status pill, a table header, and a page title are not clipped by their own element (`overflow-x: hidden` / `clip`, or their own ellipsis). Text fully laid out inside an `overflow-x: auto` or `scroll` ancestor is fine. Secondary ellipsis, tap targets, and text size stay on phone checks. | `evaluateDesktopProtectedClips` in `.cursor/skills/verify-v5/checks.mjs`. `scanPage` records those clips on every crawl at ≥768, including the default crawl. |
+| A commit message may carry `Co-authored-by` only for `21370704+jgarrison929@users.noreply.github.com`. No `gmail.com` address in the message. `Signed-off-by` for Dependabot is fine. | `commitMessageFailures` in `v5/scripts/agent-guards.mjs`, on the PR range and on the pushed tip. |
+| A migration test asserts that migration's idx, `when`, and snapshot `prevId`. It does not pin `entries.length` or require the tag to be last. | `journalPinFailures` in the same script. `schedule0020JournalClaim` stays true when a later tag follows `0020`. |
+| A bounded test-harness wait throws when it times out. `waitForScrollHeightStable` and `fitViewportToPage` do not `return last` or fall out of the loop. | `harnessTimeoutFailures` in the same script. |
+| Parallel UI slices do not hand-merge `visual.spec.ts-snapshots/`. Rebase onto the base and re-adopt with `v5/scripts/adopt-visual-actuals.sh`. | `git merge-tree --write-tree` in the same script, comparing the PR head to the base. Pixel baselines stay `maxDiffPixels: 0`. |
