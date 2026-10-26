@@ -84,8 +84,6 @@ export async function Job({
   };
   const canImport = actions["estimate.importCsv"].roles?.includes(user.role);
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
-  // Plan "today" from the same helper the New-plan slot uses (#18) — not UTC.
-  const { today: todayLA } = jobPagePlanSurface([]);
   const [
     pagePlans,
     changes,
@@ -96,7 +94,8 @@ export async function Job({
     crewRows,
   ] = await Promise.all([
     // Open cards keep full lines; 30-day history is summary-only (RSC budget).
-    getJobPagePlans(user.companyId, p.job.id, todayLA),
+    // Today is computed inside getJobPagePlans via planDateToday(seedNow()).
+    getJobPagePlans(user.companyId, p.job.id),
     jobChanges(user.companyId, p.job.number),
     canLock
       ? draftClaimForJob(user.companyId, p.job.id)
@@ -108,7 +107,9 @@ export async function Job({
     listChangeOrders(user.companyId, p.job.number),
     canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
   ]);
-  const { openPlans, historyPlans } = pagePlans;
+  // Same surface helper as JobNewPlanSlot / #18 — open vs history by job-zone today.
+  const plans = [...pagePlans.openPlans, ...pagePlans.historyPlans];
+  const { open: openPlans, history: historyPlans } = jobPagePlanSurface(plans);
   const historyDay = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
       weekday: "short",
@@ -253,7 +254,7 @@ export async function Job({
         <JobNewPlanSlot
           jobNumber={p.job.number}
           crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
-          plans={[...openPlans, ...historyPlans]}
+          plans={plans}
         />
       ) : null}
       {openPlans.map((plan) => (
