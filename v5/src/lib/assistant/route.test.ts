@@ -149,13 +149,13 @@ describe("assistant router", () => {
       },
     ],
     [
-      "we poured 38 CY with 72 hours on the pour for Cedar Creek",
+      "we poured 38 CY with 72 hours on pier columns for Cedar Creek",
       "dailyReport.post",
       {
         job: "25-031",
         actuals: [{ qty: 38, manHours: 72 }],
         lineRef:
-          "we poured 38 CY with 72 hours on the pour for Cedar Creek",
+          "we poured 38 CY with 72 hours on pier columns for Cedar Creek",
       },
     ],
     [
@@ -168,30 +168,30 @@ describe("assistant router", () => {
       },
     ],
     [
-      "we worked -5 hours on the pour for Cedar Creek",
+      "we worked -5 hours on pier columns for Cedar Creek",
       "dailyReport.post",
       {
         job: "25-031",
         actuals: [{ manHours: -5 }],
-        lineRef: "we worked -5 hours on the pour for Cedar Creek",
+        lineRef: "we worked -5 hours on pier columns for Cedar Creek",
       },
     ],
     [
-      "we worked NaN hours on the pour for Cedar Creek",
+      "we worked NaN hours on pier columns for Cedar Creek",
       "dailyReport.post",
       {
         job: "25-031",
         actuals: [{ manHours: Number.NaN }],
-        lineRef: "we worked NaN hours on the pour for Cedar Creek",
+        lineRef: "we worked NaN hours on pier columns for Cedar Creek",
       },
     ],
     [
-      "we worked Infinity hours on the pour for Cedar Creek",
+      "we worked Infinity hours on pier columns for Cedar Creek",
       "dailyReport.post",
       {
         job: "25-031",
         actuals: [{ manHours: Number.NaN }],
-        lineRef: "we worked Infinity hours on the pour for Cedar Creek",
+        lineRef: "we worked Infinity hours on pier columns for Cedar Creek",
       },
     ],
     [
@@ -285,10 +285,10 @@ describe("assistant router", () => {
       { job: "25-031" },
     ],
     [
-      "change the pour to 80 man-hours",
+      "change pier columns to 80 man-hours",
       "dailyPlan.updateLine",
       {
-        lineRef: "change the pour to 80 man-hours",
+        lineRef: "change pier columns to 80 man-hours",
         change: { manHours: "80" },
       },
     ],
@@ -307,10 +307,10 @@ describe("assistant router", () => {
       },
     ],
     [
-      "add a note to the pour: crane at 6am",
+      "add a note to pier columns: crane at 6am",
       "dailyPlan.updateLine",
       {
-        lineRef: "add a note to the pour: crane at 6am",
+        lineRef: "add a note to pier columns: crane at 6am",
         change: { notes: "crane at 6am" },
       },
     ],

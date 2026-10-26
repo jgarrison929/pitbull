@@ -535,13 +535,14 @@ export const WORK_SEED_KEYS = [
   "progressClaims",
   "progressClaimLines",
   "crews",
-  "dailyPlans",
-  "dailyPlanEvents",
-  "dailyPlanLines",
+  // Schedule before plan lines so daily_plan_lines.activity_id FK can resolve (5.1.0-d).
   "jobCalendars",
   "calendarHolidays",
   "activities",
   "activityCostItems",
+  "dailyPlans",
+  "dailyPlanEvents",
+  "dailyPlanLines",
   "changeOrders",
   "changeOrderLines",
   "changeOrderEvents",
@@ -964,10 +965,13 @@ export function seed(companyId: string, today: Date): SeedRows {
     detail: "",
     at: tomorrowCreatedAt,
   });
+  // 5.1.0-d: Bridge Crew 2 demo lines link to schedule activities C and E.
+  // Activity UUIDs are deterministic (`activity:cedar:*`) before schedule rows insert.
   const lines = [
     {
       code: "04-210",
-      activity: "Pour Pier 3 column, lift 2",
+      activityId: id("activity:cedar:C"),
+      activity: "Pier columns",
       location: "Pier 3",
       qty: 42,
       workers: 6,
@@ -975,6 +979,7 @@ export function seed(companyId: string, today: Date): SeedRows {
     },
     {
       code: "04-310",
+      activityId: id("activity:cedar:E"),
       activity: "Tie column cage",
       location: "Pier 4",
       qty: 8_500,
@@ -983,6 +988,7 @@ export function seed(companyId: string, today: Date): SeedRows {
     },
     {
       code: "07-410",
+      activityId: null as string | null,
       activity: "Dewatering watch, pump check",
       location: "Cofferdam B",
       qty: 1,
@@ -996,6 +1002,7 @@ export function seed(companyId: string, today: Date): SeedRows {
       companyId,
       planId,
       costItemId: cost(l.code),
+      activityId: l.activityId,
       activity: l.activity,
       location: l.location,
       qtyMilli: toMilli(l.qty),
@@ -1057,6 +1064,7 @@ export function seed(companyId: string, today: Date): SeedRows {
         companyId,
         planId: i5PlanId,
         costItemId: i5Cost(l.code),
+        activityId: null,
         activity: l.activity,
         location: l.location,
         qtyMilli: toMilli(l.qty),

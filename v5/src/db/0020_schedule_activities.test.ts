@@ -32,6 +32,7 @@ export function activitiesJobCodeIndexIsUnique(sql: string): boolean {
 
 /**
  * Journal + snapshot claim for 0020 (predecessor = 0019 after #10).
+ * Later slices (0021+) may follow; 0020 must stay immediately after 0019.
  */
 export function schedule0020JournalClaim(args: {
   entries: readonly JournalEntry[];
@@ -41,9 +42,10 @@ export function schedule0020JournalClaim(args: {
   const { entries, prevId, predecessorSnapshotId } = args;
   const tags = entries.map((e) => e.tag);
   const scheduleIdx = tags.indexOf("0020_schedule_activities");
-  if (scheduleIdx < 0) return false;
-  // Position: last journal entry (not buried / not swapped with 0019).
-  if (scheduleIdx !== entries.length - 1) return false;
+  const crewsIdx = tags.indexOf("0019_crews_contract");
+  if (scheduleIdx < 0 || crewsIdx < 0) return false;
+  // Immediately after 0019 (not buried / not swapped).
+  if (scheduleIdx !== crewsIdx + 1) return false;
   const schedule = entries[scheduleIdx]!;
   if (schedule.idx !== 20) return false;
   if (schedule.when !== 1793030000000) return false;
@@ -96,9 +98,12 @@ describe("migration 0020_schedule_activities", () => {
     expect(tags).toContain("0018_daily_plan_events");
     expect(tags).toContain("0019_crews_contract");
     expect(tags).toContain("0020_schedule_activities");
-    expect(tags.at(-1)).toBe("0020_schedule_activities");
-    expect(tags.indexOf("0020_schedule_activities")).toBeGreaterThan(
-      tags.indexOf("0019_crews_contract"),
+    expect(tags.indexOf("0020_schedule_activities")).toBe(
+      tags.indexOf("0019_crews_contract") + 1,
+    );
+    // 5.1.0-d claims 0021 after this slice.
+    expect(tags.indexOf("0021_plan_line_activity_id")).toBeGreaterThan(
+      tags.indexOf("0020_schedule_activities"),
     );
 
     const schedule = entries.find((e) => e.tag === "0020_schedule_activities")!;

@@ -86,10 +86,10 @@ export async function seedActionHistory(companyId: string, now = seedNow()) {
     const superintendent = asUser(companyId, "superintendent", now);
 
     // Plan edit on Cedar's draft — note only, so man-hours/qty stay at seed values
-    // that e2e asserts (60 MH / 42 CY on the pour).
+    // that e2e asserts (60 MH / 42 CY on pier columns / 04-210).
     await run(
       foreman,
-      "Add a note on the pour: forms checked, ready for concrete",
+      "Add a note on pier columns: forms checked, ready for concrete",
       "dailyPlan.updateLine",
       {
         job: "25-031",

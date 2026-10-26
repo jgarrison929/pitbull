@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { requireDb } from "@/db";
 import {
   actionRuns,
@@ -62,9 +62,11 @@ import { approveEstimate } from "@/server/estimate";
 import { importEstimateCsv } from "@/server/estimate-import";
 import {
   addPlanLine,
+  costItemLinkedToActivity,
   createDailyPlan,
   findCrewByName,
   removePlanLine,
+  resolveJobActivity,
   resolvePlanForWrite,
 } from "@/server/plans";
 import {
@@ -351,7 +353,7 @@ const words = (s: string) =>
 
 /**
  * Which line a sentence means: a cost code in it, else the line whose activity or cost item
- * shares the most words with it ("the pour" → 04-210 Pour Pier 3 column). Ties and misses ask.
+ * shares the most words with it ("pier columns" → 04-210 Pier columns). Ties and misses ask.
  */
 export function matchLine(
   lines: Line[],
@@ -643,6 +645,8 @@ export const actions: Record<ActionName, ActionDef> = {
         costItemId,
         costCode,
         activity,
+        activityId,
+        activityCode,
         location,
         qty,
         workers,
@@ -682,7 +686,8 @@ export const actions: Record<ActionName, ActionDef> = {
           .limit(1);
         itemId = item?.id;
       }
-      if (!itemId)
+      // Activity picker / code may supply the cost item via the schedule link.
+      if (!itemId && !(activityId || activityCode))
         return {
           summary: "Which cost item should I add? Name a leaf code on this job.",
           href: jobHref(j),
@@ -692,6 +697,8 @@ export const actions: Record<ActionName, ActionDef> = {
       const result = await addPlanLine(user, plan.id, {
         costItemId: itemId,
         activity,
+        activityId,
+        activityCode,
         location,
         qty,
         workers,
@@ -829,14 +836,47 @@ export const actions: Record<ActionName, ActionDef> = {
         change,
         j.lines.map((l) => l.id),
       );
-      if (result.errors)
+      if (result.errors) {
+        const errors: Record<string, string> = Object.fromEntries(
+          Object.entries(result.errors).filter(
+            (e): e is [string, string] => typeof e[1] === "string",
+          ),
+        );
         return {
-          summary: `Not changed. ${Object.values(result.errors).join(" ")}`,
-          errors: result.errors,
+          summary: `Not changed. ${Object.values(errors).join(" ")}`,
+          errors,
           ...where,
         };
+      }
       const v = result.values;
       const item = j.lines.find((l) => l.id === v.costItemId)!;
+      // 5.1.0-d: when the line is linked to a schedule activity, the cost item
+      // must stay on that activity's links; name stays the activity name.
+      const activityId = line.activityId ?? null;
+      if (activityId) {
+        const linked = await costItemLinkedToActivity(
+          user.companyId,
+          activityId,
+          v.costItemId,
+        );
+        if (!linked) {
+          const msg = `Cost item ${item.code} is not linked to this line's activity.`;
+          const errors: Record<string, string> = {
+            costItemId: msg,
+            form: msg,
+          };
+          return {
+            summary: msg,
+            errors,
+            refused: true,
+            ...where,
+          };
+        }
+        const act = await resolveJobActivity(user.companyId, j.job.id, {
+          activityId,
+        });
+        if ("activity" in act) v.activity = act.activity.name;
+      }
       const changes = describeChange(line, v, item.unit, item.code);
       if (!changes.length)
         return {
@@ -845,7 +885,7 @@ export const actions: Record<ActionName, ActionDef> = {
         };
       await requireDb()
         .update(dailyPlanLines)
-        .set(v)
+        .set({ ...v, activityId })
         .where(
           and(
             eq(dailyPlanLines.id, line.id),
@@ -1126,7 +1166,7 @@ export const actions: Record<ActionName, ActionDef> = {
             ? plan.lines.find((l) => l.code === a.costCode)
             : undefined;
         if (!line && !a.lineId && !a.costCode) {
-          // "we poured 38 CY … on the pour" — resolve by activity words.
+          // "we poured 38 CY … on pier columns" — resolve by activity words.
           const m = matchLine(plan.lines, lineRef ?? "");
           if ("ask" in m)
             return {

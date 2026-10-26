@@ -109,7 +109,8 @@ describe.skipIf(!db)("plan date alignment across seed / submit / updateLine", ()
     expect(afterReset?.status).toBe("draft");
     expect(afterReset?.planDate).toBe(tomorrow);
 
-    const pourRoute = route("Change the pour to 80 man-hours", [
+    // 5.1.0-d: linked line activity text is the schedule name ("Pier columns").
+    const pourRoute = route("Change pier columns to 80 man-hours", [
       {
         number: "25-031",
         name: "Cedar Creek Bridge Replacement",
@@ -120,7 +121,7 @@ describe.skipIf(!db)("plan date alignment across seed / submit / updateLine", ()
     expect(pourRoute!.action).toBe("dailyPlan.updateLine");
     const pour = await run(
       foreman,
-      "Change the pour to 80 man-hours",
+      "Change pier columns to 80 man-hours",
       pourRoute!.action,
       pourRoute!.args,
     );

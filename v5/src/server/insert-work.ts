@@ -53,16 +53,16 @@ export function insertWorkStatementCount(rows: SeedRows): number {
   if (rows.progressClaims.length) n += 1;
   if (rows.progressClaimLines.length) n += 1;
   if (rows.crews.length) n += 1;
+  // 5.1.0-a/d schedule before plans (activity_id FK on daily_plan_lines).
+  if (rows.jobCalendars.length) n += 1;
+  if (rows.calendarHolidays.length) n += 1;
+  if (rows.activities.length) n += 1;
+  if (rows.activityCostItems.length) n += 1;
   n += 1; // dailyPlans (seed always has at least the open drafts)
   if (rows.dailyPlanEvents.length)
     n += Math.ceil(rows.dailyPlanEvents.length / INSERT_WORK_CHUNK);
   if (rows.dailyPlanLines.length)
     n += Math.ceil(rows.dailyPlanLines.length / INSERT_WORK_CHUNK);
-  // 5.1.0-a schedule (calendars → holidays → activities → links).
-  if (rows.jobCalendars.length) n += 1;
-  if (rows.calendarHolidays.length) n += 1;
-  if (rows.activities.length) n += 1;
-  if (rows.activityCostItems.length) n += 1;
   if (rows.changeOrders.length) n += 1;
   if (rows.changeOrderLines.length) n += 1;
   if (rows.changeOrderEvents.length) n += 1;
@@ -135,13 +135,7 @@ export function enqueueInsertWork(
   if (rows.progressClaimLines.length)
     enqueue(tx.insert(progressClaimLines).values(rows.progressClaimLines));
   if (rows.crews.length) enqueue(tx.insert(crews).values(rows.crews));
-  enqueue(tx.insert(dailyPlans).values(rows.dailyPlans));
-  for (const part of chunk(rows.dailyPlanEvents, INSERT_WORK_CHUNK)) {
-    enqueue(tx.insert(dailyPlanEvents).values(part));
-  }
-  for (const part of chunk(rows.dailyPlanLines, INSERT_WORK_CHUNK)) {
-    enqueue(tx.insert(dailyPlanLines).values(part));
-  }
+  // Schedule before plan lines so daily_plan_lines.activity_id FK can resolve (5.1.0-d).
   if (rows.jobCalendars.length)
     enqueue(tx.insert(jobCalendars).values(rows.jobCalendars));
   if (rows.calendarHolidays.length)
@@ -150,6 +144,13 @@ export function enqueueInsertWork(
     enqueue(tx.insert(activities).values(rows.activities));
   if (rows.activityCostItems.length)
     enqueue(tx.insert(activityCostItems).values(rows.activityCostItems));
+  enqueue(tx.insert(dailyPlans).values(rows.dailyPlans));
+  for (const part of chunk(rows.dailyPlanEvents, INSERT_WORK_CHUNK)) {
+    enqueue(tx.insert(dailyPlanEvents).values(part));
+  }
+  for (const part of chunk(rows.dailyPlanLines, INSERT_WORK_CHUNK)) {
+    enqueue(tx.insert(dailyPlanLines).values(part));
+  }
   if (rows.changeOrders.length)
     enqueue(tx.insert(changeOrders).values(rows.changeOrders));
   if (rows.changeOrderLines.length)
