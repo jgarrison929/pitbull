@@ -146,48 +146,74 @@ async function waitForLayout(page: Page) {
   );
 }
 
+/** Document scroll height — same signal the adopted baselines were sized with. */
+async function measureScrollHeight(page: Page): Promise<number> {
+  return page.evaluate(() =>
+    Math.ceil(
+      Math.max(
+        document.documentElement.scrollHeight,
+        document.body?.scrollHeight ?? 0,
+      ),
+    ),
+  );
+}
+
 /**
- * True content bottom — scrollHeight alone can under-report after late wrap
- * (harbor-phone light once clipped the Changes card at 2557 vs 2729 baseline;
- * overlapping pixels matched, so it was a short viewport, not shorter UI).
+ * Wait until scrollHeight stops changing after stabilize (time-chip wrap).
+ * Harbor phone light once clipped Changes mid-card at 2557 vs 2729 because
+ * fitViewport measured before wrap settled — not a shorter page.
+ *
+ * Do NOT walk getBoundingClientRect bottoms: fixed/sticky + scrollY overshoots,
+ * then min-h-svh locks the tall viewport (job-desktop 3467 → 3678 on 79c0db0).
  */
-async function measureContentHeight(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const doc = document.documentElement;
-    const body = document.body;
-    let bottom = Math.max(
-      doc.scrollHeight,
-      body?.scrollHeight ?? 0,
-      doc.offsetHeight,
-      body?.offsetHeight ?? 0,
+async function waitForScrollHeightStable(page: Page): Promise<number> {
+  // Touch below-fold layout before measuring.
+  await page.evaluate(() => {
+    const y = Math.max(
+      document.documentElement.scrollHeight,
+      document.body?.scrollHeight ?? 0,
     );
-    const root = body ?? doc;
-    for (const el of root.querySelectorAll("main *, footer, li, section")) {
-      const r = el.getBoundingClientRect();
-      if (r.height === 0 && r.width === 0) continue;
-      bottom = Math.max(bottom, r.bottom + window.scrollY);
-    }
-    return Math.ceil(bottom);
+    window.scrollTo(0, y);
+    window.scrollTo(0, 0);
   });
+  let last = -1;
+  let stable = 0;
+  for (let i = 0; i < 30; i++) {
+    await waitForLayout(page);
+    const h = await measureScrollHeight(page);
+    if (h === last) {
+      stable += 1;
+      if (stable >= 3) return h;
+    } else {
+      stable = 0;
+      last = h;
+    }
+  }
+  return last < 0 ? await measureScrollHeight(page) : last;
 }
 
 /**
  * Grow the viewport to the document height so sticky `h-svh` rails paint the
  * full page (fullPage stitching otherwise clips them at the original 800px).
- * Remeasure after resize — min-h-svh / wrap can grow once the viewport tallens.
+ * After resize, grow only while scrollHeight still exceeds the viewport —
+ * never chase min-h-svh fill (scrollHeight === viewport).
  */
 async function fitViewportToPage(page: Page) {
   const box = page.viewportSize();
   if (!box) throw new Error("no viewport");
+  const contentHeight = await waitForScrollHeightStable(page);
+  await page.setViewportSize({
+    width: box.width,
+    height: Math.max(box.height, contentHeight),
+  });
   await waitForLayout(page);
-  let last = 0;
-  for (let i = 0; i < 8; i++) {
-    const contentHeight = await measureContentHeight(page);
-    const next = Math.max(box.height, contentHeight);
+  // True overflow only (content taller than viewport). min-h-svh makes
+  // scrollHeight === viewport once sized — must not grow again from that.
+  for (let i = 0; i < 5; i++) {
     const current = page.viewportSize()?.height ?? 0;
-    if (next === last && next === current) break;
-    last = next;
-    await page.setViewportSize({ width: box.width, height: next });
+    const h = await measureScrollHeight(page);
+    if (h <= current) break;
+    await page.setViewportSize({ width: box.width, height: h });
     await waitForLayout(page);
   }
 }
