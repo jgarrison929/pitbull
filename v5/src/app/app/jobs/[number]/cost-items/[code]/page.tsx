@@ -6,13 +6,10 @@ import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { utcDay } from "@/lib/dates";
 import { mh, qty, usdCents } from "@/lib/ev";
 import { actions } from "@/server/assistant/actions";
-import { getCostItemPage, type CostEntryRow } from "@/server/cost-item-page";
 import {
-  createTimingStore,
-  logRouteTiming,
-  runWithTiming,
-} from "@/server/request-timing";
-import { requireUser } from "@/server/session";
+  loadCostItemRoute,
+  type CostEntryRow,
+} from "@/server/cost-item-page";
 
 const EMPTY_LABOR =
   "Labor posts here when a daily report for this cost item is approved";
@@ -143,20 +140,11 @@ async function CostItem({
 }) {
   const { number, code: rawCode } = await params;
   const code = decodeURIComponent(rawCode);
-  const timing = createTimingStore(`cost-item:${number}/${code}`);
-  const { user, data } = await runWithTiming(timing, async () => {
-    const user = await requireUser();
-    const data = await getCostItemPage(user.companyId, number, code);
-    return { user, data };
-  });
-  if (!data) notFound();
-  // Wall-clock for the awaited data path (dbMs from ALS is issue-time only).
-  const timingPayload = logRouteTiming(timing, {
-    job: number,
+  const { user, data, timing: timingPayload } = await loadCostItemRoute(
+    number,
     code,
-    entries: data.entries.length,
-    renderMs: Math.round(performance.now() - timing.startedAt),
-  });
+  );
+  if (!data) notFound();
 
   const canSetForecast =
     actions["costItem.setForecastMethod"].roles?.includes(user.role) ?? false;

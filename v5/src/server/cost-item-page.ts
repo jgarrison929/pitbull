@@ -22,7 +22,13 @@ import {
   laborMhMilliByLock,
   pathRollupSql,
 } from "@/server/cost-rollups";
+import {
+  createTimingStore,
+  logRouteTiming,
+  runWithTiming,
+} from "@/server/request-timing";
 import { seedNow } from "@/server/seed-clock";
+import { requireUser } from "@/server/session";
 
 export type CostEntryRow =
   | {
@@ -271,6 +277,32 @@ export async function getCostItemPage(
 export type CostItemPage = NonNullable<
   Awaited<ReturnType<typeof getCostItemPage>>
 >;
+
+export type CostItemRouteTiming = {
+  dbMs: number;
+  queries: number;
+  totalMs: number;
+};
+
+/**
+ * Session + cost-item load with Server-Timing-style metrics. Timing lives here
+ * (not in the page component) so react-hooks/purity stays clean — no
+ * `performance.now()` during render.
+ */
+export async function loadCostItemRoute(jobNumber: string, code: string) {
+  const timing = createTimingStore(`cost-item:${jobNumber}/${code}`);
+  const { user, data } = await runWithTiming(timing, async () => {
+    const user = await requireUser();
+    const data = await getCostItemPage(user.companyId, jobNumber, code);
+    return { user, data };
+  });
+  const timingPayload: CostItemRouteTiming = logRouteTiming(timing, {
+    job: jobNumber,
+    code,
+    entries: data?.entries.length ?? 0,
+  });
+  return { user, data, timing: timingPayload };
+}
 
 /** Resolve a plan id that posted labor for this cost item (for crawl / tests). */
 export async function firstLaborPlanIdForCostItem(
