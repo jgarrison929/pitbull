@@ -1,0 +1,9 @@
+fix(v5): date open plans on the Los Angeles calendar
+
+Seed today/tomorrow used UTC while the assistant resolves those words in
+America/Los_Angeles. After 00:00Z, "Submit tomorrow's plan" and "Change
+the pour" hit the I-5 plan, so verify-v5 failed. Field history now stops
+before the LA day so the open I-5 plan does not collide on job/crew/date.
+
+Co-authored-by: Joshua Garrison <jgarrison929@users.noreply.github.com>
+

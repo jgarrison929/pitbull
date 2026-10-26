@@ -251,9 +251,12 @@ export function CostTable({
         </div>
       </div>
       {/*
-        Desktop grid min-width is ~47rem. Below lg the assistant rail is gone
-        and at 768–820px that grid was expanding document scrollWidth (~25–80px).
-        Scroll the tree inside the card; job total stays full width below. (#671)
+        The desktop grid's column minimums, gaps, and padding are 58rem.
+        60rem leaves room for the vertical scrollbar so the tree's
+        overflow-x-hidden does not cut status or money. Below lg the
+        assistant rail is gone; at 768–820px a tree that wide was expanding
+        document scrollWidth (#671). Scroll that width inside the card.
+        The job total stays full width below the scroller.
       */}
       <div className="hidden min-w-0 md:block">
         <div className="overflow-x-auto">
@@ -395,7 +398,7 @@ function VirtualTreeDesktop({
     overscan: 12,
   });
   return (
-    <div className="min-w-[47rem]">
+    <div className="min-w-[60rem]">
       <div className="grid grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_7.5rem_7.5rem_7.5rem_7.5rem] gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground">
         <div>Cost code</div>
         <div className="whitespace-nowrap text-right">Installed</div>
