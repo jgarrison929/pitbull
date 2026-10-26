@@ -90,3 +90,15 @@ export function splitPlansByPlanToday<T extends { planDate: string }>(
       .sort((a, b) => b.planDate.localeCompare(a.planDate)),
   };
 }
+
+/**
+ * Job page entry point: zone is fixed inside (timeZoneForJob), not a page arg.
+ * Page must call this — not splitPlansByPlanToday with a zone — so a UTC swap
+ * at the call site is impossible without leaving this helper.
+ */
+export function jobPagePlans<T extends { planDate: string }>(
+  plans: T[],
+  now: Date,
+): { today: string; open: T[]; history: T[] } {
+  return splitPlansByPlanToday(plans, now, timeZoneForJob());
+}

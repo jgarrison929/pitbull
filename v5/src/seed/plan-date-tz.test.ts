@@ -5,11 +5,13 @@
  * `toISOString().slice(0,10)` while assistant/plans used LA → submit
  * and updateLine targeted I-5's UTC-"today" instead of Cedar tomorrow.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   addCalendarDays,
+  jobPagePlans,
   planDateToday,
-  splitPlansByPlanToday,
   timeZoneForJob,
 } from "@/lib/plan-date";
 import { seed, seedId } from "./index";
@@ -170,22 +172,30 @@ describe("seed plan dates use job time zone", () => {
     expect(stress.dailyPlans[0]!.planDate).not.toBe(utcTomorrow(now));
   });
 
-  it("M8: splitPlansByPlanToday keeps LA-today open (not history)", () => {
+  it("M8: jobPagePlans (page call path) keeps LA-today open (not history)", () => {
     const now = new Date("2026-10-27T00:30:00.000Z");
     const rows = seed(company, now);
     const i5 = rows.dailyPlans.find(
       (p) => p.id === seedId(company, "plan:i5:today"),
     )!;
-    const { today, open, history } = splitPlansByPlanToday(
-      rows.dailyPlans,
-      now,
-      timeZoneForJob(),
-    );
+    // Same entry the job page uses — zone is inside the helper, not a page arg.
+    const { today, open, history } = jobPagePlans(rows.dailyPlans, now);
     expect(today).toBe("2026-10-26");
     expect(open.some((p) => p.id === i5.id)).toBe(true);
     expect(history.some((p) => p.id === i5.id)).toBe(false);
     // New-plan default = job-zone today (same value the page passes).
     expect(today).toBe(assistantToday(now));
     expect(today).not.toBe(utcDay(now));
+  });
+
+  it("M8 page wiring: job page calls jobPagePlans (no zone arg to swap)", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/app/app/jobs/[number]/page.tsx"),
+      "utf8",
+    );
+    expect(src).toMatch(/jobPagePlans\s*\(/);
+    expect(src).not.toMatch(/splitPlansByPlanToday\s*\(/);
+    // Page must not pass a zone literal or timeZoneForJob into the split.
+    expect(src).not.toMatch(/splitPlansByPlanToday[\s\S]{0,120}"UTC"/);
   });
 });

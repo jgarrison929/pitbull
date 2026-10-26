@@ -3,6 +3,7 @@ import {
   JOB_TIME_ZONE,
   addCalendarDays,
   calendarDateInTz,
+  jobPagePlans,
   planDateInWindow,
   planDateToday,
   splitPlansByPlanToday,
@@ -66,6 +67,20 @@ describe("plan-date", () => {
     ];
     const { today, open, history } = splitPlansByPlanToday(plans, now);
     expect(today).toBe("2026-10-26");
+    expect(open.map((p) => p.id)).toEqual(["today", "tomorrow"]);
+    expect(history.map((p) => p.id)).toEqual(["hist"]);
+  });
+
+  it("jobPagePlans (page wiring) keeps LA-today open — no zone arg to swap", () => {
+    const now = new Date("2026-10-27T00:30:00.000Z");
+    const plans = [
+      { id: "hist", planDate: "2026-10-23" },
+      { id: "today", planDate: "2026-10-26" },
+      { id: "tomorrow", planDate: "2026-10-27" },
+    ];
+    const { today, open, history } = jobPagePlans(plans, now);
+    expect(today).toBe("2026-10-26");
+    expect(today).not.toBe(now.toISOString().slice(0, 10));
     expect(open.map((p) => p.id)).toEqual(["today", "tomorrow"]);
     expect(history.map((p) => p.id)).toEqual(["hist"]);
   });

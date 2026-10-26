@@ -15,7 +15,7 @@ import { NewPlanForm } from "@/components/app/new-plan-form";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { mh, pct, usdShort } from "@/lib/ev";
-import { splitPlansByPlanToday, timeZoneForJob } from "@/lib/plan-date";
+import { jobPagePlans } from "@/lib/plan-date";
 import { getJob, getJobEvControls, getPlansForJob } from "@/server/data";
 import {
   draftClaimForJob,
@@ -74,7 +74,7 @@ async function Job({ params }: { params: Promise<{ number: string }> }) {
     today: todayPlan,
     open: openPlans,
     history: historyPlans,
-  } = splitPlansByPlanToday(plans, seedNow(), timeZoneForJob());
+  } = jobPagePlans(plans, seedNow());
   const historyDay = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
       weekday: "short",
