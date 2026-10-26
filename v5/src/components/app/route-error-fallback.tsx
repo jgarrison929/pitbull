@@ -21,16 +21,19 @@ function errorDigest(error: unknown): string | undefined {
 /**
  * Honest recovery UI for App Router error boundaries.
  * Copy matches product failure tone ("Reset failed, try again") — real recovery actions only.
+ * Digest is logged only (never shown) so users do not see internal error ids.
  */
 export function RouteErrorFallback({
   error,
   retry,
   scope,
 }: RouteErrorFallbackProps) {
-  const digest = errorDigest(error);
-
   useEffect(() => {
-    console.error(scope === "global" ? "[global-error]" : "[error]", error);
+    const digest = errorDigest(error);
+    console.error(
+      scope === "global" ? "[global-error]" : "[error]",
+      digest ? { digest, error } : error,
+    );
   }, [error, scope]);
 
   const title =
@@ -40,9 +43,11 @@ export function RouteErrorFallback({
       ? "Pitbull could not render the app shell. Try again. If it keeps failing, open the demo login and pick a role."
       : "This screen failed to render. Try again. If it keeps failing, open the demo login and pick a role.";
 
+  // `div` (not `main`): the `/app` segment boundary renders inside AppShell's `<main>`.
   return (
-    <main
-      className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-6 py-16"
+    <div
+      role="alert"
+      className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 py-8 md:py-16"
       data-testid={scope === "global" ? "global-error" : "route-error"}
     >
       <div className="flex flex-col gap-3 rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10">
@@ -56,11 +61,6 @@ export function RouteErrorFallback({
           <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm text-muted-foreground">{detail}</p>
         </div>
-        {digest ? (
-          <p className="px-4 font-mono text-xs break-all text-muted-foreground">
-            Error id {digest}
-          </p>
-        ) : null}
         <div className="flex flex-wrap items-center gap-2 border-t bg-muted/50 px-4 py-3">
           <button
             type="button"
@@ -80,6 +80,6 @@ export function RouteErrorFallback({
       <p className="text-xs text-muted-foreground">
         Construction project controls. Demo data only.
       </p>
-    </main>
+    </div>
   );
 }

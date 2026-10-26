@@ -2,7 +2,10 @@
 
 import { RouteErrorFallback } from "@/components/app/route-error-fallback";
 
-/** Segment error boundary — keeps root layout; offers retry. */
+/**
+ * Root segment boundary — keeps root layout only.
+ * `/app` routes use `app/app/error.tsx` so AppShell stays visible.
+ */
 export default function Error({
   error,
   retry,
