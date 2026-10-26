@@ -31,6 +31,7 @@ import {
   getReportedActualsForPlans,
 } from "@/server/progress";
 import { createSandbox } from "@/server/sandbox";
+import { getJobSchedule } from "@/server/schedule-view";
 import { seedNow } from "@/server/seed-clock";
 import { FIELD_HISTORY_WORKING_DAYS } from "@/seed/field-history";
 
@@ -55,6 +56,7 @@ async function loadJobPageData(companyId: string, number: string) {
     approvalPending,
     coData,
     crewRows,
+    schedule,
   ] = await Promise.all([
     getPortfolio(companyId),
     getJobPagePlans(companyId, p.job.id, todayLA),
@@ -64,6 +66,7 @@ async function loadJobPageData(companyId: string, number: string) {
     getApprovalPendingByCostItem(companyId, p.job.id),
     listChangeOrders(companyId, p.job.number),
     listCrews(companyId),
+    getJobSchedule(companyId, p.job.number),
   ]);
   const { openPlans, historyPlans } = pagePlans;
   const reportable = openPlans.filter(
@@ -85,6 +88,7 @@ async function loadJobPageData(companyId: string, number: string) {
     approvalPending,
     coData,
     crewRows,
+    schedule,
     reportedByPlan,
     historyMh,
     budgetCents: p.budgetCents,

@@ -56,6 +56,7 @@ function proxySql(rawDatabaseUrl: string) {
  * Covers:
  * - /app/jobs/:number
  * - /app/jobs/:number/changes
+ * - /app/jobs/:number/schedule  (5.1.0-c; draft Harbor → 404)
  * - /app/jobs/:number/cost-items/:code  (not …/search)
  * - /app/jobs/:number/plans/:id
  */
@@ -78,16 +79,17 @@ export async function proxy(request: NextRequest) {
   const db = proxySql(databaseUrl);
   try {
     // One round-trip: session + job (was two serial queries after a fresh connect).
-    const rows = await db<{ job_id: string }[]>`
-      select j.id as job_id
+    // estimate_status needed so draft Harbor has no Schedule URL (5.1.0-c).
+    const rows = await db<{ job_id: string; estimate_status: string }[]>`
+      select j.id as job_id, j.estimate_status
       from sessions s
       inner join jobs j on j.company_id = s.company_id
       where s.id = ${sessionId}
         and s.expires_at > now()
         and j.number = ${parsed.number}
       limit 1`;
-    const jobId = rows[0]?.job_id;
-    if (!jobId) {
+    const job = rows[0];
+    if (!job) {
       // Distinguish unknown job (404) from missing/expired session (fall through).
       const sessions = await db<{ company_id: string }[]>`
         select company_id from sessions
@@ -101,10 +103,16 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next();
     }
 
+    if (parsed.kind === "schedule") {
+      // Draft-estimate jobs (Harbor) have no Schedule nav entry.
+      if (job.estimate_status === "draft") return notFoundResponse();
+      return NextResponse.next();
+    }
+
     if (parsed.kind === "cost-item") {
       const items = await db<{ id: string }[]>`
         select id from cost_items
-        where job_id = ${jobId}
+        where job_id = ${job.job_id}
           and code = ${parsed.code}
           and is_leaf = true
         limit 1`;
@@ -115,7 +123,7 @@ export async function proxy(request: NextRequest) {
     // plan
     const plans = await db<{ id: string }[]>`
       select id from daily_plans
-      where job_id = ${jobId}
+      where job_id = ${job.job_id}
         and id = ${parsed.planId}::uuid
       limit 1`;
     if (plans.length === 0) return notFoundResponse();
@@ -129,6 +137,7 @@ export const config = {
   matcher: [
     "/app/jobs/:number",
     "/app/jobs/:number/changes",
+    "/app/jobs/:number/schedule",
     "/app/jobs/:number/cost-items/:code",
     "/app/jobs/:number/plans/:id",
   ],

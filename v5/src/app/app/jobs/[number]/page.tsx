@@ -28,6 +28,8 @@ import { requireUser, type CurrentUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
 import { actions, jobChanges } from "@/server/assistant/actions";
 import { LocalTime } from "@/components/app/local-time";
+import { JobScheduleSection } from "@/components/app/gantt";
+import { getJobSchedule } from "@/server/schedule-view";
 
 export default function JobPage({ params }: PageProps<"/app/jobs/[number]">) {
   return (
@@ -92,6 +94,7 @@ export async function Job({
     approvalPending,
     coData,
     crewRows,
+    schedule,
   ] = await Promise.all([
     // Open cards keep full lines; 30-day history is summary-only (RSC budget).
     // Today is computed inside getJobPagePlans via planDateToday(seedNow()).
@@ -106,6 +109,8 @@ export async function Job({
     getApprovalPendingByCostItem(user.companyId, p.job.id),
     listChangeOrders(user.companyId, p.job.number),
     canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
+    // Harbor (draft) returns showScheduleNav:false — section stays hidden.
+    getJobSchedule(user.companyId, p.job.number),
   ]);
   // Typed payloads from getJobPagePlans (open = full lines; history = summaries).
   const openPlans = pagePlans.openPlans;
@@ -586,6 +591,7 @@ export async function Job({
           searchUrl={`/app/jobs/${p.job.number}/cost-items/search`}
         />
       ) : null}
+      {schedule ? <JobScheduleSection schedule={schedule} /> : null}
       <Section
         title="Changes on this job"
         meta="Every edit, report, approve, return, and change order, by anyone on this job"

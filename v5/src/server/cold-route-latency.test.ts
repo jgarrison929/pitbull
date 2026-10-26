@@ -34,6 +34,7 @@ import {
   getReportedActualsForPlans,
 } from "@/server/progress";
 import { createSandbox } from "@/server/sandbox";
+import { getJobSchedule } from "@/server/schedule-view";
 import { seedNow } from "@/server/seed-clock";
 
 const db = getDb();
@@ -59,7 +60,7 @@ async function loadJobRoute(companyId: string, number: string) {
   const p = await getJob(companyId, number);
   if (!p) throw new Error(`missing job ${number}`);
   const todayLA = planDateToday(seedNow());
-  const [portfolio, pagePlans, , , , , ,] = await Promise.all([
+  const [portfolio, pagePlans, , , , , , ,] = await Promise.all([
     getPortfolio(companyId),
     getJobPagePlans(companyId, p.job.id, todayLA),
     jobChanges(companyId, p.job.number),
@@ -68,6 +69,8 @@ async function loadJobRoute(companyId: string, number: string) {
     getApprovalPendingByCostItem(companyId, p.job.id),
     listChangeOrders(companyId, p.job.number),
     listCrews(companyId),
+    // 5.1.0-c Schedule section read path (mirrors job page).
+    getJobSchedule(companyId, p.job.number),
   ]);
   const reportable = pagePlans.openPlans.filter(
     (pl) => pl.status === "issued" || pl.status === "reported",

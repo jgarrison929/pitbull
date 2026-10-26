@@ -5,6 +5,8 @@ import {
   activityDatesBeforeCpm,
   DEFAULT_WORKDAYS_MASK,
   activities,
+  barPlacement,
+  ganttAxisRange,
   jobCalendars,
 } from "./index";
 
@@ -15,6 +17,8 @@ describe("@/lib/schedule module surface", () => {
     expect(DEFAULT_WORKDAYS_MASK).toBe(31);
     expect(ACTIVITY_DURATION_MIN_DAYS).toBe(1);
     expect(ACTIVITY_DURATION_MAX_DAYS).toBe(3_650);
+    expect(typeof barPlacement).toBe("function");
+    expect(typeof ganttAxisRange).toBe("function");
   });
 
   it("activityDatesBeforeCpm mirrors early onto late with zero float", () => {

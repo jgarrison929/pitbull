@@ -209,9 +209,24 @@ function visualSuite(theme: "light" | "dark") {
           page.locator('[data-testid="plan-card"][data-plan-date="2026-10-21"]'),
         ).toBeVisible();
         await expect(page.getByTestId("plan-history")).toBeVisible();
+        await expect(page.getByTestId("job-schedule-section")).toBeVisible();
         await expect(page.getByTestId("job-changes")).toBeVisible();
         await expect(page.getByTestId("job-finish")).toBeVisible();
         await shotPage(page, `job-desktop${suffix}`);
+      });
+
+      test("schedule gantt as pm", async ({ page }) => {
+        await signIn(page, "pm");
+        await page.goto("/app/jobs/25-031/schedule");
+        await expect(page.getByTestId("job-gantt")).toBeVisible();
+        await expect(page.getByTestId("gantt-chart")).toBeVisible();
+        await expect(
+          page.locator('[data-testid="gantt-activity"][data-code="A"]'),
+        ).toBeVisible();
+        await expect(
+          page.locator('[data-testid="gantt-activity"][data-code="C"]'),
+        ).toBeVisible();
+        await shotPage(page, `schedule-desktop${suffix}`);
       });
 
       test("harbor 26-010 change history as pm", async ({ page }) => {
@@ -221,6 +236,8 @@ function visualSuite(theme: "light" | "dark") {
         const changes = page.getByTestId("job-changes");
         await expect(changes).toBeVisible();
         await expect(changes.locator("li").first()).toBeVisible();
+        // Draft Harbor has no Schedule nav entry (5.1.0-c).
+        await expect(page.getByTestId("job-schedule-section")).toHaveCount(0);
         await shotPage(page, `job-harbor-desktop${suffix}`);
       });
 
@@ -277,7 +294,21 @@ function visualSuite(theme: "light" | "dark") {
           page.locator('[data-testid="plan-card"][data-plan-date="2026-10-21"]'),
         ).toBeVisible();
         await expect(page.getByTestId("plan-history")).toBeVisible();
+        await expect(page.getByTestId("job-schedule-section")).toBeVisible();
         await shotPage(page, `job-phone${suffix}`);
+      });
+
+      test("schedule stacked list as pm", async ({ page }) => {
+        await signIn(page, "pm");
+        await page.goto("/app/jobs/25-031/schedule");
+        await expect(page.getByTestId("job-gantt")).toBeVisible();
+        await expect(page.getByTestId("gantt-stack")).toBeVisible();
+        await expect(page.getByTestId("gantt-chart")).toBeHidden();
+        await expect(
+          page.locator('[data-testid="gantt-activity"][data-code="C"]'),
+        ).toBeVisible();
+        await expect(page.getByTestId("phone-tab-bar")).toBeVisible();
+        await shotPage(page, `schedule-phone${suffix}`);
       });
 
       test("harbor 26-010 change history as pm", async ({ page }) => {
@@ -285,6 +316,8 @@ function visualSuite(theme: "light" | "dark") {
         await page.goto("/app/jobs/26-010");
         await expect(page.getByText("No changes yet.")).toHaveCount(0);
         await expect(page.getByTestId("job-changes")).toBeVisible();
+        // Draft Harbor has no Schedule nav entry (5.1.0-c).
+        await expect(page.getByTestId("job-schedule-section")).toHaveCount(0);
         await shotPage(page, `job-harbor-phone${suffix}`);
       });
 
