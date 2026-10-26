@@ -163,9 +163,11 @@ for (const role of ROLES) {
 const paths = [];
 for (let i = 0; i < CONCURRENCY; i++) {
   const role = ROLES[i % ROLES.length];
+  const width = WIDTHS[i % WIDTHS.length];
   const usePlan = i % 3 === 0 && planByRole[role];
   paths.push({
     role,
+    width,
     path: usePlan
       ? planByRole[role]
       : COST_PATHS[i % COST_PATHS.length],
@@ -175,15 +177,15 @@ for (let i = 0; i < CONCURRENCY; i++) {
 
 const allSamples = [];
 const proxyDurs = [];
+const dbMsSamples = [];
+/** @type {Record<string, number[]>} */
+const byWidth = Object.fromEntries(WIDTHS.map((w) => [String(w), []]));
 
 for (let round = 0; round < ROUNDS; round++) {
   // Warm once per round with a single sequential hit so cold compile is out.
   if (round === 0) {
     await measureTtfb(paths[0].cookie, paths[0].path);
   }
-  // Bound concurrency with a small wave so a wedged stream cannot kill the
-  // whole Promise.all (Verify Phase A uses many contexts but sequential pages
-  // per context; we still want overlapping documents).
   // Default = full concurrency (matches Verify). WAVE=N can shard if needed.
   const wave = Math.min(
     paths.length,
@@ -194,7 +196,8 @@ for (let round = 0; round < ROUNDS; round++) {
     const results = await Promise.all(
       chunk.map(async (p) => {
         try {
-          return await measureTtfb(p.cookie, p.path);
+          const r = await measureTtfb(p.cookie, p.path);
+          return { ...r, width: p.width, role: p.role };
         } catch (err) {
           console.error(`FAIL ${p.path} ${err instanceof Error ? err.message : err}`);
           process.exitCode = 1;
@@ -209,15 +212,21 @@ for (let round = 0; round < ROUNDS; round++) {
         process.exitCode = 1;
       }
       allSamples.push(r.ttfbMs);
+      byWidth[String(r.width)].push(r.ttfbMs);
       if (typeof r.serverTiming.v5proxy === "number") {
         proxyDurs.push(r.serverTiming.v5proxy);
       }
+      if (r.pageMeta?.db != null) dbMsSamples.push(r.pageMeta.db);
     }
   }
 }
 
 const ttfb = summarize(allSamples);
 const proxy = proxyDurs.length ? summarize(proxyDurs) : null;
+const dbMs = dbMsSamples.length ? summarize(dbMsSamples) : null;
+const byWidthSummary = Object.fromEntries(
+  WIDTHS.map((w) => [String(w), summarize(byWidth[String(w)])]),
+);
 const report = {
   label: LABEL,
   base: BASE,
@@ -225,7 +234,9 @@ const report = {
   rounds: ROUNDS,
   targets: { p95TtfbMs: 200, maxTtfbMs: 400 },
   ttfb,
+  byWidth: byWidthSummary,
   proxyDurMs: proxy,
+  dataDbMs: dbMs,
   pass: ttfb.p95 < 200 && ttfb.max < 400,
   samplesMs: allSamples.map((ms) => Math.round(ms)),
 };
