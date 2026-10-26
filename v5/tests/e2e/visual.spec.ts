@@ -139,22 +139,36 @@ async function stabilize(page: Page) {
 /**
  * Grow the viewport to the document height so sticky `h-svh` rails paint the
  * full page (fullPage stitching otherwise clips them at the original 800px).
+ *
+ * Re-measure after each resize: growing the viewport can reflow sticky rails
+ * and change scrollHeight. A single pass left dark/phone harbor short by
+ * ~172px in CI (identical top content, clipped bottom) — maxDiffPixels 0.
  */
 async function fitViewportToPage(page: Page) {
   const box = page.viewportSize();
   if (!box) throw new Error("no viewport");
-  const contentHeight = await page.evaluate(() =>
-    Math.ceil(
-      Math.max(
-        document.documentElement.scrollHeight,
-        document.body?.scrollHeight ?? 0,
+  let height = box.height;
+  for (let i = 0; i < 4; i++) {
+    const contentHeight = await page.evaluate(() =>
+      Math.ceil(
+        Math.max(
+          document.documentElement.scrollHeight,
+          document.body?.scrollHeight ?? 0,
+        ),
       ),
-    ),
-  );
-  await page.setViewportSize({
-    width: box.width,
-    height: Math.max(box.height, contentHeight),
-  });
+    );
+    const next = Math.max(height, contentHeight);
+    if (next === height) break;
+    height = next;
+    await page.setViewportSize({ width: box.width, height });
+    // Let layout settle after the resize before re-measuring.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+  }
 }
 
 async function shotPage(page: Page, name: string) {
