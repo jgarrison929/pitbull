@@ -1,0 +1,7 @@
+fix(v5): point cold-route latency test at db/test-hooks
+
+After extracting resetDbClient into test-hooks (#17), update the #28
+cold-route acceptance test to import the new API so typecheck/vitest pass on main.
+
+Co-authored-by: jgarrison929 <jgarrison929@gmail.com>
+

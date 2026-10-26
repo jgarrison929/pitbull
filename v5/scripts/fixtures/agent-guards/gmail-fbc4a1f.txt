@@ -1,0 +1,29 @@
+deps: bump @tanstack/react-virtual from 3.14.21 to 3.14.22 in /v5 (#3)
+
+* deps: bump @tanstack/react-virtual from 3.14.21 to 3.14.22 in /v5
+
+Bumps [@tanstack/react-virtual](https://github.com/TanStack/virtual/tree/HEAD/packages/react-virtual) from 3.14.21 to 3.14.22.
+- [Release notes](https://github.com/TanStack/virtual/releases)
+- [Changelog](https://github.com/TanStack/virtual/blob/main/packages/react-virtual/CHANGELOG.md)
+- [Commits](https://github.com/TanStack/virtual/commits/@tanstack/react-virtual@3.14.22/packages/react-virtual)
+
+---
+updated-dependencies:
+- dependency-name: "@tanstack/react-virtual"
+  dependency-version: 3.14.22
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+
+* ci: nudge ci-gate for Dependabot PR #3
+
+Co-authored-by: jgarrison929 <jgarrison929@gmail.com>
+
+---------
+
+Signed-off-by: dependabot[bot] <support@github.com>
+Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+Co-authored-by: Cursor Agent <cursoragent@cursor.com>
+Co-authored-by: jgarrison929 <jgarrison929@gmail.com>

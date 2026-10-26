@@ -1,0 +1,91 @@
+d8d1c6a69f41bc162de088b455bbaff8460a4f52
+100644 96c7ec525ca2cc829e2e5abd8dddc2a3f01ce0e2 1	v5/src/components/app/shell.tsx
+100644 aa58e6901e7a16395e020e4599585789aa840710 2	v5/src/components/app/shell.tsx
+100644 0eba964cb01da7ec559cdd12ef2463b6647f01cb 3	v5/src/components/app/shell.tsx
+100644 d744007e3cfe111d87f49ced1b87078d0f941087 1	v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-chromium-linux.png
+100644 5f451eb4cf7712ae5ac0942563215a2a35093b7a 2	v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-chromium-linux.png
+100644 b772699f436005411504970cd18f39d601d6f5a6 3	v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-chromium-linux.png
+100644 e28ae3475cecd0e0c424b894bf1082a8a957451c 1	v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-dark-chromium-linux.png
+100644 75ac36515b0184994882a9ca683edaa944927189 2	v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-dark-chromium-linux.png
+100644 66bac5bca171541cb3a8dafb7e5e45cde671c56c 3	v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-dark-chromium-linux.png
+100644 b08443345b4c422c60753a60605e704358a2a8cb 1	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-chromium-linux.png
+100644 1029b22ca7a02d5ae1788b1746a92e4e8e95fc1f 2	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-chromium-linux.png
+100644 771f9201259f04c4eb053bd6b97d54317bb42342 3	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-chromium-linux.png
+100644 2841593017a686719f0e452e9b5cdf2cde016067 1	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-dark-chromium-linux.png
+100644 39e491df6cc1d0b4192caec866c74bdf8ddd032d 2	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-dark-chromium-linux.png
+100644 c6805657401c9d284f16f88286c5ef9ec0ab7d50 3	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-dark-chromium-linux.png
+100644 7b6a30b21cec6503d8c1245ac7bc8a0fceab7b47 1	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-chromium-linux.png
+100644 c91b370f7599b178cbf79650c833b5e90395fa1f 2	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-chromium-linux.png
+100644 762d7ac22d05fd3f32e526ebd65cf1c142ff24b7 3	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-chromium-linux.png
+100644 20404ee235d3229722c6e0fd5c36b645e6f7b657 1	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-dark-chromium-linux.png
+100644 336fea36b8bc32ddf23a6f0f6d26e3ce11fbcdf7 2	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-dark-chromium-linux.png
+100644 c879c28b4a59f5b66612ed4f54e7668601f5c7aa 3	v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-dark-chromium-linux.png
+100644 6e9a47300911771742b418dd46fcce401ee73896 1	v5/tests/e2e/visual.spec.ts-snapshots/job-phone-chromium-linux.png
+100644 29f40f933f91186f1c9b6f71935e02f5981932a0 2	v5/tests/e2e/visual.spec.ts-snapshots/job-phone-chromium-linux.png
+100644 765c2198671fb426ccda81df4b9b66509282504b 3	v5/tests/e2e/visual.spec.ts-snapshots/job-phone-chromium-linux.png
+100644 2c7eef5c2dbcd481e47770be4db5c6a2a1996737 1	v5/tests/e2e/visual.spec.ts-snapshots/job-phone-dark-chromium-linux.png
+100644 170ddb69f2030d7618f6c0ebab2d2fa1bc3d40b5 2	v5/tests/e2e/visual.spec.ts-snapshots/job-phone-dark-chromium-linux.png
+100644 27a0ae841f538784a5fb878fd34cf1323207dfe2 3	v5/tests/e2e/visual.spec.ts-snapshots/job-phone-dark-chromium-linux.png
+100644 ab98db988ddbaedba61833b4ab60e9cd32c6af29 1	v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-chromium-linux.png
+100644 e8c9191cef6433c9c8fd94002d6980cf5d16bc56 2	v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-chromium-linux.png
+100644 ad4f71620f201e9b5174c7d7720403bda8269545 3	v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-chromium-linux.png
+100644 d9cf66ddb33d835ec8a277656576d53250f0a0da 1	v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-dark-chromium-linux.png
+100644 d336e98613ad7f2f99d30e7068a6dd759b63a176 2	v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-dark-chromium-linux.png
+100644 3b94291f816b39dd52716731918e5d8d450fbc23 3	v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-dark-chromium-linux.png
+100644 3bd1eae88ffbeaf4fef5f8554fb1ec5d5b5ddf6c 1	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-chromium-linux.png
+100644 4caead669eedfefa027efc93c1dce8fae3fce879 2	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-chromium-linux.png
+100644 68381c806363d9d14c99a5a21d40a473ff621019 3	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-chromium-linux.png
+100644 8c6d0abd1bc0452885dd01532f76bb5421522ce6 1	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-dark-chromium-linux.png
+100644 ac360dac4e96ba910465835c86395aee08c5231f 2	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-dark-chromium-linux.png
+100644 91bf8ca29210088d85f65cd8d1a2ca15712974b0 3	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-dark-chromium-linux.png
+100644 1e6f8ff0201dbaf28b885c5d98bca91aa50fef9c 1	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-chromium-linux.png
+100644 37f9954c023990a9a9660711bd1438866524c6ec 2	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-chromium-linux.png
+100644 89d73721649f07755ba09a29eb255c373f56f137 3	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-chromium-linux.png
+100644 df7f7c0c20cc42376f08e3a70d3d4c67aca47ddf 1	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-dark-chromium-linux.png
+100644 476fc86df0f263fb67619820fe6626b50989aa6d 2	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-dark-chromium-linux.png
+100644 bc936727feb11e558e70f65cc6b63acc469a6a37 3	v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-dark-chromium-linux.png
+
+Auto-merging v5/src/components/app/shell.tsx
+CONFLICT (content): Merge conflict in v5/src/components/app/shell.tsx
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-dark-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-dark-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-desktop-dark-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-dark-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-dark-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-desktop-dark-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-dark-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-dark-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-harbor-phone-dark-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-phone-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-phone-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-phone-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-phone-dark-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-phone-dark-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-phone-dark-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-dark-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-dark-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/job-superintendent-desktop-dark-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-dark-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-dark-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/portfolio-desktop-dark-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-chromium-linux.png
+warning: Cannot merge binary files: v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-dark-chromium-linux.png (69182163b92bdc4ecefa2371e2fe23a5933c5f48 vs. ae0062a412df3311406ab0ee835780001b4b5f15)
+Auto-merging v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-dark-chromium-linux.png
+CONFLICT (content): Merge conflict in v5/tests/e2e/visual.spec.ts-snapshots/portfolio-phone-dark-chromium-linux.png

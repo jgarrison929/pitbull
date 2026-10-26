@@ -1,0 +1,7 @@
+(e) => e.tag) }), []);
+  const headJournal = JSON.parse(execFileSync("git", ["show", "HEAD:v5/drizzle/meta/_journal.json"], { cwd: path.resolve(here, "../../.."), encoding: "utf8" }));
+  assert.equal(headJournal.entries.length, 21, "main's journal is 21 tags");
+  assert.equal(headJournal.entries.at(-1).tag, "0020_schedule_activities");
+  assert.deepEqual(journalSkipFailures(headJournal.entries), []);
+  const headTags = headJournal.entries.map((e) => e.tag);
+  assert.deepEqual(evaluateAppliedJournal({ journal: headJournal.entries, statusLabel: headTags.join(", "), healthMigrations: headTags }),
