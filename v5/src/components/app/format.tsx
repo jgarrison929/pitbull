@@ -26,6 +26,37 @@ const statusStyle: Record<
   },
 };
 
+/**
+ * Every number on a MetricCard (and phone list rows) goes through Figure so
+ * Verify can count primary/secondary figures (5.0.4-c).
+ */
+export function Figure({
+  children,
+  variant = "primary",
+  className,
+  ...props
+}: {
+  children: React.ReactNode;
+  variant?: "primary" | "secondary";
+  className?: string;
+} & React.HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span
+      data-figure={variant}
+      className={cn(
+        "tabular-nums",
+        variant === "primary"
+          ? "text-figure-primary font-semibold tracking-tight"
+          : "text-label font-medium text-muted-foreground",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </span>
+  );
+}
+
 /** A job's status. The dollar variance sits next to the color whenever it is known. */
 export function StatusPill({
   value,
@@ -37,8 +68,9 @@ export function StatusPill({
   const s = statusStyle[value];
   return (
     <span
+      data-text="label"
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-label font-medium",
         s.tone,
       )}
       data-status={value}
@@ -81,7 +113,7 @@ export function StatusIndex({
       <span data-testid={testId ? `${testId}-index` : undefined}>
         {idx(index)}
       </span>
-      <span className="text-[0.85em] font-normal">
+      <span data-text="label" className="text-label font-normal">
         {signedUsd(varianceCents)}
       </span>
     </span>
@@ -105,11 +137,13 @@ export function Money({
         ? "text-positive"
         : ""
     : "";
-  const text = exact ? usdCents(cents) : usdShort(cents);
+  const exactText = usdCents(cents);
+  const text = exact ? exactText : usdShort(cents);
   return (
     <span
       className={cn("whitespace-nowrap tabular-nums", tone)}
       data-cents={cents}
+      title={exact ? undefined : exactText}
     >
       {signed && cents > 0 ? "+" : ""}
       {text}

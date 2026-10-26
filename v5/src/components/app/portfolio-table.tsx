@@ -33,7 +33,11 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
         Draft rows show — / Draft label instead of $0 / fake CPI. (#675)
       */}
       <div className="hidden min-w-0 overflow-x-auto lg:block">
-        <table className="w-full text-sm">
+        {/*
+          min-width keeps STATUS pills ("At risk", "Watch") and index columns
+          whole under 5.0.4-c text-label/body — no "At ri" / "Wate" clip.
+        */}
+        <table className="w-full min-w-[68rem] text-sm">
           <thead>
             <tr className="border-b">
               <Th>Job</Th>
@@ -42,7 +46,7 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
               <Th right>CPI · cost var.</Th>
               <Th right>SPI · sched. var.</Th>
               <Th right>EAC</Th>
-              <Th>Status</Th>
+              <Th className="whitespace-nowrap">Status</Th>
             </tr>
           </thead>
           <tbody>
@@ -100,7 +104,7 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
                 <Td right>
                   {p.estimateDraft ? <MetricDash /> : <Money cents={p.eacCents} />}
                 </Td>
-                <Td>
+                <Td className="whitespace-nowrap">
                   {p.estimateDraft ? (
                     <DraftLabel />
                   ) : (

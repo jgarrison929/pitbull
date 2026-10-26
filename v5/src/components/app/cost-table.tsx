@@ -62,7 +62,7 @@ function BudgetCell({
   exact?: boolean;
 }) {
   return (
-    <div className="text-right">
+    <div className="whitespace-nowrap text-right">
       <Money cents={centsOf(money, set)} exact={exact} />
       {money.mhMilli > 0 ? (
         <div className="text-xs tabular-nums text-muted-foreground">
@@ -251,9 +251,8 @@ export function CostTable({
         </div>
       </div>
       {/*
-        Desktop grid min-width is ~47rem. Below lg the assistant rail is gone
-        and at 768–820px that grid was expanding document scrollWidth (~25–80px).
-        Scroll the tree inside the card; job total stays full width below. (#671)
+        Desktop grid min-width is ~56rem (5.0.4-c). Below lg the assistant rail
+        is gone; scroll the tree inside the card so the page does not grow. (#671)
       */}
       <div className="hidden min-w-0 md:block">
         <div className="overflow-x-auto">
@@ -394,17 +393,21 @@ function VirtualTreeDesktop({
     measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 12,
   });
+  // 5.0.4-c type scale: exact $665,000.00 needs ~9rem cols — avoid "Actu" / "$665,000.(".
   return (
-    <div className="min-w-[47rem]">
-      <div className="grid grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_7.5rem_7.5rem_7.5rem_7.5rem] gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground">
+    <div className="min-w-[56rem]">
+      <div className="grid grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem_10rem] gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground">
         <div>Cost code</div>
         <div className="whitespace-nowrap text-right">Installed</div>
         <div className="whitespace-nowrap text-right">% complete</div>
-        <div className="text-right" title={VALUE_SETS[valueSet].title}>
+        <div
+          className="whitespace-nowrap text-right"
+          title={VALUE_SETS[valueSet].title}
+        >
           {VALUE_SETS[valueSet].label}
         </div>
-        <div className="text-right">Earned</div>
-        <div className="text-right">Actual</div>
+        <div className="whitespace-nowrap text-right">Earned</div>
+        <div className="whitespace-nowrap text-right">Actual</div>
         <div className="whitespace-nowrap text-right">CPI · variance</div>
       </div>
       <div
@@ -428,7 +431,7 @@ function VirtualTreeDesktop({
                 ref={virtualizer.measureElement}
                 data-index={v.index}
                 className={cn(
-                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_7.5rem_7.5rem_7.5rem_7.5rem] items-start gap-x-3 border-b px-2 py-1.5 text-sm",
+                  "absolute left-0 grid w-full grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem_10rem] items-start gap-x-3 border-b px-2 py-1.5 text-sm",
                   l && !estimateDraft && hot(l) && "bg-negative-soft/60",
                 )}
                 style={{
@@ -508,21 +511,21 @@ function VirtualTreeDesktop({
                     ) : (
                       <BudgetCell money={n.money} set={valueSet} exact />
                     )}
-                    <div className="text-right">
+                    <div className="whitespace-nowrap text-right">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
                         <Money cents={l.earnedCents} exact />
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="whitespace-nowrap text-right">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
                         <Money cents={l.actualCents} exact />
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="whitespace-nowrap text-right">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (

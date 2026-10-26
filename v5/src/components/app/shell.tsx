@@ -118,8 +118,8 @@ export function AppShell({
             href={href}
             label={label}
             exact={exact}
-            className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] text-muted-foreground"
-            activeClassName="text-foreground"
+            className="tap-target flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-label text-muted-foreground"
+            activeClassName="text-brand"
           >
             <Icon className="size-5" />
             {label}
@@ -135,7 +135,10 @@ async function CompanyBadge() {
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
       <span className="truncate font-medium">{user.companyName}</span>
-      <span className="hidden rounded bg-brand/25 px-1.5 py-0.5 text-[11px] font-medium sm:inline">
+      <span
+        data-text="label"
+        className="hidden rounded bg-brand/25 px-1.5 py-0.5 text-label font-medium sm:inline"
+      >
         Demo sandbox
       </span>
     </div>
