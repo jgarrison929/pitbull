@@ -54,6 +54,7 @@ Drizzle's journal is contiguous. A number is a claim, not a file. A migration me
 | `0024` | 5.2.0-a | Claimed |
 | `0025` | 5.2.1-a | Claimed |
 | `0026`, `0027`, `0028` | 5.2.2, 5.2.3, 5.2.4 (if needed) | Claimed by the [5.2 PRD](../prd/5.2-contracts-and-subs.md) |
+| `0029` | 5.2.5-a | Claimed by the [5.2.5 spec](5.2.5-insurance-expiry-prompt.md) |
 
 5.1.3 adds no migration. The earlier `0024` reservation for a 5.1.3 import audit table is released. If 5.1.3 needs one later, it takes the next free number then.
 
@@ -71,6 +72,7 @@ Drizzle's journal is contiguous. A number is a claim, not a file. A migration me
 | 5.1.3 | [XER and Microsoft Project XML import](5.1.3-schedule-import.md) | 2026-11-10 | a to c open |
 | 5.2.0 | [Subcontracts and commitments](5.2.0-subcontracts-and-commitments.md) | 2026-11-13 | Ready to build |
 | 5.2.1 | [The Committed Cost forecast method](5.2.1-committed-cost-forecast.md) | 2026-11-17 | Ready after 5.2.0-b |
+| 5.2.5 | [Insurance expiry prompt on sub pay applications](5.2.5-insurance-expiry-prompt.md) | 2026-12-03 | Ready after 5.2.2 is on `main` |
 
 Spec rules:
 

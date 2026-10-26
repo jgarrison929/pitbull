@@ -13,6 +13,7 @@ Pitbull is a construction project controls platform. The scope, the trust bar, a
 - **The 5.2 Contracts and subs PRD is written** ([PRD](v5/prd/5.2-contracts-and-subs.md)), with build-ready specs for [5.2.0](v5/specs/5.2.0-subcontracts-and-commitments.md) and [5.2.1](v5/specs/5.2.1-committed-cost-forecast.md). All of 5.1 is in build, so 5.2 has to be ready to start.
 - **5.2 dates move in.** 5.2.0 moves from 2026-11-24 to 2026-11-13. 5.1 slices are already in PRs and observed pace is close to one increment a day.
 - **5.2 migrations start at `0024`.** `0021` to `0023` are taken by 5.1 (see [migration numbers](#migration-numbers)).
+- **Expired sub insurance prompts, it does not block.** Joshua decided that a sub pay application can still be submitted with an expired liability certificate. The submit flow asks for a current certificate right then, and the reviewer sees the state. Approval is not blocked. This is 5.2.5 on 2026-12-03 ([spec](v5/specs/5.2.5-insurance-expiry-prompt.md)).
 
 ## How versions work
 
@@ -164,7 +165,7 @@ Locked rules for every 5.1 increment:
 
 ## Then: 5.2 Contracts and subs
 
-5.2 adds subcontracts, commitments, the committed-cost forecast method, minimal sub pay applications with retention, and sub change orders. It builds on M5 change orders. The [5.2 PRD](v5/prd/5.2-contracts-and-subs.md) is the source of scope. The [contracts intel](v5/intel/contracts.md) is the source of claim IDs.
+5.2 adds subcontracts, commitments, the committed-cost forecast method, minimal sub pay applications with retention, sub change orders, and an insurance expiry prompt on sub pay applications. It builds on M5 change orders. The [5.2 PRD](v5/prd/5.2-contracts-and-subs.md) is the source of scope. The [contracts intel](v5/intel/contracts.md) is the source of claim IDs.
 
 | Version | Target (PT) | Increment | Spec | Migration |
 |---|---|---|---|---|
@@ -173,10 +174,11 @@ Locked rules for every 5.1 increment:
 | 5.2.2 | 2026-11-20 | Sub pay applications with retention. Approval posts gross earned to AC once and lowers open commitment | Spec next | `0026` (claim) |
 | 5.2.3 | 2026-11-24 | Sub change orders that reference owner change-order lines. Pending sub exposure shows next to EAC | Spec next | `0027` (claim) |
 | 5.2.4 | 2026-12-01 | Retention release capped at retention held, and subcontract close-out | Spec next | `0028` (claim, if needed) |
+| 5.2.5 | 2026-12-03 | Insurance expiry prompt on sub pay applications. When the sub's liability certificate has expired, submit asks for a current certificate in the same flow. The reviewer sees current, renewed, or expired. Submit and approval are not blocked | [5.2.5](v5/specs/5.2.5-insurance-expiry-prompt.md) | `0029` (claim) |
 
-5.2.3 lands before Thanksgiving Day (2026-11-26). 5.2.4 lands the Tuesday after. Specs for 5.2.2 to 5.2.4 are due by 2026-11-13, when 5.2.0 enters verify.
+5.2.3 lands before Thanksgiving Day (2026-11-26). 5.2.4 lands the Tuesday after, and 5.2.5 that Thursday. Specs for 5.2.2 to 5.2.4 are due by 2026-11-13, when 5.2.0 enters verify. 5.2.5 needs 5.2.2 on `main`.
 
-The insurance-expiry hold on pay applications (contracts intel recommendation 5) stays out of 5.2 until Joshua decides. The PRD lists it as the open question.
+Joshua decided the insurance question on 2026-10-26: no hold on pay applications. Contracts intel recommendation 5 proposed refusing approval after expiry. 5.2.5 prompts for a current certificate at submit instead, and shows the state to the reviewer. See the [PRD decision](v5/prd/5.2-contracts-and-subs.md#insurance-decision-2026-10-26).
 
 ## Later releases
 
@@ -221,5 +223,6 @@ Drizzle's journal is contiguous. A number is a claim, not a file. A migration me
 | `0024` | 5.2.0-a | Claimed by the [5.2.0 spec](v5/specs/5.2.0-subcontracts-and-commitments.md) |
 | `0025` | 5.2.1-a | Claimed by the [5.2.1 spec](v5/specs/5.2.1-committed-cost-forecast.md) |
 | `0026` to `0028` | 5.2.2 to 5.2.4 | Claimed by the [5.2 PRD](v5/prd/5.2-contracts-and-subs.md) |
+| `0029` | 5.2.5-a | Claimed by the [5.2.5 spec](v5/specs/5.2.5-insurance-expiry-prompt.md) |
 
 5.1.3 adds no migration (none of [#35](https://github.com/jgarrison929/pitbull/pull/35), [#38](https://github.com/jgarrison929/pitbull/pull/38), or [#39](https://github.com/jgarrison929/pitbull/pull/39) has one). If it needs an import audit table later, it takes the next free number then.
