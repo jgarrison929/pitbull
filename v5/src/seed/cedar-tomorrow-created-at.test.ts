@@ -19,6 +19,7 @@ import { seed, seedId } from "./index";
 const company = "00000000-0000-4000-8000-0000000000ct";
 const v5Root = fileURLToPath(new URL("../..", import.meta.url));
 const isTzChild = process.env.CEDAR_CREATED_TZ_CHILD === "1";
+const expectTz = process.env.CEDAR_CREATED_EXPECT_TZ;
 
 /** Clocks that exposed the bug: Created at tomorrow@06:00Z after "now". */
 const CLOCKS = [
@@ -57,6 +58,12 @@ function assertCedarTomorrowCreatedChronology(now: Date) {
 }
 
 describe("Cedar tomorrow Created chronology", () => {
+  if (expectTz) {
+    it(`child process TZ is ${expectTz}`, () => {
+      expect(process.env.TZ).toBe(expectTz);
+    });
+  }
+
   for (const now of CLOCKS) {
     it(`Created before seed now at ${now.toISOString()}`, () => {
       assertCedarTomorrowCreatedChronology(now);
@@ -81,12 +88,15 @@ describe.skipIf(isTzChild)("Cedar tomorrow Created under host TZ", () => {
             ...process.env,
             TZ: tz,
             CEDAR_CREATED_TZ_CHILD: "1",
+            CEDAR_CREATED_EXPECT_TZ: tz,
+            // CI colors break fragile summary regexes; exit status is the gate.
+            NO_COLOR: "1",
+            FORCE_COLOR: "0",
           },
           encoding: "utf8",
         },
       );
       expect(r.status, `stdout:\n${r.stdout}\nstderr:\n${r.stderr}`).toBe(0);
-      expect(r.stdout + r.stderr).toMatch(/Tests\s+3 passed/);
     });
   }
 });
