@@ -23,6 +23,7 @@ Public versions are `5.<feature>.<increment>`.
 - The increment number counts demo-able releases inside that module. 5.0.1 is the first increment after 5.0.0.
 - Each increment fits in one cloud-agent PR or a few parallel ones. It merges through `ci-gate`, deploys to staging, and passes Pitbull Verify on staging before release.
 - A release moves `v5/package.json` and root `VERSION` to the new version and adds the matching entry to `v5/src/content/changelog.ts`. The `/changelog` and `/status` pages read those. The tag `v5.x.y` goes on the release commit after staging verify passes.
+- **Release status.** A version's row in `shipped` in `v5/src/content/roadmap.ts` may land in the release commit, because the `v5.<x>.<y>` tag is cut from that commit. In this file, the version's status column reads "Tagged, awaiting production verify" from the tag until the production verify passes. Only then does it read "Released". Verify accepts a `shipped` row in `roadmap.ts` when the version's tag points at the commit that added the row, or at a commit that descends from it. A `shipped` row with no tag, or with a tag on a commit that does not contain the row, fails.
 - From 5.0.4, slices merge into an `rc/<version>` branch first. Staging gets one handover of the RC head, and `verify-v5 --rc <sha>` proves that exact commit (merged in [#31](https://github.com/jgarrison929/pitbull/pull/31); `ci-gate` runs on `rc/**` since [#30](https://github.com/jgarrison929/pitbull/pull/30)).
 
 **Evidence of pace.** On the public history, 19 PRs merged to `main` between 2026-10-25 at 4:55 PM and 2026-10-26 at 10:31 AM PT, plus 5.0.4-c into `rc/5.0.4`. 5.0.1 and 5.0.2 landed one day apart. More than ten feature slices are open at once when file ownership does not collide.
@@ -129,7 +130,7 @@ Not started: 5.0.4-g (guided demo path), 5.1.1 wire-up (links table, link action
 | 5.0.2 | 2026-10-26 | Crew rates, field history, cost drill-down | [5.0.2](v5/specs/5.0.2-crew-rates-and-field-history.md) | Tag `v5.0.2`, promote production, production verify |
 | 5.0.3 | 2026-10-26 | Average Performance per cost item, dark theme, plan history, faster job pages | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) (Parts B to F) | Staging verify on the tagged sha, tag, production verify |
 | 5.0.4 | 2026-10-30 | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) | Slices a, b, d, e, f pass Verify into `rc/5.0.4`. Slice g gets built. One RC handover with phone checks, then merge to `main` and tag |
-| 5.0.5 | 2026-11-02 | The S-curve for each job and the portfolio | [5.0.3 Part A](v5/specs/5.0.3-s-curve-and-forecast-methods.md) | #12 passes Verify and merges to main, then stamp, staging verify, tag |
+| 5.0.5 | 2026-11-02 | The S-curve for each job and the portfolio | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) | #12 passes Verify and merges to main, then stamp, staging verify, tag |
 
 5.0.4 is a 5.0 increment because the app did not show what to do next and was crowded on phones (Joshua's review, 2026-10-25). That misses trust bar item 5. It adds no migration, so it runs beside 5.1.0.
 
@@ -137,7 +138,7 @@ Gaps still open in the 5.0 story:
 
 | Gap on `main` | Promised for 5.0? | Placed in |
 |---|---|---|
-| No S-curve | Yes, section 4 step 5 and M4 | 5.0.5 (was 5.0.3 Part A) ([#12](https://github.com/jgarrison929/pitbull/pull/12)) |
+| No S-curve | Yes, section 4 step 5 and M4 | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) ([#12](https://github.com/jgarrison929/pitbull/pull/12)) |
 | No page says what to do next. Phone pages were wider than the screen | Yes, trust bar item 5 | 5.0.4 (5.0.4-0 merged; the rest in build) |
 | Equipment hours on a plan cost nothing | Section 4 step 5 said "+ equipment". Decision 2026-10-24 | 5.6+ cost depth |
 | The foreman reports total man-hours per line, not hours per worker | Section 4 step 4. Decision 2026-10-24 | 5.6+ payroll export |
