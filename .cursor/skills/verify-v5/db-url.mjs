@@ -65,17 +65,15 @@ export function parsePostgresUrl(url) {
 }
 
 /**
- * Every spelling of the URL's secret parts that could end up in an error message: the raw URL, the raw,
- * decoded and encoded password, and the encoded connection string. For redactText's secret list.
+ * The URL's secret parts that could end up in an error message: the raw URL, the decoded password, the raw
+ * userinfo and raw password. For redactText's secret list; their encoded spellings (percent, JSON, HTML,
+ * \u, ...) are matched by scrubSecrets (evidence.mjs), not listed here.
  */
 export function databaseUrlSecrets(url) {
   if (typeof url !== "string" || !url) return [];
   const out = [url];
   const p = parsePostgresUrl(url);
-  if (p) {
-    out.push(p.connectionString);
-    if (p.password) out.push(p.password, encodeURIComponent(p.password));
-  }
+  if (p?.password) out.push(p.password);
   // The raw userinfo ends at the last @ (a password may itself contain @).
   const last = url.replace(/^[a-z]+:\/\//i, "");
   const at = last.lastIndexOf("@");

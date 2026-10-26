@@ -24,7 +24,7 @@ import {
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
-import { captureFailure, redactHeaders, redactText, redactUrl, safeJson, secretValues } from "./evidence.mjs";
+import { captureFailure, redactHeaders, redactText, redactUrl, safeJson, secretValues, startFailureRecorder } from "./evidence.mjs";
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
 import { execFileSync } from "node:child_process";
 import { PORTFOLIO_ROWS_TIMEOUT_MS, PORTFOLIO_SETTLE_MS, PORTFOLIO_STEP, portfolioOk, runPortfolioStep, waitForRowCount } from "./portfolio.mjs";
@@ -1037,6 +1037,114 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     const out = redactText(`<p>${saved}</p><a title="${saved}">`, [pw]);
     assert.ok(!out.includes(saved), `redactText must catch ${JSON.stringify(pw)} serialized as ${JSON.stringify(saved)}; got ${out}`);
     results.push(`passes: HTML-serialized ${JSON.stringify(saved)} of ${JSON.stringify(pw)} is redacted`);
+  }
+}
+
+// ---- every encoding a secret can take on the way into evidence (lead re-review 5647038738) ----
+// Encoders here are written independently of evidence.mjs; leakedIn() is a separate brute-force decoder
+// (any chain of HTML / JS-JSON / percent / + decodings, depth <= 4) so a form nobody listed still fails.
+{
+  const PASSWORDS = [`x</>&"y'z`, `x</>&"y`, `a&"b12`, `p<'q12`, `n\u00a0b<"&12`, `ab&cd1234`, `p q&1+2'`];
+  const hex4 = (c) => c.charCodeAt(0).toString(16).padStart(4, "0");
+  const html = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  const htmlText = (x) => x.replace(/&/g, "&amp;").replace(/\u00a0/g, "&nbsp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const htmlAttr = (x) => x.replace(/&/g, "&amp;").replace(/\u00a0/g, "&nbsp;").replace(/"/g, "&quot;");
+  const json = (x) => JSON.stringify(x).slice(1, -1);
+  const uAll = (x) => x.replace(/[^A-Za-z0-9]/g, (c) => `\\u${hex4(c)}`);
+  const uAllUpper = (x) => x.replace(/[^A-Za-z0-9]/g, (c) => `\\u${hex4(c).toUpperCase()}`);
+  const uNext = (x) => x.replace(/[&<>\u2028\u2029]/g, (c) => `\\u${hex4(c)}`); // Next.js htmlEscapeJsonString
+  const lower = (x) => x.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase());
+  const urlPath = (x) => new URL(`http://h.test/p/${x}`).pathname.slice(3);
+  const query = (x) => new URL(`http://h.test/s?note=${x}`).search.slice(6);
+  const usp = (x) => new URLSearchParams({ note: x }).toString().slice(5);
+  const FORMS = {
+    raw: (x) => x,
+    "HTML-escaped (all five)": html,
+    "HTML text node (& nbsp < >)": htmlText,
+    "HTML attribute (& nbsp \")": htmlAttr,
+    "HTML double-escaped (srcdoc)": (x) => html(html(x)),
+    "HTML triple-escaped (srcdoc in srcdoc)": (x) => html(html(html(x))),
+    "JSON-escaped": json,
+    "JSON-escaped twice": (x) => json(json(x)),
+    "JS \\u, all non-alnum (lowercase hex)": uAll,
+    "JS \\u, all non-alnum (uppercase hex)": uAllUpper,
+    "JS \\u, Next.js <>& subset": uNext,
+    "JS \\u, Next.js subset, uppercase hex": (x) => uNext(x).replace(/\\u([0-9a-f]{4})/g, (m, h) => `\\u${h.toUpperCase()}`),
+    "Next.js flight push (JSON twice, then <>& as \\u)": (x) => uNext(json(json(x))),
+    "Next.js flight push, JSON-escaped again": (x) => json(uNext(json(json(x)))),
+    "URL path (browser encoding)": urlPath,
+    "URL query (browser encoding)": query,
+    encodeURIComponent: encodeURIComponent,
+    "encodeURIComponent, lowercase hex": (x) => lower(encodeURIComponent(x)),
+    "URLSearchParams (%27, + for space)": usp,
+    "URLSearchParams, lowercase hex": (x) => lower(usp(x)),
+    "percent-encoded twice (%25)": (x) => encodeURIComponent(encodeURIComponent(x)),
+    "URL path, JSON-escaped": (x) => json(urlPath(x)),
+    "URLSearchParams in an HTML attribute": (x) => htmlAttr(usp(x)),
+    "encodeURIComponent, HTML-escaped": (x) => html(encodeURIComponent(x)),
+    "JSON-escaped, HTML text node": (x) => htmlText(json(x)),
+    "HTML-escaped, JSON-escaped": (x) => json(html(x)),
+  };
+  const dec = [
+    (t) => t.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);?/gi, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00a0" })[e.toLowerCase()] ?? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : +e.slice(1))),
+    (t) => t.replace(/\\(u[0-9a-f]{4}|["\\/'])/gi, (m, e) => (e.length === 5 ? String.fromCharCode(parseInt(e.slice(1), 16)) : e)),
+    (t) => t.replace(/(%[0-9a-f]{2})+/gi, (m) => { try { return decodeURIComponent(m); } catch { return m; } }),
+    (t) => t.replace(/\+/g, " "),
+  ];
+  const leakedIn = (t, pw) => {
+    let frontier = new Set([t]);
+    const seen = new Set(frontier);
+    for (let d = 0; d <= 4; d++) {
+      for (const x of frontier) if (x.includes(pw)) return true;
+      const next = new Set();
+      for (const x of frontier) for (const f of dec) { const o = f(x); if (!seen.has(o)) (seen.add(o), next.add(o)); }
+      frontier = next;
+    }
+    return false;
+  };
+  for (const [name, enc] of Object.entries(FORMS)) {
+    const checked = [];
+    for (const pw of PASSWORDS) {
+      const form = enc(pw);
+      if (name !== "raw" && form === pw) continue; // this password has nothing that form escapes
+      assert.ok(leakedIn(form, pw), `test decoder must see ${JSON.stringify(pw)} in its ${name} form ${JSON.stringify(form)}`);
+      const text = `log: failed at <a href="/x">${form}</a> and "${form}" end`;
+      const out = redactText(text, [pw]);
+      assert.ok(!out.includes(form), `redactText must catch the ${name} form ${JSON.stringify(form)} of ${JSON.stringify(pw)}; got ${out}`);
+      assert.ok(!leakedIn(out, pw), `nothing in redactText output may decode to ${JSON.stringify(pw)} (${name}); got ${out}`);
+      assert.ok(out.includes("[redacted]") && out.startsWith("log: failed at <a href=\"/x\">") && out.endsWith(" end"), `only the secret is replaced (${name}); got ${out}`);
+      const j = safeJson({ url: `http://h.test/p/${form}`, msg: form }, [pw]);
+      assert.ok(!leakedIn(j, pw) && !j.includes(form), `safeJson must catch the ${name} form of ${JSON.stringify(pw)}; got ${j}`);
+      assert.doesNotThrow(() => JSON.parse(j), `safeJson stays valid JSON (${name})`);
+      checked.push(form);
+    }
+    assert.ok(checked.length >= 1, `${name}: at least one password exercises it`);
+    results.push(`passes: ${name} form redacted for ${checked.length} passwords (redactText + safeJson), e.g. ${JSON.stringify(checked[0])}`);
+  }
+  // The exact strings the lead saw survive (re-review 5647038738).
+  for (const [pw, saved] of [[`ab&cd1234`, String.raw`ab\u0026cd1234`], [`x</>&"y'z`, `x%3C/%3E&%22y'z`], [`x</>&"y'z`, `x%3c/%3e%26%22y%27z`], [`x</>&"y'z`, `x%3C%2F%3E%26%22y%27z`]]) {
+    const out = redactText(`<script>self.__next_f.push([1,"${saved}"])</script> ${saved}`, [pw]);
+    assert.ok(!out.includes(saved) && !leakedIn(out, pw), `redactText must catch ${JSON.stringify(saved)}; got ${out}`);
+    results.push(`passes: ${JSON.stringify(saved)} (lead's survivor) is redacted`);
+  }
+  // Benign text next to a secret is untouched, and an unrelated encoded string is not redacted.
+  {
+    const out = redactText(`a&amp;b %3Cok%3E \\u0026 q=1+2 ${encodeURIComponent("ab&cd1234")}`, ["ab&cd1234"]);
+    assert.equal(out, "a&amp;b %3Cok%3E \\u0026 q=1+2 [redacted]");
+    results.push(`passes: scrubbing leaves unrelated escapes alone → ${out}`);
+  }
+  // Console / page error text is cut only after redaction, so no prefix of a secret is kept.
+  {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "cut-evidence-"));
+    const handlers = {};
+    const page = { on: (ev, fn) => (handlers[ev] = fn), off: () => {}, context: () => ({ cookies: async () => [] }), screenshot: async ({ path: p }) => writeFileSync(p, "png"), content: async () => "<p>x</p>", url: () => "http://h.test/" };
+    const rec = startFailureRecorder(page);
+    handlers.console({ type: () => "error", text: () => "z".repeat(1996) + "ab&cd1234" });
+    await captureFailure(page, { dir, kind: "crawl", label: "cut", reason: "r", recorder: rec, secrets: ["ab&cd1234"] });
+    const j = readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => readFileSync(path.join(dir, f), "utf8")).join("");
+    rmSync(dir, { recursive: true, force: true });
+    assert.ok(!j.includes("zab") && j.includes("zzzz[red"), `a console error cut at 2000 chars must not keep a secret prefix; got ...${j.slice(-200)}`);
+    results.push("passes: console text is redacted before it is cut to 2000 chars (no secret prefix kept)");
   }
 }
 

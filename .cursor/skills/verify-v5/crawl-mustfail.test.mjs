@@ -11,7 +11,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateCrawlRow } from "./checks.mjs";
-import { captureFailure, REDACTED, redactedDocumentHtml, redactText } from "./evidence.mjs";
+import { captureFailure, REDACTED, redactedDocumentHtml, redactText, startFailureRecorder } from "./evidence.mjs";
 import { crawl, CRAWL_WIDTHS, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
 import { drillCoverageFailures, drillDiscoveryFailures, drillLoadPlan, drillPath, loadSeedCrawlTargets, partCFailures } from "./drill.mjs";
 
@@ -340,6 +340,112 @@ for (const width of [390, 1280]) {
   lines.push("passes: crawl evidence has no VERIFY_TOKEN canary, cookie value or token query value; Authorization redacted; clean loads not captured");
   rmSync(evRoot, { recursive: true, force: true });
 }
+// ---- Next.js flight script, failing request URLs, URLSearchParams, lowercase hex, srcdoc (lead re-review 5647038738) ----
+// A mock Next-style page: the flight payload in self.__next_f.push is JSON inside JSON with < > & written
+// as \u003c \u003e \u0026; failing fetches put the secret in the path and the query, which Chromium
+// path- / query-encodes before they land in the .json; links carry it in URLSearchParams form and in
+// lowercase hex; iframes carry it double- and triple-HTML-escaped in srcdoc. The page itself is opened at
+// a URL with the secret in its path and query (the top-level `url`). Every form must be gone from the
+// .html, the .json and a log line, both by the exact strings and by a brute-force decoder.
+let flightCases = 0;
+{
+  const PASSWORDS = [`x</>&"y'z`, `x</>&"y`, `a&"b12`, `p<'q12`, `n\u00a0b<"&12`, `ab&cd1234`];
+  const hex4 = (c) => c.charCodeAt(0).toString(16).padStart(4, "0");
+  const esc = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  const json = (x) => JSON.stringify(x).slice(1, -1);
+  const uNext = (x) => x.replace(/[&<>\u2028\u2029]/g, (c) => `\\u${hex4(c)}`); // Next.js htmlEscapeJsonString
+  const lower = (x) => x.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase());
+  const usp = (x) => new URLSearchParams({ note: x }).toString();
+  const BASE = "http://pv-redact.test";
+  const dec = [
+    (t) => t.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);?/gi, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00a0" })[e.toLowerCase()] ?? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : +e.slice(1))),
+    (t) => t.replace(/\\(u[0-9a-f]{4}|["\\/'])/gi, (m, e) => (e.length === 5 ? String.fromCharCode(parseInt(e.slice(1), 16)) : e)),
+    (t) => t.replace(/(%[0-9a-f]{2})+/gi, (m) => { try { return decodeURIComponent(m); } catch { return m; } }),
+    (t) => t.replace(/\+/g, " "),
+  ];
+  const decodesTo = (t, pw) => {
+    let frontier = new Set([t]);
+    const seen = new Set(frontier);
+    for (let d = 0; d <= 4; d++) {
+      for (const x of frontier) if (x.includes(pw)) return true;
+      const next = new Set();
+      for (const x of frontier) for (const f of dec) { const o = f(x); if (!seen.has(o)) (seen.add(o), next.add(o)); }
+      frontier = next;
+    }
+    return false;
+  };
+  const browser = await chromium.launch();
+  const evRoot = mkdtempSync(path.join(os.tmpdir(), "flight-evidence-"));
+  try {
+    for (const pw of PASSWORDS) {
+      const flight = uNext(JSON.stringify([1, `0:${JSON.stringify({ title: pw })}\n`]));
+      const body = [
+        `<h1>Job</h1>`,
+        `<a id="usp" href="/s?${usp(pw)}">s</a>`,
+        `<a id="low" href="/s?note=${lower(encodeURIComponent(pw))}">l</a>`,
+        `<iframe srcdoc="${esc(`<p>${esc(pw)}</p>`)}"></iframe>`,
+        `<iframe srcdoc="<p>${esc(esc(esc(pw)))}</p>"></iframe>`,
+        `<script>self.__next_f=self.__next_f||[];self.__next_f.push(${flight})</script>`,
+        `<script>(() => { const pw = ${uNext(JSON.stringify(pw))}; const low = (x) => x.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase());
+          console.error("render failed for " + pw);
+          for (const u of ["/api/p/" + pw, "/api/q?note=" + pw, "/api/e?note=" + encodeURIComponent(pw), "/api/u?" + new URLSearchParams({ note: pw }), "/api/l/" + low(encodeURIComponent(pw))]) fetch(u).catch(() => {});
+        })()</script>`,
+      ].join("");
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      await page.route(`${BASE}/**`, (r) => (r.request().url().includes("/api/") ? r.fulfill({ status: 404, contentType: "text/plain", body: "nf" }) : r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: `<!doctype html><html><head><meta charset="utf-8"><title>t</title></head><body><main>${body}</main></body></html>` })));
+      const rec = startFailureRecorder(page);
+      await page.goto(`${BASE}/p/${pw}?note=${encodeURIComponent(pw)}`);
+      for (let t = 0; t < 50 && rec.since(0).filter((e) => e.kind === "request").length < 5; t++) await page.waitForTimeout(50);
+      const reqUrls = rec.since(0).filter((e) => e.kind === "request").map((e) => e.url);
+      assert.equal(reqUrls.length, 5, `fixture must fail 5 requests; got ${JSON.stringify(reqUrls)}`);
+      const raw = await page.content();
+      // The exact forms, and sanity that Chromium really produced each one where the fixture puts it.
+      const pathForm = new URL(`${BASE}/api/p/${pw}`).pathname.slice("/api/p/".length);
+      const queryForm = new URL(`${BASE}/s?note=${pw}`).search.slice("?note=".length);
+      const forms = {
+        "flight (JSON twice, <>& as \\u)": [uNext(json(json(pw))), raw],
+        "URL path (browser encoding)": [pathForm, reqUrls.join(" ") + page.url()],
+        "URL query (browser encoding)": [queryForm, reqUrls.join(" ")],
+        "URLSearchParams": [usp(pw).slice(5), raw + reqUrls.join(" ")],
+        "lowercase hex": [lower(encodeURIComponent(pw)), raw + reqUrls.join(" ")],
+        "srcdoc double-escaped": [esc(esc(pw)), raw],
+        "srcdoc triple-escaped": [esc(esc(esc(pw))), raw],
+      };
+      const sanity = Object.entries(forms).filter(([, [f, where]]) => f !== pw && where.includes(f)).map(([n]) => n);
+      for (const n of ["URL path (browser encoding)", "URLSearchParams", "lowercase hex", ...(/\u00a0/.test(pw) ? [] : ["srcdoc double-escaped", "srcdoc triple-escaped"])].filter((n) => forms[n][0] !== pw)) assert.ok(sanity.includes(n), `Chromium must write the ${n} form of ${JSON.stringify(pw)} (${JSON.stringify(forms[n][0])}); saw ${JSON.stringify(sanity)}`);
+      if (/[<>&]/.test(pw)) assert.ok(sanity.includes("flight (JSON twice, <>& as \\u)"), `the page must hold the flight form ${JSON.stringify(forms["flight (JSON twice, <>& as \\u)"][0])}`);
+      assert.ok(decodesTo(raw, pw) && reqUrls.every((u) => decodesTo(u, pw)) && decodesTo(page.url(), pw), "every raw source must hold the secret in some form (fixture sanity)");
+      const exact = Object.values(forms).map(([f]) => f).filter((f) => f.length >= 2);
+      const leaks = (t) => [...exact.filter((f) => t.includes(f)), ...(decodesTo(t, pw) ? ["(decodes to the secret)"] : [])];
+      // Backstop text redaction over Chromium's serialization, and the DOM-level pass.
+      assert.deepEqual(leaks(redactText(raw, [pw])), [], `redactText(page.content()) must leave no form of ${JSON.stringify(pw)}`);
+      const dom = await redactedDocumentHtml(page, [pw]);
+      assert.ok(typeof dom === "string" && dom.includes("self.__next_f.push(") && dom.includes(REDACTED), `redactedDocumentHtml must return the page with the flight script, redacted; got ${String(dom).slice(0, 200)}`);
+      assert.deepEqual(leaks(dom), [], `redactedDocumentHtml must leave no form of ${JSON.stringify(pw)}`);
+      // captureFailure .html and .json.
+      const dir = path.join(evRoot, `f${flightCases}`);
+      const files = await captureFailure(page, { dir, kind: "crawl", label: `flight-${flightCases}`, reason: `failed on ${page.url()}`, recorder: rec, secrets: [pw] });
+      for (const f of [files.html, files.json]) {
+        const t = readFileSync(path.join(dir, f), "utf8");
+        assert.deepEqual(leaks(t), [], `${f} must hold no form of ${JSON.stringify(pw)}`);
+      }
+      const rec0 = JSON.parse(readFileSync(path.join(dir, files.json), "utf8"));
+      assert.equal(rec0.failedRequests.length, 5, `.json lists the 5 failed requests; got ${JSON.stringify(rec0.failedRequests)}`);
+      assert.ok(rec0.url.startsWith(`${BASE}/p/`) && rec0.failedRequests.every((r) => r.url.startsWith(`${BASE}/api/`) && r.url.includes(REDACTED)), `URLs keep their shape with the secret redacted; got ${rec0.url} ${JSON.stringify(rec0.failedRequests.map((r) => r.url))}`);
+      // A log line as verify.mjs prints it (redactText): page URL, request URLs and console text.
+      const log = redactText(`FAIL crawl ${page.url()}: ${reqUrls.join(" ")} console: ${rec.since(0).filter((e) => e.kind === "console").map((e) => e.text).join(" | ")}`, [pw]);
+      assert.deepEqual(leaks(log), [], `a log line must hold no form of ${JSON.stringify(pw)}; got ${log}`);
+      assert.ok(await page.evaluate(() => self.__next_f.length === 1), "the live page is not changed by redaction");
+      await ctx.close();
+      flightCases += 1;
+      lines.push(`passes: real Chromium flight/URL capture of ${JSON.stringify(pw)} (forms seen: ${sanity.join(", ")}) has none of them, nor anything decoding to it: backstop, DOM-level, captureFailure html + json, log line`);
+    }
+  } finally {
+    await browser.close();
+    rmSync(evRoot, { recursive: true, force: true });
+  }
+}
 // ---- .html capture vs real Chromium serialization (lead re-review 5646855343) ----
 // page.content() escapes text nodes as & nbsp < > only (quotes raw) and attribute values as & nbsp " (and
 // < > in newer Chromium), so a password mixing a quote with & < > survived a single all-five-escaped form.
@@ -401,4 +507,4 @@ let htmlCases = 0;
   }
 }
 for (const l of lines) console.log(l);
-console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases)`);
+console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases, ${flightCases} real-Chromium flight/URL redaction cases)`);

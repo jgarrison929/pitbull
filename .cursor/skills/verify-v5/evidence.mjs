@@ -30,45 +30,149 @@ export function secretValues(environment = process.env) {
   return [...new Set(out)];
 }
 
-const htmlEscape = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-// The HTML serializer (page.content(), outerHTML) escapes only some characters, so a quote next to & < >
-// survives in a mixed form. Text nodes: & nbsp < > (quotes raw). Attribute values: & nbsp " per the spec,
-// and < > as well in newer Chromium (both spellings are listed; checked against real Chromium in
-// crawl-mustfail.test.mjs).
-const nbsp = (x) => x.replace(/\u00a0/g, "&nbsp;");
-const htmlTextEscape = (x) => nbsp(x.replace(/&/g, "&amp;")).replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const htmlAttrEscape = (x) => nbsp(x.replace(/&/g, "&amp;")).replace(/"/g, "&quot;");
-const htmlAttrEscapeLtGt = (x) => htmlAttrEscape(x).replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const jsonEscape = (x) => JSON.stringify(x).slice(1, -1);
-
 /**
- * Every spelling a secret can take once it has been serialized: raw, URL-encoded, JSON-escaped (once and
- * twice, for a JSON string inside JSON), HTML-escaped (fully, as a serialized text node, and as a
- * serialized attribute value), and combinations. A `"` or `\` in a secret would
- * otherwise come out escaped and slip past a raw-text match.
+ * The ONE place secrets are matched: returns `text` with every span that is a secret in any serialized form
+ * replaced by `mark`. Instead of listing spellings, it decodes the text and looks for the secret in each
+ * decoded view, mapping hits back to the original characters. One decoding level undoes, wherever they
+ * occur and in any mix (so partial escaping like the HTML serializer's is covered):
+ *   HTML character references: named (&amp; &lt; &gt; &quot; &apos; &nbsp; ...), &#NN; and &#xHH;
+ *   JS / JSON escapes: \" \\ \/ \n ..., \uXXXX (all chars or Next.js's < > & U+2028 U+2029 subset), \u{...}, \xHH
+ *   percent-encoding: path, query, encodeURIComponent and URLSearchParams forms (UTF-8 bytes)
+ *   + as a space (URLSearchParams / form encoding); also looked through with + kept, in case + is literal
+ * Hex in every escape is matched in any case. Views are decoded up to 4 levels (DEPTH), so composed
+ * forms (JSON twice, HTML twice, \u inside JSON, %25-double-encoding, ...) are found too. The secret is
+ * decoded the same way at each level, so a secret that itself looks escaped is still found.
+ * Self-contained (no outside references): redactedDocumentHtml ships its source into the page.
  */
-export function secretForms(secrets = []) {
-  const out = new Set();
-  for (const x of secrets) {
-    if (typeof x !== "string" || x.length < 2) continue;
-    for (const base of [x, encodeURIComponent(x)]) {
-      const j = jsonEscape(base);
-      for (const f of [base, j, jsonEscape(j), base.replace(/"/g, "&#34;")]) out.add(f);
-      for (const h of [htmlEscape, htmlTextEscape, htmlAttrEscape, htmlAttrEscapeLtGt]) for (const v of [base, j]) out.add(h(v));
+export function scrubSecrets(text, secrets, mark) {
+  const src = String(text ?? "");
+  const list = (Array.isArray(secrets) ? secrets : []).filter((x) => typeof x === "string" && x.length >= 2);
+  if (!src || !list.length) return src;
+  const DEPTH = 4;
+  const NAMED = Object.assign(Object.create(null), { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00a0", sol: "/", bsol: "\\", num: "#", percnt: "%", plus: "+", equals: "=", semi: ";", colon: ":", comma: ",", period: ".", excl: "!", quest: "?", commat: "@", dollar: "$", lpar: "(", rpar: ")", lsqb: "[", rsqb: "]", lbrack: "[", rbrack: "]", lcub: "{", rcub: "}", lbrace: "{", rbrace: "}", ast: "*", grave: "`", hat: "^", vert: "|", verbar: "|", lowbar: "_", tilde: "~", Tab: "\t", NewLine: "\n" });
+  const SIMPLE = { b: "\b", f: "\f", n: "\n", r: "\r", t: "\t", v: "\v", 0: "\0" };
+  const ENT = /&(?:#[xX]([0-9A-Fa-f]{1,6});?|#([0-9]{1,7});?|([A-Za-z][A-Za-z0-9]{1,7});)/y;
+  const ESC = /\\(?:u\{([0-9A-Fa-f]{1,6})\}|u([0-9A-Fa-f]{4})|x([0-9A-Fa-f]{2})|(["'\\/`bfnrtv0]))/y;
+  const PCT = /(?:%[0-9A-Fa-f]{2})+/y;
+  const fromCp = (n) => (n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : null);
+  // One decoding level. a[i]..b[i] is the span of the ORIGINAL text that unit i of the view came from.
+  const decode = (v, plus) => {
+    const { s, a, b } = v;
+    const parts = [];
+    const na = new Int32Array(s.length);
+    const nb = new Int32Array(s.length);
+    let k = 0;
+    let changed = false;
+    const emit = (str, i, j) => {
+      parts.push(str);
+      for (let t = 0; t < str.length; t++) (na[k] = a[i]), (nb[k] = b[j]), k++;
+    };
+    for (let i = 0; i < s.length; ) {
+      const c = s[i];
+      let m = null;
+      let val = null;
+      if (c === "&") {
+        ENT.lastIndex = i;
+        m = ENT.exec(s);
+        if (m) val = m[1] ? fromCp(parseInt(m[1], 16)) : m[2] ? fromCp(parseInt(m[2], 10)) : NAMED[m[3]] ?? NAMED[m[3].toLowerCase()] ?? null;
+      } else if (c === "\\") {
+        ESC.lastIndex = i;
+        m = ESC.exec(s);
+        if (m) val = m[1] ? fromCp(parseInt(m[1], 16)) : m[2] || m[3] ? String.fromCharCode(parseInt(m[2] || m[3], 16)) : SIMPLE[m[4]] ?? m[4];
+      } else if (c === "%") {
+        PCT.lastIndex = i;
+        m = PCT.exec(s);
+        if (m) {
+          // Decode the byte run one UTF-8 character at a time; an invalid sequence stays as it is.
+          const bytes = m[0].match(/%../g).map((x) => parseInt(x.slice(1), 16));
+          for (let j = 0; j < bytes.length; ) {
+            const lead = bytes[j];
+            const len = lead < 0x80 ? 1 : lead >= 0xc2 && lead < 0xe0 ? 2 : lead >= 0xe0 && lead < 0xf0 ? 3 : lead >= 0xf0 && lead < 0xf5 ? 4 : 0;
+            let ch = null;
+            if (len && j + len <= bytes.length) {
+              try {
+                ch = decodeURIComponent(m[0].slice(j * 3, (j + len) * 3));
+              } catch {
+                ch = null;
+              }
+            }
+            if (ch !== null) {
+              emit(ch, i + j * 3, i + (j + len) * 3 - 1);
+              changed = true;
+              j += len;
+            } else {
+              for (let t = 0; t < 3; t++) emit(s[i + j * 3 + t], i + j * 3 + t, i + j * 3 + t);
+              j += 1;
+            }
+          }
+          i += m[0].length;
+          continue;
+        }
+      } else if (c === "+" && plus) {
+        emit(" ", i, i);
+        changed = true;
+        i += 1;
+        continue;
+      }
+      if (m && val !== null) {
+        emit(val, i, i + m[0].length - 1);
+        changed = true;
+        i += m[0].length;
+      } else {
+        emit(c, i, i);
+        i += 1;
+      }
+    }
+    return changed ? { s: parts.join(""), a: na.subarray(0, k), b: nb.subarray(0, k) } : null;
+  };
+  const identity = (s) => {
+    const a = new Int32Array(s.length);
+    for (let i = 0; i < s.length; i++) a[i] = i;
+    return { s, a, b: a };
+  };
+  // All views of a string: itself, then up to DEPTH levels decoded with + as space, and without.
+  const views = (s) => {
+    const out = [identity(s)];
+    const lazy = !/[&\\%+]/.test(s);
+    if (lazy) return out;
+    for (const plus of s.includes("+") ? [true, false] : [true]) {
+      let v = out[0];
+      for (let d = 0; d < DEPTH; d++) {
+        v = decode(v, plus);
+        if (!v) break;
+        out.push(v);
+      }
+    }
+    return out;
+  };
+  const needles = [...new Set(list.flatMap((x) => views(x).map((v) => v.s)))].filter((x) => x.length >= 2);
+  const spans = [];
+  for (const v of views(src)) {
+    for (const nd of needles) {
+      for (let at = v.s.indexOf(nd); at >= 0; at = v.s.indexOf(nd, at + 1)) spans.push([v.a[at], v.b[at + nd.length - 1]]);
     }
   }
-  return [...out].filter((f) => f.length >= 2).sort((a, b) => b.length - a.length);
+  if (!spans.length) return src;
+  spans.sort((x, y) => x[0] - y[0] || y[1] - x[1]);
+  let out = "";
+  let pos = 0;
+  for (let i = 0; i < spans.length; ) {
+    let [from, to] = spans[i];
+    for (i++; i < spans.length && spans[i][0] <= to; i++) to = Math.max(to, spans[i][1]);
+    out += src.slice(pos, from) + mark;
+    pos = to + 1;
+  }
+  return out + src.slice(pos);
 }
 
 /**
- * Replace every secret value, in every serialized form (secretForms), with [redacted]; also any
+ * Replace every secret value, in every serialized form (scrubSecrets), with [redacted]; also any
  * postgres:// URL with userinfo, and Bearer / Basic credentials, whatever their value.
  * `jsonText: true` is for text that is already JSON: the userinfo pattern then never crosses a `"`, so
- * redaction can't break the JSON (the secret forms above still catch escaped values).
+ * redaction can't break the JSON (scrubSecrets still catches escaped values).
  */
 export function redactText(text, secrets = [], { jsonText = false } = {}) {
-  let s = String(text ?? "");
-  for (const x of secretForms(secrets)) s = s.split(x).join(REDACTED);
+  let s = scrubSecrets(text, secrets, REDACTED);
   // Raw text: the userinfo may hold any character, so match up to the last @ of the whitespace-free run.
   s = jsonText ? s.replace(/postgres(ql)?:\/\/[^\s"'<>]*@[^\s"'<>]*/gi, `postgres://${REDACTED}`) : s.replace(/postgres(ql)?:\/\/\S*@[^\s"'<>]*/gi, `postgres://${REDACTED}`);
   s = s.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/g, `$1 ${REDACTED}`);
@@ -111,20 +215,20 @@ export function safeJson(value, secrets = [], space = 2) {
 
 /**
  * The page's HTML (doctype + <html>, as page.content() gives it) with every secret replaced by [redacted]
- * in each text node, comment and attribute value before serializing, so no serializer escaping can hide
- * one. Runs in a CDP isolated world on a detached clone of the document: the live page is not changed
+ * in each text node (script text too), comment and attribute value before serializing, by the same
+ * scrubSecrets (its source is sent into the page), so no serializer escaping can hide one. Runs in a CDP isolated world on a detached clone of the document: the live page is not changed
  * and page scripts can't see the secret list. Returns null when that is unavailable (not Chromium, a
  * page double, a navigation in progress); callers fall back to page.content() + redactText.
  */
 export async function redactedDocumentHtml(page, secrets = []) {
-  const values = [...new Set(secrets.flatMap((x) => (typeof x === "string" && x.length >= 2 ? [x, encodeURIComponent(x), jsonEscape(x)] : [])))].sort((a, b) => b.length - a.length);
+  const values = [...new Set(secrets.filter((x) => typeof x === "string" && x.length >= 2))];
   let cdp = null;
   try {
     cdp = await page.context().newCDPSession(page);
     const { frameTree } = await cdp.send("Page.getFrameTree");
     const { executionContextId } = await cdp.send("Page.createIsolatedWorld", { frameId: frameTree.frame.id, worldName: "verify-v5-redact" });
-    const fn = (list, mark) => {
-      const scrub = (t) => list.reduce((s, x) => (s.includes(x) ? s.split(x).join(mark) : s), t);
+    const fn = (list, mark, scrubSecrets) => {
+      const scrub = (t) => scrubSecrets(t, list, mark);
       const walk = (n) => {
         if (n.nodeType === 3 || n.nodeType === 8) n.data = scrub(n.data);
         if (n.nodeType === 1) for (const a of [...n.attributes]) a.value = scrub(a.value);
@@ -137,7 +241,7 @@ export async function redactedDocumentHtml(page, secrets = []) {
       return dt + root.outerHTML;
     };
     const { result, exceptionDetails } = await cdp.send("Runtime.evaluate", {
-      expression: `(${fn})(${JSON.stringify(values)}, ${JSON.stringify(REDACTED)})`,
+      expression: `(${fn})(${JSON.stringify(values)}, ${JSON.stringify(REDACTED)}, ${scrubSecrets})`,
       contextId: executionContextId,
       returnByValue: true,
     });
@@ -169,6 +273,11 @@ export function redactHeaders(headers = {}, secrets = []) {
   return Object.fromEntries(Object.entries(headers ?? {}).map(([k, v]) => [k, SECRET_HEADER.test(k) ? REDACTED : redactText(v, secrets)]));
 }
 
+// Console / page error text is kept long while raw and cut to TEXT_CAP only after redaction, so a cut can't
+// leave a secret's prefix behind (a cut first would keep "…ab&c" of "ab&cd1234", which no match finds).
+const RAW_TEXT_CAP = 100_000;
+export const TEXT_CAP = 2000;
+
 /** page.on that tolerates page-like test doubles which don't support every event. */
 function listen(page, event, fn) {
   try {
@@ -193,9 +302,9 @@ export function startFailureRecorder(page) {
   const events = [];
   const offs = [
     listen(page, "console", (m) => {
-      if (m?.type?.() === "error") events.push({ kind: "console", text: String(m.text()).slice(0, 2000) });
+      if (m?.type?.() === "error") events.push({ kind: "console", text: String(m.text()).slice(0, RAW_TEXT_CAP) });
     }),
-    listen(page, "pageerror", (e) => events.push({ kind: "pageerror", text: String(e?.stack ?? e?.message ?? e).slice(0, 2000) })),
+    listen(page, "pageerror", (e) => events.push({ kind: "pageerror", text: String(e?.stack ?? e?.message ?? e).slice(0, RAW_TEXT_CAP) })),
     listen(page, "response", (r) => {
       if (typeof r?.status !== "function" || r.status() < 400) return;
       const req = r.request();
@@ -264,8 +373,8 @@ export async function captureFailure(page, { dir, kind, label, reason, recorder,
     reason: clean(reason),
     url,
     capturedAt: new Date().toISOString(),
-    consoleErrors: ev.filter((e) => e.kind === "console").map((e) => clean(e.text)),
-    pageErrors: ev.filter((e) => e.kind === "pageerror").map((e) => clean(e.text)),
+    consoleErrors: ev.filter((e) => e.kind === "console").map((e) => clean(e.text).slice(0, TEXT_CAP)),
+    pageErrors: ev.filter((e) => e.kind === "pageerror").map((e) => clean(e.text).slice(0, TEXT_CAP)),
     failedRequests: ev
       .filter((e) => e.kind === "request")
       .map((e) => ({ method: e.method, url: redactUrl(e.url, all), status: e.status, ...(e.failure ? { failure: clean(e.failure) } : {}), requestHeaders: redactHeaders(e.headers, all) })),
