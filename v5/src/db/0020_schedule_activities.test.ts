@@ -42,8 +42,7 @@ export function schedule0020JournalClaim(args: {
   const tags = entries.map((e) => e.tag);
   const scheduleIdx = tags.indexOf("0020_schedule_activities");
   if (scheduleIdx < 0) return false;
-  // Position: last journal entry (not buried / not swapped with 0019).
-  if (scheduleIdx !== entries.length - 1) return false;
+  // Idx, stamp, and snapshot chain. A later migration may follow 0020.
   const schedule = entries[scheduleIdx]!;
   if (schedule.idx !== 20) return false;
   if (schedule.when !== 1793030000000) return false;
@@ -96,7 +95,6 @@ describe("migration 0020_schedule_activities", () => {
     expect(tags).toContain("0018_daily_plan_events");
     expect(tags).toContain("0019_crews_contract");
     expect(tags).toContain("0020_schedule_activities");
-    expect(tags.at(-1)).toBe("0020_schedule_activities");
     expect(tags.indexOf("0020_schedule_activities")).toBeGreaterThan(
       tags.indexOf("0019_crews_contract"),
     );
@@ -111,6 +109,23 @@ describe("migration 0020_schedule_activities", () => {
 
     // Position + prevId (not when alone).
     expect(snapshot0020.prevId).toBe(snapshot0019.id);
+    expect(
+      schedule0020JournalClaim({
+        entries,
+        prevId: snapshot0020.prevId,
+        predecessorSnapshotId: snapshot0019.id,
+      }),
+    ).toBe(true);
+  });
+
+  it("N9: a later migration after 0020 still satisfies the 0020 claim", () => {
+    const entries = [
+      ...loadMigrationJournal(),
+      { tag: "0021_plan_line_activity", when: 1793040000000, idx: 21 },
+    ];
+    expect(entries.map((e) => e.tag).indexOf("0020_schedule_activities")).toBeGreaterThan(
+      entries.map((e) => e.tag).indexOf("0019_crews_contract"),
+    );
     expect(
       schedule0020JournalClaim({
         entries,
