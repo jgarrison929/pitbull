@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ForecastMethodControl } from "@/components/app/forecast-method-control";
 import { Figure, Money } from "@/components/app/format";
@@ -56,13 +55,13 @@ function EntryDetail({
     return (
       <>
         {e.planId ? (
-          <Link
+          <a
             href={`/app/jobs/${jobNumber}/plans/${e.planId}`}
             className="tap-target inline-flex items-center font-medium underline hover:no-underline"
             data-testid="cost-entry-plan-link"
           >
             {e.crew ?? "Daily report"}
-          </Link>
+          </a>
         ) : (
           <span>{e.crew ?? (e.note || "Labor")}</span>
         )}
