@@ -26,9 +26,12 @@ const { chromium } = require("@playwright/test");
 const SLOW_MS = 1050;
 // Good pages have to satisfy the phone checks: 16px text, 44px controls, no clipped money/status/header.
 const PHONE_OK_CSS = `<style>html,body{margin:0;font-size:16px}a,button,input,select,textarea,summary{font-size:16px;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;box-sizing:border-box}</style>`;
-const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}${extra}</head><body><main>${body}</main></body></html>`;
+const JOB_STRIP = `<nav data-testid="job-strip"><a href="/app/jobs/good">25-031</a></nav>`;
+const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}${extra}</head><body>${JOB_STRIP}<main>${body}</main></body></html>`;
 // Bad phone fixtures opt out of the 44px floor so a 20px control stays 20px.
 const bare = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-size:16px}</style></head><body><main>${body}</main></body></html>`;
+const stripPill = (label, extra = "") => `<a href="/app/jobs/24-077" style="flex:0 0 auto;min-width:44px;min-height:44px;display:inline-flex;align-items:center;font-size:16px;line-height:20px;white-space:nowrap;padding:0 8px;box-sizing:border-box;${extra}">${label}</a>`;
+const changesList = (items) => `<h1 style="font-size:16px">Changes</h1><ul data-testid="job-changes-full">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
 const clip = (css, text, attrs = "") => `<span ${attrs} style="display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${css}">${text}</span>`;
 const ACTIONS = [
   ["executive", "Open the at-risk job"],
@@ -113,6 +116,11 @@ const PAGES = {
   // Same strip, short money that fits inside 120px. Only the allowed ellipsis remains.
   "/phone/money-fits": () => bare(`<nav data-testid="job-strip" style="display:block;width:120px;overflow:hidden;white-space:nowrap;font-size:16px"><span title="Cedar Creek Bridge" style="display:inline-block;width:40px;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cedar Creek Bridge</span><span data-cents="100" style="display:inline-block">$1.00</span></nav>`),
   "/phone/budget-money": () => bare(clip("max-width:40px", "Budget $1,234,567", 'data-clip="secondary" title="Budget $1,234,567"')),
+  // Pre-#24 job strip: a scrolling row of shrink-0 pills. overflow-x:auto keeps document
+  // scrollWidth inside the viewport while a pill's box still ends past clientWidth.
+  "/phone/strip-pre": () => bare(`<nav data-testid="job-strip" style="display:flex;flex-wrap:nowrap;overflow-x:auto;min-width:0;max-width:100%;width:100%;gap:8px">${stripPill("I-5 Culvert 24-077", "min-width:420px")}${stripPill("Cedar Creek 25-031")}</nav>`),
+  // Post-#24 twin: the same labels wrap, and each pill stays inside the viewport.
+  "/phone/strip-post": () => bare(`<nav data-testid="job-strip" style="display:flex;flex-wrap:wrap;min-width:0;max-width:100%;width:100%;gap:8px">${stripPill("I-5 Culvert 24-077")}${stripPill("Cedar Creek 25-031")}${stripPill("Harbor 26-010")}</nav>`),
   // Evidence redaction: a failing page that sets a cookie, prints a canary token, and makes a request with
   // an Authorization header and a token in the query.
   "/app/jobs/leaky": () => job(`<p>${CANARY_TOKEN}</p><script>document.cookie = "sid=${CANARY_COOKIE}; path=/"; console.error("leak ${CANARY_TOKEN}"); fetch("/api/broken?access_token=${CANARY_QUERY}", { headers: { Authorization: "Bearer ${CANARY_TOKEN}" } });</script>`),
@@ -127,6 +135,12 @@ const PAGES = {
   "/app/jobs/77-001/plans/p-good": () => planPage("Bridge Crew 2"),
   "/app/jobs/77-002/plans/p-slow": () => [200, planPage("Slow Crew"), SLOW_MS],
   "/app/jobs/77-004/plans/p-500": () => [500, planPage("Broken Crew")],
+  // Job changes list. Seeded content is job-changes-full items, not the cost tree.
+  "/app/jobs/chg-ok/changes": () => bare(changesList(["Luis Ortega changed the pour"])),
+  "/app/jobs/chg-slow/changes": () => [200, bare(changesList(["Luis Ortega changed the pour"])), SLOW_MS],
+  "/app/jobs/chg-todo/changes": () => bare(`${changesList(["Luis Ortega changed the pour"])}<p>TODO</p>`),
+  "/app/jobs/chg-500/changes": () => [500, bare(changesList(["Luis Ortega changed the pour"]))],
+  "/app/jobs/chg-empty/changes": () => bare(`<h1 style="font-size:16px">Changes</h1><ul data-testid="job-changes-full"></ul><p>History is empty for this fixture.</p>`),
   // 5.1.0-c schedule. 77-deny is intentionally absent so a direct load is HTTP 404.
   "/app/jobs/77-031": () => job(`<p>Cedar Creek</p><a href="${schedulePath("77-031")}">Schedule</a>`),
   "/app/jobs/77-nolink": () => job("<p>Harbor draft. No schedule link.</p>"),
@@ -137,6 +151,8 @@ const PAGES = {
   "/app/jobs/77-empty/schedule": () => shell("<h1>Schedule</h1><p>Add activities after the estimate is approved.</p>"),
   "/app/jobs/77-d500/schedule": () => [500, schedulePage()],
   "/app/jobs/77-clip/schedule": () => bare(`<h1>Schedule</h1>${GANTT}${clip("max-width:36px", "$1,234.56", 'data-cents="123456"')}`),
+  // Phone checks on: /app/jobs/* with the strip removed must fail closed. bare() has no job-strip.
+  "/app/jobs/no-strip": () => bare(`<h1 style="font-size:16px">Job</h1><div data-testid="cost-tree-row">03-210 Footing concrete</div><p>Cedar Creek notes.</p>`),
 };
 const CANARY_TOKEN = "canary-verify-token-1111-not-real";
 const CANARY_COOKIE = "canarycookie1111notreal";
@@ -216,8 +232,12 @@ const expectFail = {
   "/app/jobs/route-error-marker": /error boundary marker \[data-testid="route-error"\]/,
   "/app/jobs/global-error": /error boundary "Shell load failed"/,
   "/app/jobs/next-builtin": /error boundary "This page couldn.t load"/,
+  "/app/jobs/chg-slow/changes": /ms > 1500 ms budget/,
+  "/app/jobs/chg-todo/changes": /banned "TODO"/,
+  "/app/jobs/chg-500/changes": /navigation HTTP 500/,
+  "/app/jobs/chg-empty/changes": /changes page has 0 items/,
 };
-const expectPass = ["/app", "/app/jobs/good", "/app/jobs/24-077", "/app/jobs/24-118"];
+const expectPass = ["/app", "/app/jobs/good", "/app/jobs/24-077", "/app/jobs/24-118", "/app/jobs/chg-ok/changes"];
 // Clean 200 twin of /status-fault: same layout, real content instead of the boundary.
 PAGES["/status-ok"] = () => layout(`<main><h1>Status</h1><p>Operational</p></main>`);
 
@@ -242,6 +262,10 @@ let desktopClipRows;
 let roleRows;
 let buriedRows;
 let missingRows;
+let stripRows;
+let stripGatedRows;
+let noStripRows;
+let noStripOffRows;
 let scheduleRows;
 let scheduleDenyRows;
 let scheduleExcludedRows;
@@ -287,6 +311,10 @@ try {
   await fetch(`${base}/__landing?mode=missing`);
   missingRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320], phoneChecks: true });
   await fetch(`${base}/__landing?mode=good`);
+  stripRows = await crawl(browser, base, { pages: ["/phone/strip-pre", "/phone/strip-post"], roles: ["pm"], widths: [320, 390], phoneChecks: true });
+  stripGatedRows = await crawl(browser, base, { pages: ["/phone/strip-pre"], roles: ["pm"], widths: [320] });
+  noStripRows = await crawl(browser, base, { pages: ["/app/jobs/no-strip"], roles: ["pm"], widths: [320, 390], phoneChecks: true });
+  noStripOffRows = await crawl(browser, base, { pages: ["/app/jobs/no-strip"], roles: ["pm"], widths: [320] });
   const scheduleWidthsAll = scheduleWidths();
   scheduleRows = await crawl(browser, base, {
     pages: ["/app/jobs/77-031", "/app/jobs/77-nolink", "/app/jobs/77-031/schedule", "/app/jobs/77-500/schedule", "/app/jobs/77-slow/schedule", "/app/jobs/77-soon/schedule", "/app/jobs/77-empty/schedule"],
@@ -444,6 +472,46 @@ for (const width of [390, 1280]) {
   }
 }
 {
+  // 5.0.4-0 clause 2. The scrolling strip fails at both phone widths; the wrapped twin passes.
+  // Clause 1 (document scrollWidth) stays inside the viewport — overflow-x:auto hides it from that check.
+  for (const width of [320, 390]) {
+    const pre = stripRows.find((r) => r.path === "/phone/strip-pre" && r.width === width);
+    const preFails = evaluatePhoneUx(pre);
+    const hit = preFails.find((x) => new RegExp(`job-strip element "I-5 Culvert 24-077" right \\d+(?:\\.\\d)? > clientWidth ${width}`).test(x));
+    assert.ok(hit, `/phone/strip-pre@${width} must fail the job strip; got ${JSON.stringify(preFails)} strip ${JSON.stringify(pre.stripPastRight)}`);
+    assert.ok(!preFails.some((x) => /document scrollWidth/.test(x)), `clause 1 must still pass on the scrolling strip @${width}; scrollWidth ${pre.docScrollWidth} viewport ${pre.viewportWidth}; ${JSON.stringify(preFails)}`);
+    assert.ok(!(pre.overflowPx > 0), `the scrolling strip must not widen the document @${width}; overflowPx ${pre.overflowPx}`);
+    lines.push(`FAILS as expected: /phone/strip-pre@${width} → ${hit}`);
+    const post = stripRows.find((r) => r.path === "/phone/strip-post" && r.width === width);
+    assert.deepEqual(evaluatePhoneUx(post), [], `wrapped strip @${width} must pass; got ${JSON.stringify(evaluatePhoneUx(post))} strip ${JSON.stringify(post.stripPastRight)}`);
+    assert.deepEqual(evaluateCrawlRow(post, { phoneChecks: true }), [], `wrapped strip crawl @${width} must pass`);
+    lines.push(`passes: /phone/strip-post@${width} wrapped strip inside clientWidth`);
+  }
+  const gated = stripGatedRows.find((r) => r.path === "/phone/strip-pre");
+  assert.ok(gated && !("stripPastRight" in gated), `phone checks off must omit stripPastRight; keys ${Object.keys(gated ?? {}).join(",")}`);
+  assert.deepEqual(evaluateCrawlRow(gated), [], `default crawl of the scrolling strip must not apply clause 2; got ${JSON.stringify(evaluateCrawlRow(gated))}`);
+  lines.push("passes: /phone/strip-pre@320 with phone checks off (clause 2 not recorded)");
+  for (const width of [320, 390]) {
+    const row = noStripRows.find((r) => r.path === "/app/jobs/no-strip" && r.width === width);
+    assert.deepEqual(row.stripPastRight, [{ missing: true }], `missing strip @${width} must record { missing: true }; got ${JSON.stringify(row.stripPastRight)}`);
+    const f = evaluateCrawlRow(row, { phoneChecks: true });
+    assert.ok(f.some((x) => /job-strip missing/.test(x)), `/app/jobs/no-strip@${width} must fail job-strip missing; got ${JSON.stringify(f)}`);
+    lines.push(`FAILS as expected: /app/jobs/no-strip@${width} → ${f.find((x) => /job-strip missing/.test(x))}`);
+  }
+  const noStripOff = noStripOffRows.find((r) => r.path === "/app/jobs/no-strip");
+  assert.ok(noStripOff && !("stripPastRight" in noStripOff), `phone checks off must omit stripPastRight; keys ${Object.keys(noStripOff ?? {}).join(",")}`);
+  assert.deepEqual(evaluateCrawlRow(noStripOff), [], `missing strip with phone checks off must pass; got ${JSON.stringify(evaluateCrawlRow(noStripOff))}`);
+  lines.push("passes: /app/jobs/no-strip@320 with phone checks off");
+}
+{
+  for (const width of [390, 1280]) {
+    const ok = rows.find((r) => r.path === "/app/jobs/chg-ok/changes" && r.width === width);
+    assert.ok(ok.seededCounts.changeItems >= 1, `good /changes must record items; got ${JSON.stringify(ok.seededCounts)}`);
+    const empty = rows.find((r) => r.path === "/app/jobs/chg-empty/changes" && r.width === width);
+    assert.equal(empty.seededCounts.changeItems, 0);
+  }
+}
+{
   const f = roadmapCoverageFailures(roadmapRows, { roles: ["pm"] });
   assert.deepEqual(f, [], `/roadmap at 6 widths must pass; got ${JSON.stringify(f)}`);
   lines.push(`passes: /roadmap @ ${roadmapRows.map((r) => r.width).join("/")} (hasMain ${roadmapRows.every((r) => r.hasMain)})`);
@@ -595,7 +663,7 @@ for (const width of [390, 1280]) {
 {
   // The fake slow pages must stay close enough to the budget that a loosened budget is caught:
   // under budget + 500 ms, a `budgetMs + 500` regression would let them pass.
-  const groups = [rows.filter((r) => r.path === "/app/jobs/slow"), drillRows.filter((r) => r.path.endsWith("/03-slow")), partCRows.filter((r) => r.path.endsWith("/p-slow")), scheduleRows.filter((r) => r.path === "/app/jobs/77-slow/schedule")];
+  const groups = [rows.filter((r) => r.path === "/app/jobs/slow"), rows.filter((r) => r.path === "/app/jobs/chg-slow/changes"), drillRows.filter((r) => r.path.endsWith("/03-slow")), partCRows.filter((r) => r.path.endsWith("/p-slow")), scheduleRows.filter((r) => r.path === "/app/jobs/77-slow/schedule")];
   const slow = groups.flat();
   const ms = slow.map((r) => r.idleMs);
   assert.ok(groups.every((g) => g.length > 0) && ms.every((x) => x > 1500 && x < 2000), `slow fixtures must measure in (1500, 2000) ms to pin the budget; got ${JSON.stringify(ms)}`);
@@ -864,4 +932,4 @@ let htmlCases = 0;
   rmSync(path.join(repo, evidence[1]), { recursive: true, force: true });
 }
 for (const l of lines) console.log(l);
-console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length + phoneBadRows.length + phoneRuleRows.length + phoneGatedRows.length + scheduleRows.length + scheduleDenyRows.length + scheduleExcludedRows.length + schedulePhoneRows.length + schedulePhoneOffRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases, ${flightCases} real-Chromium flight/URL redaction cases)`);
+console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length + phoneBadRows.length + phoneRuleRows.length + phoneGatedRows.length + stripRows.length + stripGatedRows.length + scheduleRows.length + scheduleDenyRows.length + scheduleExcludedRows.length + schedulePhoneRows.length + schedulePhoneOffRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases, ${flightCases} real-Chromium flight/URL redaction cases)`);

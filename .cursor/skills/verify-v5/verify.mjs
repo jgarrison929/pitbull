@@ -2,7 +2,7 @@
 // Verifies a deployed v5 app: /health and /status report the expected commit and Database ok, then
 // walks the real flows (login, portfolio from Postgres, one assistant action, sandbox reset) on
 // desktop and phone viewports.
-// Also crawls 4 roles × every app page (incl. /roadmap, also at 375/1440, and every seeded cost-item drill-down) × 320/390/768/1280.
+// Also crawls 4 roles × every app page (incl. /roadmap, also at 375/1440, every seeded job's /changes, and every seeded cost-item drill-down) × 320/390/768/1280.
 // When the verified commit contains the schedule route file, each active job's /schedule is in that crawl. Checks the M2/M4/M5 numbers, and checks main's CI
 // (last green commit, red main HEAD) — see SKILL.md.
 // Usage: node .cursor/skills/verify-v5/verify.mjs [--url URL] [--commit SHA] [--wait SECONDS] [--shots DIR]
@@ -45,6 +45,7 @@ import {
   browserFailureCheck,
   buildRcChecks,
   deployedForMainRule,
+  evaluateAppliedJournal,
   evaluateRcHead,
   journalAppliesCleanly,
   phoneChecksEnabled,
@@ -289,11 +290,9 @@ try {
     database: await text("status-database"),
   };
   statusCommitShown = status.commit;
-  if (rc) {
-    // A missing test id must not abort the crawl. Migrations are judged after the browser run.
-    migrationsLabel = await page.getByTestId("status-migrations").textContent({ timeout: 5000 }).then((t) => t?.trim() ?? "").catch(() => null);
-    status.migrations = migrationsLabel;
-  }
+  // Every run (per PR, post-merge, production, RC). A missing test id must not abort the crawl.
+  migrationsLabel = await page.getByTestId("status-migrations").textContent({ timeout: 5000 }).then((t) => t?.trim() ?? "").catch(() => null);
+  status.migrations = migrationsLabel;
   writeFileSync(path.join(outDir, "status.json"), safeJson(status, SECRETS));
   await page.screenshot({ path: path.join(outDir, "status.png"), fullPage: true });
   check("/status shows Operational", status.health === "Operational", status.health);
@@ -312,6 +311,41 @@ try {
     status.version,
   );
   check("/status ci-gate is pass", ciGateIsPass(status.ciGate), status.ciGate);
+  {
+    // Journal at the expected commit. idx and `when` must rise in entry order, and every tag must be on
+    // /status and /health with nothing applied that the journal does not have. Not only an RC run.
+    // An empty or missing entries array fails closed.
+    let journal = null;
+    let readError = null;
+    try {
+      const raw = execFileSync("git", ["show", `${expectedFull}:v5/drizzle/meta/_journal.json`], { cwd: repo, encoding: "utf8" });
+      const entries = JSON.parse(raw)?.entries;
+      // An empty or missing entries array is not a journal that applied cleanly. Fail closed.
+      if (!Array.isArray(entries) || entries.length === 0) {
+        readError = `journal at ${expectedFull} is missing or empty`;
+        journal = [];
+      } else {
+        journal = entries;
+      }
+    } catch (error) {
+      const text = `${error?.stderr ?? ""}\n${error?.message ?? error}`;
+      readError = `journal at ${expectedFull} could not be read: ${text.split("\n").map((s) => s.trim()).find(Boolean) ?? "git show failed"}`;
+    }
+    const migFails = evaluateAppliedJournal({
+      journal,
+      statusLabel: migrationsLabel,
+      healthMigrations: health.body?.migrations,
+      readError,
+    });
+    const last = journal?.at?.(-1)?.tag ?? journal?.[journal.length - 1]?.tag;
+    check(
+      "journal migrations applied in order",
+      migFails.length === 0,
+      migFails.length === 0
+        ? `${journal.length} tags${last ? ` ending ${last}` : ""}; when increases; every tag is on /status and /health`
+        : migFails.join("; "),
+    );
+  }
   check(
     "/status shows last-verify field",
     Boolean(status.lastVerify),
