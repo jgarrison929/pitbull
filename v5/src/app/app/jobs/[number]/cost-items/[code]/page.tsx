@@ -64,6 +64,9 @@ function EntryRows({
                   href={`/app/jobs/${jobNumber}/plans/${e.planId}`}
                   className="font-medium underline hover:no-underline"
                   data-testid="cost-entry-plan-link"
+                  // Plan-row links stack in the viewport; default prefetch
+                  // keeps networkidle busy after the document lands.
+                  prefetch={false}
                 >
                   {e.crew ?? "Daily report"}
                 </Link>
@@ -169,6 +172,7 @@ async function CostItem({
               href={`/app/jobs/${data.job.number}`}
               className="underline hover:no-underline"
               data-testid="cost-item-back"
+              prefetch={false}
             >
               {data.job.number} · {data.job.name}
             </Link>

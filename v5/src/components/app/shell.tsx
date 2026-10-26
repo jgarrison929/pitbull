@@ -37,6 +37,7 @@ function Brand({ className }: { className?: string }) {
     <Link
       href="/app"
       aria-label="Pitbull home"
+      prefetch={false}
       className={cn(
         "grid size-8 place-items-center rounded-md bg-brand text-sm font-bold text-brand-foreground",
         className,
@@ -181,7 +182,11 @@ async function UserMenu() {
         </div>
         <ThemeSwitch current={theme} />
         <div className="mt-3 flex flex-col gap-1">
-          <Link href="/login" className="rounded-md px-2 py-1.5 hover:bg-muted">
+          <Link
+            href="/login"
+            prefetch={false}
+            className="rounded-md px-2 py-1.5 hover:bg-muted"
+          >
             Switch role
           </Link>
           <form action={resetDemo}>

@@ -26,6 +26,10 @@ export function NavLink(props: Props) {
           aria-label={label}
           title={label}
           className={className}
+          // Shell tabs + job strip stay in the viewport; default Link prefetch
+          // fires a burst of ?_rsc= GETs after first paint and holds the verify
+          // crawl's networkidle window (~1.5 s). Hover still prefetches.
+          prefetch={false}
         >
           {children}
         </Link>
@@ -62,6 +66,7 @@ function ActiveLink({
       title={label}
       aria-current={active ? "page" : undefined}
       className={cn(className, active && activeClassName)}
+      prefetch={false}
     >
       {children}
     </Link>
