@@ -62,13 +62,15 @@ export type JobArgs = {
   coLines?: CoLineInput[];
   /** estimate.importCsv: the file text. Only the job page's file picker sets it; chat never does. */
   csv?: string;
-  /**
-   * schedule.importXer: XER file text (or base64) from the Schedule page picker (5.1.3-c).
-   * Chat never supplies this; max 10 MB enforced in the importer.
-   */
-  file?: string;
-  /** schedule.importXer: replace (default) | merge. */
+  /** schedule.import*: replace (default) or merge. */
   mode?: string;
+  /** schedule.import*: original file name from the Schedule page picker (5.1.3-c). */
+  fileName?: string;
+  /**
+   * schedule.import*: raw file bytes from the Schedule page picker (screen only).
+   * Chat never sets this — the rail points the PM at the Schedule upload control.
+   */
+  fileBytes?: Uint8Array;
   /** dailyPlan.create / addLine / approve / return / removeLine: date or today/tomorrow. */
   date?: string;
   /** dailyPlan.create / addLine / approve / return / removeLine: crew id or name. */

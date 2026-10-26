@@ -10,7 +10,7 @@ import {
   jobCalendars,
   jobs,
 } from "@/db/schema";
-import { SCHEDULE_IMPORT_MAX_BYTES } from "@/lib/schedule-import";
+import { MAX_SCHEDULE_IMPORT_BYTES } from "@/lib/schedule-import";
 import { createSandbox } from "./sandbox";
 import {
   clearJobActivitiesForTests,
@@ -48,12 +48,10 @@ describe.skipIf(!db)("importXerSchedule", () => {
       .where(and(eq(jobs.companyId, companyId), eq(jobs.number, "25-031")));
     expect(beforeLinks).toHaveLength(0);
 
-    const r = await importXerSchedule(
-      companyId,
-      "25-031",
-      fixture("cedar-ok.xer"),
-      "replace",
-    );
+    const r = await importXerSchedule(companyId, "25-031", fixture("cedar-ok.xer"), {
+      mode: "replace",
+      fileName: "cedar-ok.xer",
+    });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.activityCount).toBe(5);
@@ -129,7 +127,7 @@ describe.skipIf(!db)("importXerSchedule", () => {
       companyId,
       "25-031",
       fixture("cedar-missing-pred.xer"),
-      "replace",
+      { mode: "replace", fileName: "cedar-missing-pred.xer" },
     );
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -147,12 +145,10 @@ describe.skipIf(!db)("importXerSchedule", () => {
 
   it("refuses draft-estimate Harbor with estimate wording", async () => {
     const companyId = await sandbox();
-    const r = await importXerSchedule(
-      companyId,
-      "26-010",
-      fixture("cedar-ok.xer"),
-      "replace",
-    );
+    const r = await importXerSchedule(companyId, "26-010", fixture("cedar-ok.xer"), {
+      mode: "replace",
+      fileName: "cedar-ok.xer",
+    });
     expect(r).toMatchObject({
       ok: false,
       reason: "draft_estimate",
@@ -166,9 +162,12 @@ describe.skipIf(!db)("importXerSchedule", () => {
     const r = await importXerSchedule(
       companyId,
       "25-031",
-      new Uint8Array(SCHEDULE_IMPORT_MAX_BYTES + 1),
-      "replace",
+      new Uint8Array(MAX_SCHEDULE_IMPORT_BYTES + 1),
+      { mode: "replace", fileName: "huge.xer" },
     );
-    expect(r).toMatchObject({ ok: false, reason: "too_large" });
+    expect(r).toMatchObject({ ok: false, reason: "too_large", refused: true });
+    if (r.ok) return;
+    expect(r.summary).toMatch(/huge\.xer/);
+    expect(r.summary).toMatch(/10 MB/);
   });
 });

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { SCHEDULE_IMPORT_MAX_BYTES } from "./types";
+import { MAX_SCHEDULE_IMPORT_BYTES } from "./types";
 import { parseXer } from "./xer";
 
 const fixture = (name: string) =>
@@ -106,7 +106,7 @@ describe("parseXer", () => {
   });
 
   it("refuses files over 10 MB before parse", () => {
-    const over = new Uint8Array(SCHEDULE_IMPORT_MAX_BYTES + 1);
+    const over = new Uint8Array(MAX_SCHEDULE_IMPORT_BYTES + 1);
     const r = parseXer(over);
     expect(r).toEqual({
       error:

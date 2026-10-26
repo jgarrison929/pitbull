@@ -1,9 +1,18 @@
 /**
- * Shared schedule-import draft shape for XER (5.1.3-a) and MSP XML (5.1.3-b).
- * Parsers are pure; apply lives in `v5/src/server/schedule-import.ts`.
+ * Shared schedule-import draft + result shapes (5.1.3).
+ * Parsers (5.1.3-a XER / 5.1.3-b MSP XML) produce a draft; apply writes it
+ * in one transaction (`v5/src/server/schedule-import.ts`).
+ *
+ * Naming matches the 5.1.3-c UI contract so that PR can drop soft stubs on rebase.
  */
 
-export const SCHEDULE_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+/** Domain cap from 5.1.3. Server-action body limit must stay above this + multipart overhead. */
+export const MAX_SCHEDULE_IMPORT_BYTES = 10_000_000;
+
+/** @deprecated Prefer {@link MAX_SCHEDULE_IMPORT_BYTES}. */
+export const SCHEDULE_IMPORT_MAX_BYTES = MAX_SCHEDULE_IMPORT_BYTES;
+
+export type ScheduleImportMode = "replace" | "merge";
 
 export type ScheduleImportLinkType = "finish_to_start" | "start_to_start";
 
@@ -52,4 +61,47 @@ export function isScheduleImportParseErr(
   return "error" in r;
 }
 
-export type ScheduleImportMode = "replace" | "merge";
+export type ScheduleImportOk = {
+  ok: true;
+  jobNumber: string;
+  shortName: string;
+  activityCount: number;
+  linkCount: number;
+  holidayCount: number;
+  mode: ScheduleImportMode;
+  skipped: ScheduleImportSkipped[];
+  summary: string;
+};
+
+export type ScheduleImportFail = {
+  ok: false;
+  jobNumber: string;
+  shortName: string;
+  summary: string;
+  reason?:
+    | "not_found"
+    | "draft_estimate"
+    | "too_large"
+    | "invalid_file"
+    | "apply"
+    | "code_conflict"
+    | "bad_mode";
+  /** Row / graph errors shown as a list under the summary. */
+  detailLines?: string[];
+  skipped?: ScheduleImportSkipped[];
+  errors?: string[];
+  refused?: true;
+};
+
+export type ScheduleImportResult = ScheduleImportOk | ScheduleImportFail;
+
+/** One line per skipped construct for the import summary UI (5.1.3-c). */
+export function formatSkippedLines(
+  skipped: readonly ScheduleImportSkipped[],
+): string[] {
+  return skipped.map((s) => {
+    const n = s.count === 1 ? "1 row" : `${s.count} rows`;
+    const sample = s.sample?.trim() ? ` (e.g. ${s.sample.trim()})` : "";
+    return `Skipped ${s.kind}: ${n}${sample}`;
+  });
+}

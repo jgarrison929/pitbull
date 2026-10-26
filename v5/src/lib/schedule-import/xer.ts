@@ -8,7 +8,7 @@ import {
   ACTIVITY_DURATION_MIN_DAYS,
 } from "@/lib/schedule";
 import {
-  SCHEDULE_IMPORT_MAX_BYTES,
+  MAX_SCHEDULE_IMPORT_BYTES,
   type ScheduleImportDraft,
   type ScheduleImportLink,
   type ScheduleImportLinkType,
@@ -21,9 +21,9 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
 type Table = { name: string; fields: string[]; rows: string[][] };
 
 function decodeBytes(bytes: Uint8Array): string | { error: string } {
-  if (bytes.byteLength > SCHEDULE_IMPORT_MAX_BYTES) {
+  if (bytes.byteLength > MAX_SCHEDULE_IMPORT_BYTES) {
     return {
-      error: `Schedule file is over ${SCHEDULE_IMPORT_MAX_BYTES / (1024 * 1024)} MB and was refused before parse.`,
+      error: `Schedule file is over ${MAX_SCHEDULE_IMPORT_BYTES / 1_000_000} MB and was refused before parse.`,
     };
   }
   try {
