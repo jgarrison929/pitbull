@@ -51,7 +51,9 @@ function stripComments(src: string) {
 }
 
 function countCalls(code: string, name: "least" | "round") {
-  return (code.match(new RegExp(`\\b${name}\\s*\\(`, "g")) ?? []).length;
+  // Case-insensitive: Verify D2u/D2uf inline LEAST(/ROUND( (or mixed case)
+  // and must go RED the same as lowercase least(/round(.
+  return (code.match(new RegExp(`\\b${name}\\s*\\(`, "gi")) ?? []).length;
 }
 
 /** Non-test .ts under v5/src (recursive). */
@@ -130,8 +132,8 @@ describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
     );
     expect(claimFn?.[0]).toMatch(/return earnedFromSql\(/);
     expect(claimFn?.[0]).not.toMatch(/\bcase\b/i);
-    expect(claimFn?.[0]).not.toMatch(/\bleast\b/);
-    expect(claimFn?.[0]).not.toMatch(/\bround\b/);
+    expect(claimFn?.[0]).not.toMatch(/\bleast\b/i);
+    expect(claimFn?.[0]).not.toMatch(/\bround\b/i);
 
     // Count definitions in code (not names / comments): EV CASE has one
     // least + two rounds; PV linear has one more round. A duplicated
@@ -209,7 +211,7 @@ describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
       }),
     ).toBe(HALF_CENT_EV);
     const exprs = readFileSync(join(here, "cost-rollup-exprs.ts"), "utf8");
-    expect(exprs).toMatch(/else\s+round\s*\(/);
+    expect(exprs).toMatch(/else\s+round\s*\(/i);
     expect(exprs).not.toMatch(/\bfloor\s*\(/);
     expect(exprs).not.toMatch(/\btrunc\s*\(/);
   });
