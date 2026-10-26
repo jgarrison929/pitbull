@@ -84,11 +84,13 @@ function stepPath(
   const parts: string[] = [];
   let prev: { x: number; y: number } | null = null;
   let finite = 0;
-  points.forEach((p, i) => {
+  // for-loop (not forEach) so TS tracks `prev` after the single-point stub.
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]!;
     const v = p[key];
     if (v == null) {
       prev = null;
-      return;
+      continue;
     }
     finite += 1;
     const x = xAt(i, points.length);
@@ -100,7 +102,7 @@ function stepPath(
       parts.push(`L${x.toFixed(1)} ${y.toFixed(1)}`);
     }
     prev = { x, y };
-  });
+  }
   // One lock day → one finite EV point. A lone M has no stroke; extend a short
   // horizontal so the series (and legend color) stays visible.
   if (finite === 1 && prev) {
