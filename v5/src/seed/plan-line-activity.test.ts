@@ -18,7 +18,9 @@ describe("5.1.0-d seed Bridge Crew 2 plan-line activity links", () => {
     )!;
 
     expect(pour.activityId).toBe(id("activity:cedar:C"));
-    expect(pour.activity).toBe("Pier columns");
+    // Demo free-text stays "Pour …" so "Change the pour…" still matchLines;
+    // add-line picker copies the schedule name "Pier columns" on write.
+    expect(pour.activity).toBe("Pour Pier 3 column, lift 2");
     expect(cage.activityId).toBe(id("activity:cedar:E"));
     expect(cage.activity).toBe("Tie column cage");
     expect(dewater.activityId).toBeNull();

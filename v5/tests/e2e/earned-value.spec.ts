@@ -97,7 +97,7 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   expect(await actualCents(page)).toBe(actualBefore);
   const sinceAfterApprove = await sinceLockActualCents(page);
   expect(sinceAfterApprove).toBeGreaterThan(0);
-  // 80 MH on pier columns × Bridge Crew 2 seeded rate (other lines may also post).
+  // 80 MH on the pour × Bridge Crew 2 seeded rate (other lines may also post).
   expect(sinceAfterApprove).toBeGreaterThanOrEqual(
     80 * CREW_LABOR_RATE_CENTS["Bridge Crew 2"],
   );
@@ -154,7 +154,7 @@ test("assistant reports actuals that differ from the plan (pending until approve
 
   await rail
     .getByTestId("assistant-input")
-    .fill("we poured 40 CY with 80 hours on pier columns for Cedar Creek");
+    .fill("we poured 40 CY with 80 hours on the pour for Cedar Creek");
   await rail.getByRole("button", { name: "Send" }).click();
   await expect(rail.getByTestId("action-run")).toHaveCount(before + 2);
   const run2 = rail.getByTestId("action-run").last();
@@ -321,7 +321,7 @@ test("assistant updates one line without wiping other lines' last reports", asyn
 
   await rail
     .getByTestId("assistant-input")
-    .fill("we worked 70 hours on pier columns for Cedar Creek");
+    .fill("we worked 70 hours on the pour for Cedar Creek");
   await rail.getByRole("button", { name: "Send" }).click();
   await expect(rail.getByTestId("action-run")).toHaveCount(before + 1);
   const pourRun = rail.getByTestId("action-run").nth(before);
@@ -359,7 +359,7 @@ test("assistant rejects negative man-hours", async ({ page }) => {
   const before = await rail.getByTestId("action-run").count();
   await rail
     .getByTestId("assistant-input")
-    .fill("we worked -5 hours on pier columns for Cedar Creek");
+    .fill("we worked -5 hours on the pour for Cedar Creek");
   await rail.getByRole("button", { name: "Send" }).click();
   await expect(rail.getByTestId("action-run")).toHaveCount(before + 1);
   const run = rail.getByTestId("action-run").last();

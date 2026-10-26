@@ -415,7 +415,7 @@ const mhUnit = String.raw`(?:man[- ]?hours?|mh|hours?|hrs?)`;
 
 /**
  * "we poured 38 CY with 72 hours on 04-210" → one actuals entry.
- * Also "report 70 MH and 40 CY on 04-210", or "… on pier columns" (no code — action matches line).
+ * Also "report 70 MH and 40 CY on 04-210", or "… on the pour" (no code — action matches line).
  * Keeps a leading minus; NaN/Infinity become non-finite so the action can refuse them.
  */
 export function parseReportActuals(prompt: string): ReportActualArg[] {
@@ -444,7 +444,7 @@ export function parseReportActuals(prompt: string): ReportActualArg[] {
   return [entry];
 }
 
-/** "change pier columns to 80 man-hours", "set the cage to 5 workers", "note on pier columns: crane at 6". */
+/** "change the pour to 80 man-hours", "set the cage to 5 workers", "note on the pour: crane at 6". */
 export function parseChange(prompt: string): LineInput | null {
   const text = prompt.toLowerCase();
   const note = prompt.match(/\bnotes?\b[^:]*:\s*(.+)$/i);
@@ -647,7 +647,7 @@ export const examples = [
   "Show tomorrow's plan for Cedar Creek",
   "Plan today on 25-031 for Bridge Crew 2",
   "Add 04-210 to today's plan on 25-031: 12 CY, 3 workers, 8 hours",
-  "Change pier columns to 80 man-hours",
+  "Change the pour to 80 man-hours",
   "Submit tomorrow's plan",
   "Report today's work on Cedar Creek",
   "Approve the daily report for Cedar Creek",

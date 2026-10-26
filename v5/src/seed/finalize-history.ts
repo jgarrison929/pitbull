@@ -340,10 +340,10 @@ function actionRunSpecs(today: Date, id: (k: string) => string) {
   const runs: Run[] = [
     {
       userId: foreman,
-      prompt: "Add a note on pier columns: forms checked, ready for concrete",
+      prompt: "Add a note on the pour: forms checked, ready for concrete",
       action: "dailyPlan.updateLine",
       summary:
-        "Changed 04-210 Pier columns on Bridge Crew 2's plan: note \"Forms checked — ready for concrete.\"",
+        "Changed 04-210 Pour Pier 3 column, lift 2 on Bridge Crew 2's plan: note \"Forms checked — ready for concrete.\"",
       args: {
         requested: "25-031",
         job: "25-031",
@@ -564,7 +564,7 @@ function actionRunSpecs(today: Date, id: (k: string) => string) {
       userId: superintendent,
       prompt: "Show tomorrow's plan for Cedar Creek",
       action: "dailyPlan.show",
-      summary: `Bridge Crew 2 on Cedar Creek Bridge, ${tomorrowDay}, is a draft. 3 activities, 110 man-hours: Pier columns, Tie column cage, Dewatering watch, pump check. Every line is within its budgeted unit rate.`,
+      summary: `Bridge Crew 2 on Cedar Creek Bridge, ${tomorrowDay}, is a draft. 3 activities, 110 man-hours: Pour Pier 3 column, lift 2, Tie column cage, Dewatering watch, pump check. Every line is within its budgeted unit rate.`,
       args: {
         requested: "25-031",
         job: "25-031",

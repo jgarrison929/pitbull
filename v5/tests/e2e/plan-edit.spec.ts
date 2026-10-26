@@ -48,11 +48,11 @@ test("Joshua's steps on screen: foreman changes the pour from 60 to 80 man-hours
   );
 });
 
-test("Joshua's steps via the assistant: 'change pier columns to 80 man-hours' persists", async ({
+test("Joshua's steps via the assistant: 'change the pour to 80 man-hours' persists", async ({
   page,
 }) => {
   await signIn(page, "foreman");
-  const run = await ask(page, "Change pier columns to 80 man-hours");
+  const run = await ask(page, "Change the pour to 80 man-hours");
   await expect(run).toHaveAttribute("data-action", "dailyPlan.updateLine");
   await expect(run.getByTestId("action-summary")).toContainText(
     "Changed 04-210",
@@ -171,7 +171,7 @@ test("roles without edit rights see no Edit button and the action refuses them",
   await signIn(page, "pm");
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("edit-line")).toHaveCount(0);
-  const run = await ask(page, "Change pier columns to 80 man-hours");
+  const run = await ask(page, "Change the pour to 80 man-hours");
   await expect(run.getByTestId("action-summary")).toContainText(
     "needs a foreman or a superintendent",
   );
@@ -183,7 +183,7 @@ test("a foreman's line edit is in the job's changes for the PM, not in the PM's 
   page,
 }) => {
   await signIn(page, "foreman");
-  await ask(page, "Change pier columns to 80 man-hours");
+  await ask(page, "Change the pour to 80 man-hours");
   await signIn(page, "pm");
   const rail = page.getByTestId("assistant-rail");
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
@@ -192,14 +192,14 @@ test("a foreman's line edit is in the job's changes for the PM, not in the PM's 
   await expect(
     rail
       .getByTestId("action-run")
-      .filter({ hasText: "Change pier columns to 80 man-hours" }),
+      .filter({ hasText: "Change the pour to 80 man-hours" }),
   ).toHaveCount(0);
   await page.reload();
   await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
   await expect(
     rail
       .getByTestId("action-run")
-      .filter({ hasText: "Change pier columns to 80 man-hours" }),
+      .filter({ hasText: "Change the pour to 80 man-hours" }),
   ).toHaveCount(0);
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("job-changes")).toContainText("Luis Ortega");
@@ -214,6 +214,6 @@ test("a foreman's line edit is in the job's changes for the PM, not in the PM's 
   await expect(
     rail
       .getByTestId("action-run")
-      .filter({ hasText: "Change pier columns to 80 man-hours" }),
+      .filter({ hasText: "Change the pour to 80 man-hours" }),
   ).toHaveCount(1);
 });

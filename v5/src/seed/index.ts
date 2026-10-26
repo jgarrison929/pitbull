@@ -966,12 +966,14 @@ export function seed(companyId: string, today: Date): SeedRows {
     at: tomorrowCreatedAt,
   });
   // 5.1.0-d: Bridge Crew 2 demo lines link to schedule activities C and E.
+  // Free-text keeps the demo phrase ("the pour") so verify-v5 / rail examples
+  // still resolve; picker writes copy the schedule name ("Pier columns").
   // Activity UUIDs are deterministic (`activity:cedar:*`) before schedule rows insert.
   const lines = [
     {
       code: "04-210",
       activityId: id("activity:cedar:C"),
-      activity: "Pier columns",
+      activity: "Pour Pier 3 column, lift 2",
       location: "Pier 3",
       qty: 42,
       workers: 6,

@@ -66,7 +66,6 @@ import {
   createDailyPlan,
   findCrewByName,
   removePlanLine,
-  resolveJobActivity,
   resolvePlanForWrite,
 } from "@/server/plans";
 import {
@@ -353,7 +352,7 @@ const words = (s: string) =>
 
 /**
  * Which line a sentence means: a cost code in it, else the line whose activity or cost item
- * shares the most words with it ("pier columns" → 04-210 Pier columns). Ties and misses ask.
+ * shares the most words with it ("the pour" → 04-210 Pour Pier 3 column). Ties and misses ask.
  */
 export function matchLine(
   lines: Line[],
@@ -850,8 +849,9 @@ export const actions: Record<ActionName, ActionDef> = {
       }
       const v = result.values;
       const item = j.lines.find((l) => l.id === v.costItemId)!;
-      // 5.1.0-d: when the line is linked to a schedule activity, the cost item
-      // must stay on that activity's links; name stays the activity name.
+      // 5.1.0-d: linked lines keep their activity_id; cost item must stay on
+      // that activity's links. Name is copied when activity_id is set (addLine /
+      // picker), not rewritten on every MH/qty edit (seed demo text stays).
       const activityId = line.activityId ?? null;
       if (activityId) {
         const linked = await costItemLinkedToActivity(
@@ -872,10 +872,6 @@ export const actions: Record<ActionName, ActionDef> = {
             ...where,
           };
         }
-        const act = await resolveJobActivity(user.companyId, j.job.id, {
-          activityId,
-        });
-        if ("activity" in act) v.activity = act.activity.name;
       }
       const changes = describeChange(line, v, item.unit, item.code);
       if (!changes.length)
@@ -1166,7 +1162,7 @@ export const actions: Record<ActionName, ActionDef> = {
             ? plan.lines.find((l) => l.code === a.costCode)
             : undefined;
         if (!line && !a.lineId && !a.costCode) {
-          // "we poured 38 CY … on pier columns" — resolve by activity words.
+          // "we poured 38 CY … on the pour" — resolve by activity words.
           const m = matchLine(plan.lines, lineRef ?? "");
           if ("ask" in m)
             return {
