@@ -60,8 +60,8 @@ export async function Job({
   const p = await getJob(user.companyId, number);
   // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
   if (!p) notFound();
-  // Role gates before the parallel fetch so capture roles skip lock / EV /
-  // crew-picker queries they never render (page budget).
+  // Role gates before the parallel fetch so foreman (and other capture roles)
+  // skip lock / EV-control / crew-picker queries they never render.
   const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
   const canCreatePlan =
     actions["dailyPlan.create"].roles?.includes(user.role) ?? false;
@@ -93,8 +93,8 @@ export async function Job({
     coData,
     crewRows,
   ] = await Promise.all([
-    // Open cards keep full lines; 30-day history is summary-only (RSC budget).
-    // Today is computed inside getJobPagePlans via planDateToday(seedNow()).
+    // Open cards keep full lines; 30-day history is summary-only (page budget).
+    // todayLA defaults inside getJobPagePlans via seedNow + job TZ (never UTC).
     getJobPagePlans(user.companyId, p.job.id),
     jobChanges(user.companyId, p.job.number),
     canLock
@@ -107,17 +107,11 @@ export async function Job({
     listChangeOrders(user.companyId, p.job.number),
     canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
   ]);
-  // Typed payloads from getJobPagePlans (open = full lines; history = summaries).
-  const openPlans = pagePlans.openPlans;
+  // #18 page wiring: surface owns open split / New-plan today (M8).
+  // History summaries stay from getJobPagePlans (budget — no full line arrays).
+  const plans = pagePlans.openPlans;
+  const { open: openPlans, today } = jobPagePlanSurface(plans);
   const historyPlans = pagePlans.historyPlans;
-  // #18 / M8 page wiring: pass a `plans` list through jobPagePlanSurface (and the
-  // New-plan slot). Date-only keeps the array homogeneous — open cards and
-  // history summaries stay separately typed for render (lines vs lineCount).
-  const plans = [
-    ...openPlans.map((p) => ({ planDate: p.planDate })),
-    ...historyPlans.map((p) => ({ planDate: p.planDate })),
-  ];
-  const { today } = jobPagePlanSurface(plans);
   const historyDay = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
       weekday: "short",
