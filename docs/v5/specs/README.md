@@ -30,7 +30,7 @@ Next after those: 5.2.0-b (stack on 5.2.0-a), 5.2.0-d (after 5.2.0-c), then 5.2.
 
 | Slice ID | PR | Migration | Notes |
 |---|---|---|---|
-| 5.0.3 Part A | [#12](https://github.com/jgarrison929/pitbull/pull/12) | none | S-curve. Last Verify FAIL was on an older head |
+| 5.0.5 (was 5.0.3 Part A) | [#12](https://github.com/jgarrison929/pitbull/pull/12) | none | [S-curve](5.0.5-s-curve.md). Last Verify FAIL was on an older head |
 | 5.0.4-a, b | [#26](https://github.com/jgarrison929/pitbull/pull/26), [#27](https://github.com/jgarrison929/pitbull/pull/27) | none | Into `rc/5.0.4`. Last Verify FAIL was on older heads |
 | 5.0.4-d, e, f | [#32](https://github.com/jgarrison929/pitbull/pull/32), [#33](https://github.com/jgarrison929/pitbull/pull/33), [#34](https://github.com/jgarrison929/pitbull/pull/34) | none | Into `rc/5.0.4`. Merge order a → b → d → e → f |
 | 5.1.0-b | [#37](https://github.com/jgarrison929/pitbull/pull/37) | none | Schedule server module and typed actions |
@@ -64,8 +64,9 @@ Drizzle's journal is contiguous. A number is a claim, not a file. A migration me
 |---|---|---|---|
 | 5.0.1 | [The superintendent plans the day, and a public roadmap page](5.0.1-superintendent-plans-the-day.md) | 2026-10-25 | Shipped |
 | 5.0.2 | [Crew rates, field history, and the cost drill-down](5.0.2-crew-rates-and-field-history.md) | 2026-10-26 | Verified on staging, awaiting tag and production |
-| 5.0.3 | [The S-curve, Average Performance, and the dark theme](5.0.3-s-curve-and-forecast-methods.md) | 2026-10-28 | Parts B to F on `main`, Part A open |
+| 5.0.3 | [A second forecast method, the dark theme, and plan history](5.0.3-s-curve-and-forecast-methods.md) | 2026-10-28 | Parts B to F on `main`. Part A moved to 5.0.5 |
 | 5.0.4 | [Clear next steps and mobile polish](5.0.4-clear-next-steps-and-mobile-polish.md) | 2026-10-30 | In build on `rc/5.0.4` |
+| 5.0.5 | [The S-curve](5.0.5-s-curve.md) (was 5.0.3 Part A) | 2026-11-02 | In build in [#12](https://github.com/jgarrison929/pitbull/pull/12) |
 | 5.1.0 | [Activities, calendar, Gantt, and plan-line links](5.1.0-activities-and-gantt.md) | 2026-10-29 | a merged, b to d open |
 | 5.1.1 | [Dependencies, float, and the critical path](5.1.1-dependencies-and-cpm.md) | 2026-11-03 | Library on `main`, wire-up ready to build |
 | 5.1.2 | [Baseline and PV from baseline dates](5.1.2-baseline-and-pv.md) | 2026-11-06 | a open |
