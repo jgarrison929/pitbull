@@ -163,6 +163,56 @@ describe("5.1.0-a schedule seed", () => {
     ).toBe(true);
   });
 
+  /**
+   * S3 lock: "Holidays are dates with no work". At seedNow ≥ 2026-11-05 the
+   * Cedar graph crosses Thanksgiving — without the holiday in createWorkingCalendar,
+   * B ends 11-27 (works 11-26) instead of 11-30.
+   */
+  it("must-fail S3: no activity works Thanksgiving when seedNow crosses it", () => {
+    const seedNow = new Date("2026-11-05T17:00:00.000Z");
+    const seeded = seed(company, seedNow);
+    expect(seeded.calendarHolidays.every((h) => h.on === "2026-11-26")).toBe(
+      true,
+    );
+
+    const cal = createWorkingCalendar(
+      seeded.calendarHolidays.map((h) => h.on!),
+    );
+    expect(cal.isWorkingDay("2026-11-26")).toBe(false);
+
+    const cedar = seeded.jobs.find((j) => j.number === "25-031")!;
+    const b = seeded.activities.find(
+      (a) => a.jobId === cedar.id && a.code === "B",
+    )!;
+    expect(b.earlyStartOn).toBe("2026-11-25");
+    // With Thanksgiving: 11-25, 11-27, 11-30. S3 empty calendar: 11-25..11-27.
+    expect(b.earlyFinishOn).toBe("2026-11-30");
+    expect(b.earlyFinishOn).not.toBe("2026-11-27");
+
+    for (const a of seeded.activities) {
+      let on = a.earlyStartOn!;
+      for (;;) {
+        expect(
+          on,
+          `${a.code ?? a.name} must not work Thanksgiving`,
+        ).not.toBe("2026-11-26");
+        expect(
+          cal.isWorkingDay(on),
+          `${a.code ?? a.name} ${on} must be a working day`,
+        ).toBe(true);
+        if (on === a.earlyFinishOn) break;
+        on = cal.nextWorkingDay(on);
+      }
+    }
+
+    // Prove the empty-holiday calendar is the S3 mutant shape (works Thanksgiving).
+    const noHoliday = createWorkingCalendar([]);
+    expect(noHoliday.isWorkingDay("2026-11-26")).toBe(true);
+    expect(noHoliday.addWorkingDays(b.earlyStartOn!, b.durationDays - 1)).toBe(
+      "2026-11-27",
+    );
+  });
+
   it("imports lib/working-calendar and must not ship a parallel working-days module", () => {
     const src = readFileSync(join(process.cwd(), "src/seed/schedule.ts"), "utf8");
     expect(src).toMatch(/from "@\/lib\/working-calendar"/);
