@@ -394,52 +394,66 @@ export async function Job({
         </details>
       ) : null}
       {/*
-        5.0.4-e: phone fold shows EAC + CPI first (2-col grid). EAC carries
-        cost variance; CPI carries earned and actual as its two secondaries.
+        5.0.4-e: phone fold shows EAC + CPI first (2-col grid) when the role
+        sees cost indexes (5.0.4-b). EAC carries cost variance; CPI carries
+        earned and actual as its two secondaries. Foreman omits both.
       */}
       <KpiStrip>
-        <MetricCard
-          label="Estimate at completion (EAC)"
-          value={
-            estimateDraft ? (
-              <span className="text-muted-foreground" data-testid="metric-dash">
-                —
-              </span>
-            ) : (
-              <span data-testid="job-eac" data-cents={p.eacCents}>
-                {usdShort(p.eacCents)}
-              </span>
-            )
-          }
-          secondary={
-            estimateDraft
-              ? ["Approve the estimate to forecast"]
-              : [
-                  `${p.costVarianceCents > 0 ? "+" : ""}${usdShort(p.costVarianceCents)} cost variance`,
-                ]
-          }
-        />
-        <MetricCard
-          label="Cost performance (CPI)"
-          value={
-            estimateDraft ? (
-              <span className="text-muted-foreground" data-testid="metric-dash">
-                —
-              </span>
-            ) : (
-              <StatusIndex index={p.cpi} varianceCents={p.costVarianceCents} />
-            )
-          }
-          secondary={
-            estimateDraft
-              ? ["— earned", "— actual"]
-              : [
-                  `Earned ${usdShort(p.earnedCents)}`,
-                  `Actual ${usdShort(p.actualCents)}`,
-                ]
-          }
-          testId="job-cpi"
-        />
+        {costIndexes ? (
+          <>
+            <MetricCard
+              label="Estimate at completion (EAC)"
+              value={
+                estimateDraft ? (
+                  <span
+                    className="text-muted-foreground"
+                    data-testid="metric-dash"
+                  >
+                    —
+                  </span>
+                ) : (
+                  <span data-testid="job-eac" data-cents={p.eacCents}>
+                    {usdShort(p.eacCents)}
+                  </span>
+                )
+              }
+              secondary={
+                estimateDraft
+                  ? ["Approve the estimate to forecast"]
+                  : [
+                      `${p.costVarianceCents > 0 ? "+" : ""}${usdShort(p.costVarianceCents)} cost variance`,
+                    ]
+              }
+            />
+            <MetricCard
+              label="Cost performance (CPI)"
+              value={
+                estimateDraft ? (
+                  <span
+                    className="text-muted-foreground"
+                    data-testid="metric-dash"
+                  >
+                    —
+                  </span>
+                ) : (
+                  <StatusIndex
+                    index={p.cpi}
+                    varianceCents={p.costVarianceCents}
+                  />
+                )
+              }
+              secondary={
+                estimateDraft
+                  ? ["— earned", "— actual"]
+                  : [
+                      `Earned ${usdShort(p.earnedCents)}`,
+                      `Actual ${usdShort(p.actualCents)}`,
+                    ]
+              }
+              testId="job-cpi"
+            />
+          </>
+        ) : null}
         <Kpi
           label="Original budget"
           value={
