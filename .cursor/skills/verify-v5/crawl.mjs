@@ -10,17 +10,137 @@ export const CRAWL_WIDTHS = [320, 390, 768, 1280];
 /** Extra widths /roadmap is also crawled at (5.0.1 acceptance check 12 used 375 and 1440). */
 export const ROADMAP_EXTRA_WIDTHS = [375, 1440];
 
-/** Main nav-crawl pages: /app, every seeded job page, assistant, changelog, status and /roadmap. */
-export function navCrawlPages(seedJobNumbers) {
-  return ["/app", ...seedJobNumbers.map((j) => `/app/jobs/${j}`), "/app/assistant", "/changelog", "/status", "/roadmap"];
+/** 5.1.0-c schedule page. Presence of this file at the verified commit turns the schedule crawl on. */
+export const SCHEDULE_ROUTE_FILE = "v5/src/app/app/jobs/[number]/schedule/page.tsx";
+
+export function schedulePath(job) {
+  return `/app/jobs/${job}/schedule`;
 }
 
-/** Passes the nav crawl runs: every page × CRAWL_WIDTHS, then /roadmap × ROADMAP_EXTRA_WIDTHS. */
-export function navCrawlPlan(seedJobNumbers) {
+export const SCHEDULE_PATH = /^\/app\/jobs\/[^/]+\/schedule$/;
+
+/**
+ * Who may open a job schedule. The 5.1.0-c spec crawls all four demo roles.
+ * A role set to false is not skipped: the job page must not link Schedule, and the URL must be a denial.
+ */
+export const SCHEDULE_ROLE_ACCESS = { executive: true, pm: true, superintendent: true, foreman: true };
+
+/** Widths a schedule page is crawled at: the main four, plus the extras the crawl already uses. */
+export function scheduleWidths() {
+  return [...CRAWL_WIDTHS, ...ROADMAP_EXTRA_WIDTHS];
+}
+
+function gitFailureText(error) {
+  return `${error.stderr ?? ""}\n${error.stdout ?? ""}\n${error.message ?? ""}`;
+}
+
+function gitFailureLine(text) {
+  return text.split("\n").map((s) => s.trim()).find((s) => /^fatal:|^error:/.test(s)) ?? null;
+}
+
+/**
+ * Whether SCHEDULE_ROUTE_FILE is in `<sha>`. `git` is `(args) => string` and throws on a git error
+ * (execFileSync). The sha must be a commit first: a bad object is an error, not "absent".
+ * Absence is trustworthy only when `git ls-tree --name-only <sha> -- :(literal)<file>` exits 0.
+ * Empty output means the path is not in this commit. Any non-zero exit — an unreadable tree or
+ * object, including `error: Could not read <tree>` and `fatal: not a tree object` — is returned
+ * so the check fails. "exists on disk, but not in" is not absence.
+ */
+export function scheduleRouteAtCommit(sha, git) {
+  try {
+    git(["cat-file", "-e", `${sha}^{commit}`]);
+  } catch (error) {
+    return { present: false, error: gitFailureLine(gitFailureText(error)) ?? "schedule route could not be read at this commit" };
+  }
+  let listed;
+  try {
+    listed = git(["ls-tree", "--name-only", sha, "--", `:(literal)${SCHEDULE_ROUTE_FILE}`]);
+  } catch (error) {
+    return { present: false, error: gitFailureLine(gitFailureText(error)) ?? "schedule route could not be read at this commit" };
+  }
+  const names = String(listed ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
+  return { present: names.length > 0, error: null };
+}
+
+/**
+ * Main nav-crawl pages: /app, every seeded job page, assistant, changelog, status and /roadmap.
+ * `scheduleJobNumbers` (active / approved jobs) add `/app/jobs/<job>/schedule` only when the route exists.
+ */
+export function navCrawlPages(seedJobNumbers, scheduleJobNumbers = []) {
   return [
-    { pages: navCrawlPages(seedJobNumbers), widths: CRAWL_WIDTHS },
-    { pages: ["/roadmap"], widths: ROADMAP_EXTRA_WIDTHS },
+    "/app",
+    ...seedJobNumbers.map((j) => `/app/jobs/${j}`),
+    ...scheduleJobNumbers.map((j) => schedulePath(j)),
+    "/app/assistant",
+    "/changelog",
+    "/status",
+    "/roadmap",
   ];
+}
+
+/** Passes the nav crawl runs: every page × CRAWL_WIDTHS, then /roadmap and any schedule pages × ROADMAP_EXTRA_WIDTHS. */
+export function navCrawlPlan(seedJobNumbers, scheduleJobNumbers = []) {
+  const schedule = scheduleJobNumbers.map((j) => schedulePath(j));
+  return [
+    { pages: navCrawlPages(seedJobNumbers, scheduleJobNumbers), widths: CRAWL_WIDTHS },
+    { pages: ["/roadmap", ...schedule], widths: ROADMAP_EXTRA_WIDTHS },
+  ];
+}
+
+/**
+ * Schedule link on a job page, and a direct load that is not a 200.
+ * Allowed roles on an active job must see `/app/jobs/<job>/schedule`.
+ * An excluded role, and a job that is not an active schedule job (Harbor), must not.
+ */
+export function scheduleNavFailures(rows, { scheduleJobs, access = SCHEDULE_ROLE_ACCESS } = {}) {
+  const f = [];
+  const want = new Set(scheduleJobs ?? []);
+  for (const r of rows ?? []) {
+    const job = r.path?.match(/^\/app\/jobs\/([^/]+)$/)?.[1];
+    if (!job) continue;
+    const links = r.scheduleLinks ?? [];
+    const href = schedulePath(job);
+    const seen = links.some((h) => String(h).split(/[?#]/)[0] === href);
+    if (access[r.role] === false) {
+      if (seen) f.push(`${r.role}@${r.width} ${r.path}: excluded role sees the schedule link`);
+      continue;
+    }
+    if (want.has(job) && !seen) f.push(`${r.role}@${r.width} ${r.path}: schedule link missing`);
+    if (!want.has(job) && seen) f.push(`${r.role}@${r.width} ${r.path}: schedule link on a job with no schedule`);
+  }
+  return f;
+}
+
+/** 403 or 404, and not the schedule body. 200 and 5xx are not a denial. */
+export function scheduleDenialFailures(row) {
+  const where = `${row.role}@${row.width} ${row.path}`;
+  const status = row.status;
+  if (status === 403 || status === 404) {
+    if ((row.seededCounts?.activityRows ?? 0) > 0) return [`${where}: excluded role was shown the schedule`];
+    return [];
+  }
+  if (status === 200) return [`${where}: excluded role was shown the schedule`];
+  return [`${where}: HTTP ${status} is not a denial`];
+}
+
+/**
+ * Every allowed role × width × active job has a schedule load. A missing one fails.
+ * Excluded roles are not required to have a 200 load; their denial rows are judged by scheduleDenialFailures.
+ */
+export function scheduleCoverageFailures(rows, scheduleJobs, { roles = CRAWL_ROLES, widths = scheduleWidths(), access = SCHEDULE_ROLE_ACCESS } = {}) {
+  const f = [];
+  for (const role of roles) {
+    if (access[role] === false) continue;
+    for (const width of widths) {
+      for (const job of scheduleJobs ?? []) {
+        const path = schedulePath(job);
+        if (!rows.some((r) => r.role === role && r.width === width && r.path === path && !r.scheduleDenial)) {
+          f.push(`${role}@${width} ${path}: schedule missing`);
+        }
+      }
+    }
+  }
+  return f;
 }
 
 /** Loads the plan must produce: roles × Σ(pages × widths). */
@@ -115,7 +235,11 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
       portfolioRows: document.querySelectorAll('[data-testid="job-link"]').length,
       costItemTiles: document.querySelectorAll('[data-testid="cost-item-cb"]').length,
       planStatus: document.querySelectorAll('[data-testid="plan-detail-status"]').length,
+      activityRows: document.querySelectorAll('[data-testid="gantt-activity"]').length,
     },
+    scheduleLinks: [...document.querySelectorAll("a[href]")]
+      .map((a) => (a.getAttribute("href") ?? "").split(/[?#]/)[0])
+      .filter((h) => /^\/app\/jobs\/[^/]+\/schedule$/.test(h)),
   };
   if (!phoneChecks) return out;
   const tapMisses = [];
@@ -309,12 +433,15 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
  * With `drill.partC` ({ active, planLinked, records }): Part C crawl check 4 — per active job, one cost item
  * page (a discovered link to a plan-linked item) and one plan page (a labor row's plan link on that cost
  * item page, else the job page's plan card link); rows get `partC: "cost-item" | "plan"`.
+ * With `schedule` ({ jobs, deniedJobs, access }): after the page list, each denied job (and every schedule
+ * job, for a role with access false) is loaded and tagged `scheduleDenial`. Those rows are a denial
+ * (403 or 404), not a 200. Allowed schedule URLs belong in `pages` so they get every per-load check.
  * With `evidence` ({ dir, budgetMs?, secrets? }): every load that fails evaluateCrawlRow, every load that
  * throws, and every job page whose drill-down discovery differs from the seed is captured into `dir`
  * (screenshot, HTML, URL with query, console/page errors, failed requests; see evidence.mjs) while the
  * page still shows it; the failing row gets `evidence: <json file>`. Capture never changes a verdict.
  */
-export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths = CRAWL_WIDTHS, shotDir, onRow, drill, evidence, phoneChecks = false } = {}) {
+export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths = CRAWL_WIDTHS, shotDir, onRow, drill, schedule, evidence, phoneChecks = false } = {}) {
   const rows = [];
   const secrets = evidence ? (evidence.secrets ?? secretValues()) : [];
   for (const [ri, role] of roles.entries()) {
@@ -338,7 +465,9 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
           throw error;
         }
         if (evidence) {
-          const f = evaluateCrawlRow(row, { budgetMs: evidence.budgetMs ?? PAGE_BUDGET_MS, phoneChecks });
+          const f = row.scheduleDenial
+            ? scheduleDenialFailures(row)
+            : evaluateCrawlRow(row, { budgetMs: evidence.budgetMs ?? PAGE_BUDGET_MS, phoneChecks });
           if (f.length) {
             const files = await capture(row.drill ? "drill" : row.partC ? `partc-${row.partC}` : "crawl", href, f.join("; "));
             if (files?.json) row.evidence = files.json;
@@ -365,6 +494,17 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
             }
             for (const h of d.hrefs) found.add(h);
             planCards[job] = d.planCardHrefs;
+          }
+        }
+        if (schedule) {
+          const scheduleAccess = schedule.access ?? SCHEDULE_ROLE_ACCESS;
+          const denied = scheduleAccess[role] === false
+            ? [...(schedule.jobs ?? []), ...(schedule.deniedJobs ?? [])]
+            : (schedule.deniedJobs ?? []);
+          for (const job of denied) {
+            const row = await load(schedulePath(job), { scheduleDenial: true });
+            rows.push(row);
+            onRow?.(row);
           }
         }
         const access = drill?.access ?? DRILL_ROLE_ACCESS;

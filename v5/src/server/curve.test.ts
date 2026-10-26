@@ -1,5 +1,5 @@
 /**
- * 5.0.3 Part A — S-curve acceptance checks 1–6 + must-fails.
+ * 5.0.5 — S-curve acceptance checks 1–6 + must-fails.
  *
  * Each key rule has a must-fail that goes red if the formula, cutoff, CO delta,
  * draft exclusion, or query budget is reverted.
@@ -96,7 +96,7 @@ function pointOn(
   return p;
 }
 
-describe.skipIf(!hasDb)("5.0.3 Part A S-curve", () => {
+describe.skipIf(!hasDb)("5.0.5 S-curve", () => {
   const prevSeedNow = process.env.V5_SEED_NOW;
   let companyId = "";
 
