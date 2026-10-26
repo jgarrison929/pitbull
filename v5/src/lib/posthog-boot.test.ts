@@ -5,6 +5,44 @@ import {
 } from "./posthog-boot";
 
 describe("schedulePostHogBoot", () => {
+  it("M6: POSTHOG_BOOT_MIN_DELAY_MS default is 2000", () => {
+    expect(POSTHOG_BOOT_MIN_DELAY_MS).toBe(2000);
+  });
+
+  it("M6: without minDelayMs override, boot waits 2000ms after load", () => {
+    const boot = vi.fn();
+    const timers: Array<{ id: number; ms: number; fn: () => void }> = [];
+    let nextId = 1;
+    let loadHandler: (() => void) | undefined;
+
+    schedulePostHogBoot(boot, {
+      // No minDelayMs — must use exported default (2000), not 0.
+      schedule: {
+        readyState: "loading",
+        setTimeout: ((fn: () => void, ms: number) => {
+          const id = nextId++;
+          timers.push({ id, ms, fn });
+          return id as unknown as ReturnType<typeof setTimeout>;
+        }) as typeof setTimeout,
+        clearTimeout: vi.fn() as unknown as typeof clearTimeout,
+        requestIdleCallback: (cb) => {
+          cb({ didTimeout: false, timeRemaining: () => 1 } as IdleDeadline);
+          return 1;
+        },
+        addLoadListener: (handler) => {
+          loadHandler = handler;
+        },
+        removeLoadListener: vi.fn(),
+      },
+    });
+
+    expect(boot).not.toHaveBeenCalled();
+    loadHandler!();
+    expect(timers).toHaveLength(1);
+    expect(timers[0]!.ms).toBe(2000);
+    expect(boot).not.toHaveBeenCalled();
+  });
+
   it("waits for load, min delay, then idle before booting", () => {
     const boot = vi.fn();
     const timers: Array<{ id: number; ms: number; fn: () => void }> = [];

@@ -25,7 +25,7 @@ import {
 } from "@/lib/ev";
 import { isEstimateDraft } from "@/lib/portfolio";
 import { overallStatus, type Status } from "@/lib/status";
-import { planDateToday } from "@/lib/plan-date";
+import { planDateToday, timeZoneForJob } from "@/lib/plan-date";
 import { portfolioRollupsSql } from "@/server/cost-rollups";
 import { seedNow } from "@/server/seed-clock";
 
@@ -383,7 +383,7 @@ export type PlanHistorySummary = {
 export async function getJobPagePlans(
   companyId: string,
   jobId: string,
-  todayLA: string = planDateToday(seedNow()),
+  todayLA: string = planDateToday(seedNow(), timeZoneForJob()),
 ): Promise<{
   openPlans: Awaited<ReturnType<typeof getPlansForJob>>;
   historyPlans: PlanHistorySummary[];
