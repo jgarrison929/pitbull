@@ -152,6 +152,7 @@ export function CostTable({
   defaultValueSet,
   estimateDraft = false,
   jobNumber,
+  showCostIndexes = true,
 }: {
   /** Full WBS ordered by path (summaries + leaves). Leaf EV lives on node.line. */
   nodes: WbsNode[];
@@ -161,6 +162,8 @@ export function CostTable({
   estimateDraft?: boolean;
   /** When set, leaf cost codes link to the cost-item drill-down. */
   jobNumber?: string;
+  /** Foreman: hide CPI / variance columns and labels (5.0.4-b). */
+  showCostIndexes?: boolean;
 }) {
   // Roll up from nodes only — avoid a second 10k-line props list on the RSC payload.
   const lines = useMemo(
@@ -263,6 +266,7 @@ export function CostTable({
             valueSet={valueSet}
             estimateDraft={estimateDraft}
             jobNumber={jobNumber}
+            showCostIndexes={showCostIndexes}
           />
         </div>
         <div
@@ -311,11 +315,13 @@ export function CostTable({
               </span>
               {estimateDraft ? <MetricDash /> : <Money cents={t.etcCents} />}
             </span>
-            {estimateDraft ? (
-              <MetricDash />
-            ) : (
-              <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
-            )}
+            {showCostIndexes ? (
+              estimateDraft ? (
+                <MetricDash />
+              ) : (
+                <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+              )
+            ) : null}
           </span>
         </div>
       </div>
@@ -327,20 +333,31 @@ export function CostTable({
           valueSet={valueSet}
           estimateDraft={estimateDraft}
           jobNumber={jobNumber}
+          showCostIndexes={showCostIndexes}
         />
         <div className="flex items-center justify-between border-t py-3 text-sm font-medium">
           <span>
             Job total
             {estimateDraft ? null : ` · ${pct(t.percent)}`}
           </span>
-          <span>
-            CPI{" "}
-            {estimateDraft ? (
-              <MetricDash />
-            ) : (
-              <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
-            )}
-          </span>
+          {showCostIndexes ? (
+            <span>
+              CPI{" "}
+              {estimateDraft ? (
+                <MetricDash />
+              ) : (
+                <StatusIndex
+                  index={t.cpi}
+                  varianceCents={t.costVarianceCents}
+                />
+              )}
+            </span>
+          ) : (
+            <span>
+              EAC{" "}
+              {estimateDraft ? <MetricDash /> : <Money cents={t.eacCents} />}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -376,6 +393,7 @@ function VirtualTreeDesktop({
   valueSet,
   estimateDraft,
   jobNumber,
+  showCostIndexes,
 }: {
   rows: WbsNode[];
   onToggle: (id: string) => void;
@@ -383,6 +401,7 @@ function VirtualTreeDesktop({
   valueSet: ValueSet;
   estimateDraft: boolean;
   jobNumber?: string;
+  showCostIndexes: boolean;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -394,9 +413,18 @@ function VirtualTreeDesktop({
     overscan: 12,
   });
   // 5.0.4-c type scale: exact $665,000.00 needs ~9rem cols — avoid "Actu" / "$665,000.(".
+  // Role-fit omits CPI column for foreman/superintendent.
+  const cols = showCostIndexes
+    ? "grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem_10rem]"
+    : "grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem]";
   return (
-    <div className="min-w-[56rem]">
-      <div className="grid grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem_10rem] gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground">
+    <div className={showCostIndexes ? "min-w-[56rem]" : "min-w-[46rem]"}>
+      <div
+        className={cn(
+          "grid gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground",
+          cols,
+        )}
+      >
         <div>Cost code</div>
         <div className="whitespace-nowrap text-right">Installed</div>
         <div className="whitespace-nowrap text-right">% complete</div>
@@ -408,7 +436,9 @@ function VirtualTreeDesktop({
         </div>
         <div className="whitespace-nowrap text-right">Earned</div>
         <div className="whitespace-nowrap text-right">Actual</div>
-        <div className="whitespace-nowrap text-right">CPI · variance</div>
+        {showCostIndexes ? (
+          <div className="whitespace-nowrap text-right">CPI · variance</div>
+        ) : null}
       </div>
       <div
         ref={parentRef}
@@ -431,8 +461,13 @@ function VirtualTreeDesktop({
                 ref={virtualizer.measureElement}
                 data-index={v.index}
                 className={cn(
-                  "absolute left-0 grid w-full grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem_10rem] items-start gap-x-3 border-b px-2 py-1.5 text-sm",
-                  l && !estimateDraft && hot(l) && "bg-negative-soft/60",
+                  "absolute left-0 grid w-full items-start gap-x-3 border-b px-2 py-1.5 text-sm",
+                  cols,
+                  l &&
+                    !estimateDraft &&
+                    showCostIndexes &&
+                    hot(l) &&
+                    "bg-negative-soft/60",
                 )}
                 style={{
                   transform: `translateY(${v.start}px)`,
@@ -525,16 +560,18 @@ function VirtualTreeDesktop({
                         <Money cents={l.actualCents} exact />
                       )}
                     </div>
-                    <div className="whitespace-nowrap text-right">
-                      {estimateDraft ? (
-                        <MetricDash />
-                      ) : (
-                        <StatusIndex
-                          index={l.cpi}
-                          varianceCents={l.varianceCents}
-                        />
-                      )}
-                    </div>
+                    {showCostIndexes ? (
+                      <div className="whitespace-nowrap text-right">
+                        {estimateDraft ? (
+                          <MetricDash />
+                        ) : (
+                          <StatusIndex
+                            index={l.cpi}
+                            varianceCents={l.varianceCents}
+                          />
+                        )}
+                      </div>
+                    ) : null}
                   </>
                 ) : (
                   <>
@@ -546,7 +583,9 @@ function VirtualTreeDesktop({
                     ) : (
                       <BudgetCell money={n.money} set={valueSet} />
                     )}
-                    <div className="col-span-3" />
+                    <div
+                      className={showCostIndexes ? "col-span-3" : "col-span-2"}
+                    />
                   </>
                 )}
               </div>
@@ -565,6 +604,7 @@ function VirtualTreeMobile({
   valueSet,
   estimateDraft,
   jobNumber,
+  showCostIndexes,
 }: {
   rows: WbsNode[];
   onToggle: (id: string) => void;
@@ -572,6 +612,7 @@ function VirtualTreeMobile({
   valueSet: ValueSet;
   estimateDraft: boolean;
   jobNumber?: string;
+  showCostIndexes: boolean;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -603,7 +644,11 @@ function VirtualTreeMobile({
               data-index={v.index}
               className={cn(
                 "absolute left-0 w-full border-b py-2",
-                l && !estimateDraft && hot(l) && "bg-negative-soft/60",
+                l &&
+                  !estimateDraft &&
+                  showCostIndexes &&
+                  hot(l) &&
+                  "bg-negative-soft/60",
               )}
               style={{
                 transform: `translateY(${v.start}px)`,
@@ -630,11 +675,13 @@ function VirtualTreeMobile({
                 {l ? (
                   estimateDraft ? (
                     <MetricDash />
-                  ) : (
+                  ) : showCostIndexes ? (
                     <StatusIndex
                       index={l.cpi}
                       varianceCents={l.varianceCents}
                     />
+                  ) : (
+                    <Money cents={l.earnedCents} exact />
                   )
                 ) : null}
               </div>

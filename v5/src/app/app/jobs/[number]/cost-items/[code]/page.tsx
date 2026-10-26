@@ -162,6 +162,7 @@ async function CostItem({
     <>
       <PageHeader
         title={`${data.item.code} ${data.item.description}`}
+        purpose="Every cost that makes up this item's actual cost, and its forecast."
         meta={
           <>
             <a
@@ -183,12 +184,12 @@ async function CostItem({
           testId="cost-item-cb"
         />
         <Kpi
-          label="Earned value"
+          label="Earned value (EV)"
           value={<Money cents={data.rollup.earnedCents} exact />}
           testId="cost-item-ev"
         />
         <Kpi
-          label="Actual cost"
+          label="Actual cost (AC)"
           value={<Money cents={data.rollup.actualCents} exact />}
           sub={
             data.sinceLockCents > 0
@@ -200,7 +201,7 @@ async function CostItem({
           testId="cost-item-ac"
         />
         <Kpi
-          label="EAC"
+          label="Estimate at completion (EAC)"
           value={<Money cents={data.forecast.eacCents} exact />}
           sub={data.forecast.forecastDerivation}
           testId="cost-item-eac"

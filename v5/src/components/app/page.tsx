@@ -4,10 +4,13 @@ import { cn } from "@/lib/utils";
 /** Fixed page anatomy: header, KPI strip, sections. Every screen uses these so they read as one product. */
 export function PageHeader({
   title,
+  purpose,
   meta,
   actions,
 }: {
   title: string;
+  /** One plain sentence (≤90 chars) saying what the user does on this page. */
+  purpose: string;
   meta?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
@@ -15,6 +18,13 @@ export function PageHeader({
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
         <h1 className="text-title font-semibold tracking-tight">{title}</h1>
+        <p
+          data-testid="page-purpose"
+          data-text="label"
+          className="mt-0.5 text-label text-muted-foreground"
+        >
+          {purpose}
+        </p>
         {meta && (
           <div
             data-text="label"
