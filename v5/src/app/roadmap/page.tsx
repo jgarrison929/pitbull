@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageHeader } from "@/components/app/page";
 import { next, nextLabel, shipped } from "@/content/roadmap";
 
 export const metadata: Metadata = { title: "Roadmap · Pitbull" };
@@ -14,11 +15,12 @@ export default function RoadmapPage() {
         >
           ← Back to Pitbull
         </Link>
-        <h1 className="mt-2 text-xl font-semibold">Roadmap</h1>
-        <p className="text-sm text-muted-foreground">
-          What shipped and what comes next, in order. Dates appear only after a
-          release passes the gate.
-        </p>
+        <div className="mt-2">
+          <PageHeader
+            title="Roadmap"
+            purpose="What shipped and what comes next, in order."
+          />
+        </div>
         <p className="mt-2 text-sm">
           <Link href="/changelog" className="underline hover:no-underline">
             Changelog

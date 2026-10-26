@@ -61,8 +61,9 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await signIn(page, "foreman");
   await page.goto("/app/jobs/25-031");
 
+  // Foreman job page hides CPI (5.0.4-b); EV tile stays for the earned check.
   const earnedBefore = (await page.getByTestId("job-earned").textContent())!;
-  const cpiBefore = (await page.getByTestId("job-cpi").textContent())!;
+  await expect(page.getByTestId("job-cpi")).toHaveCount(0);
   const actualBefore = await actualCents(page);
 
   await expect(page.getByTestId("report-work")).toHaveCount(0);
@@ -93,6 +94,8 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await expect(page.getByTestId("report-qty-04-210")).toHaveValue("40");
 
   await approveAsSuperintendent(page);
+  // Superintendent keeps CPI on the job page — baseline before PM lock.
+  const cpiBefore = (await page.getByTestId("job-cpi").textContent())!;
   // One cutoff: tile AC stays at last lock; approved cost shows as since-lock.
   expect(await actualCents(page)).toBe(actualBefore);
   const sinceAfterApprove = await sinceLockActualCents(page);

@@ -11,8 +11,9 @@ import { LocalTime } from "@/components/app/local-time";
 import { NavLink } from "@/components/app/nav-link";
 import { ThemeSwitch } from "@/components/app/theme-switch";
 import { idx } from "@/lib/ev";
+import { showsCostIndexes, showsStatusRiskBadge } from "@/lib/role-fit";
 import { cn } from "@/lib/utils";
-import { getPortfolio } from "@/server/data";
+import { getPortfolio, getTodayPlanLabelsByJob } from "@/server/data";
 import { requireUser } from "@/server/session";
 import { getTheme } from "@/server/theme";
 import { resetDemo, signOut } from "@/app/login/actions";
@@ -214,53 +215,73 @@ async function JobStrip() {
   // Wrap + max-w-full (not overflow-x scroll): shrink-0 pills in a row were the
   // 422 px sideways spill at 390 — document grew and clipped SR-99 off the edge.
   // Spec 5.0.4-0: every visible job-strip child.right ≤ clientWidth.
+  const costIndexes = showsCostIndexes(user.role);
+  const statusBadge = showsStatusRiskBadge(user.role);
+  const todayLabels =
+    user.role === "foreman"
+      ? await getTodayPlanLabelsByJob(user.companyId)
+      : null;
   return (
     <nav
       aria-label="Jobs"
       data-testid="job-strip"
       className="flex min-w-0 max-w-full flex-wrap gap-2 border-b px-4 py-2"
     >
-      {jobs.map((p) => (
-        <NavLink
-          key={p.job.id}
-          href={`/app/jobs/${p.job.number}`}
-          label={p.job.name}
-          className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 sm:gap-3"
-          activeClassName="border-foreground bg-muted/50 text-foreground"
-        >
-          <span className="min-w-0 flex-1 overflow-hidden">
-            <span className="block truncate font-medium text-foreground">
-              {p.job.shortName}{" "}
-              <span className="font-normal text-muted-foreground">
-                {p.job.number}
+      {jobs.map((p) => {
+        const foremanLabel = todayLabels?.get(p.job.id) ?? "No plan today";
+        const meta = p.estimateDraft
+          ? "Estimate draft"
+          : costIndexes
+            ? `Cost performance (CPI) ${idx(p.cpi)} · Schedule performance (SPI) ${idx(p.spi)}`
+            : user.role === "foreman"
+              ? foremanLabel
+              : null;
+        return (
+          <NavLink
+            key={p.job.id}
+            href={`/app/jobs/${p.job.number}`}
+            label={p.job.name}
+            className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 sm:gap-3"
+            activeClassName="border-foreground bg-muted/50 text-foreground"
+          >
+            <span className="min-w-0 flex-1 overflow-hidden">
+              <span className="block truncate font-medium text-foreground">
+                {p.job.shortName}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {p.job.number}
+                </span>
               </span>
+              {meta ? (
+                <span
+                  className="block truncate tabular-nums"
+                  data-testid={
+                    p.estimateDraft
+                      ? "strip-estimate-draft"
+                      : user.role === "foreman"
+                        ? "strip-plan-state"
+                        : undefined
+                  }
+                >
+                  {meta}
+                </span>
+              ) : null}
             </span>
-            <span
-              className="block truncate tabular-nums"
-              data-testid={
-                p.estimateDraft ? "strip-estimate-draft" : undefined
-              }
-            >
-              {p.estimateDraft
-                ? "Estimate draft"
-                : `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`}
-            </span>
-          </span>
-          {p.estimateDraft ? (
-            <span
-              className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-              data-status="draft"
-            >
-              Draft
-            </span>
-          ) : (
-            <StatusPill
-              value={p.status!}
-              varianceCents={p.costVarianceCents}
-            />
-          )}
-        </NavLink>
-      ))}
+            {p.estimateDraft ? (
+              <span
+                className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                data-status="draft"
+              >
+                Draft
+              </span>
+            ) : statusBadge ? (
+              <StatusPill
+                value={p.status!}
+                varianceCents={p.costVarianceCents}
+              />
+            ) : null}
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }

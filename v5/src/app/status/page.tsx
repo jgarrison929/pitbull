@@ -2,8 +2,9 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
+import { PageHeader } from "@/components/app/page";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { dbPing } from "@/db";
 import { formatMigrationsLabel } from "@/lib/applied-migrations";
 import { getDeployStatus } from "@/lib/deploy-status";
@@ -15,14 +16,12 @@ export const metadata: Metadata = { title: "Status · Pitbull" };
 export default function StatusPage() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-6 py-16">
+      <PageHeader
+        title="Status"
+        purpose="Which build is live, and whether its checks passed."
+      />
       <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Pitbull status</CardTitle>
-          <CardDescription>
-            Build, CI gate, last verify, and database health for this deployment.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <Suspense fallback={<p className="text-sm text-muted-foreground">Checking…</p>}>
             <StatusDetails />
           </Suspense>

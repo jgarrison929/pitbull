@@ -67,6 +67,7 @@ async function Plan({
     <>
       <PageHeader
         title={`${data.plan.crew} · ${utcDay(data.plan.planDate)}`}
+        purpose="One daily plan: its lines, what was reported, and each step it went through."
         meta={
           <>
             <Link

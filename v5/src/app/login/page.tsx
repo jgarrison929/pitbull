@@ -6,8 +6,9 @@ import {
   LineChart,
   Briefcase,
 } from "lucide-react";
+import { PageHeader } from "@/components/app/page";
 import { seedUsers, SEED_ACTIVE_JOB_COUNT, SEED_COMPANY_NAME } from "@/seed";
-import { signIn } from "./actions";
+import { RoleSignInForm } from "./role-sign-in-form";
 
 export const metadata: Metadata = { title: "Sign in · Pitbull demo" };
 
@@ -26,7 +27,7 @@ const roleCopy = {
   },
   foreman: {
     icon: HardHat,
-    sees: "Plan the day by talking to the assistant. Built for a phone.",
+    sees: "Report today's quantities and submit your crew's plan. Built for a phone.",
   },
 } as const;
 
@@ -40,9 +41,10 @@ export default function LoginPage() {
           </div>
           <span className="font-semibold">Pitbull</span>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Explore the demo as one of four roles
-        </h1>
+        <PageHeader
+          title="Pick a role"
+          purpose="Each card signs you in to your own demo sandbox."
+        />
         <p className="max-w-2xl text-sm text-muted-foreground">
           You get a private sandbox of {SEED_COMPANY_NAME}, a fictional
           heavy-civil contractor with{" "}
@@ -58,8 +60,7 @@ export default function LoginPage() {
           const { icon: Icon, sees } = roleCopy[u.role];
           return (
             <li key={u.role}>
-              <form action={signIn}>
-                <input type="hidden" name="role" value={u.role} />
+              <RoleSignInForm role={u.role}>
                 <button
                   type="submit"
                   data-testid={`role-${u.role}`}
@@ -79,7 +80,7 @@ export default function LoginPage() {
                   </div>
                   <p className="text-sm text-muted-foreground">{sees}</p>
                 </button>
-              </form>
+              </RoleSignInForm>
             </li>
           );
         })}

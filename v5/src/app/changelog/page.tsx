@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageHeader } from "@/components/app/page";
 import { changelog } from "@/content/changelog";
 
 export const metadata: Metadata = { title: "Changelog · Pitbull" };
@@ -14,11 +15,12 @@ export default function ChangelogPage() {
         >
           ← Back to Pitbull
         </Link>
-        <h1 className="mt-2 text-xl font-semibold">Changelog</h1>
-        <p className="text-sm text-muted-foreground">
-          What shipped, newest first. Each release passed CI and the staging
-          verify run.
-        </p>
+        <div className="mt-2">
+          <PageHeader
+            title="Changelog"
+            purpose="What each release changed."
+          />
+        </div>
         <p className="mt-2 text-sm">
           <Link href="/roadmap" className="underline hover:no-underline">
             Roadmap

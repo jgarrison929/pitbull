@@ -18,11 +18,19 @@ import {
 
 const roles: Role[] = ["executive", "pm", "superintendent", "foreman"];
 
-/** Role-card login. Switching roles keeps the sandbox. A signed-out visitor gets a fresh one, up to MAX_SANDBOXES_PER_VISITOR, then their newest. */
-export async function signIn(formData: FormData) {
+/**
+ * Role-card login. Switching roles keeps the sandbox. A signed-out visitor
+ * gets a fresh one, up to MAX_SANDBOXES_PER_VISITOR, then their newest.
+ * Does not redirect — the login form hard-navigates to `/app` so the login
+ * page unmounts (soft `redirect()` left a hidden login `main` in the tree).
+ */
+export async function signIn(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false }> {
   const role = formData.get("role");
-  if (typeof role !== "string" || !roles.includes(role as Role))
-    redirect("/login");
+  if (typeof role !== "string" || !roles.includes(role as Role)) {
+    return { ok: false };
+  }
   const current = await getCurrentUser();
   // Do not await a full expired-sandbox cascade on the critical path: under a
   // busy staging DB that DELETE can stall past the verify crawl's 20s
@@ -35,7 +43,7 @@ export async function signIn(formData: FormData) {
   const companyId =
     current?.companyId ?? (await sandboxForVisitor(await visitorHash()));
   await startSession(companyId, role as Role);
-  redirect("/app");
+  return { ok: true };
 }
 
 export async function resetDemo() {

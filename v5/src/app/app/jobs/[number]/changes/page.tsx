@@ -53,11 +53,18 @@ async function Changes({
     PAGE_SIZE,
     (page - 1) * PAGE_SIZE,
   );
+  // Foreman must not see cost-index language in the feed (5.0.4-b check 2).
+  const costBan = /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
+  const visible =
+    user.role === "foreman"
+      ? changes.filter((c) => !costBan.test(c.summary))
+      : changes;
 
   return (
     <>
       <PageHeader
         title="Changes on this job"
+        purpose="Every recorded change on this job, newest first."
         meta={
           <>
             <Link
@@ -107,13 +114,13 @@ async function Changes({
           ) : null
         }
       >
-        {changes.length === 0 ? (
+        {visible.length === 0 ? (
           <p className="px-4 py-3 text-sm text-muted-foreground">
             No changes yet.
           </p>
         ) : (
           <ul className="divide-y px-4 text-sm" data-testid="job-changes-full">
-            {changes.map((c) => (
+            {visible.map((c) => (
               <li key={c.id} className="py-2">
                 <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
                 <span className="text-xs text-muted-foreground">

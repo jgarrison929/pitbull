@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { pct } from "@/lib/ev";
+import {
+  showsCostIndexes,
+  showsStatusRiskBadge,
+} from "@/lib/role-fit";
+import type { Role } from "@/server/session";
 import type { PortfolioJob } from "@/server/data";
 import { Money, Progress, StatusIndex, StatusPill } from "./format";
 import { Td, Th } from "./page";
@@ -24,29 +29,43 @@ function MetricDash() {
   );
 }
 
-export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
+export function PortfolioTable({
+  jobs,
+  role,
+}: {
+  jobs: PortfolioJob[];
+  role: Role;
+}) {
+  const costIndexes = showsCostIndexes(role);
+  const statusBadge = showsStatusRiskBadge(role);
   return (
     <div data-testid="portfolio-table">
       {/*
         Wide 7-col table at md (768–820) can expand the page when the assistant
         rail is hidden. Cards through lg; full table from lg up. (#671)
         Draft rows show — / Draft label instead of $0 / fake CPI. (#675)
+        Role-fit (5.0.4-b): foreman and superintendent omit CPI/SPI columns.
       */}
-      <div className="hidden min-w-0 overflow-x-auto lg:block">
+      <div className="hidden min-w-0 lg:block">
         {/*
-          min-width keeps STATUS pills ("At risk", "Watch") and index columns
-          whole under 5.0.4-c text-label/body — no "At ri" / "Wate" clip.
+          Short CPI/SPI/EAC/Status labels (not "Schedule performance…") so the
+          desktop table fits the main column beside the assistant — full header
+          text and STATUS pills ("At risk", "Watch"), no mid-word clip.
         */}
-        <table className="w-full min-w-[68rem] text-sm">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
               <Th>Job</Th>
               <Th right>Contract</Th>
               <Th>Complete</Th>
-              <Th right>CPI · cost var.</Th>
-              <Th right>SPI · sched. var.</Th>
-              <Th right>EAC</Th>
-              <Th className="whitespace-nowrap">Status</Th>
+              {costIndexes ? (
+                <>
+                  <Th right>CPI</Th>
+                  <Th right>SPI</Th>
+                  <Th right>EAC</Th>
+                </>
+              ) : null}
+              {statusBadge ? <Th>Status</Th> : null}
             </tr>
           </thead>
           <tbody>
@@ -81,36 +100,46 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
                     </div>
                   )}
                 </Td>
-                <Td right>
-                  {p.estimateDraft ? (
-                    <MetricDash />
-                  ) : (
-                    <StatusIndex
-                      index={p.cpi}
-                      varianceCents={p.costVarianceCents}
-                    />
-                  )}
-                </Td>
-                <Td right>
-                  {p.estimateDraft ? (
-                    <MetricDash />
-                  ) : (
-                    <StatusIndex
-                      index={p.spi}
-                      varianceCents={p.scheduleVarianceCents}
-                    />
-                  )}
-                </Td>
-                <Td right>
-                  {p.estimateDraft ? <MetricDash /> : <Money cents={p.eacCents} />}
-                </Td>
-                <Td className="whitespace-nowrap">
-                  {p.estimateDraft ? (
-                    <DraftLabel />
-                  ) : (
-                    <StatusPill value={p.status!} />
-                  )}
-                </Td>
+                {costIndexes ? (
+                  <>
+                    <Td right>
+                      {p.estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <StatusIndex
+                          index={p.cpi}
+                          varianceCents={p.costVarianceCents}
+                        />
+                      )}
+                    </Td>
+                    <Td right>
+                      {p.estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <StatusIndex
+                          index={p.spi}
+                          varianceCents={p.scheduleVarianceCents}
+                        />
+                      )}
+                    </Td>
+                    <Td right>
+                      {p.estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <Money cents={p.eacCents} />
+                      )}
+                    </Td>
+                  </>
+                ) : null}
+                {statusBadge ? (
+                  <Td className="whitespace-nowrap">
+                    {p.estimateDraft ? (
+                      <DraftLabel />
+                    ) : (
+                      <StatusPill value={p.status!} />
+                    )}
+                  </Td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -134,37 +163,51 @@ export function PortfolioTable({ jobs }: { jobs: PortfolioJob[] }) {
                 </div>
                 {p.estimateDraft ? (
                   <DraftLabel />
-                ) : (
+                ) : statusBadge ? (
                   <StatusPill value={p.status!} />
-                )}
+                ) : null}
               </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
+              <div
+                className={
+                  costIndexes
+                    ? "grid grid-cols-3 gap-2 text-xs"
+                    : "grid grid-cols-1 gap-2 text-xs"
+                }
+              >
                 <div>
                   <div className="text-muted-foreground">Done</div>
                   {p.estimateDraft ? <MetricDash /> : pct(p.percent)}
                 </div>
-                <div>
-                  <div className="text-muted-foreground">CPI</div>
-                  {p.estimateDraft ? (
-                    <MetricDash />
-                  ) : (
-                    <StatusIndex
-                      index={p.cpi}
-                      varianceCents={p.costVarianceCents}
-                    />
-                  )}
-                </div>
-                <div>
-                  <div className="text-muted-foreground">SPI</div>
-                  {p.estimateDraft ? (
-                    <MetricDash />
-                  ) : (
-                    <StatusIndex
-                      index={p.spi}
-                      varianceCents={p.scheduleVarianceCents}
-                    />
-                  )}
-                </div>
+                {costIndexes ? (
+                  <>
+                    <div>
+                      <div className="text-muted-foreground">
+                        Cost performance (CPI)
+                      </div>
+                      {p.estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <StatusIndex
+                          index={p.cpi}
+                          varianceCents={p.costVarianceCents}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">
+                        Schedule performance (SPI)
+                      </div>
+                      {p.estimateDraft ? (
+                        <MetricDash />
+                      ) : (
+                        <StatusIndex
+                          index={p.spi}
+                          varianceCents={p.scheduleVarianceCents}
+                        />
+                      )}
+                    </div>
+                  </>
+                ) : null}
               </div>
             </Link>
           </li>
