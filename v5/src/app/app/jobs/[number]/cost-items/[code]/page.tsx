@@ -7,9 +7,10 @@ import { utcDay } from "@/lib/dates";
 import { mh, qty, usdCents } from "@/lib/ev";
 import { actions } from "@/server/assistant/actions";
 import {
-  loadCostItemRoute,
+  timedGetCostItemPage,
   type CostEntryRow,
 } from "@/server/cost-item-page";
+import { requireUser } from "@/server/session";
 
 const EMPTY_LABOR =
   "Labor posts here when a daily report for this cost item is approved";
@@ -140,7 +141,12 @@ async function CostItem({
 }) {
   const { number, code: rawCode } = await params;
   const code = decodeURIComponent(rawCode);
-  const { user, data, timing: timingPayload } = await loadCostItemRoute(
+  // requireUser here (same as JobStrip) so React cache() dedupes the session
+  // lookup — do not bury it inside cost-item-page (that pulled next/headers
+  // into every vitest importer and hung unknown-job under Verify).
+  const user = await requireUser();
+  const { data, timing: timingPayload } = await timedGetCostItemPage(
+    user.companyId,
     number,
     code,
   );

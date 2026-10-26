@@ -24,7 +24,6 @@ import {
 } from "@/server/cost-rollups";
 import { getDbQueryCount } from "@/db";
 import { seedNow } from "@/server/seed-clock";
-import { requireUser } from "@/server/session";
 
 export type CostEntryRow =
   | {
@@ -281,32 +280,36 @@ export type CostItemRouteTiming = {
 };
 
 /**
- * Session + cost-item load with honest wall-clock timing. Lives here (not in
- * the page component) so react-hooks/purity stays clean — no `performance.now()`
- * during render. `dbMs` is await time for getCostItemPage (real DB work), not
- * the simulated V5_DB_LATENCY_MS issue-time that previously always reported 0
- * in production.
+ * Wall-clock getCostItemPage with query count. Kept free of `requireUser` /
+ * next/headers so vitest importers of getCostItemPage do not pull the session
+ * graph (Verify #60 hang in unknown-job.test.ts under LA / merged runs).
+ * `dbMs` is real await time — not V5_DB_LATENCY_MS.
  */
-export async function loadCostItemRoute(jobNumber: string, code: string) {
+export async function timedGetCostItemPage(
+  companyId: string,
+  jobNumber: string,
+  code: string,
+) {
   const startedAt = performance.now();
   const q0 = getDbQueryCount();
-  const user = await requireUser();
-  const dbStarted = performance.now();
-  const data = await getCostItemPage(user.companyId, jobNumber, code);
-  const dbMs = Math.round(performance.now() - dbStarted);
-  const queries = getDbQueryCount() - q0;
-  const totalMs = Math.round(performance.now() - startedAt);
-  const timingPayload: CostItemRouteTiming = { dbMs, queries, totalMs };
-  console.info(
-    `[v5-timing] ${JSON.stringify({
-      route: `cost-item:${jobNumber}/${code}`,
-      ...timingPayload,
-      job: jobNumber,
-      code,
-      entries: data?.entries.length ?? 0,
-    })}`,
-  );
-  return { user, data, timing: timingPayload };
+  const data = await getCostItemPage(companyId, jobNumber, code);
+  const timing: CostItemRouteTiming = {
+    dbMs: Math.round(performance.now() - startedAt),
+    queries: getDbQueryCount() - q0,
+    totalMs: Math.round(performance.now() - startedAt),
+  };
+  if (process.env.V5_TIMING_LOG === "1") {
+    console.info(
+      `[v5-timing] ${JSON.stringify({
+        route: `cost-item:${jobNumber}/${code}`,
+        ...timing,
+        job: jobNumber,
+        code,
+        entries: data?.entries.length ?? 0,
+      })}`,
+    );
+  }
+  return { data, timing };
 }
 
 /** Resolve a plan id that posted labor for this cost item (for crawl / tests). */

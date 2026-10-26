@@ -47,4 +47,16 @@ describe("db pool max (V5_DB_POOL_MAX)", () => {
     expect(PROXY_DB_POOL_MAX).toBe(8);
     expect(DEFAULT_DB_POOL_MAX + PROXY_DB_POOL_MAX).toBe(28);
   });
+
+  it("must-fail: cost-item-page must not import requireUser/session (vitest hang)", () => {
+    // Verify #60: importing requireUser into cost-item-page pulled next/headers
+    // into every getCostItemPage importer and hung unknown-job.test.ts.
+    const src = readFileSync(
+      join(process.cwd(), "src/server/cost-item-page.ts"),
+      "utf8",
+    );
+    expect(src).not.toMatch(/from ["']@\/server\/session["']/);
+    expect(src).not.toMatch(/\brequireUser\b/);
+    expect(src).toMatch(/timedGetCostItemPage/);
+  });
 });
