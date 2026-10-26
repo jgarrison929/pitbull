@@ -4,7 +4,9 @@
 // right reason, and the good pages and the two named seeded empty states must PASS.
 // Run: node .cursor/skills/verify-v5/crawl-mustfail.test.mjs
 import assert from "node:assert/strict";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,6 +47,20 @@ const PAGES = {
   "/app/jobs/wrong-status": () => job(co("priced")),
   "/app/jobs/norows": () => shell("<h1>Job</h1>"),
   "/app/jobs/bounce": () => [302, "", 0, "/login"],
+  // Error boundaries that answer HTTP 200 and render a <main>: the app's own PR #15 fallback
+  // (route-error-fallback.tsx: "Page load failed" / "Shell load failed", data-testid route-error /
+  // global-error) and Next 16's built-in error screen. Each must fail the load as an error boundary.
+  "/app/jobs/route-error": () => layout(boundary("route-error", "Page load failed")),
+  // The #15 verification's fault: /status answers 200 with the boundary inside <main>, no console error.
+  // Nothing but the boundary check can catch it (no seeded-row rule applies to /status).
+  "/status-fault": () => layout(boundary("route-error", "Page load failed")),
+  "/app/jobs/route-error-marker": () => layout(boundary("route-error", "Could not show this job")), // marker only
+  "/app/jobs/global-error": () => `<!doctype html><html><head><title>Load failed · Pitbull</title></head><body>${boundary("global-error", "Shell load failed")}</body></html>`,
+  "/app/jobs/next-builtin": () => `<!doctype html><html><head><meta charset="utf-8"></head><body><div><h2>This page couldn’t load</h2><p>A server error occurred. Reload to try again.</p></div></body></html>`,
+  // Evidence redaction: a failing page that sets a cookie, prints a canary token, and makes a request with
+  // an Authorization header and a token in the query.
+  "/app/jobs/leaky": () => job(`<p>${CANARY_TOKEN}</p><script>document.cookie = "sid=${CANARY_COOKIE}; path=/"; console.error("leak ${CANARY_TOKEN}"); fetch("/api/broken?access_token=${CANARY_QUERY}", { headers: { Authorization: "Bearer ${CANARY_TOKEN}" } });</script>`),
+  "/app/jobs/77-005": () => drillJob("77-005", ["01-ok", "07-boundary"]), // seed also has 08-gone: discovery short
   // #706 drill-down: job pages whose cost tree is a short scroll box that renders links only as they
   // scroll into view (like the app's virtualized tree), so discovery has to scroll to find them all.
   "/app/jobs/77-001": () => drillJob("77-001", ["01-ok", "02-500", "03-slow", "04-ban", "05-deep"]),
@@ -56,6 +72,11 @@ const PAGES = {
   "/app/jobs/77-002/plans/p-slow": () => [200, planPage("Slow Crew"), SLOW_MS],
   "/app/jobs/77-004/plans/p-500": () => [500, planPage("Broken Crew")],
 };
+const CANARY_TOKEN = "canary-verify-token-1111-not-real";
+const CANARY_COOKIE = "canarycookie1111notreal";
+const CANARY_QUERY = "qtok1111canary1111notreal1111";
+const layout = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><nav aria-label="Main"><a href="/app">Portfolio</a></nav>${body}</body></html>`;
+const boundary = (testid, title) => `<main data-testid="${testid}"><div><span>Pitbull</span><h1>${title}</h1><p>This screen failed to render. Try again. If it keeps failing, open the demo login and pick a role.</p><button type="button">Try again</button><a href="/login">Demo login</a></div></main>`;
 const planPage = (crew) => shell(`<h1>Daily plan · ${crew}</h1><span data-testid="plan-detail-status">Approved</span><a data-testid="plan-detail-back" href="/app">back</a>`);
 const PLAN_FOR = { "77-001": "p-good", "77-002": "p-slow", "77-004": "p-500" };
 function drillJob(job, codes) {
@@ -81,6 +102,7 @@ const DRILL_PAGES = {
   "02-500": () => [500, costItem("02-500")],
   "03-slow": () => [200, costItem("03-slow Slow item"), SLOW_MS],
   "04-ban": () => costItem("04-ban Export to ERP"),
+  "07-boundary": () => layout(boundary("route-error", "Page load failed")), // drill-down lands on the PR #15 boundary
 };
 const server = http.createServer((req, res) => {
   const p = req.url.split("?")[0];
@@ -116,8 +138,14 @@ const expectFail = {
   "/app/jobs/wrong-status": /empty state "No lines yet.*CO-001 \(priced\)/,
   "/app/jobs/norows": /job has no cost rows/,
   "/app/jobs/bounce": /landed on \/login/,
+  "/app/jobs/route-error": /error boundary "Page load failed"/,
+  "/app/jobs/route-error-marker": /error boundary marker \[data-testid="route-error"\]/,
+  "/app/jobs/global-error": /error boundary "Shell load failed"/,
+  "/app/jobs/next-builtin": /error boundary "This page couldn.t load"/,
 };
 const expectPass = ["/app", "/app/jobs/good", "/app/jobs/24-077", "/app/jobs/24-118"];
+// Clean 200 twin of /status-fault: same layout, real content instead of the boundary.
+PAGES["/status-ok"] = () => layout(`<main><h1>Status</h1><p>Operational</p></main>`);
 
 const DRILL_SEED = { "77-001": ["01-ok", "02-500", "03-slow", "04-ban", "05-deep"], "77-002": ["01-ok", "02-gone"] };
 const DRILL_ROLES = ["pm"];
@@ -130,6 +158,12 @@ let roadmapRows;
 let noMainRows;
 let drillRows;
 let partCRows;
+let evRows;
+// Failure evidence through the real crawl (as verify.mjs runs it): failing loads, a failing drill-down and
+// a short discovery are captured; passing loads are not.
+const evRoot = mkdtempSync(path.join(os.tmpdir(), "crawl-evidence-"));
+const EV_SEED = { "77-005": ["01-ok", "07-boundary", "08-gone"] };
+const evDrill = { seedItems: EV_SEED, plan: drillLoadPlan(EV_SEED, { roles: ["pm"], widths: [1280] }), records: [] };
 // Part C crawl check 4 on fake active jobs: 77-001 good, 77-002 plan page slow, 77-003 no reachable plan page, 77-004 plan page 500.
 const PART_C_ACTIVE = ["77-001", "77-002", "77-003", "77-004"];
 const PART_C_SEED = { "77-001": ["01-ok"], "77-002": ["01-ok"], "77-003": ["01-noplan"], "77-004": ["01-ok"] };
@@ -137,10 +171,11 @@ const partCDrill = { seedItems: PART_C_SEED, plan: new Map(), records: [], partC
 try {
   drillRows = await crawl(browser, base, { pages: ["/app/jobs/77-001", "/app/jobs/77-002"], roles: DRILL_ROLES, widths: DRILL_WIDTHS, drill });
   partCRows = await crawl(browser, base, { pages: PART_C_ACTIVE.map((j) => `/app/jobs/${j}`), roles: DRILL_ROLES, widths: DRILL_WIDTHS, drill: partCDrill });
-  rows = await crawl(browser, base, { pages: [...expectPass, ...Object.keys(expectFail)], roles: ["pm"], widths: [390, 1280] });
+  rows = await crawl(browser, base, { pages: [...expectPass, ...Object.keys(expectFail), "/status-fault", "/status-ok"], roles: ["pm"], widths: [390, 1280] });
   // /roadmap at every main-crawl width plus the extra 375/1440, as verify.mjs's nav crawl runs it.
   roadmapRows = await crawl(browser, base, { pages: ["/roadmap"], roles: ["pm"], widths: [...CRAWL_WIDTHS, ...ROADMAP_EXTRA_WIDTHS] });
   noMainRows = await crawl(browser, base, { pages: ["/roadmap-nomain"], roles: ["pm"], widths: [1440] });
+  evRows = await crawl(browser, base, { pages: ["/app", "/app/jobs/good", "/app/jobs/http500", "/app/jobs/route-error", "/app/jobs/leaky", "/app/jobs/77-005"], roles: ["pm"], widths: [1280], drill: evDrill, evidence: { dir: evRoot, secrets: [CANARY_TOKEN] } });
 } finally {
   await browser.close();
   server.close();
@@ -253,5 +288,56 @@ for (const width of [390, 1280]) {
   assert.throws(() => loadSeedCrawlTargets(repo, { parentEnv, childEnv: parentEnv }), /seed subprocess env leaked parent vars: .*VERIFY_TOKEN/, "a seed child that sees VERIFY_TOKEN must throw");
   lines.push("FAILS as expected: seed subprocess given the full parent env → seed subprocess env leaked parent vars (… VERIFY_TOKEN …)");
 }
+for (const width of [390, 1280]) {
+  // 200 + <main> + no console error + "Page load failed": only the boundary check stands between it and a pass.
+  const row = rows.find((r) => r.path === "/status-fault" && r.width === width);
+  assert.ok(row.status === 200 && row.hasMain && row.consoleErrors.length === 0 && row.pageErrors.length === 0, `fixture must be a quiet 200 with <main>; got ${JSON.stringify({ status: row.status, hasMain: row.hasMain, c: row.consoleErrors, p: row.pageErrors })}`);
+  const f = evaluateCrawlRow(row);
+  assert.deepEqual(f, [`pm@${width} /status-fault: error boundary "Page load failed"`, `pm@${width} /status-fault: error boundary marker [data-testid="route-error"]`], `quiet 200 boundary page must fail only as an error boundary; got ${JSON.stringify(f)}`);
+  lines.push(`FAILS as expected: quiet 200 /status-fault@${width} with <main>, no console error → ${f.join("; ")}`);
+  const ok = evaluateCrawlRow(rows.find((r) => r.path === "/status-ok" && r.width === width));
+  assert.deepEqual(ok, [], `its clean twin /status-ok@${width} must pass; got ${JSON.stringify(ok)}`);
+  lines.push(`passes: /status-ok@${width} (same layout, no boundary)`);
+}
+{
+  // The PR #15 boundary on a drill-down fails that drill-down's load (200, <main>, no console error).
+  const row = evRows.find((r) => r.drill && r.path === "/app/jobs/77-005/cost-items/07-boundary");
+  assert.ok(row && row.status === 200 && row.hasMain && row.consoleErrors.length === 0, "boundary drill-down fixture is a quiet 200 with <main>");
+  const f = row ? evaluateCrawlRow(row) : [];
+  assert.ok(f.some((x) => /error boundary "Page load failed"/.test(x)) && f.some((x) => /error boundary marker \[data-testid="route-error"\]/.test(x)), `drill-down on the boundary must fail; got ${JSON.stringify(f)}`);
+  lines.push(`FAILS as expected: drill-down lands on the PR #15 boundary → ${f.find((x) => /error boundary/.test(x))}`);
+  const ok = evRows.find((r) => r.drill && r.path === "/app/jobs/77-005/cost-items/01-ok");
+  assert.deepEqual(ok ? evaluateCrawlRow(ok) : ["not loaded"], [], "the clean drill-down next to it passes");
+}
+{
+  // Failure evidence: what was captured, for which loads, and that no secret reached any text file.
+  const files = readdirSync(evRoot);
+  const recs = files.filter((f) => f.endsWith(".json")).map((f) => ({ f, ...JSON.parse(readFileSync(path.join(evRoot, f), "utf8")) }));
+  const byLabel = (re) => recs.filter((r) => re.test(r.label));
+  for (const r of recs) for (const ext of [".png", ".html"]) assert.ok(files.includes(r.f.replace(/\.json$/, ext)), `${r.f} needs its ${ext}`);
+  const want = [
+    ["crawl", /pm-w1280-\/app\/jobs\/http500$/, /navigation HTTP 500/],
+    ["crawl", /pm-w1280-\/app\/jobs\/route-error$/, /error boundary "Page load failed"/],
+    ["crawl", /pm-w1280-\/app\/jobs\/leaky$/, /HTTP 500 .*\/api\/broken/],
+    ["drill", /pm-w1280-\/app\/jobs\/77-005\/cost-items\/07-boundary$/, /error boundary/],
+    ["drill-discovery", /pm-w1280-\/app\/jobs\/77-005$/, /found 2 of 3 seeded cost-item drill-downs; missing 08-gone/],
+  ];
+  for (const [kind, label, reason] of want) {
+    const hit = byLabel(label).filter((r) => r.kind === kind && reason.test(r.reason));
+    assert.equal(hit.length, 1, `one ${kind} capture for ${label} with ${reason}; got ${JSON.stringify(recs.map((r) => [r.kind, r.label, r.reason]))}`);
+    lines.push(`passes: evidence captured for ${kind} ${hit[0].label} (${hit[0].f} + png + html)`);
+  }
+  assert.equal(recs.length, want.length, `only failing loads are captured; got ${JSON.stringify(recs.map((r) => r.label))}`);
+  for (const r of evRows.filter((x) => /http500|route-error|leaky|07-boundary/.test(x.path))) assert.ok(r.evidence && files.includes(r.evidence), `${r.path} row points at its capture`);
+  const leaky = byLabel(/leaky$/)[0];
+  assert.equal(leaky.url, `${base}/app/jobs/leaky`);
+  const req = leaky.failedRequests.find((x) => x.status === 500);
+  assert.ok(req && req.method === "GET" && req.url === `${base}/api/broken?access_token=REDACTED` && req.requestHeaders.authorization === "[redacted]", `failed request recorded with method/URL/status, token + Authorization redacted; got ${JSON.stringify(leaky.failedRequests)}`);
+  assert.ok(leaky.consoleErrors.some((x) => x === "leak [redacted]"), `console error recorded, redacted; got ${JSON.stringify(leaky.consoleErrors)}`);
+  const text = files.filter((f) => !f.endsWith(".png")).map((f) => readFileSync(path.join(evRoot, f), "utf8"));
+  for (const secret of [CANARY_TOKEN, CANARY_COOKIE, CANARY_QUERY]) assert.ok(!text.some((t) => t.includes(secret)), `evidence must never contain ${secret}`);
+  lines.push("passes: crawl evidence has no VERIFY_TOKEN canary, cookie value or token query value; Authorization redacted; clean loads not captured");
+  rmSync(evRoot, { recursive: true, force: true });
+}
 for (const l of lines) console.log(l);
-console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length} fake page loads)`);
+console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length} fake page loads)`);

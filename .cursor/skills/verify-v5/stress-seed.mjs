@@ -4,6 +4,9 @@
 // /app with no 5xx, the new sandbox must hold the stress job and "Stress Crew", and no daily_plans.crew_id
 // anywhere may reference a missing crew. Evaluation is evaluateStressSeed in checks.mjs.
 // The new sandbox is deleted afterwards. run-local-browser.sh runs this (CI skill smoke and local).
+// DATABASE_URL is parsed with parsePostgresUrl (db-url.mjs, same approach as v5/src/db/database-url.ts):
+// postgres() only ever gets the percent-encoded connection string, so a password with / ? # @ % works,
+// and every line this script prints or writes is redacted (no URL, user info or password, ever).
 // Usage: DATABASE_URL=… node .cursor/skills/verify-v5/stress-seed.mjs --url http://localhost:3101 [--out file.json]
 import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -12,19 +15,36 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { evaluateStressSeed, STRESS_JOB_NUMBER } from "./checks.mjs";
 import { signInRole } from "./crawl.mjs";
+import { parsePostgresUrl } from "./db-url.mjs";
+import { redactText, secretValues } from "./evidence.mjs";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(path.join(here, "../../../v5/package.json"));
-const { chromium } = require("@playwright/test");
-const postgres = require("postgres");
+const SECRETS = secretValues(process.env);
+const safe = (x) => redactText(x, SECRETS);
+for (const ev of ["uncaughtException", "unhandledRejection"]) {
+  process.on(ev, (error) => {
+    console.error(`FAIL stress seed (V5_SEED_STRESS=1): crashed: ${safe(String(error?.message ?? error).split("\n")[0]).slice(0, 300)}`);
+    process.exit(1);
+  });
+}
 
 const { values: args } = parseArgs({ options: { url: { type: "string" }, out: { type: "string" } } });
 if (!args.url || !process.env.DATABASE_URL) {
   console.error("usage: DATABASE_URL=… node stress-seed.mjs --url http://localhost:<port> [--out file.json]");
   process.exit(2);
 }
+const db = parsePostgresUrl(process.env.DATABASE_URL);
+if (!db) {
+  console.error("FAIL stress seed (V5_SEED_STRESS=1): DATABASE_URL is not a usable postgres:// URL (value not shown)");
+  process.exit(2);
+}
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(path.join(here, "../../../v5/package.json"));
+const { chromium } = require("@playwright/test");
+const postgres = require("postgres");
+
 const base = args.url.replace(/\/$/, "");
-const sql = postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {} });
+const sql = postgres(db.connectionString, { max: 1, onnotice: () => {} });
 const observed = { http5xx: [] };
 let newIds = [];
 try {
@@ -38,7 +58,7 @@ try {
     try {
       await signInRole(page, base, "pm", 60_000);
     } catch (e) {
-      observed.error = String(e?.message ?? e).split("\n")[0].slice(0, 200);
+      observed.error = safe(String(e?.message ?? e).split("\n")[0]).slice(0, 200);
     }
     observed.landedOn = page.url().startsWith(base) ? page.url().slice(base.length) : page.url();
   } finally {
@@ -62,13 +82,13 @@ try {
     observed.error = `expected 1 new sandbox after sign-in, found ${newIds.length}`;
   }
 } catch (e) {
-  observed.error ??= String(e?.message ?? e).slice(0, 200);
+  observed.error ??= safe(String(e?.message ?? e)).slice(0, 200);
 } finally {
   for (const id of newIds) await sql`delete from companies where id = ${id}`.catch(() => {});
-  await sql.end({ timeout: 5 });
+  await sql.end({ timeout: 5 }).catch(() => {});
 }
 const failures = evaluateStressSeed(observed);
 const result = { url: base, observed, failures, passed: failures.length === 0 };
-if (args.out) writeFileSync(args.out, JSON.stringify(result, null, 2) + "\n");
-console.log(`${failures.length ? "FAIL" : "PASS"} stress seed (V5_SEED_STRESS=1): ${failures.length ? failures.join("; ") : `sign-in → ${observed.landedOn}, stress job ${STRESS_JOB_NUMBER} 1, Stress Crew 1, stress plans on it ${observed.stressPlansOnStressCrew}, orphan crew_id 0`}`);
+if (args.out) writeFileSync(args.out, safe(JSON.stringify(result, null, 2)) + "\n");
+console.log(safe(`${failures.length ? "FAIL" : "PASS"} stress seed (V5_SEED_STRESS=1): ${failures.length ? failures.join("; ") : `sign-in → ${observed.landedOn}, stress job ${STRESS_JOB_NUMBER} 1, Stress Crew 1, stress plans on it ${observed.stressPlansOnStressCrew}, orphan crew_id 0`}`));
 process.exit(failures.length ? 1 : 0);

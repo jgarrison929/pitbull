@@ -22,6 +22,8 @@ import {
   shaMatches,
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
+import { parsePostgresUrl } from "./db-url.mjs";
+import { redactHeaders, redactText, redactUrl, secretValues } from "./evidence.mjs";
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
 import { execFileSync } from "node:child_process";
 import { PORTFOLIO_ROWS_TIMEOUT_MS, PORTFOLIO_SETTLE_MS, PORTFOLIO_STEP, portfolioOk, runPortfolioStep, waitForRowCount } from "./portfolio.mjs";
@@ -919,6 +921,54 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     assert.ok(flowsAt > 0 && start > flowsAt, "reset step lives in flows(), which every target runs");
     results.push("passes: verify.mjs step(RESET_STEP) → runResetTimeStep(page, base, { expectedRows }) → check(RESET_STEP, r.ok, r.detail), no flag/warn path");
   }
+}
+
+// ---- error boundaries: Next's built-in screens and the app's PR #15 fallback fail a crawl load ----
+{
+  const good = { role: "pm", width: 1280, path: "/changelog", status: 200, final: "/changelog", idleMs: 500, responses4xx5xx: [], consoleErrors: [], pageErrors: [], text: "Changelog 5.0.2", overflowPx: 0, emptyHits: [], seededCounts: {}, errorBoundaryMarkers: [] };
+  mustPass("crawl row: clean /changelog (no boundary text, no marker)", evaluateCrawlRow(good));
+  for (const [label, row, re] of [
+    ["route boundary heading 'Page load failed'", { text: "Pitbull\nPage load failed\nThis screen failed to render. Try again.\nTry again\nDemo login" }, /error boundary "Page load failed"/],
+    ["global boundary heading 'Shell load failed'", { text: "Shell load failed\nTry again" }, /error boundary "Shell load failed"/],
+    ["route-error marker with reworded text", { text: "Could not show this job", errorBoundaryMarkers: ['[data-testid="route-error"]'] }, /error boundary marker \[data-testid="route-error"\]/],
+    ["global-error marker", { errorBoundaryMarkers: ['[data-testid="global-error"]'] }, /error boundary marker \[data-testid="global-error"\]/],
+    ["Next 16 built-in 'This page couldn’t load'", { text: "This page couldn’t load\nA server error occurred. Reload to try again." }, /error boundary "This page couldn’t load"/],
+  ]) {
+    const f = evaluateCrawlRow({ ...good, ...row });
+    assert.ok(f.some((x) => re.test(x)), `${label} must fail with ${re}; got ${JSON.stringify(f)}`);
+    results.push(`FAILS as expected: crawl row with ${label} → ${f.find((x) => re.test(x))}`);
+  }
+}
+
+// ---- DATABASE_URL: special-character passwords parse to the right parts, and redaction hides them ----
+{
+  for (const pw of ["ab/cd", "p@ss/word", "Zq:/?#@%x"]) {
+    const url = `postgres://pv_user:${pw}@db.internal:5544/pv_db?sslmode=disable`;
+    const p = parsePostgresUrl(url);
+    assert.deepEqual(p && { user: p.user, password: p.password, host: p.host, port: p.port, database: p.database }, { user: "pv_user", password: pw, host: "db.internal", port: "5544", database: "pv_db" }, `parts for ${JSON.stringify(pw)}`);
+    const w = new URL(p.connectionString); // the WHATWG parse postgres.js does must see the same host and user
+    assert.deepEqual([w.hostname, w.port, decodeURIComponent(w.username), decodeURIComponent(w.password), w.pathname], ["db.internal", "5544", "pv_user", pw, "/pv_db"]);
+    const secrets = secretValues({ DATABASE_URL: url });
+    const msg = `TypeError: Invalid URL { input: '${url}' } pw=${pw} enc=${encodeURIComponent(pw)} ${p.connectionString}`;
+    const red = redactText(msg, secrets);
+    for (const leak of [pw, encodeURIComponent(pw), url]) assert.ok(!red.includes(leak), `redactText must hide ${JSON.stringify(leak)}: ${red}`);
+    results.push(`passes: DATABASE_URL password ${JSON.stringify(pw)} → pv_user@db.internal:5544/pv_db; an error message echoing it is fully redacted`);
+  }
+  assert.equal(parsePostgresUrl("postgres://only-user@"), null);
+  assert.equal(parsePostgresUrl("mysql://u:p@h/db"), null);
+  results.push("FAILS as expected: unusable postgres URLs parse to null (never handed to postgres())");
+  const red = redactText("Authorization: Bearer abc.DEF-123 postgres://u:p@h:1/d x", []);
+  assert.ok(!/abc\.DEF-123|u:p@/.test(red), red);
+  results.push(`passes: redactText drops Bearer values and postgres:// userinfo with no secret list → ${red}`);
+  const u = redactUrl("http://u:pw@h.test/app?reset=1&token=t0k&state=abcdefghij0123456789XYZ&q=hello", []);
+  assert.equal(u, "http://h.test/app?reset=1&token=REDACTED&state=REDACTED&q=hello");
+  results.push(`passes: redactUrl keeps reset=1 and plain values, drops userinfo, secret-named and token-looking values → ${u}`);
+  const h = redactHeaders({ Authorization: "Bearer x", cookie: "sid=1", "x-verify-token": "v", accept: "text/html" }, []);
+  assert.deepEqual(h, { Authorization: "[redacted]", cookie: "[redacted]", "x-verify-token": "[redacted]", accept: "text/html" });
+  results.push("passes: redactHeaders drops Authorization / Cookie / token headers, keeps the rest");
+  const sv = secretValues({ VERIFY_TOKEN: "vt-canary-123456", GH_TOKEN: "ghp_canary123456", HOME: "/home/x", PORT: "3100" });
+  assert.ok(sv.includes("vt-canary-123456") && sv.includes("ghp_canary123456") && !sv.includes("/home/x") && !sv.includes("3100"), JSON.stringify(sv));
+  results.push("passes: secretValues takes VERIFY_TOKEN / GH_TOKEN, not HOME or PORT");
 }
 
 for (const line of results) console.log(line);

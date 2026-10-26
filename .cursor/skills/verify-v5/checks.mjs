@@ -34,7 +34,19 @@ export const ERROR_BOUNDARY = [
   /This page could not be found/i,
   /client-side exception/i,
   /Internal Server Error/i,
+  // Next 16's built-in error screens (app-error / global-error) and the app's own App Router boundary
+  // (v5/src/components/app/route-error-fallback.tsx, product PR #15: "Page load failed" / "Shell load failed").
+  /This page couldn.t load/i,
+  /A server error occurred/i,
+  /Page load failed/i,
+  /Shell load failed/i,
 ];
+
+/**
+ * Stable markers of an error boundary in the DOM: the app's route-error / global-error fallback
+ * (data-testid from PR #15). Any match fails the load, whatever the text says.
+ */
+export const ERROR_BOUNDARY_SELECTOR = '[data-testid="route-error"], [data-testid="global-error"]';
 
 /**
  * A leaf element whose whole text is an empty-state message. Prose that merely contains
@@ -67,7 +79,8 @@ export const PAGE_BUDGET_MS = 1500;
 /**
  * One crawled page load → list of failure strings (empty = pass).
  * row: { role, width, path, status, final, idleMs, responses4xx5xx: [{url,status}], consoleErrors: [],
- *        pageErrors: [], text, overflowPx, emptyHits: [{text, coNumber, coStatus}], seededCounts }
+ *        pageErrors: [], text, overflowPx, emptyHits: [{text, coNumber, coStatus}], seededCounts,
+ *        errorBoundaryMarkers: [selector-matched testids] }
  */
 export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS } = {}) {
   const f = [];
@@ -78,6 +91,7 @@ export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS } = {}) {
   for (const e of row.consoleErrors ?? []) f.push(`${where}: console error ${e}`);
   for (const e of row.pageErrors ?? []) f.push(`${where}: page error ${e}`);
   for (const re of ERROR_BOUNDARY) if (re.test(row.text ?? "")) f.push(`${where}: error boundary "${(row.text.match(re) ?? [])[0]}"`);
+  for (const m of row.errorBoundaryMarkers ?? []) f.push(`${where}: error boundary marker ${m}`);
   for (const h of bannedHits(row.text)) f.push(`${where}: banned "${h.match}" (${h.id})`);
   if (!(row.overflowPx <= 0)) f.push(`${where}: horizontal overflow ${row.overflowPx}px`);
   if (!(row.idleMs <= budgetMs)) f.push(`${where}: ${row.idleMs} ms > ${budgetMs} ms budget`);

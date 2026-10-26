@@ -1,0 +1,189 @@
+// Failure evidence: when a reset sample, a crawl page or a drill-down fails, write what the browser saw
+// into the run's evidence folder (<run>/failures/): a full-page screenshot, the page HTML, and a JSON file
+// with the URL and query, the reason, console errors, page errors and failed requests (method, URL,
+// status). Secrets never reach these files: known secret values (VERIFY_TOKEN, GH/GitHub tokens, the
+// DATABASE_URL and its password, cookie values) are replaced with [redacted] in every text written,
+// Authorization / Cookie style headers are dropped to [redacted], token-looking query values are
+// replaced, and cookies themselves are never written.
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { databaseUrlSecrets } from "./db-url.mjs";
+
+export const REDACTED = "[redacted]";
+/** Hard cap per evidence folder so a run where everything fails can't flood the disk. */
+export const MAX_FAILURE_CAPTURES = 60;
+/** Query parameter names whose values are always redacted. */
+export const SECRET_QUERY_KEY = /(token|secret|passw(or)?d|pwd|auth|api[-_]?key|key|sig(nature)?|session|cookie|jwt|credential|bearer)/i;
+/** A value that looks like a token: long, no spaces, letters and digits mixed (a 40-hex git SHA is not). */
+export const TOKENISH_VALUE = /^(?![0-9a-f]{40}$)(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9._~+/=-]{20,}$/;
+const SECRET_HEADER = /^(authorization|proxy-authorization|cookie|set-cookie|x-verify-token|x-api-key)$|token|secret|auth/i;
+const SECRET_ENV_KEY = /^(VERIFY_TOKEN|GH_TOKEN|GITHUB_TOKEN|DATABASE_URL)$|TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|PRIVATE_KEY/i;
+
+/** Secret values from an environment (the runner's process.env by default) for redactText. */
+export function secretValues(environment = process.env) {
+  const out = [];
+  for (const [k, v] of Object.entries(environment ?? {})) {
+    if (typeof v !== "string" || v.length < 4 || !SECRET_ENV_KEY.test(k)) continue;
+    out.push(v);
+    if (/^postgres(ql)?:\/\//i.test(v)) out.push(...databaseUrlSecrets(v));
+  }
+  return [...new Set(out)];
+}
+
+/**
+ * Replace every secret value (and its URL-encoded form) with [redacted]; also any postgres:// URL with
+ * userinfo, and Bearer / Basic credentials, whatever their value.
+ */
+export function redactText(text, secrets = []) {
+  let s = String(text ?? "");
+  const all = [...new Set(secrets.flatMap((x) => (typeof x === "string" && x.length >= 2 ? [x, encodeURIComponent(x)] : [])))].sort((a, b) => b.length - a.length);
+  for (const x of all) s = s.split(x).join(REDACTED);
+  s = s.replace(/postgres(ql)?:\/\/[^\s"'<>]*@[^\s"'<>]*/gi, `postgres://${REDACTED}`);
+  s = s.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/g, `$1 ${REDACTED}`);
+  // Query strings anywhere in the text (HTML, logs): secret-named or token-looking values.
+  s = s.replace(/([?&](?:amp;)?)([A-Za-z0-9_.-]+)=([^&#"'\s<>]*)/g, (m, sep, k, v) => {
+    let d = v;
+    try {
+      d = decodeURIComponent(v);
+    } catch {
+      // keep raw
+    }
+    return SECRET_QUERY_KEY.test(k) || TOKENISH_VALUE.test(d) ? `${sep}${k}=REDACTED` : m;
+  });
+  return s;
+}
+
+/** URL with userinfo removed and secret-named or token-looking query values replaced (reset=1 stays). */
+export function redactUrl(raw, secrets = []) {
+  let u;
+  try {
+    u = new URL(String(raw));
+  } catch {
+    return redactText(raw, secrets);
+  }
+  u.username = "";
+  u.password = "";
+  const q = [...u.searchParams.entries()].map(([k, v]) => [k, SECRET_QUERY_KEY.test(k) || TOKENISH_VALUE.test(v) ? "REDACTED" : v]);
+  const search = q.length ? `?${q.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")}` : "";
+  return redactText(`${u.origin}${u.pathname}${search}`, secrets);
+}
+
+/** Headers with Authorization, Cookie, Set-Cookie and any token/secret/auth-named header redacted. */
+export function redactHeaders(headers = {}, secrets = []) {
+  return Object.fromEntries(Object.entries(headers ?? {}).map(([k, v]) => [k, SECRET_HEADER.test(k) ? REDACTED : redactText(v, secrets)]));
+}
+
+/** page.on that tolerates page-like test doubles which don't support every event. */
+function listen(page, event, fn) {
+  try {
+    page.on(event, fn);
+    return () => {
+      try {
+        page.off(event, fn);
+      } catch {
+        // test double
+      }
+    };
+  } catch {
+    return () => {};
+  }
+}
+
+/**
+ * Collects console errors, uncaught page errors and failed requests (status >= 400 or a network failure)
+ * from now on. mark() returns a position; since(mark) returns what arrived after it.
+ */
+export function startFailureRecorder(page) {
+  const events = [];
+  const offs = [
+    listen(page, "console", (m) => {
+      if (m?.type?.() === "error") events.push({ kind: "console", text: String(m.text()).slice(0, 2000) });
+    }),
+    listen(page, "pageerror", (e) => events.push({ kind: "pageerror", text: String(e?.stack ?? e?.message ?? e).slice(0, 2000) })),
+    listen(page, "response", (r) => {
+      if (typeof r?.status !== "function" || r.status() < 400) return;
+      const req = r.request();
+      events.push({ kind: "request", method: req.method(), url: r.url(), status: r.status(), headers: req.headers?.() ?? {} });
+    }),
+    listen(page, "requestfailed", (req) => {
+      if (typeof req?.method !== "function") return;
+      events.push({ kind: "request", method: req.method(), url: req.url(), status: null, failure: req.failure?.()?.errorText ?? "failed", headers: req.headers?.() ?? {} });
+    }),
+  ];
+  return {
+    mark: () => events.length,
+    since: (m = 0) => events.slice(m),
+    stop: () => offs.forEach((f) => f()),
+  };
+}
+
+const counters = new Map();
+const slug = (s) => String(s ?? "").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "").slice(0, 80) || "page";
+
+/**
+ * Write <dir>/NNN-<kind>-<label>.{png,html,json} for the page's current state. Never throws: a part
+ * that can't be captured is listed under captureErrors. Returns { json, png, html } (file names) or
+ * { skipped } past MAX_FAILURE_CAPTURES.
+ */
+export async function captureFailure(page, { dir, kind, label, reason, recorder, mark = 0, secrets = secretValues(), extra = {} }) {
+  const n = (counters.get(dir) ?? 0) + 1;
+  counters.set(dir, n);
+  if (n > MAX_FAILURE_CAPTURES) return { skipped: `over ${MAX_FAILURE_CAPTURES} captures in ${dir}` };
+  mkdirSync(dir, { recursive: true });
+  const name = `${String(n).padStart(3, "0")}-${slug(kind)}-${slug(label)}`;
+  const captureErrors = [];
+  let all = [...secrets];
+  try {
+    const cookies = await page.context().cookies();
+    all = [...all, ...cookies.map((c) => c.value).filter((v) => typeof v === "string" && v.length >= 6)];
+  } catch (e) {
+    captureErrors.push(`cookies (for redaction only): ${String(e?.message ?? e).split("\n")[0]}`);
+  }
+  const clean = (s) => redactText(s, all);
+  const files = { json: `${name}.json`, png: `${name}.png`, html: `${name}.html` };
+  try {
+    await page.screenshot({ path: path.join(dir, files.png), fullPage: true, timeout: 10_000 });
+  } catch (e) {
+    files.png = null;
+    captureErrors.push(`screenshot: ${clean(String(e?.message ?? e).split("\n")[0])}`);
+  }
+  try {
+    writeFileSync(path.join(dir, files.html), clean(await page.content()));
+  } catch (e) {
+    files.html = null;
+    captureErrors.push(`html: ${clean(String(e?.message ?? e).split("\n")[0])}`);
+  }
+  let url = null;
+  try {
+    url = redactUrl(page.url(), all);
+  } catch (e) {
+    captureErrors.push(`url: ${clean(String(e?.message ?? e).split("\n")[0])}`);
+  }
+  const ev = recorder ? recorder.since(mark) : [];
+  const record = {
+    kind,
+    label,
+    reason: clean(reason),
+    url,
+    capturedAt: new Date().toISOString(),
+    consoleErrors: ev.filter((e) => e.kind === "console").map((e) => clean(e.text)),
+    pageErrors: ev.filter((e) => e.kind === "pageerror").map((e) => clean(e.text)),
+    failedRequests: ev
+      .filter((e) => e.kind === "request")
+      .map((e) => ({ method: e.method, url: redactUrl(e.url, all), status: e.status, ...(e.failure ? { failure: clean(e.failure) } : {}), requestHeaders: redactHeaders(e.headers, all) })),
+    ...JSON.parse(clean(JSON.stringify(extra))),
+    files: { png: files.png, html: files.html },
+    captureErrors,
+  };
+  writeFileSync(path.join(dir, files.json), JSON.stringify(record, null, 2) + "\n");
+  return files;
+}
+
+/** Evidence settings ride on the page (verify.mjs sets them) so step signatures stay unchanged. */
+const registry = new WeakMap();
+export function setFailureEvidence(page, settings) {
+  registry.set(page, { secrets: secretValues(), ...settings });
+}
+export function failureEvidenceFor(page) {
+  return (page && typeof page === "object" && registry.get(page)) || null;
+}
