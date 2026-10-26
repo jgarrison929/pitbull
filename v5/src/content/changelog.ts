@@ -2,6 +2,17 @@
 // package.json must match changelog[0]. Aligns with the 5.0.0 release stamp (#697).
 export const changelog = [
   {
+    version: "5.0.3",
+    date: "2026-10-26",
+    items: [
+      "A project manager can set each cost item's forecast to Current Budget or Average Performance (AC ÷ percent complete) on its cost item page or from the assistant. An item with 0% complete keeps the Current Budget value and is labeled as a fallback.",
+      "A Light and Dark theme switch in the user menu. The choice is remembered, so pages load in the chosen theme without a flash.",
+      "Each daily plan's history lists every submit, return, and approve with the role and the time, including the Cedar plan returned for Recount pour 3 then approved.",
+      "Every daily plan belongs to a crew record. Asking the assistant for a plan on a job that does not exist is refused and offers up to three of your approved jobs.",
+      "Faster job pages: cost item pages no longer wait on link prefetch, analytics load after the page, and the foreman's job page runs fewer queries.",
+    ],
+  },
+  {
     version: "5.0.2",
     date: "2026-10-26",
     items: [
