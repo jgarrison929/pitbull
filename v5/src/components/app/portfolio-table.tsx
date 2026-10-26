@@ -46,12 +46,13 @@ export function PortfolioTable({
         Draft rows show — / Draft label instead of $0 / fake CPI. (#675)
         Role-fit (5.0.4-b): foreman and superintendent omit CPI/SPI columns.
       */}
-      <div className="hidden min-w-0 overflow-x-auto lg:block">
+      <div className="hidden min-w-0 lg:block">
         {/*
-          min-width keeps STATUS pills ("At risk", "Watch") and index columns
-          whole under 5.0.4-c text-label/body — no "At ri" / "Wate" clip.
+          Short CPI/SPI/EAC/Status labels (not "Schedule performance…") so the
+          desktop table fits the main column beside the assistant — full header
+          text and STATUS pills ("At risk", "Watch"), no mid-word clip.
         */}
-        <table className="w-full min-w-[68rem] text-sm">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
               <Th>Job</Th>
@@ -59,20 +60,12 @@ export function PortfolioTable({
               <Th>Complete</Th>
               {costIndexes ? (
                 <>
-                  <Th right className="whitespace-nowrap">
-                    CPI · cost var.
-                  </Th>
-                  <Th right className="whitespace-nowrap">
-                    SPI · sched. var.
-                  </Th>
-                  <Th right className="whitespace-nowrap">
-                    EAC
-                  </Th>
+                  <Th right>CPI</Th>
+                  <Th right>SPI</Th>
+                  <Th right>EAC</Th>
                 </>
               ) : null}
-              {statusBadge ? (
-                <Th className="whitespace-nowrap">Status</Th>
-              ) : null}
+              {statusBadge ? <Th>Status</Th> : null}
             </tr>
           </thead>
           <tbody>
