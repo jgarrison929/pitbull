@@ -23,6 +23,7 @@ export function NewPlanForm({
         type="button"
         className="rounded-md border px-3 py-1.5 text-xs font-medium"
         data-testid="new-plan"
+        data-default-date={defaultDate}
         onClick={() => setOpen(true)}
       >
         New plan
@@ -47,6 +48,7 @@ export function NewPlanForm({
           defaultValue={defaultDate}
           className="rounded-md border bg-background px-2 py-1.5 text-sm"
           data-testid="new-plan-date"
+          data-default-date={defaultDate}
         />
       </label>
       <label className="flex min-w-40 flex-1 flex-col gap-0.5 text-xs">

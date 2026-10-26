@@ -16,6 +16,7 @@ import {
 } from "@/lib/plan-date";
 import { seed, seedId } from "./index";
 import { seedStressJob } from "./stress";
+// jobPagePlanSurface needs seedNow — covered in server/job-page-plans.test.ts
 
 const company = "00000000-0000-4000-8000-0000000000pd";
 
@@ -172,30 +173,30 @@ describe("seed plan dates use job time zone", () => {
     expect(stress.dailyPlans[0]!.planDate).not.toBe(utcTomorrow(now));
   });
 
-  it("M8: jobPagePlans (page call path) keeps LA-today open (not history)", () => {
+  it("M8: jobPagePlans keeps LA-today open (not history)", () => {
     const now = new Date("2026-10-27T00:30:00.000Z");
     const rows = seed(company, now);
     const i5 = rows.dailyPlans.find(
       (p) => p.id === seedId(company, "plan:i5:today"),
     )!;
-    // Same entry the job page uses — zone is inside the helper, not a page arg.
     const { today, open, history } = jobPagePlans(rows.dailyPlans, now);
     expect(today).toBe("2026-10-26");
     expect(open.some((p) => p.id === i5.id)).toBe(true);
     expect(history.some((p) => p.id === i5.id)).toBe(false);
-    // New-plan default = job-zone today (same value the page passes).
     expect(today).toBe(assistantToday(now));
     expect(today).not.toBe(utcDay(now));
   });
 
-  it("M8 page wiring: job page calls jobPagePlans (no zone arg to swap)", () => {
+  it("M8 page wiring: job page uses jobPagePlanSurface + JobNewPlanSlot", () => {
     const src = readFileSync(
       join(process.cwd(), "src/app/app/jobs/[number]/page.tsx"),
       "utf8",
     );
-    expect(src).toMatch(/jobPagePlans\s*\(/);
+    expect(src).toMatch(/jobPagePlanSurface\s*\(\s*plans\s*\)/);
+    expect(src).toMatch(/JobNewPlanSlot/);
     expect(src).not.toMatch(/splitPlansByPlanToday\s*\(/);
-    // Page must not pass a zone literal or timeZoneForJob into the split.
-    expect(src).not.toMatch(/splitPlansByPlanToday[\s\S]{0,120}"UTC"/);
+    expect(src).not.toMatch(/jobPagePlans\s*\(/);
+    // Page must not invent a UTC calendar day for New plan (M8t).
+    expect(src).not.toMatch(/toISOString\(\)\.slice\(\s*0\s*,\s*10\s*\)/);
   });
 });
