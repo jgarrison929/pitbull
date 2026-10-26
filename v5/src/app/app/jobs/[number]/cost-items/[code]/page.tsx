@@ -7,6 +7,11 @@ import { utcDay } from "@/lib/dates";
 import { mh, qty, usdCents } from "@/lib/ev";
 import { actions } from "@/server/assistant/actions";
 import { getCostItemPage, type CostEntryRow } from "@/server/cost-item-page";
+import {
+  createTimingStore,
+  logRouteTiming,
+  runWithTiming,
+} from "@/server/request-timing";
 import { requireUser } from "@/server/session";
 
 const EMPTY_LABOR =
@@ -138,9 +143,20 @@ async function CostItem({
 }) {
   const { number, code: rawCode } = await params;
   const code = decodeURIComponent(rawCode);
-  const user = await requireUser();
-  const data = await getCostItemPage(user.companyId, number, code);
+  const timing = createTimingStore(`cost-item:${number}/${code}`);
+  const { user, data } = await runWithTiming(timing, async () => {
+    const user = await requireUser();
+    const data = await getCostItemPage(user.companyId, number, code);
+    return { user, data };
+  });
   if (!data) notFound();
+  // Wall-clock for the awaited data path (dbMs from ALS is issue-time only).
+  const timingPayload = logRouteTiming(timing, {
+    job: number,
+    code,
+    entries: data.entries.length,
+    renderMs: Math.round(performance.now() - timing.startedAt),
+  });
 
   const canSetForecast =
     actions["costItem.setForecastMethod"].roles?.includes(user.role) ?? false;
@@ -160,6 +176,18 @@ async function CostItem({
 
   return (
     <>
+      {/*
+        Machine-readable server timing for burst scripts (Server-Timing on the
+        document is owned by proxy middleware; RSC cannot set response headers).
+        Use a hidden element — body <meta> is unreliable under streaming PPR.
+      */}
+      <div
+        hidden
+        data-testid="v5-timing"
+        data-db-ms={timingPayload.dbMs}
+        data-queries={timingPayload.queries}
+        data-total-ms={timingPayload.totalMs}
+      />
       <PageHeader
         title={`${data.item.code} ${data.item.description}`}
         meta={

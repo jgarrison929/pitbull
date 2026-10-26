@@ -27,12 +27,24 @@ describe("proxySql connection-string security", () => {
     expect(src).not.toMatch(/postgres\(\s*rawDatabaseUrl\s*,/);
   });
 
+<<<<<<< HEAD
   it("must-fail: plan drills use one session⋈job⋈plan query (not a follow-up select)", () => {
     const src = readFileSync(join(process.cwd(), "src/proxy.ts"), "utf8");
     expect(src).toMatch(/left join daily_plans p/);
     // Old shape: session⋈job, then a second `select id from daily_plans`.
     expect(src).not.toMatch(
       /select id from daily_plans\s+where job_id = \$\{jobId\}/,
+=======
+  it("must-fail: cost-item drills use one session⋈job⋈item query + Server-Timing", () => {
+    const src = readFileSync(join(process.cwd(), "src/proxy.ts"), "utf8");
+    expect(src).toMatch(/left join cost_items ci/);
+    expect(src).toMatch(/Server-Timing/);
+    expect(src).toMatch(/v5proxy;dur=/);
+    expect(src).toMatch(/Next-Router-Prefetch/);
+    // Old shape: session⋈job, then a second `select id from cost_items`.
+    expect(src).not.toMatch(
+      /select id from cost_items\s+where job_id = \$\{jobId\}/,
+>>>>>>> 5842cf8 (perf(v5): cut cost-item TTFB tail under crawl burst)
     );
   });
 

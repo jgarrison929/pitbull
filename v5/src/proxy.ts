@@ -48,6 +48,18 @@ function proxySql(rawDatabaseUrl: string) {
   return sql;
 }
 
+function withServerTiming(res: NextResponse, proxyMs: number) {
+  // Append — never overwrite other Server-Timing metrics from the app.
+  const prior = res.headers.get("Server-Timing");
+  const metric = `v5proxy;dur=${Math.round(proxyMs * 100) / 100}`;
+  res.headers.set(
+    "Server-Timing",
+    prior ? `${prior}, ${metric}` : metric,
+  );
+  res.headers.set("x-v5-proxy-ms", String(Math.round(proxyMs)));
+  return res;
+}
+
 /**
  * Unknown / invalid drill-down paths must be HTTP 404. Under Cache Components the
  * app shell Suspense boundaries commit 200 before page-level notFound() can run,
@@ -64,6 +76,13 @@ export async function proxy(request: NextRequest) {
   const parsed = parseJobDrillPath(path);
   if (!parsed) return NextResponse.next();
 
+  // Router prefetches re-hit this matcher and contended the proxy pool under
+  // verify crawl bursts (TTFB 60 ms → 800 ms+ on the same cost-item). Document
+  // navigations and soft navigations still run the 404 check.
+  if (request.headers.get("Next-Router-Prefetch") === "1") {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!token) return NextResponse.next(); // requireUser will send them to /login
 
@@ -76,7 +95,9 @@ export async function proxy(request: NextRequest) {
 
   const sessionId = createHash("sha256").update(token).digest("hex");
   const db = proxySql(databaseUrl);
+  const t0 = performance.now();
   try {
+<<<<<<< HEAD
     if (parsed.kind === "plan") {
       // One round-trip for plan drills: session + job + plan (was session⋈job
       // then a second plan select — two serial RTTs on every plan navigation).
@@ -87,6 +108,21 @@ export async function proxy(request: NextRequest) {
         left join daily_plans p
           on p.job_id = j.id
          and p.id = ${parsed.planId}::uuid
+=======
+    if (parsed.kind === "cost-item") {
+      // One round-trip: session + job + leaf cost item (was session⋈job then
+      // a second cost_items select — two serial RTTs on every cost-item nav).
+      const rows = await db<
+        { job_id: string; item_id: string | null }[]
+      >`
+        select j.id as job_id, ci.id as item_id
+        from sessions s
+        inner join jobs j on j.company_id = s.company_id
+        left join cost_items ci
+          on ci.job_id = j.id
+         and ci.code = ${parsed.code}
+         and ci.is_leaf = true
+>>>>>>> 5842cf8 (perf(v5): cut cost-item TTFB tail under crawl burst)
         where s.id = ${sessionId}
           and s.expires_at > now()
           and j.number = ${parsed.number}
@@ -97,11 +133,23 @@ export async function proxy(request: NextRequest) {
           select company_id from sessions
           where id = ${sessionId} and expires_at > now()
           limit 1`;
+<<<<<<< HEAD
         if (!sessions[0]) return NextResponse.next();
         return notFoundResponse();
       }
       if (!row.plan_id) return notFoundResponse();
       return NextResponse.next();
+=======
+        if (!sessions[0]) {
+          return withServerTiming(NextResponse.next(), performance.now() - t0);
+        }
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      if (!row.item_id) {
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
+>>>>>>> 5842cf8 (perf(v5): cut cost-item TTFB tail under crawl burst)
     }
 
     // One round-trip: session + job (was two serial queries after a fresh connect).
@@ -120,28 +168,37 @@ export async function proxy(request: NextRequest) {
         select company_id from sessions
         where id = ${sessionId} and expires_at > now()
         limit 1`;
-      if (!sessions[0]) return NextResponse.next();
-      return notFoundResponse();
+      if (!sessions[0]) {
+        return withServerTiming(NextResponse.next(), performance.now() - t0);
+      }
+      return withServerTiming(notFoundResponse(), performance.now() - t0);
     }
 
     if (parsed.kind === "job" || parsed.kind === "changes") {
-      return NextResponse.next();
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
     }
 
-    if (parsed.kind === "cost-item") {
-      const items = await db<{ id: string }[]>`
-        select id from cost_items
+    // plan — kept as a follow-up select here so this PR does not dual-write
+    // the plan one-query fold owned by #59. After #59 merges, rebase folds both.
+    if (parsed.kind === "plan") {
+      const plans = await db<{ id: string }[]>`
+        select id from daily_plans
         where job_id = ${jobId}
-          and code = ${parsed.code}
-          and is_leaf = true
+          and id = ${parsed.planId}::uuid
         limit 1`;
-      if (items.length === 0) return notFoundResponse();
-      return NextResponse.next();
+      if (plans.length === 0) {
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
     }
 
+<<<<<<< HEAD
     return NextResponse.next();
+=======
+    return withServerTiming(NextResponse.next(), performance.now() - t0);
+>>>>>>> 5842cf8 (perf(v5): cut cost-item TTFB tail under crawl burst)
   } catch {
-    return NextResponse.next();
+    return withServerTiming(NextResponse.next(), performance.now() - t0);
   }
 }
 

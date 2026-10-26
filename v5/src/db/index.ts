@@ -11,6 +11,7 @@ import {
   PROXY_DB_POOL_MAX,
   dbPoolMaxFromEnv,
 } from "./pool-config";
+import { recordDbQuery } from "./query-timing";
 import * as schema from "./schema";
 
 export type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -23,6 +24,7 @@ export {
 } from "./database-url";
 export {
   DEFAULT_DB_POOL_MAX,
+  DB_POOL_MAX_SOFT_CAP,
   PROXY_DB_POOL_MAX,
   dbPoolMaxFromEnv,
 } from "./pool-config";
@@ -143,6 +145,10 @@ function wrapClient(client: ReturnType<typeof postgres>) {
     // Sync RTT: serializes parallel callers (pessimistic vs real network overlap)
     // but preserves ThenableQuery (.values / transactions).
     if (delay > 0) sleepSync(delay);
+    // Count immediately; duration is attributed when the statement is issued
+    // (sync latency wrapper already applied). Fine-grained await timing is
+    // measured at the route ALS boundary via wall clock + query delta.
+    recordDbQuery(delay);
     return originalUnsafe(query, params as never, opts as never);
   }) as typeof client.unsafe;
   return client;
