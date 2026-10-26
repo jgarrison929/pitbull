@@ -1,9 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
+import {
+  ERROR_PROBE_MESSAGE,
+  ERROR_PROBE_OK_COOKIE,
+} from "@/lib/error-probe";
 
 /**
- * Proves `/app` segment `error.tsx` keeps AppShell chrome, and recovery UI
- * never shows an error digest. Probe page throws only when V5_ERROR_PROBE=1
- * (set on the Playwright webServer).
+ * Proves `/app` segment `error.tsx` keeps AppShell chrome, recovery UI never
+ * shows digest/raw throw text, and Try again re-fetches (not a no-op).
+ * Probe throws only when V5_ERROR_PROBE=1 (Playwright webServer).
  */
 const roles = ["executive", "pm", "superintendent", "foreman"] as const;
 const widths = [320, 1280] as const;
@@ -30,6 +34,7 @@ async function assertShellKept(page: Page, width: number) {
     await expect(page.getByTestId("signed-in-as")).toBeVisible();
   }
   await expect(page.locator("body")).not.toContainText(/Error id/i);
+  await expect(page.locator("body")).not.toContainText(ERROR_PROBE_MESSAGE);
 }
 
 for (const role of roles) {
@@ -47,3 +52,30 @@ for (const role of roles) {
     });
   }
 }
+
+test("Try again re-fetches; raw throw message stays off screen", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, "pm");
+  await page.goto("/app/error-probe");
+  await expect(page.getByTestId("route-error")).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(ERROR_PROBE_MESSAGE);
+  await expect(page.locator("body")).not.toContainText(/Error id/i);
+
+  // Arm recovery, then click Try again — a no-op button would never show this.
+  await context.addCookies([
+    {
+      name: ERROR_PROBE_OK_COOKIE,
+      value: "1",
+      url: baseURL ?? "http://localhost:3100",
+    },
+  ]);
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByTestId("error-probe-recovered")).toBeVisible();
+  await expect(page.getByTestId("user-menu")).toBeVisible();
+  await expect(page.getByTestId("job-strip")).toBeVisible();
+  await expect(page.getByTestId("signed-in-as")).toBeVisible();
+});

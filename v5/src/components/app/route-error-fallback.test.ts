@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import {
+  rendersRawErrorMessage,
+  retryWired,
+} from "@/lib/route-error-guards";
 
 /** Trust-bar banned words (same idea as verify-v5 `BANNED_VISIBLE`). */
 const BANNED = [
@@ -52,9 +56,8 @@ describe("route error recovery copy", () => {
     expect(fallback).toMatch(/Try again/);
     expect(fallback).toMatch(/failed/i);
     expect(fallback).toMatch(/Demo login/);
-    // Digest stays in server/console logs only — never rendered.
-    expect(fallback).not.toMatch(/Error id/);
-    expect(fallback).not.toMatch(/>\s*\{digest\}/);
+    expect(retryWired(fallback)).toBe(true);
+    expect(rendersRawErrorMessage(fallback)).toBe(false);
 
     const route = readFileSync(join(process.cwd(), "src/app/error.tsx"), "utf8");
     const app = readFileSync(join(process.cwd(), "src/app/app/error.tsx"), "utf8");
@@ -67,6 +70,7 @@ describe("route error recovery copy", () => {
     expect(global).toMatch(/RouteErrorFallback/);
     expect(global).toMatch(/<html/);
     expect(global).toMatch(/globals\.css/);
+    expect(global).toMatch(/localFont|font-sans/);
   });
 
   it("keeps an /app segment boundary so AppShell is not replaced", () => {
