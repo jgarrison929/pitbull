@@ -60,6 +60,8 @@ import {
 import { importErrorLines } from "@/lib/estimate-reconcile";
 import { approveEstimate } from "@/server/estimate";
 import { importEstimateCsv } from "@/server/estimate-import";
+import { importXerSchedule } from "@/server/schedule-import";
+import type { ScheduleImportMode } from "@/lib/schedule-import";
 import {
   addPlanLine,
   createDailyPlan,
@@ -1307,6 +1309,49 @@ export const actions: Record<ActionName, ActionDef> = {
         href: jobHref(j),
         job: j.job.number,
         ...(detailLines?.length ? { detailLines } : {}),
+      };
+    },
+  },
+  "schedule.importXer": {
+    title: "Import schedule XER",
+    writes: true,
+    roles: ["pm"],
+    async run(user, { job, file, mode }) {
+      if (!job)
+        return {
+          summary:
+            "Which job's schedule should I import? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      if (!file) {
+        return {
+          summary: `Import reads an XER file. Open the schedule on ${j.job.shortName} and choose the file under Import schedule.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      const importMode: ScheduleImportMode =
+        mode === "merge" ? "merge" : "replace";
+      const result = await importXerSchedule(
+        user.companyId,
+        j.job.number,
+        file,
+        importMode,
+      );
+      return {
+        summary: result.summary,
+        href: jobHref(j),
+        job: j.job.number,
+        ...(!result.ok ? { refused: true as const } : {}),
+        ...(result.ok && result.skipped.length
+          ? {
+              detailLines: result.skipped.map(
+                (s) =>
+                  `${s.count} ${s.kind}${s.sample ? ` (e.g. ${s.sample})` : ""}`,
+              ),
+            }
+          : {}),
       };
     },
   },
