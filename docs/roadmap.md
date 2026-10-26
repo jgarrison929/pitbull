@@ -94,9 +94,12 @@ The fresh-start plan promises each item below in the 5.0.0 demo story (section 4
 2. 5.1 Schedule moves planned value onto baseline schedule dates. The S-curve is where that change shows. Without the S-curve, 5.1 has nothing to demo its main number on.
 3. Observed velocity supports parallel slices. 5.0.3 and 5.1.0 may run at the same time when file ownership does not collide.
 
+**5.0.4 (added 2026-10-25 at 8:10 PM PT).** Joshua's review said the app does not show what to do next and is crowded on phones. That misses trust bar item 5, so it is a 5.0 increment, sequenced after 5.0.3 and built on 5.0.3 Part C (dark theme). Target 2026-10-30: two days after 5.0.3, matching the one-to-two-day pace of 5.0.1 to 5.0.3. Its slices (5.0.4-0, already in flight via the Pitbull lead, then 5.0.4-a to 5.0.4-g) add no migration, so they run beside 5.1.0. The 5.1 dates do not move.
+
 | Version | Target (PT) | Increment | Spec |
 |---|---|---|---|
 | 5.0.3 | 2026-10-28 | The S-curve for each job and the portfolio, Average Performance selectable per cost item, and the dark theme | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) |
+| 5.0.4 | 2026-10-30 | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) |
 
 How each gap was placed:
 
@@ -114,6 +117,7 @@ How each gap was placed:
 | Plan history shows actor names and drops intermediate returns when columns overwrite | Honesty of the plan audit trail | 5.0.3 Part D (`0018`) |
 | Rail unknown-job lists every sandbox job, including drafts | Clear refusal with real choices | 5.0.3 Part E |
 | Legacy `daily_plans.crew` text and nullable `crew_id` from expand-only `0013` | Crews contract | 5.0.3 Part F (`0019`) |
+| No page says what to do next. The foreman lands on an assistant log, every role sees CPI, SPI, and dollar risk first, and phone pages render wider than the screen (Joshua review, 2026-10-25 at 8:00 PM PT) | Yes, trust bar item 5 | 5.0.4 |
 | Equipment hours on a plan cost nothing | Section 4 step 5 said "+ equipment". Decision 2026-10-24 | 5.6+ cost depth |
 | The foreman reports total man-hours per line, not hours per worker | Section 4 step 4. Decision 2026-10-24 | 5.6+ payroll export |
 
