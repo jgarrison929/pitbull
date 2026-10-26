@@ -139,22 +139,38 @@ async function stabilize(page: Page) {
 /**
  * Grow the viewport to the document height so sticky `h-svh` rails paint the
  * full page (fullPage stitching otherwise clips them at the original 800px).
+ *
+ * Remeasure after each resize: growing the viewport stretches `h-svh` rails
+ * and can raise scrollHeight again. A one-shot measure clipped Harbor phone
+ * shots (~172px short) while dark sometimes won the race (5.0.4-d CI).
  */
 async function fitViewportToPage(page: Page) {
   const box = page.viewportSize();
   if (!box) throw new Error("no viewport");
-  const contentHeight = await page.evaluate(() =>
-    Math.ceil(
-      Math.max(
-        document.documentElement.scrollHeight,
-        document.body?.scrollHeight ?? 0,
+  const measure = () =>
+    page.evaluate(() =>
+      Math.ceil(
+        Math.max(
+          document.documentElement.scrollHeight,
+          document.body?.scrollHeight ?? 0,
+        ),
       ),
-    ),
-  );
-  await page.setViewportSize({
-    width: box.width,
-    height: Math.max(box.height, contentHeight),
-  });
+    );
+  let height = Math.max(box.height, await measure());
+  for (let i = 0; i < 5; i++) {
+    await page.setViewportSize({ width: box.width, height });
+    // Two frames: layout + sticky/svh reflow after the resize.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    const next = Math.max(box.height, await measure());
+    if (next <= height) return;
+    height = next;
+  }
+  await page.setViewportSize({ width: box.width, height });
 }
 
 async function shotPage(page: Page, name: string) {
