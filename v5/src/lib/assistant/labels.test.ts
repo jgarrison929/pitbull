@@ -42,6 +42,12 @@ describe("honesty: assistant rail labels", () => {
     expect(
       actionRailLabel("changeOrder.approve", "25-031", { refused: true }),
     ).not.toMatch(/^Approved/);
+    expect(
+      actionRailLabel("schedule.importXer", "25-031", { refused: true }),
+    ).toBe("Couldn't import schedule on 25-031");
+    expect(
+      actionRailLabel("schedule.importMspXml", "25-031", { refused: true }),
+    ).toBe("Couldn't import schedule on 25-031");
   });
 
   it("labels plan create without the action key", () => {

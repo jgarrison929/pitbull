@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Same as cedar-ok but B links to missing PredecessorUID 99 — apply must write nothing. -->
+<Project xmlns="http://schemas.microsoft.com/project">
+  <Name>Cedar Creek Bridge</Name>
+  <CalendarUID>1</CalendarUID>
+  <Calendars>
+    <Calendar>
+      <UID>1</UID>
+      <Name>Standard</Name>
+      <IsBaseCalendar>1</IsBaseCalendar>
+    </Calendar>
+  </Calendars>
+  <Tasks>
+    <Task>
+      <UID>0</UID>
+      <ID>0</ID>
+      <Name>Cedar Creek Bridge</Name>
+      <Summary>1</Summary>
+    </Task>
+    <Task>
+      <UID>1</UID>
+      <ID>1</ID>
+      <Name>Drive piles</Name>
+      <WBS>A</WBS>
+      <Duration>PT40H0M0S</Duration>
+      <Start>2026-11-02T08:00:00</Start>
+      <Summary>0</Summary>
+      <ConstraintType>0</ConstraintType>
+    </Task>
+    <Task>
+      <UID>2</UID>
+      <ID>2</ID>
+      <Name>Pile caps</Name>
+      <WBS>B</WBS>
+      <Duration>PT24H0M0S</Duration>
+      <Start>2026-11-09T08:00:00</Start>
+      <Summary>0</Summary>
+      <ConstraintType>0</ConstraintType>
+      <PredecessorLink>
+        <PredecessorUID>99</PredecessorUID>
+        <Type>1</Type>
+        <LinkLag>0</LinkLag>
+      </PredecessorLink>
+    </Task>
+  </Tasks>
+</Project>
