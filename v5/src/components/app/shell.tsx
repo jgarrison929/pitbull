@@ -58,7 +58,7 @@ export function AppShell({
   nav?: typeof navItems;
 }) {
   return (
-    <div className="flex min-h-svh bg-background">
+    <div className="flex min-h-svh w-full max-w-full overflow-x-hidden bg-background">
       <aside className="sticky top-0 hidden min-h-svh w-14 shrink-0 flex-col items-center gap-1 self-stretch bg-chrome py-3 md:flex">
         <Brand className="mb-3" />
         <nav aria-label="Main" className="flex flex-col gap-1">
@@ -77,8 +77,8 @@ export function AppShell({
         </nav>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b px-4 py-2.5">
+      <div className="flex min-w-0 max-w-full flex-1 flex-col">
+        <header className="flex min-w-0 items-center gap-3 border-b px-4 py-2.5">
           <Brand className="md:hidden" />
           <Suspense
             fallback={
@@ -87,7 +87,7 @@ export function AppShell({
           >
             <CompanyBadge />
           </Suspense>
-          <div className="ml-auto">
+          <div className="ml-auto min-w-0 shrink-0">
             <Suspense
               fallback={
                 <div className="h-8 w-28 animate-pulse rounded bg-muted" />
@@ -100,8 +100,8 @@ export function AppShell({
         <Suspense fallback={<div className="h-[53px] border-b" />}>
           <JobStrip />
         </Suspense>
-        <div className="flex min-h-0 flex-1">
-          <main className="flex min-w-0 flex-1 flex-col gap-5 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:p-6">
+        <div className="flex min-h-0 min-w-0 max-w-full flex-1">
+          <main className="flex min-w-0 max-w-full flex-1 flex-col gap-5 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:p-6">
             {children}
           </main>
         </div>
@@ -111,7 +111,7 @@ export function AppShell({
       <nav
         aria-label="Main"
         data-testid="phone-tab-bar"
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t bg-background md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex max-w-full border-t bg-background md:hidden"
       >
         {nav.map(({ href, label, icon: Icon, exact }) => (
           <NavLink
@@ -209,29 +209,32 @@ async function UserMenu() {
 async function JobStrip() {
   const user = await requireUser();
   const { jobs } = await getPortfolio(user.companyId);
+  // Wrap + max-w-full (not overflow-x scroll): shrink-0 pills in a row were the
+  // 422 px sideways spill at 390 — document grew and clipped SR-99 off the edge.
+  // Spec 5.0.4-0: every visible job-strip child.right ≤ clientWidth.
   return (
     <nav
       aria-label="Jobs"
       data-testid="job-strip"
-      className="flex min-w-0 gap-2 overflow-x-auto border-b px-4 py-2"
+      className="flex min-w-0 max-w-full flex-wrap gap-2 border-b px-4 py-2"
     >
       {jobs.map((p) => (
         <NavLink
           key={p.job.id}
           href={`/app/jobs/${p.job.number}`}
           label={p.job.name}
-          className="flex shrink-0 items-center gap-3 rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30"
+          className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 sm:gap-3"
           activeClassName="border-foreground bg-muted/50 text-foreground"
         >
-          <span>
-            <span className="block font-medium text-foreground">
+          <span className="min-w-0 flex-1 overflow-hidden">
+            <span className="block truncate font-medium text-foreground">
               {p.job.shortName}{" "}
               <span className="font-normal text-muted-foreground">
                 {p.job.number}
               </span>
             </span>
             <span
-              className="tabular-nums"
+              className="block truncate tabular-nums"
               data-testid={
                 p.estimateDraft ? "strip-estimate-draft" : undefined
               }

@@ -69,12 +69,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={cn(
         geistSans.variable,
         geistMono.variable,
-        "h-full antialiased",
+        "h-full max-w-full overflow-x-hidden antialiased",
         theme === "dark" && "dark",
       )}
       data-theme={theme}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full max-w-full flex-col overflow-x-hidden">
         <PostHogProvider demoRole={demoRole}>{children}</PostHogProvider>
       </body>
     </html>
