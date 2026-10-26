@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import {
   Activity,
@@ -34,17 +33,16 @@ const roleLabel = {
 
 function Brand({ className }: { className?: string }) {
   return (
-    <Link
+    <a
       href="/app"
       aria-label="Pitbull home"
-      prefetch={false}
       className={cn(
         "grid size-8 place-items-center rounded-md bg-brand text-sm font-bold text-brand-foreground",
         className,
       )}
     >
       P
-    </Link>
+    </a>
   );
 }
 
@@ -182,13 +180,9 @@ async function UserMenu() {
         </div>
         <ThemeSwitch current={theme} />
         <div className="mt-3 flex flex-col gap-1">
-          <Link
-            href="/login"
-            prefetch={false}
-            className="rounded-md px-2 py-1.5 hover:bg-muted"
-          >
+          <a href="/login" className="rounded-md px-2 py-1.5 hover:bg-muted">
             Switch role
-          </Link>
+          </a>
           <form action={resetDemo}>
             <button
               type="submit"

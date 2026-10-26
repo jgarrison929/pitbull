@@ -2,17 +2,17 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-describe("NavLink prefetch", () => {
+describe("NavLink", () => {
   const src = readFileSync(
     fileURLToPath(new URL("./nav-link.tsx", import.meta.url)),
     "utf8",
   );
 
-  it("disables automatic Link prefetch on shell nav (viewport burst)", () => {
-    // Must-fail against default prefetch=true: both the Suspense fallback Link
-    // and the active Link fire ?_rsc= for every on-screen tab / job pill.
-    const hits = src.match(/prefetch=\{false\}/g) ?? [];
-    expect(hits.length).toBeGreaterThanOrEqual(2);
-    expect(src).not.toMatch(/prefetch=\{true\}/);
+  it("uses plain <a> instead of next/link (no post-paint ?_rsc= prefetch)", () => {
+    // Must-fail: next/link with prefetch={false} still fires router prefetches
+    // under Next 16.4 + partialPrefetching and holds cost-item networkidle.
+    expect(src).not.toMatch(/from ["']next\/link["']/);
+    expect(src).not.toMatch(/<Link\b/);
+    expect(src).toMatch(/<a\b/);
   });
 });

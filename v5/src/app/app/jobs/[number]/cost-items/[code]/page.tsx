@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ForecastMethodControl } from "@/components/app/forecast-method-control";
 import { Money } from "@/components/app/format";
@@ -60,16 +59,13 @@ function EntryRows({
             </td>
             <td className="px-4 py-2">
               {e.planId ? (
-                <Link
+                <a
                   href={`/app/jobs/${jobNumber}/plans/${e.planId}`}
                   className="font-medium underline hover:no-underline"
                   data-testid="cost-entry-plan-link"
-                  // Plan-row links stack in the viewport; default prefetch
-                  // keeps networkidle busy after the document lands.
-                  prefetch={false}
                 >
                   {e.crew ?? "Daily report"}
-                </Link>
+                </a>
               ) : (
                 <span>{e.crew ?? (e.note || "Labor")}</span>
               )}
@@ -168,14 +164,13 @@ async function CostItem({
         title={`${data.item.code} ${data.item.description}`}
         meta={
           <>
-            <Link
+            <a
               href={`/app/jobs/${data.job.number}`}
               className="underline hover:no-underline"
               data-testid="cost-item-back"
-              prefetch={false}
             >
               {data.job.number} · {data.job.name}
-            </Link>
+            </a>
             {" · "}
             {data.item.unit}
           </>
