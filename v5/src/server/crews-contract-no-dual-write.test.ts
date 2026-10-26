@@ -25,13 +25,11 @@ describe("crews contract: no dailyPlans text crew writes", () => {
 
   it("createDailyPlan and seed inserts do not set crew: on dailyPlans", () => {
     const plans = readFileSync(join(srcRoot, "server/plans.ts"), "utf8");
-    // The insert values block must not dual-write legacy text.
-    expect(plans).toMatch(/await db\.insert\(dailyPlans\)\.values\(\{/);
-    const insertBlock = plans.slice(
-      plans.indexOf("await db.insert(dailyPlans).values({"),
-      plans.indexOf("});", plans.indexOf("await db.insert(dailyPlans).values({")) +
-        3,
-    );
+    // Insert may be db.insert or tx.insert (plan-events wraps a transaction).
+    const insertNeedle = /await (?:db|tx)\.insert\(dailyPlans\)\.values\(\{/;
+    expect(plans).toMatch(insertNeedle);
+    const start = plans.search(insertNeedle);
+    const insertBlock = plans.slice(start, plans.indexOf("});", start) + 3);
     expect(insertBlock).toMatch(/crewId:\s*crew\.id/);
     expect(insertBlock).not.toMatch(/\bcrew:\s*crew\.name/);
     expect(insertBlock).not.toMatch(/\bcrew:\s*["']/);
