@@ -254,7 +254,9 @@ for (const viewport of LAYOUT_VIEWPORTS) {
           await expect(coLedger(page, job)).toBeVisible();
           await expect(page.getByTestId("job-strip")).toBeVisible();
           if (viewport.phone) {
-            // Every seeded job has at least one lined CO → phone stack.
+            // 5.0.4-e: L/M/E/S stack sits behind details; open it to assert spacing.
+            const card = coLedger(page, job).getByTestId("co-card").first();
+            await card.locator("summary").filter({ hasText: "Line breakdown" }).click();
             await expect(
               coLedger(page, job).getByTestId("co-lines-stack").first(),
             ).toBeVisible();

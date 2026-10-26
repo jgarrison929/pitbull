@@ -74,7 +74,7 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
 
   // Pending approval — AC and installed unchanged.
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("38");
   expect(await actualCents(page)).toBe(actualBefore);
   await expect(page.getByTestId("job-earned")).toHaveText(earnedBefore);
@@ -85,7 +85,7 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("report-summary")).toContainText(/80/);
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("40");
   expect(await actualCents(page)).toBe(actualBefore);
 
@@ -104,7 +104,7 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   expect(sinceAfterApprove).toBeGreaterThanOrEqual(
     80 * CREW_LABOR_RATE_CENTS["Bridge Crew 2"],
   );
-  await expect(page.getByTestId("pending-04-210").first()).toContainText("40");
+  await expect(page.locator('[data-testid="pending-04-210"]:visible')).toContainText("40");
 
   // Switch to PM and lock so claimed installed moves and EV/AC update at the new cutoff.
   await signIn(page, "pm");
@@ -151,7 +151,7 @@ test("assistant reports actuals that differ from the plan (pending until approve
   await expect(run.getByTestId("action-summary")).toContainText(/38/);
   await expect(pourLine(page).getByTestId("line-mh")).toHaveText("60");
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("38");
   expect(await actualCents(page)).toBe(actualBefore);
 
@@ -164,7 +164,7 @@ test("assistant reports actuals that differ from the plan (pending until approve
   await expect(run2).toHaveAttribute("data-action", "dailyReport.post");
   await expect(run2.getByTestId("action-summary")).toContainText(/80/);
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("40");
   expect(await actualCents(page)).toBe(actualBefore);
 });
@@ -239,7 +239,7 @@ test("blank or non-finite report fields are rejected, not replaced by the plan",
   // AC must not move until approve.
   expect(await actualCents(page)).toBe(actualBefore80);
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("38");
 
   await page.getByTestId("report-work-form").evaluate((form) => {
