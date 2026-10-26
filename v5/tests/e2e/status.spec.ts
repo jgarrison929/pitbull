@@ -5,7 +5,10 @@ test("status page shows version, commit, ci-gate, last-verify and health", async
   page,
 }) => {
   await page.goto("/status");
-  await expect(page.getByText("Pitbull status")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Status" })).toBeVisible();
+  await expect(page.getByTestId("page-purpose")).toContainText(
+    /which build is live/i,
+  );
   await expect(page.getByTestId("status-version")).toHaveText(pkg.version);
   await expect(page.getByTestId("status-version")).not.toHaveText("0.0.0");
   await expect(page.getByTestId("status-commit")).toHaveText(

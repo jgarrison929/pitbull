@@ -10,7 +10,12 @@ test("portfolio reads the visitor's sandbox from Postgres", async ({
   page,
 }) => {
   await signIn(page);
-  await expect(page.getByRole("heading", { name: "Portfolio" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "What needs you today" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("page-purpose")).toContainText(
+    /next tasks across every job/i,
+  );
   const table = page.getByTestId("portfolio-table");
   for (const name of [
     "SR-99 / Airport Way Interchange",
