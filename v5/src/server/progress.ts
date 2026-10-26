@@ -21,10 +21,16 @@ import {
   snapshotClaimPercent,
   type EvMethod,
 } from "@/lib/ev";
+import {
+  recordPlanEvent,
+  type PlanActor,
+} from "@/server/plan-events";
 import { laborRateForPlan, planLaborRateCentsSql } from "@/server/plans";
 import { getSeedClock } from "@/server/seed-clock";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+export type { PlanActor };
 
 /** Per-line actuals for a daily report. Omitted lines fall back to the plan. */
 export type ReportLineActual = {
@@ -126,6 +132,7 @@ export async function submitDailyReport(
   companyId: string,
   planId: string,
   actuals: Record<string, ReportLineActual> = {},
+  actor: PlanActor,
   now = getSeedClock(),
 ) {
   const db = requireDb();
@@ -189,6 +196,14 @@ export async function submitDailyReport(
         and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
       );
 
+    await recordPlanEvent(tx, {
+      companyId,
+      planId,
+      kind: "reported",
+      actor,
+      at: now,
+    });
+
     return {
       ok: true as const,
       reportedMh,
@@ -206,9 +221,10 @@ export async function postDailyReport(
   companyId: string,
   planId: string,
   actuals: Record<string, ReportLineActual> = {},
+  actor: PlanActor,
   now = getSeedClock(),
 ) {
-  const result = await submitDailyReport(companyId, planId, actuals, now);
+  const result = await submitDailyReport(companyId, planId, actuals, actor, now);
   if (!result.ok) {
     return { postedMh: 0, postedQtyLines: 0, lines: 0, ...result };
   }
@@ -232,10 +248,12 @@ export function planDateAsTimestamp(planDate: string): Date {
 export async function approveDailyReport(
   companyId: string,
   planId: string,
-  userId: string,
+  actor: PlanActor,
   now = getSeedClock(),
 ) {
   const db = requireDb();
+  const userId = actor.userId;
+  if (!userId) return { ok: false as const, reason: "not-found" as const };
   return db.transaction(async (tx) => {
     const [plan] = await tx
       .select()
@@ -293,6 +311,14 @@ export async function approveDailyReport(
         lines: 0,
       };
     }
+
+    await recordPlanEvent(tx, {
+      companyId,
+      planId,
+      kind: "approved",
+      actor,
+      at: now,
+    });
 
     const rateCents = await laborRateForPlan(tx, planId);
     const entryAt = planDateAsTimestamp(plan.planDate);
@@ -411,6 +437,7 @@ export async function returnDailyReport(
   companyId: string,
   planId: string,
   reason: string,
+  actor: PlanActor,
   now = getSeedClock(),
 ) {
   const why = reason.trim();
@@ -441,7 +468,57 @@ export async function returnDailyReport(
       .where(
         and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
       );
+    await recordPlanEvent(tx, {
+      companyId,
+      planId,
+      kind: "returned",
+      actor,
+      detail: why,
+      at: now,
+    });
     return { ok: true as const, returnReason: why };
+  });
+}
+
+/**
+ * Issue a draft plan to the field. Updates submitted_at and appends a submitted event.
+ */
+export async function issueDailyPlan(
+  companyId: string,
+  planId: string,
+  actor: PlanActor,
+  now = getSeedClock(),
+) {
+  const db = requireDb();
+  return db.transaction(async (tx) => {
+    const [plan] = await tx
+      .select()
+      .from(dailyPlans)
+      .where(
+        and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
+      );
+    if (!plan) return { ok: false as const, reason: "not-found" as const };
+    if (plan.status !== "draft") {
+      return {
+        ok: false as const,
+        reason: "wrong-status" as const,
+        status: plan.status,
+      };
+    }
+    await tx
+      .update(dailyPlans)
+      .set({ status: "issued", submittedAt: now })
+      .where(
+        and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
+      );
+    await recordPlanEvent(tx, {
+      companyId,
+      planId,
+      kind: "submitted",
+      actor,
+      at: now,
+    });
+    return { ok: true as const };
   });
 }
 

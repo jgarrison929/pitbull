@@ -66,6 +66,7 @@ import {
 import {
   approveDailyReport,
   getReportedActualsForPlan,
+  issueDailyPlan,
   lockProgressClaim,
   postDailyReport,
   returnDailyReport,
@@ -891,15 +892,17 @@ export const actions: Record<ActionName, ActionDef> = {
           job: j.job.number,
           refused: true,
         };
-      await requireDb()
-        .update(dailyPlans)
-        .set({ status: "issued", submittedAt: sql`now()` })
-        .where(
-          and(
-            eq(dailyPlans.id, plan.id),
-            eq(dailyPlans.companyId, user.companyId),
-          ),
-        );
+      const issued = await issueDailyPlan(user.companyId, plan.id, {
+        userId: user.userId,
+        role: user.role,
+      });
+      if (!issued.ok) {
+        return {
+          summary: `${plan.crew}'s plan for ${day(plan.planDate)} on ${j.job.shortName} was already issued.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
       // Plan ≠ actual: issue only commits the plan. Actuals stay pending until approve.
       const mh = plan.lines.reduce((s, l) => s + l.manHours, 0);
       return {
@@ -982,11 +985,10 @@ export const actions: Record<ActionName, ActionDef> = {
           job: j.job.number,
         };
       }
-      const result = await approveDailyReport(
-        user.companyId,
-        plan.id,
-        user.userId,
-      );
+      const result = await approveDailyReport(user.companyId, plan.id, {
+        userId: user.userId,
+        role: user.role,
+      });
       if (!result.ok) {
         return {
           summary: `Could not approve ${plan.crew}'s report on ${j.job.shortName}.`,
@@ -1050,7 +1052,10 @@ export const actions: Record<ActionName, ActionDef> = {
           job: j.job.number,
         };
       }
-      const result = await returnDailyReport(user.companyId, plan.id, why);
+      const result = await returnDailyReport(user.companyId, plan.id, why, {
+        userId: user.userId,
+        role: user.role,
+      });
       if (!result.ok) {
         return {
           summary:
@@ -1188,11 +1193,10 @@ export const actions: Record<ActionName, ActionDef> = {
           qtyMilli: Math.round(qtyVal * 1000),
         };
       }
-      const result = await postDailyReport(
-        user.companyId,
-        plan.id,
-        byLineId,
-      );
+      const result = await postDailyReport(user.companyId, plan.id, byLineId, {
+        userId: user.userId,
+        role: user.role,
+      });
       if (!("ok" in result) || !result.ok) {
         return {
           summary: `Could not save ${plan.crew}'s report on ${j.job.shortName}.`,

@@ -164,22 +164,32 @@ describe("insertWork live send path (must-fail)", () => {
     await insertWork(tx as never, rows);
 
     const planInserts = tx.records.filter(
-      (r) => r.op === "insert" && r.table.includes("daily_plans"),
+      (r) => r.op === "insert" && r.table === "daily_plans",
+    );
+    const eventInserts = tx.records.filter(
+      (r) => r.op === "insert" && r.table === "daily_plan_events",
     );
     const runInserts = tx.records.filter(
-      (r) => r.op === "insert" && r.table.includes("action_runs"),
+      (r) => r.op === "insert" && r.table === "action_runs",
     );
     const entryInserts = tx.records.filter(
-      (r) => r.op === "insert" && r.table.includes("cost_entries"),
+      (r) => r.op === "insert" && r.table === "cost_entries",
     );
     const lineInserts = tx.records.filter(
-      (r) => r.op === "insert" && r.table.includes("daily_plan_lines"),
+      (r) => r.op === "insert" && r.table === "daily_plan_lines",
     );
 
     // S2 revert: one INSERT per plan / per action run.
     expect(rows.dailyPlans.length).toBeGreaterThanOrEqual(90);
     expect(planInserts).toHaveLength(1);
     expect(planInserts[0]!.rowCount).toBe(rows.dailyPlans.length);
+    expect(rows.dailyPlanEvents.length).toBeGreaterThan(rows.dailyPlans.length);
+    expect(eventInserts).toHaveLength(
+      Math.ceil(rows.dailyPlanEvents.length / INSERT_WORK_CHUNK),
+    );
+    expect(
+      eventInserts.reduce((s, r) => s + r.rowCount, 0),
+    ).toBe(rows.dailyPlanEvents.length);
     expect(runInserts).toHaveLength(1);
     expect(runInserts[0]!.rowCount).toBe(rows.actionRuns.length);
 

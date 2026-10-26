@@ -18,11 +18,21 @@ const statusLabel: Record<string, string> = {
 
 const historyLabel: Record<string, string> = {
   created: "Created",
-  issued: "Issued",
+  submitted: "Submitted",
   reported: "Reported",
   returned: "Returned",
   approved: "Approved",
 };
+
+const roleLabel: Record<string, string> = {
+  executive: "Executive",
+  pm: "Project manager",
+  superintendent: "Superintendent",
+  foreman: "Foreman",
+};
+
+/** Demo company zone — plan history always shows PT, not the visitor's zone. */
+const COMPANY_ZONE = "America/Los_Angeles";
 
 export default function PlanPage({
   params,
@@ -151,6 +161,7 @@ async function Plan({
                 className="flex flex-wrap items-baseline gap-x-2 py-2 text-sm"
                 data-testid="plan-history-event"
                 data-kind={h.kind}
+                data-actor-role={h.actorRole}
               >
                 <span
                   className={cn(
@@ -163,11 +174,14 @@ async function Plan({
                     ? ` (“${h.detail}”)`
                     : null}
                 </span>
-                {h.who ? (
-                  <span className="text-muted-foreground">· {h.who}</span>
-                ) : null}
+                <span
+                  className="text-muted-foreground"
+                  data-testid="plan-history-role"
+                >
+                  · {roleLabel[h.actorRole] ?? h.actorRole}
+                </span>
                 <span className="text-xs text-muted-foreground">
-                  <LocalTime iso={h.at} />
+                  <LocalTime iso={h.at} timeZone={COMPANY_ZONE} />
                 </span>
               </li>
             ))}

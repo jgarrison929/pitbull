@@ -81,6 +81,14 @@ export const coCommandEnum = pgEnum("co_command", [
  * csv: a unit-cost estimate with labor/material/equipment/sub from the CSV grammar.
  */
 export const estimateSourceEnum = pgEnum("estimate_source", ["seed", "csv"]);
+/** Append-only daily plan lifecycle events (submit / report / return / approve). */
+export const planEventKindEnum = pgEnum("plan_event_kind", [
+  "created",
+  "submitted",
+  "reported",
+  "returned",
+  "approved",
+]);
 
 export const companies = pgTable(
   "companies",
@@ -475,6 +483,32 @@ export const dailyPlanLines = pgTable(
     index("daily_plan_lines_plan_idx").on(t.planId),
     index("daily_plan_lines_item_idx").on(t.costItemId),
   ],
+);
+
+/**
+ * Append-only plan lifecycle log. Stamp columns on daily_plans keep the *last*
+ * of each kind; this table keeps every submit / return / approve with role + time.
+ * Writers update the stamp and insert an event in the same transaction.
+ */
+export const dailyPlanEvents = pgTable(
+  "daily_plan_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: companyRef(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => dailyPlans.id, { onDelete: "cascade" }),
+    kind: planEventKindEnum("kind").notNull(),
+    /** Role at the time of the command. Shown in the UI — never a display name. */
+    actorRole: roleEnum("actor_role").notNull(),
+    actorId: uuid("actor_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** Return reason, or empty. */
+    detail: text("detail").notNull().default(""),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("daily_plan_events_plan_idx").on(t.planId, t.at)],
 );
 
 /**

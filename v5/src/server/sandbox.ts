@@ -7,6 +7,7 @@ import {
   companies,
   costItems,
   crews,
+  dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
   jobs,
@@ -252,6 +253,8 @@ export async function ensureStressJob(companyId: string, now = new Date()) {
     }
     if (stress.crews?.length) await tx.insert(crews).values(stress.crews);
     await tx.insert(dailyPlans).values(stress.dailyPlans!);
+    if (stress.dailyPlanEvents?.length)
+      await tx.insert(dailyPlanEvents).values(stress.dailyPlanEvents);
     await tx.insert(dailyPlanLines).values(stress.dailyPlanLines!);
   });
   return { created: true };

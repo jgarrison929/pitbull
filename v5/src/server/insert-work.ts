@@ -16,6 +16,7 @@ import {
   costItemMilestones,
   costItems,
   crews,
+  dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
   jobs,
@@ -49,6 +50,8 @@ export function insertWorkStatementCount(rows: SeedRows): number {
   if (rows.progressClaimLines.length) n += 1;
   if (rows.crews.length) n += 1;
   n += 1; // dailyPlans (seed always has at least the open drafts)
+  if (rows.dailyPlanEvents.length)
+    n += Math.ceil(rows.dailyPlanEvents.length / INSERT_WORK_CHUNK);
   if (rows.dailyPlanLines.length)
     n += Math.ceil(rows.dailyPlanLines.length / INSERT_WORK_CHUNK);
   if (rows.changeOrders.length) n += 1;
@@ -123,6 +126,9 @@ export function enqueueInsertWork(
     enqueue(tx.insert(progressClaimLines).values(rows.progressClaimLines));
   if (rows.crews.length) enqueue(tx.insert(crews).values(rows.crews));
   enqueue(tx.insert(dailyPlans).values(rows.dailyPlans));
+  for (const part of chunk(rows.dailyPlanEvents, INSERT_WORK_CHUNK)) {
+    enqueue(tx.insert(dailyPlanEvents).values(part));
+  }
   for (const part of chunk(rows.dailyPlanLines, INSERT_WORK_CHUNK)) {
     enqueue(tx.insert(dailyPlanLines).values(part));
   }

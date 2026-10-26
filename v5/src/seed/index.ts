@@ -13,6 +13,7 @@ import type {
   costItemMilestones,
   costItems,
   crews,
+  dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
   jobs,
@@ -496,6 +497,7 @@ export type SeedRows = {
   progressClaimLines: Insert<typeof progressClaimLines>[];
   crews: Insert<typeof crews>[];
   dailyPlans: Insert<typeof dailyPlans>[];
+  dailyPlanEvents: Insert<typeof dailyPlanEvents>[];
   dailyPlanLines: Insert<typeof dailyPlanLines>[];
   /** Post-history change orders (baked by finalizeSeedWithHistory). */
   changeOrders: Insert<typeof changeOrders>[];
@@ -520,6 +522,7 @@ export const WORK_SEED_KEYS = [
   "progressClaimLines",
   "crews",
   "dailyPlans",
+  "dailyPlanEvents",
   "dailyPlanLines",
   "changeOrders",
   "changeOrderLines",
@@ -568,6 +571,7 @@ export function seed(companyId: string, today: Date): SeedRows {
     progressClaimLines: [],
     crews: [],
     dailyPlans: [],
+    dailyPlanEvents: [],
     dailyPlanLines: [],
     changeOrders: [],
     changeOrderLines: [],
@@ -898,12 +902,16 @@ export function seed(companyId: string, today: Date): SeedRows {
       superintendentId,
     });
     out.dailyPlans.push(...hist.dailyPlans);
+    out.dailyPlanEvents.push(...hist.dailyPlanEvents);
     out.dailyPlanLines.push(...hist.dailyPlanLines);
     out.costEntries.push(...hist.costEntries);
   }
 
   const planId = id("plan:cedar:tomorrow");
   const cost = (code: string) => id(`cost:cedar:${code}`);
+  const tomorrowCreatedAt = new Date(
+    `${isoDate(addDays(today, 1))}T06:00:00.000Z`,
+  );
   out.dailyPlans.push({
     id: planId,
     companyId,
@@ -920,6 +928,17 @@ export function seed(companyId: string, today: Date): SeedRows {
       { name: "6 in trash pump (x2)", hours: 24 },
     ],
     createdById: foremanId,
+    createdAt: tomorrowCreatedAt,
+  });
+  out.dailyPlanEvents.push({
+    id: id("plan-event:cedar:tomorrow:created"),
+    companyId,
+    planId,
+    kind: "created",
+    actorRole: "superintendent",
+    actorId: superintendentId,
+    detail: "",
+    at: tomorrowCreatedAt,
   });
   const lines = [
     {
