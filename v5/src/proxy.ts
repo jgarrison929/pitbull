@@ -56,6 +56,7 @@ function proxySql(rawDatabaseUrl: string) {
  * Covers:
  * - /app/jobs/:number
  * - /app/jobs/:number/changes
+ * - /app/jobs/:number/schedule  (404 when estimate is still draft)
  * - /app/jobs/:number/cost-items/:code  (not …/search)
  * - /app/jobs/:number/plans/:id
  */
@@ -78,8 +79,10 @@ export async function proxy(request: NextRequest) {
   const db = proxySql(databaseUrl);
   try {
     // One round-trip: session + job (was two serial queries after a fresh connect).
-    const rows = await db<{ job_id: string }[]>`
-      select j.id as job_id
+    const rows = await db<
+      { job_id: string; estimate_status: string }[]
+    >`
+      select j.id as job_id, j.estimate_status
       from sessions s
       inner join jobs j on j.company_id = s.company_id
       where s.id = ${sessionId}
@@ -98,6 +101,12 @@ export async function proxy(request: NextRequest) {
     }
 
     if (parsed.kind === "job" || parsed.kind === "changes") {
+      return NextResponse.next();
+    }
+
+    // Harbor (draft estimate) has no Schedule entry — 5.1.0-c / 5.1.3-c.
+    if (parsed.kind === "schedule") {
+      if (rows[0].estimate_status === "draft") return notFoundResponse();
       return NextResponse.next();
     }
 
@@ -129,6 +138,7 @@ export const config = {
   matcher: [
     "/app/jobs/:number",
     "/app/jobs/:number/changes",
+    "/app/jobs/:number/schedule",
     "/app/jobs/:number/cost-items/:code",
     "/app/jobs/:number/plans/:id",
   ],

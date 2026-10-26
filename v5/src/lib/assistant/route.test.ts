@@ -215,6 +215,16 @@ describe("assistant router", () => {
       { job: "25-031" },
     ],
     [
+      "import schedule xer on 25-031",
+      "schedule.importXer",
+      { job: "25-031" },
+    ],
+    [
+      "Import Microsoft Project XML for 25-031",
+      "schedule.importMspXml",
+      { job: "25-031" },
+    ],
+    [
       "Approve the estimate on Harbor Abutment",
       "estimate.approve",
       { job: "26-010" },

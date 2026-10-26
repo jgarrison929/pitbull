@@ -243,6 +243,16 @@ function visualSuite(theme: "light" | "dark") {
         await expect(page.getByTestId("plan-history")).toBeVisible();
         await shotPage(page, `job-superintendent-desktop${suffix}`);
       });
+
+      // 5.1.3-c: Schedule import UI (Gantt is 5.1.0-c).
+      test("schedule page as pm", async ({ page }) => {
+        await signIn(page, "pm");
+        await page.goto("/app/jobs/25-031/schedule");
+        await expect(page.getByTestId("schedule-page")).toBeVisible();
+        await expect(page.getByTestId("import-schedule-form")).toBeVisible();
+        await expect(page.getByTestId("schedule-activity-list")).toBeVisible();
+        await shotPage(page, `schedule-desktop${suffix}`);
+      });
     });
 
     test.describe("phone", () => {
@@ -296,6 +306,16 @@ function visualSuite(theme: "light" | "dark") {
         await expect(page.getByTestId("submit-plan")).toBeVisible();
         // Tab bar hidden in stabilize so Submit plan stays visible in the shot.
         await shotElement(plan, `plan-phone${suffix}`, page);
+      });
+
+      // 5.1.3-c: phone Schedule = stacked activity list + PM import (no sideways Gantt).
+      test("schedule page as pm", async ({ page }) => {
+        await signIn(page, "pm");
+        await page.goto("/app/jobs/25-031/schedule");
+        await expect(page.getByTestId("schedule-page")).toBeVisible();
+        await expect(page.getByTestId("import-schedule-form")).toBeVisible();
+        await expect(page.getByTestId("schedule-activity-list")).toBeVisible();
+        await shotPage(page, `schedule-phone${suffix}`);
       });
     });
   });

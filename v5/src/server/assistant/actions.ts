@@ -1370,6 +1370,37 @@ export const actions: Record<ActionName, ActionDef> = {
       return scheduleImportActionResult(result, scheduleHref);
     },
   },
+  "schedule.importMspXml": {
+    title: "Import schedule Microsoft Project XML",
+    writes: true,
+    roles: ["pm"],
+    async run(user, { job, fileBytes }) {
+      if (!job)
+        return {
+          summary:
+            "Which job's schedule should I import? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      const scheduleHref = `/app/jobs/${j.job.number}/schedule`;
+      if (!fileBytes?.byteLength) {
+        return {
+          summary: `Import reads a Microsoft Project XML file. Open ${j.job.shortName}'s Schedule page and choose the file under Import schedule.`,
+          href: scheduleHref,
+          job: j.job.number,
+        };
+      }
+      // 5.1.3-b owns parseMspXml + importMspXmlSchedule. UI keeps the action
+      // wired so .xml uploads hit a typed refusal until that slice lands.
+      return {
+        summary:
+          "This file could not be read as Microsoft Project XML. Use a Project XML export (.xml), not a binary .MPP.",
+        href: scheduleHref,
+        job: j.job.number,
+        refused: true,
+      };
+    },
+  },
   "estimate.approve": {
     title: "Approve estimate",
     writes: true,

@@ -20,6 +20,7 @@ export type ActionName =
   | "estimate.importCsv"
   | "estimate.approve"
   | "schedule.importXer"
+  | "schedule.importMspXml"
   | "costItem.setPmPercent"
   | "costItem.setMilestone"
   | "costItem.setForecastMethod"
@@ -171,12 +172,15 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
   }
   if (has(/\bimport(s|ed|ing)?\b/) && has(/\b(estimate|csv)\b/))
     return { action: "estimate.importCsv", args };
-  // XER / P6 schedule import (5.1.3-a). File body comes from the Schedule page, not chat.
+  // Schedule file import — XER / MSP XML (screen owns the bytes; chat points at the picker).
   if (
     has(/\bimport(s|ed|ing)?\b/) &&
-    has(/\b(schedule|xer|p6|primavera)\b/)
-  )
+    has(/\b(schedule|xer|p6|primavera|msp|microsoft\s+project)\b/)
+  ) {
+    if (has(/\b(xml|msp|microsoft\s+project)\b/))
+      return { action: "schedule.importMspXml", args };
     return { action: "schedule.importXer", args };
+  }
   if (
     has(/\b(lock|claim)\b/) &&
     has(/\b(progress|claim|earned|period)\b/)
