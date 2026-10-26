@@ -18,7 +18,7 @@ export default function AssistantPage() {
           <Assistant variant="page" />
         </Suspense>
       </div>
-      <p className="hidden text-sm text-muted-foreground lg:block">
+      <p className="hidden text-body text-muted-foreground lg:block">
         The assistant is open in the right rail.
       </p>
     </>

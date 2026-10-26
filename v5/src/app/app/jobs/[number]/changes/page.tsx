@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LocalTime } from "@/components/app/local-time";
-import { PageHeader, Section } from "@/components/app/page";
+import { MetricCard, PageHeader, Section } from "@/components/app/page";
 import { jobChanges, jobChangesCount } from "@/server/assistant/actions";
 import { getJob } from "@/server/data";
 import { requireUser } from "@/server/session";
@@ -69,7 +69,7 @@ async function Changes({
           <>
             <Link
               href={`/app/jobs/${job.job.number}`}
-              className="underline hover:no-underline"
+              className="tap-target inline-flex items-center underline hover:no-underline"
               data-testid="changes-back"
             >
               {job.job.number} · {job.job.name}
@@ -81,20 +81,31 @@ async function Changes({
           </>
         }
       />
+      <MetricCard
+        label="Changes logged"
+        value={total.toLocaleString("en-US")}
+        secondary={[
+          total === 0 ? "None yet" : "Newest first",
+          totalPages > 1 ? `Page ${page} of ${totalPages}` : "One page",
+        ]}
+        testId="changes-count-card"
+        className="mb-0"
+      />
       <Section
         title="All changes"
         meta="Newest first · 50 per page"
         actions={
           totalPages > 1 ? (
             <nav
-              className="flex items-center gap-2 text-xs"
+              data-text="label"
+              className="flex items-center gap-2 text-label"
               data-testid="changes-pagination"
               aria-label="Change list pages"
             >
               {page > 1 ? (
                 <Link
                   href={`/app/jobs/${number}/changes?page=${page - 1}`}
-                  className="underline hover:no-underline"
+                  className="tap-target inline-flex items-center underline hover:no-underline"
                 >
                   Previous
                 </Link>
@@ -105,7 +116,7 @@ async function Changes({
               {page < totalPages ? (
                 <Link
                   href={`/app/jobs/${number}/changes?page=${page + 1}`}
-                  className="underline hover:no-underline"
+                  className="tap-target inline-flex items-center underline hover:no-underline"
                 >
                   Next
                 </Link>
@@ -115,15 +126,18 @@ async function Changes({
         }
       >
         {visible.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-muted-foreground">
+          <p className="px-4 py-3 text-body text-muted-foreground">
             No changes yet.
           </p>
         ) : (
-          <ul className="divide-y px-4 text-sm" data-testid="job-changes-full">
+          <ul className="divide-y px-4 text-body" data-testid="job-changes-full">
             {visible.map((c) => (
-              <li key={c.id} className="py-2">
+              <li key={c.id} className="py-3">
                 <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
-                <span className="text-xs text-muted-foreground">
+                <span
+                  data-text="label"
+                  className="text-label text-muted-foreground"
+                >
                   <LocalTime iso={c.createdAt} />
                 </span>
               </li>

@@ -36,7 +36,7 @@ export default function LoginPage() {
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-4 py-12">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <div className="grid size-8 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+          <div className="grid size-8 place-items-center rounded-md bg-primary text-label font-bold text-primary-foreground">
             P
           </div>
           <span className="font-semibold">Pitbull</span>
@@ -45,7 +45,7 @@ export default function LoginPage() {
           title="Pick a role"
           purpose="Each card signs you in to your own demo sandbox."
         />
-        <p className="max-w-2xl text-sm text-muted-foreground">
+        <p className="max-w-2xl text-body text-muted-foreground">
           You get a private sandbox of {SEED_COMPANY_NAME}, a fictional
           heavy-civil contractor with{" "}
           {SEED_ACTIVE_JOB_COUNT === 1
@@ -64,28 +64,33 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   data-testid={`role-${u.role}`}
-                  className="group flex h-full w-full flex-col gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:border-foreground/30 hover:bg-muted/40 focus-visible:outline-2"
+                  className="tap-target group flex h-full min-h-11 w-full flex-col gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:border-foreground/30 hover:bg-muted/40 focus-visible:outline-2"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="grid size-9 place-items-center rounded-lg bg-muted">
+                    <span className="grid size-11 place-items-center rounded-lg bg-muted">
                       <Icon className="size-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium">{u.title.split(",")[0]}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-body font-medium">
+                        {u.title.split(",")[0]}
+                      </div>
+                      <div
+                        data-text="label"
+                        className="text-label text-muted-foreground"
+                      >
                         {u.name}
                       </div>
                     </div>
                     <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                   </div>
-                  <p className="text-sm text-muted-foreground">{sees}</p>
+                  <p className="text-body text-muted-foreground">{sees}</p>
                 </button>
               </RoleSignInForm>
             </li>
           );
         })}
       </ul>
-      <p className="text-xs text-muted-foreground">
+      <p data-text="label" className="text-label text-muted-foreground">
         Demo data. Fictional company, people and jobs. No password needed.
       </p>
     </main>
