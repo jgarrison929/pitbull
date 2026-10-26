@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,13 +26,13 @@ export default function StatusPage() {
             <StatusDetails />
           </Suspense>
           <p className="mt-4 text-sm text-muted-foreground">
-            <Link href="/roadmap" className="underline hover:no-underline">
+            <a href="/roadmap" className="underline hover:no-underline">
               Roadmap
-            </Link>
+            </a>
             {" · "}
-            <Link href="/changelog" className="underline hover:no-underline">
+            <a href="/changelog" className="underline hover:no-underline">
               Changelog
-            </Link>
+            </a>
           </p>
         </CardContent>
       </Card>

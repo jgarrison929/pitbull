@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { changelog } from "@/content/changelog";
 
 export const metadata: Metadata = { title: "Changelog · Pitbull" };
@@ -8,25 +7,25 @@ export default function ChangelogPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12">
       <div>
-        <Link
+        <a
           href="/app"
           className="text-sm text-muted-foreground hover:underline"
         >
           ← Back to Pitbull
-        </Link>
+        </a>
         <h1 className="mt-2 text-xl font-semibold">Changelog</h1>
         <p className="text-sm text-muted-foreground">
           What shipped, newest first. Each release passed CI and the staging
           verify run.
         </p>
         <p className="mt-2 text-sm">
-          <Link href="/roadmap" className="underline hover:no-underline">
+          <a href="/roadmap" className="underline hover:no-underline">
             Roadmap
-          </Link>
+          </a>
           {" · "}
-          <Link href="/status" className="underline hover:no-underline">
+          <a href="/status" className="underline hover:no-underline">
             Status
-          </Link>
+          </a>
         </p>
       </div>
       <ol className="flex flex-col gap-6">
