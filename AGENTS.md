@@ -1,8 +1,10 @@
 # Agent instructions — Pitbull Construction Solutions
 
-Construction **project controls** platform. The live product is **`v5/`** (Next.js + Drizzle + PostgreSQL). The legacy modular monolith under `src/` (+ legacy `e2e/`) is **frozen** at tag `legacy-3.8.2-final` — no CI, no Dependabot. Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs.
+Construction **project controls** platform. The live product is **`v5/`** (Next.js + Drizzle + PostgreSQL). The legacy modular monolith under `src/` (+ legacy `e2e/`) is **frozen** at tag `legacy-3.8.2-final` — no CI, no Dependabot. Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs. Never call Pitbull an "ERP".
 
 Deeper orientation (settled decisions that still apply, domain glossary, anti-patterns): [`CLAUDE.md`](CLAUDE.md). Session/version rules in **this** file win on conflict.
+
+**v5 agent mistake → enforcement table:** [`v5/AGENTS.md`](v5/AGENTS.md) (path bans, must-fail quality, owned paths). Read it before changing `v5/`.
 
 ## Stack (live — verify in `v5/`)
 
