@@ -25,22 +25,25 @@ describe("migration 0020_schedule_activities", () => {
     expect(migrationSql).not.toMatch(/daily_plan_lines/);
   });
 
-  it("is claimed as 0020 after main's 0017 (schedule is not tagged 0017)", () => {
+  it("is claimed as 0020 with when strictly above 0019 (1793020000000)", () => {
     const entries = loadMigrationJournal();
     const tags = entries.map((e) => e.tag);
-    // #726 on main owns 0017_average_performance — allow it.
+    // Predecessor on this branch is 0017; land order requires #10 / 0019 first.
     expect(tags).toContain("0017_average_performance");
     expect(tags).toContain("0020_schedule_activities");
     expect(tags.at(-1)).toBe("0020_schedule_activities");
-    // JournalEntry exposes tag + when; order is array position.
     expect(tags.indexOf("0020_schedule_activities")).toBeGreaterThan(
       tags.indexOf("0017_average_performance"),
     );
 
     const schedule = entries.find((e) => e.tag === "0020_schedule_activities")!;
+    // Stamp above #10's 0019_crews_contract @ 1793020000000; idx 20 leaves
+    // room for 0018 then 0019 on the expected ladder.
     expect(schedule.when).toBe(1793030000000);
-    // This PR's schedule slice must not steal the 0017 tag from Part B.
+    expect(schedule.when).toBeGreaterThan(1793020000000);
+    expect(schedule.idx).toBe(20);
     expect(schedule.tag.startsWith("0017_")).toBe(false);
+    expect(schedule.tag.startsWith("0019_")).toBe(false);
   });
 
   it("must-fail: a 0017-tagged schedule migration is not accepted as this slice", () => {

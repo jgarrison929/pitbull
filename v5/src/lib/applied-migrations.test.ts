@@ -99,4 +99,13 @@ describe("journalWhenStrictlyIncreases", () => {
       ]),
     ).toBe(false);
   });
+
+  it("must-fail: non-rising idx is refused when idx is present", () => {
+    expect(
+      journalWhenStrictlyIncreases([
+        { tag: "a", when: 100, idx: 20 },
+        { tag: "b", when: 200, idx: 20 },
+      ]),
+    ).toBe(false);
+  });
 });
