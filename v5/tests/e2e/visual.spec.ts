@@ -136,14 +136,19 @@ async function stabilize(page: Page) {
   await waitForPinnedFonts(page);
 }
 
-/**
- * Grow the viewport to the document height so sticky `h-svh` rails paint the
- * full page (fullPage stitching otherwise clips them at the original 800px).
- */
-async function fitViewportToPage(page: Page) {
-  const box = page.viewportSize();
-  if (!box) throw new Error("no viewport");
-  const contentHeight = await page.evaluate(() =>
+/** Double rAF so injected stabilize styles (time chips) finish reflow. */
+async function waitForLayout(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
+
+/** Document scroll height — same signal the adopted baselines were sized with. */
+async function measureScrollHeight(page: Page): Promise<number> {
+  return page.evaluate(() =>
     Math.ceil(
       Math.max(
         document.documentElement.scrollHeight,
@@ -151,10 +156,68 @@ async function fitViewportToPage(page: Page) {
       ),
     ),
   );
+}
+
+/**
+ * Wait until scrollHeight stops changing after stabilize (time-chip wrap).
+ * Harbor phone clipped Changes mid-card (~172px short; identical top pixels)
+ * when fitViewport measured before wrap settled — not a shorter page. Seen on
+ * rc/5.0.4 tip 9b69539 (light) and main-based PRs (dark). One-shot measure
+ * loses the race; min-h-svh then locks scrollHeight === viewport.
+ *
+ * Do NOT walk getBoundingClientRect bottoms: fixed/sticky + scrollY overshoots,
+ * then min-h-svh locks the tall viewport (job-desktop overshoot on 79c0db0).
+ */
+async function waitForScrollHeightStable(page: Page): Promise<number> {
+  // Touch below-fold layout before measuring.
+  await page.evaluate(() => {
+    const y = Math.max(
+      document.documentElement.scrollHeight,
+      document.body?.scrollHeight ?? 0,
+    );
+    window.scrollTo(0, y);
+    window.scrollTo(0, 0);
+  });
+  let last = -1;
+  let stable = 0;
+  for (let i = 0; i < 30; i++) {
+    await waitForLayout(page);
+    const h = await measureScrollHeight(page);
+    if (h === last) {
+      stable += 1;
+      if (stable >= 3) return h;
+    } else {
+      stable = 0;
+      last = h;
+    }
+  }
+  return last < 0 ? await measureScrollHeight(page) : last;
+}
+
+/**
+ * Grow the viewport to the document height so sticky `h-svh` rails paint the
+ * full page (fullPage stitching otherwise clips them at the original 800px).
+ * After resize, grow only while scrollHeight still exceeds the viewport —
+ * never chase min-h-svh fill (scrollHeight === viewport).
+ */
+async function fitViewportToPage(page: Page) {
+  const box = page.viewportSize();
+  if (!box) throw new Error("no viewport");
+  const contentHeight = await waitForScrollHeightStable(page);
   await page.setViewportSize({
     width: box.width,
     height: Math.max(box.height, contentHeight),
   });
+  await waitForLayout(page);
+  // True overflow only (content taller than viewport). min-h-svh makes
+  // scrollHeight === viewport once sized — must not grow again from that.
+  for (let i = 0; i < 5; i++) {
+    const current = page.viewportSize()?.height ?? 0;
+    const h = await measureScrollHeight(page);
+    if (h <= current) break;
+    await page.setViewportSize({ width: box.width, height: h });
+    await waitForLayout(page);
+  }
 }
 
 async function shotPage(page: Page, name: string) {
