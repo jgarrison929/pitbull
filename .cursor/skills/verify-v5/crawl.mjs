@@ -1,7 +1,7 @@
 // Browser half of the nav crawl: signs in by role card and measures each page. Evaluation lives in
 // checks.mjs (evaluateCrawlRow) so the must-fail tests can drive the same code against a fake server.
 import path from "node:path";
-import { EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, PAGE_BUDGET_MS } from "./checks.mjs";
+import { EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX } from "./checks.mjs";
 import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillDiscoveryFailures, drillPath, partCItemFor } from "./drill.mjs";
 import { captureFailure, secretValues, startFailureRecorder } from "./evidence.mjs";
 
@@ -82,7 +82,7 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir } 
   await page.waitForLoadState("networkidle");
   const idleMs = Date.now() - t0;
   const dom = await page.evaluate(
-    ({ intendedW, emptySrc, boundarySel }) => {
+    ({ intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput }) => {
       const doc = document.documentElement;
       const vw = Math.min(intendedW, window.visualViewport?.width ?? intendedW);
       const sw = Math.max(doc.scrollWidth, document.body?.scrollWidth ?? 0);
@@ -99,6 +99,101 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir } 
             coStatus: card?.getAttribute("data-status") ?? null,
           };
         });
+      const shown = (el) => {
+        if (!el || el.nodeType !== 1) return false;
+        const cs = getComputedStyle(el);
+        if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return false;
+        const r = el.getClientRects();
+        return r.length > 0 && r[0].width > 0 && r[0].height > 0;
+      };
+      const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
+      const tapMisses = [];
+      let tapMissCount = 0;
+      const textMisses = [];
+      let textMissCount = 0;
+      if (intendedW <= phoneMax) {
+        for (const el of document.querySelectorAll('a, button, input, select, textarea, summary, [role="button"], [role="link"]')) {
+          if (el.matches('input[type="hidden"]') || !shown(el)) continue;
+          if (getComputedStyle(el).pointerEvents === "none") continue;
+          const rect = el.getBoundingClientRect();
+          if (rect.width < minTap || rect.height < minTap) {
+            tapMissCount += 1;
+            if (tapMisses.length < 8) {
+              tapMisses.push({
+                tag: el.tagName.toLowerCase(),
+                w: Math.floor(rect.width * 10) / 10,
+                h: Math.floor(rect.height * 10) / 10,
+                text: oneLine(el.innerText || el.getAttribute("aria-label") || el.getAttribute("placeholder") || "").slice(0, 40),
+              });
+            }
+          }
+        }
+        const pushText = (kind, px, text) => {
+          textMissCount += 1;
+          if (textMisses.length < 8) textMisses.push({ kind, px: Math.floor(px * 10) / 10, text: oneLine(text).slice(0, 40) });
+        };
+        for (const el of document.querySelectorAll("input, textarea, select")) {
+          if (el.matches('input[type="hidden"]') || !shown(el)) continue;
+          const px = parseFloat(getComputedStyle(el).fontSize);
+          if (px < minInput) pushText("input", px, el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.getAttribute("name") || "input");
+        }
+        for (const el of document.querySelectorAll("body *")) {
+          if (el.closest("input, textarea, select, script, style, noscript, template")) continue;
+          let direct = "";
+          for (const n of el.childNodes) if (n.nodeType === 3) direct += n.textContent;
+          direct = oneLine(direct);
+          if (!direct || !shown(el)) continue;
+          const px = parseFloat(getComputedStyle(el).fontSize);
+          if (px < minSecondary) pushText("secondary", px, direct);
+        }
+      }
+      const fullText = (el) => oneLine(el.textContent).slice(0, 80);
+      const clipKind = (el) => {
+        if (el.closest("[data-status]")) return "status";
+        if (el.closest("[data-cents]") || /^\$[\d,]/.test(oneLine(el.textContent))) return "money";
+        if (el.closest("th, [data-clip='header']")) return "header";
+        if (el.closest("[data-testid='job-strip'], [data-testid='company-name'], [data-clip='secondary'], header")) return "secondary";
+        return "text";
+      };
+      const reachable = (el) => {
+        const full = oneLine(el.textContent);
+        if (!full) return false;
+        for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+          const title = oneLine(n.getAttribute("title"));
+          const aria = oneLine(n.getAttribute("aria-label"));
+          if ((title && title.includes(full)) || (aria && aria.includes(full))) return true;
+        }
+        const a = el.closest("a[href]");
+        if (!a) return false;
+        const href = a.getAttribute("href") || "";
+        return href !== "" && href !== "#" && !href.toLowerCase().startsWith("javascript:");
+      };
+      const isClipped = (el) => {
+        const cs = getComputedStyle(el);
+        const hides = cs.overflowX === "hidden" || cs.overflowX === "clip" || (cs.textOverflow === "ellipsis" && cs.overflowX !== "visible");
+        return hides && el.clientWidth > 0 && el.scrollWidth > el.clientWidth;
+      };
+      const clips = [];
+      for (const el of document.querySelectorAll("body *")) {
+        if (!isClipped(el)) continue;
+        if ([...el.querySelectorAll("*")].some(isClipped)) continue;
+        if (clips.length < 8) clips.push({ kind: clipKind(el), text: fullText(el), reachable: reachable(el) });
+      }
+      const primaryActions = [...document.querySelectorAll('[data-testid="next-step"], [data-testid="role-primary-action"]')].slice(0, 16).map((el) => {
+        const rect = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const box = cs.display !== "none" && cs.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+        const details = el.closest("details");
+        const blocked = !!(details && !details.open && !el.closest("summary"));
+        return {
+          role: el.getAttribute("data-role") || "",
+          text: oneLine(el.getAttribute("aria-label") || el.textContent).slice(0, 80),
+          tag: el.tagName,
+          visible: box && !blocked,
+          inView: box && !blocked && rect.top >= 0 && rect.left >= 0 && rect.bottom <= window.innerHeight + 0.5 && rect.right <= window.innerWidth + 0.5,
+          blocked,
+        };
+      });
       return {
         text: document.body?.innerText ?? "",
         hasMain: !!document.querySelector("main"),
@@ -106,6 +201,16 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir } 
         scrollWidth: sw,
         viewportW: vw,
         overflowPx: sw - Math.ceil(vw),
+        // Document scroll width against the crawl viewport (320 / 390), not against clientWidth.
+        // overflow-x: hidden can make scrollWidth equal clientWidth while the layout viewport grew.
+        docScrollWidth: sw,
+        viewportWidth: intendedW,
+        tapMisses,
+        tapMissCount,
+        textMisses,
+        textMissCount,
+        clips,
+        primaryActions,
         emptyHits,
         seededCounts: {
           costRows: document.querySelectorAll('[data-testid="cost-tree-row"]').length,
@@ -115,7 +220,15 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir } 
         },
       };
     },
-    { intendedW: width ?? page.viewportSize()?.width ?? 1280, emptySrc: EMPTY_STATE.source, boundarySel: ERROR_BOUNDARY_SELECTOR },
+    {
+      intendedW: width ?? page.viewportSize()?.width ?? 1280,
+      emptySrc: EMPTY_STATE.source,
+      boundarySel: ERROR_BOUNDARY_SELECTOR,
+      phoneMax: PHONE_MAX_PX,
+      minTap: MIN_TAP_PX,
+      minSecondary: MIN_SECONDARY_FONT_PX,
+      minInput: MIN_INPUT_FONT_PX,
+    },
   );
   if (shotDir) {
     await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });
@@ -158,7 +271,7 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
       const page = await ctx.newPage();
       const sink = { responses: [], console: [], page: [] };
       watch(page, sink);
-      const failureRecorder = evidence ? startFailureRecorder(page) : null;
+      const failureRecorder = evidence ? startFailureRecorder(page, secrets) : null;
       let mark = 0;
       const capture = (kind, label, reason) =>
         captureFailure(page, { dir: evidence.dir, kind, label: `${role}-w${width}-${label}`, reason, recorder: failureRecorder, mark, secrets, extra: { role, width } }).catch(() => null);

@@ -13,6 +13,7 @@ import {
   resolveTarget,
   bannedHits,
   emptyHitAllowed,
+  DESKTOP_MIN_PX,
   evaluateCrawlRow,
   evaluateM2,
   evaluateM4,
@@ -20,16 +21,37 @@ import {
   evaluateMain,
   evaluateStressSeed,
   runStep,
+  MIN_INPUT_FONT_PX,
+  MIN_SECONDARY_FONT_PX,
+  MIN_TAP_PX,
+  PHONE_MAX_PX,
+  PHONE_OVERFLOW_WIDTHS,
+  PRIMARY_ACTION_VERB,
   shaMatches,
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
-import { captureFailure, redactHeaders, redactText, redactUrl, safeJson, secretValues, startFailureRecorder } from "./evidence.mjs";
+import { capRawText, captureFailure, RAW_TEXT_CAP, redactHeaders, redactText, redactUrl, safeJson, secretValues, startFailureRecorder } from "./evidence.mjs";
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
 import { execFileSync } from "node:child_process";
 import { PORTFOLIO_ROWS_TIMEOUT_MS, PORTFOLIO_SETTLE_MS, PORTFOLIO_STEP, portfolioOk, runPortfolioStep, waitForRowCount } from "./portfolio.mjs";
 import { CRAWL_ROLES, CRAWL_WIDTHS, expectedNavLoads, navCrawlPages, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
 import { csvLeafCodes, drillCoverageFailures, drillDiscoveryFailures, drillItemCount, drillItemList, drillLoadPlan, drillPath, expectedDrillLoads, partCFailures, partCItemFor, seedChildEnv, leakedSeedEnvKeys, SEED_CHILD_ENV_ALLOW, seedDrillItems } from "./drill.mjs";
+import {
+  acceptanceItems,
+  attributeChecks,
+  attributeFailure,
+  buildRcChecks,
+  deployedForMainRule,
+  evaluateRcAcceptance,
+  evaluateRcHead,
+  evaluateRcMigrations,
+  journalAppliesCleanly,
+  migrationsAdded,
+  parseRcMerges,
+  readRcHistory,
+  resolveRcMode,
+} from "./rc.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const results = [];
@@ -84,6 +106,71 @@ mustFail("Priced CO-001 empty on 24-077 (wrong status)", evaluateCrawlRow({ ...g
 mustFail("CO-002 empty on 24-077 (wrong CO)", evaluateCrawlRow({ ...good, path: "/app/jobs/24-077", final: "/app/jobs/24-077", emptyHits: [{ ...voided, coNumber: "CO-002" }] }));
 mustFail("other empty text inside allowed CO", evaluateCrawlRow({ ...good, path: "/app/jobs/24-077", final: "/app/jobs/24-077", emptyHits: [{ ...voided, text: "No approvals yet" }] }));
 assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
+
+// ---- phone layout: overflow, tap, text, clipping, one-tap (missing fields are skipped) ----
+{
+  assert.deepEqual(PHONE_OVERFLOW_WIDTHS, [320, 390]);
+  assert.equal(PHONE_MAX_PX, 480);
+  assert.equal(DESKTOP_MIN_PX, 768);
+  assert.equal(MIN_TAP_PX, 44);
+  assert.equal(MIN_SECONDARY_FONT_PX, 12);
+  assert.equal(MIN_INPUT_FONT_PX, 16);
+  assert.deepEqual(Object.keys(PRIMARY_ACTION_VERB), ["executive", "pm", "superintendent", "foreman"]);
+  const src = readFileSync(path.join(here, "checks.mjs"), "utf8");
+  for (const [name, value] of [
+    ["PHONE_OVERFLOW_WIDTHS", "\\[320, 390\\]"],
+    ["PHONE_MAX_PX", "480"],
+    ["DESKTOP_MIN_PX", "768"],
+    ["MIN_TAP_PX", "44"],
+    ["MIN_SECONDARY_FONT_PX", "12"],
+    ["MIN_INPUT_FONT_PX", "16"],
+  ]) {
+    assert.equal((src.match(new RegExp(`\\b${name}\\s*=`, "g")) ?? []).length, 1, `${name} assigned once`);
+    assert.match(src, new RegExp(`^export const ${name} = ${value};$`, "m"), `${name} must be the literal ${value}`);
+  }
+  assert.match(src, /^export function evaluatePhoneUx\(row\) \{$/m, "evaluatePhoneUx takes only the row");
+  const crawlSrc = readFileSync(path.join(here, "crawl.mjs"), "utf8");
+  for (const field of ["docScrollWidth", "viewportWidth", "tapMisses", "textMisses", "clips", "primaryActions"]) {
+    assert.ok(crawlSrc.includes(field), `measurePage must record ${field}`);
+  }
+  const phone = {
+    ...good, width: 320, docScrollWidth: 320, viewportWidth: 320,
+    tapMisses: [], textMisses: [], clips: [], primaryActions: [],
+  };
+  mustPass("phone observations within the floors", evaluateCrawlRow(phone));
+  mustFail("document scrollWidth 422px at viewport 320", evaluateCrawlRow({ ...phone, docScrollWidth: 422 }));
+  mustFail("document scrollWidth 400px at viewport 390", evaluateCrawlRow({ ...phone, width: 390, docScrollWidth: 400, viewportWidth: 390 }));
+  mustPass("422px document inside a 1280 viewport", evaluateCrawlRow({ ...phone, width: 1280, docScrollWidth: 422, viewportWidth: 1280 }));
+  mustFail("tap target 20×20", evaluateCrawlRow({ ...phone, tapMisses: [{ tag: "button", w: 20, h: 20, text: "Go" }] }));
+  mustFail("tap target 44×43.9", evaluateCrawlRow({ ...phone, tapMisses: [{ tag: "a", w: 44, h: 43.9, text: "Portfolio" }] }));
+  mustPass("tap target exactly 44×44 is not a miss", evaluateCrawlRow(phone));
+  mustFail("secondary text 11px", evaluateCrawlRow({ ...phone, textMisses: [{ kind: "secondary", px: 11, text: "Portfolio" }] }));
+  mustFail("input text 14px", evaluateCrawlRow({ ...phone, textMisses: [{ kind: "input", px: 14, text: "Hours" }] }));
+  mustFail("clipped money, even with a title", evaluateCrawlRow({ ...phone, clips: [{ kind: "money", text: "$1,234.56", reachable: true }] }));
+  mustFail("clipped money at 1280", evaluateCrawlRow({ ...phone, width: 1280, clips: [{ kind: "money", text: "$1,234.56", reachable: true }] }));
+  mustFail("clipped status pill 'At risk'", evaluateCrawlRow({ ...phone, clips: [{ kind: "status", text: "At risk", reachable: true }] }));
+  mustFail("clipped table header 'Actual'", evaluateCrawlRow({ ...phone, clips: [{ kind: "header", text: "Actual", reachable: true }] }));
+  mustFail("desktop ellipsis even with a title", evaluateCrawlRow({ ...phone, width: 1280, clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: true }] }));
+  mustFail("phone secondary ellipsis with no reachable full text", evaluateCrawlRow({ ...phone, clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: false }] }));
+  mustPass("phone secondary ellipsis with a title", evaluateCrawlRow({ ...phone, clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: true }] }));
+  const action = (role, text, extra = {}) => ({ role, text, tag: "A", visible: true, inView: true, blocked: false, ...extra });
+  const landing = (role, actions) => ({
+    ...phone, role, path: "/app", final: "/app", seededCounts: { portfolioRows: 4, costRows: 0 },
+    primaryActions: actions ?? [
+      action("executive", "Open the at-risk job"),
+      action("pm", "Approve CO-001"),
+      action("superintendent", "Submit tomorrow's plan"),
+      action("foreman", "Report today's quantities"),
+    ],
+  });
+  for (const role of ["executive", "pm", "superintendent", "foreman"]) mustPass(`${role} one-tap primary action`, evaluateCrawlRow(landing(role)));
+  mustFail("primary action inside a closed disclosure", evaluateCrawlRow(landing("pm", [action("pm", "Approve CO-001", { visible: false, inView: false, blocked: true })])));
+  mustFail("landing page with no primary action", evaluateCrawlRow(landing("foreman", [])));
+  mustFail("primary action below the fold", evaluateCrawlRow(landing("superintendent", [action("superintendent", "Submit tomorrow's plan", { inView: false })])));
+  mustPass("desktop landing does not require a one-tap action", evaluateCrawlRow({ ...landing("pm", []), width: 1280 }));
+  // The old overflow check is unchanged: 1px still fails, and a phone pass does not clear it.
+  mustFail("horizontal overflow 1px still fails beside a clean document width", evaluateCrawlRow({ ...phone, overflowPx: 1 }));
+}
 
 // ---- M2 ----
 const exp = JSON.parse(readFileSync(path.join(here, "fixtures", "m2-awkward-expected.json"), "utf8"));
@@ -609,8 +696,10 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     assert.match(src, /if \(targetError\) \{\n\s+console\.error\(targetError\);\n\s+process\.exit\(1\);/);
     assert.match(src, /const mainCiOn = production \|\| /, "production must force main CI on");
     assert.match(src, /release = await readRelease\(repo, newestV5Tag\);/);
-    assert.match(src, /const expectedFull = expectedCommitFor\(\{ target, pinned: args\.commit, release, mainCi, fallback: \(\) => resolveDefaultCommit\(repo\) \}\)/);
-    assert.match(src, /const results = commitResults\(\{ target, mainCi, mainCiError, release, releaseError, deployedFull,/);
+    assert.match(src, /const expectedFull = \(rc\n\s+\? rc\.sha\n\s+: expectedCommitFor\(\{ target, pinned: args\.commit, release, mainCi, fallback: \(\) => resolveDefaultCommit\(repo\) \}\)\)/);
+    assert.match(src, /const results = commitResults\(\{ target, mainCi, mainCiError, release, releaseError, deployedFull: deployedForMainRule\(rc\?\.sha, deployedFull\),/);
+    assert.match(src, /evaluateRcHead\(\{ rcSha: rc\.sha, shown: status\.commit/);
+    assert.match(src, /attributeChecks\(checks, merges\)/);
     assert.doesNotMatch(src, /evaluateMain\(/, "verify.mjs must not call evaluateMain directly");
     assert.doesNotMatch(src, /v5Commits\.find/, "verify.mjs must not pick the expected commit itself");
     assert.doesNotMatch(src, /"(skip|no)-release|skipRelease|skip_release/i, "no release skip flag");
@@ -1146,6 +1235,246 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     assert.ok(!j.includes("zab") && j.includes("zzzz[red"), `a console error cut at 2000 chars must not keep a secret prefix; got ...${j.slice(-200)}`);
     results.push("passes: console text is redacted before it is cut to 2000 chars (no secret prefix kept)");
   }
+}
+
+// ---- safeJson writes real arrays (no false [circular]), scrubs only JSON strings, and the raw cap can't keep a secret prefix ----
+{
+  const shared = [{ url: "/api/x", status: 500 }];
+  const out = safeJson({ slowest: { path: "/app", responses4xx5xx: shared }, rows: [{ path: "/app", responses4xx5xx: shared }] });
+  const parsed = JSON.parse(out);
+  assert.deepEqual(parsed.slowest.responses4xx5xx, shared);
+  assert.deepEqual(parsed.rows[0].responses4xx5xx, shared);
+  assert.ok(!out.includes("[circular]"), out);
+  const cyc = {};
+  cyc.self = cyc;
+  const cycled = safeJson({ box: cyc });
+  assert.ok(cycled.includes('"[circular]"'), cycled);
+  assert.doesNotThrow(() => JSON.parse(cycled));
+  results.push("passes: a row array shared with slowest is written in both places; a real cycle is [circular] and still parses");
+
+  const structural = `": "`;
+  const intact = safeJson({ a: "safe", n: 1, list: ["ok"] }, [structural]);
+  assert.deepEqual(JSON.parse(intact), { a: "safe", n: 1, list: ["ok"] });
+  assert.match(intact, /"a": "safe"/);
+  const inside = safeJson({ a: `x": "y` }, [structural]);
+  assert.equal(JSON.parse(inside).a, "x[redacted]y");
+  assert.doesNotThrow(() => JSON.parse(inside));
+  results.push('passes: safeJson scrubs secrets only inside JSON string values; a secret of ": " leaves the structure parseable');
+
+  const pw = `a"b12`;
+  const saved = `a&quotb12`;
+  const text = redactText(`note ${saved} end`, [pw]);
+  assert.ok(!text.includes(saved) && !text.includes(pw) && text.includes("[redacted]"), text);
+  const htmlJson = safeJson({ html: saved, keep: "a&quot;still" }, [pw]);
+  assert.doesNotThrow(() => JSON.parse(htmlJson));
+  assert.ok(!htmlJson.includes(pw) && !htmlJson.includes("quotb"), htmlJson);
+  assert.ok(htmlJson.includes("a&quot;still") || JSON.parse(htmlJson).keep === "a&quot;still");
+  results.push("passes: named HTML entity without a trailing ';' (&quot) is redacted; JSON.parse succeeds");
+
+  const secret = "canary-secret-9999";
+  const raw = "z".repeat(RAW_TEXT_CAP - 4) + secret;
+  const capped = capRawText(raw, [secret]);
+  assert.ok(capped.includes("[redacted]") && !capped.includes(secret) && !capped.includes(secret.slice(0, 4)), capped.slice(-40));
+  const encSecret = "a&bXY12";
+  const enc = "q".repeat(RAW_TEXT_CAP - 2) + "a&amp;bXY12";
+  const cappedEnc = capRawText(enc, [encSecret]);
+  assert.ok(cappedEnc.includes("[redacted]") && !cappedEnc.includes(encSecret) && !cappedEnc.includes("a&amp;") && !cappedEnc.endsWith("a&"), cappedEnc.slice(-40));
+  const handlers = {};
+  const page = { on: (ev, fn) => (handlers[ev] = fn), off: () => {} };
+  const rec = startFailureRecorder(page, [secret]);
+  handlers.console({ type: () => "error", text: () => raw });
+  const stored = rec.since(0)[0].text;
+  rec.stop();
+  assert.ok(stored.includes("[redacted]") && !stored.includes(secret) && !stored.includes("cana"), stored.slice(-40));
+  results.push("passes: a secret straddling RAW_TEXT_CAP (raw and &amp; form) is redacted in the kept head");
+}
+
+// ---- RC handover (5.0.4). 5.0.2 and 5.0.3 stay per PR. No check above is relaxed. ----
+{
+  const rcSha = "a".repeat(40);
+  const other = "b".repeat(40);
+  const wrong = evaluateRcHead({ rcSha, shown: other });
+  mustFail("staging serves a different SHA than the rc head", wrong.failures);
+  assert.match(wrong.failures[0], new RegExp(`staging serves ${other}, rc head is ${rcSha}`));
+  mustPass("staging /status serves the rc head", evaluateRcHead({ rcSha, shown: rcSha.toUpperCase() }).failures);
+  const prefix = "a".repeat(12);
+  mustPass(
+    "rc head prefix resolves to the same SHA",
+    evaluateRcHead({ rcSha, shown: prefix, resolve: (p) => (p === prefix ? rcSha : other) }).failures,
+  );
+  const wrongPrefix = evaluateRcHead({ rcSha, shown: prefix, resolve: () => other });
+  mustFail("rc head prefix resolves to a different SHA", wrongPrefix.failures);
+  assert.match(wrongPrefix.failures[0], /staging serves/);
+
+  assert.equal(resolveRcMode({ sha: "" }).rc, null);
+  assert.equal(resolveRcMode({ sha: "" }).error, null);
+  assert.match(resolveRcMode({ version: "5.0.2", sha: rcSha }).error, /5\.0\.2 stays on the per-PR flow/);
+  assert.match(resolveRcMode({ version: "5.0.3", sha: rcSha }).error, /5\.0\.3 stays on the per-PR flow/);
+  assert.match(resolveRcMode({ version: "5.1.0", sha: rcSha }).error, /RC flow starts at 5\.0\.4/);
+  assert.match(resolveRcMode({ sha: "abc" }).error, /full 40-char/);
+  assert.match(resolveRcMode({ sha: rcSha, commit: other }).error, /disagrees/);
+  assert.match(resolveRcMode({ sha: rcSha, target: "production" }).error, /production keeps the release-tag/);
+  assert.equal(resolveRcMode({ sha: rcSha, commit: rcSha.toUpperCase(), target: "staging" }).rc.branch, "rc/5.0.4");
+  results.push("passes: 5.0.2 and 5.0.3 stay per PR; a short SHA, a disagreeing --commit, and production are refused");
+
+  assert.equal(deployedForMainRule(rcSha, other), undefined);
+  assert.equal(deployedForMainRule(null, other), other);
+  const quietMain = evaluateMain({
+    head: { sha: rcSha, gate: "success", committedAt: "2026-10-01T00:00:00Z" },
+    v5Commits: [{ sha: rcSha, gate: "success", committedAt: "2026-10-01T00:00:00Z" }],
+    deployedFull: undefined,
+  });
+  assert.ok(!quietMain.results.some((r) => r.name === "staging serves the last green main commit"));
+  const behind = evaluateMain({
+    head: { sha: rcSha, gate: "success", committedAt: "2026-10-01T00:00:00Z" },
+    v5Commits: [{ sha: rcSha, gate: "success", committedAt: "2026-10-01T00:00:00Z" }],
+    deployedFull: other,
+  });
+  assert.ok(behind.results.some((r) => r.name === "staging serves the last green main commit" && r.severity === "FAIL"));
+  results.push("passes: an RC sha skips the last-green comparison; a per-PR run still fails when staging is behind");
+
+  const overflow = "foreman@320 /app: document scrollWidth 422px > viewport 320px";
+  const merges = [
+    { number: 31, sha: "c".repeat(40), subject: "plans (#31)", files: ["v5/src/server/plans.ts"] },
+    { number: 24, sha: "d".repeat(40), subject: "fix(v5): phone overflow (#24)", files: ["v5/src/app/layout.tsx", "v5/src/components/app/shell.tsx"] },
+  ];
+  const named = attributeFailure(overflow, merges);
+  assert.deepEqual(named.prs, [24]);
+  assert.ok(!named.prs.includes(31));
+  const traced = attributeChecks(
+    [
+      { name: "nav crawl: 4 roles × pages × 320/390/768/1280", ok: false, detail: overflow },
+      { name: "/health db ok", ok: true, detail: "ok" },
+    ],
+    merges,
+  );
+  assert.match(traced[0].detail, /— PR #24$/);
+  assert.ok(!traced[0].detail.includes("#31"), traced[0].detail);
+  assert.equal(traced[1].detail, "ok");
+  assert.deepEqual(traced[1].prs, []);
+  const missed = attributeFailure(overflow, [merges[0]]);
+  assert.deepEqual(missed.prs, []);
+  assert.match(missed.detail, /no merged PR on the rc changes/);
+  const tracedMiss = attributeChecks([{ name: "nav crawl", ok: false, detail: overflow }], [merges[0]]);
+  assert.match(tracedMiss[0].detail, /no merged PR on the rc changes/);
+  assert.ok(!tracedMiss[0].detail.includes("#31"));
+  mustFail("failure traced to the PR that changed the mapped files", [`PR #${named.prs[0]}`]);
+  results.push("passes: document scrollWidth names PR #24 (layout.tsx, shell.tsx) and does not name PR #31 (plans.ts)");
+
+  const unmapped = attributeFailure("portfolio row count was 3", merges);
+  assert.deepEqual(unmapped.prs, []);
+  assert.equal(unmapped.detail, "no file map for this check");
+
+  const parsed = parseRcMerges(`${"e".repeat(40)}\tMerge pull request #24 from org/branch\n${"f".repeat(40)}\tnotes with no number\nnot-a-sha\tphone overflow (#9)\n${"1".repeat(40)}\tphone overflow (#18)\n`);
+  assert.deepEqual(parsed.map((m) => m.number), [24, 18]);
+
+  const added = [{ tag: "0016_rc", when: 16 }];
+  const clean = [{ tag: "0015", when: 15 }, { tag: "0016_rc", when: 16 }];
+  assert.equal(journalAppliesCleanly(clean), true);
+  assert.equal(journalAppliesCleanly([{ when: 20 }, { when: 10 }]), false);
+  assert.deepEqual(migrationsAdded([{ tag: "0015" }], clean).map((m) => m.tag), ["0016_rc"]);
+  const notApplied = evaluateRcMigrations({ added, journal: clean, appliedLabel: "0015", healthOk: true });
+  mustFail("rc migration is not applied", notApplied);
+  assert.ok(notApplied.some((f) => f.includes("migration 0016_rc is not applied")));
+  const unhealthy = evaluateRcMigrations({ added, journal: clean, appliedLabel: "0015, 0016_rc", healthOk: false });
+  mustFail("app is not healthy after the rc migrations", unhealthy);
+  const stuck = evaluateRcMigrations({ added, journal: [{ when: 20 }, { when: 10, tag: "0016_rc" }], appliedLabel: "0016_rc", healthOk: true });
+  mustFail("rc journal timestamps do not strictly increase", stuck);
+  assert.deepEqual(evaluateRcMigrations({ added: [], journal: clean, appliedLabel: null, healthOk: false }), []);
+  mustPass("rc migrations applied and /health ok", evaluateRcMigrations({ added, journal: clean, appliedLabel: "0015, 0016_rc", healthOk: true }));
+  results.push("passes: no added migration does not invent a second health failure");
+
+  const spec = readFileSync(path.join(here, "../../../docs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md"), "utf8");
+  const items = acceptanceItems(spec);
+  for (const section of ["5.0.4-0", "5.0.4-a", "5.0.4-b", "5.0.4-c", "5.0.4-d", "5.0.4-e", "5.0.4-f", "5.0.4-g"]) {
+    assert.ok(items.some((item) => item.section === section), `missing acceptance section ${section}`);
+  }
+  assert.equal(items.filter((item) => item.section === "5.0.4-f").length, 1);
+  assert.equal(items.find((item) => item.section === "5.0.4-f").title, "Checks for 5.0.4-f");
+  const pending = evaluateRcAcceptance(items, ["5.0.4-0"]);
+  assert.ok(!pending.some((line) => line.startsWith("5.0.4-0:")));
+  assert.ok(pending.some((line) => line.startsWith("5.0.4-a:") && line.includes("not executed")));
+  assert.ok(pending.some((line) => line.startsWith("5.0.4-f:") && line.includes("not executed")));
+  const history = {
+    branch: "rc/5.0.4",
+    merges,
+    added,
+    journal: clean,
+    spec,
+    specPath: "docs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md",
+  };
+  const clip320 = 'pm@320 /app: clipped money "$1"';
+  const clip1280 = 'pm@1280 /app: clipped text at 1280px "Actual"';
+  const built = buildRcChecks({ history, crawlRan: true, crawlFailures: [overflow, clip320, clip1280], migrationsLabel: "0015", healthOk: true });
+  const byName = Object.fromEntries(built.map((c) => [c.name, c]));
+  assert.equal(byName["rc migrations apply and the app is healthy"].ok, false);
+  assert.match(byName["rc migrations apply and the app is healthy"].detail, /migration 0016_rc is not applied/);
+  assert.equal(byName["acceptance 5.0.4-0"].ok, false);
+  assert.match(byName["acceptance 5.0.4-0"].detail, /document scrollWidth/);
+  assert.ok(!byName["acceptance 5.0.4-0"].detail.includes("not executed"));
+  assert.equal(byName["acceptance 5.0.4-a"].ok, false);
+  assert.match(byName["acceptance 5.0.4-a"].detail, /not executed/);
+  assert.equal(byName["ellipsis/clipping at ≤480"].ok, false);
+  assert.match(byName["ellipsis/clipping at ≤480"].detail, /clipped money/);
+  assert.ok(!byName["ellipsis/clipping at ≤480"].detail.includes("1280"));
+  const idle = buildRcChecks({ history, crawlRan: false, crawlFailures: [], migrationsLabel: "0015, 0016_rc", healthOk: true });
+  assert.ok(idle.some((c) => c.name === "acceptance 5.0.4-0" && !c.ok && /not executed/.test(c.detail)));
+  assert.ok(idle.some((c) => c.name === "ellipsis/clipping at ≤480" && !c.ok && /nav crawl did not run/.test(c.detail)));
+  const cleanCrawl = buildRcChecks({ history: { ...history, added: [] }, crawlRan: true, crawlFailures: [clip1280], migrationsLabel: "(none)", healthOk: true });
+  assert.equal(cleanCrawl.find((c) => c.name === "acceptance 5.0.4-0").ok, true);
+  assert.equal(cleanCrawl.find((c) => c.name === "ellipsis/clipping at ≤480").ok, true);
+  assert.equal(cleanCrawl.find((c) => c.name === "rc migrations apply and the app is healthy").ok, true);
+  assert.ok(cleanCrawl.some((c) => c.name === "acceptance 5.0.4-g" && !c.ok));
+  results.push("passes: 5.0.4-0 is executed by the crawl; 5.0.4-a through 5.0.4-g stay not executed; a desktop clip is not the ≤480 check");
+
+  const sha = "9".repeat(40);
+  const calls = [];
+  const git = (args) => {
+    calls.push(args.join(" "));
+    if (args[0] === "log") {
+      assert.deepEqual(args.slice(0, 3), ["log", "--first-parent", "--format=%H%x09%s"]);
+      return `${"e".repeat(40)}\tMerge pull request #24 from org/phone\n${"f".repeat(40)}\tchore: notes\n${"1".repeat(40)}\tplans (#31)\n`;
+    }
+    if (args[0] === "diff") return args[2].startsWith("e") ? "v5/src/app/layout.tsx\nv5/src/components/app/shell.tsx\n" : "v5/src/server/plans.ts\n";
+    if (args[0] === "show" && args[1].startsWith("origin/main:")) return JSON.stringify({ entries: [{ tag: "0015", when: 15 }] });
+    if (args[0] === "show" && args[1] === `${sha}:v5/drizzle/meta/_journal.json`) return JSON.stringify({ entries: clean });
+    if (args[0] === "ls-tree") return "docs/v5/specs/README.md\ndocs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md\n";
+    if (args[0] === "show") return "### Acceptance check for 5.0.4-0\n\nbody\n";
+    throw new Error(args.join(" "));
+  };
+  const hist = readRcHistory({ sha, git });
+  assert.deepEqual(hist.merges.map((m) => m.number), [24, 31]);
+  assert.deepEqual(hist.merges[0].files, ["v5/src/app/layout.tsx", "v5/src/components/app/shell.tsx"]);
+  assert.deepEqual(hist.added.map((m) => m.tag), ["0016_rc"]);
+  assert.equal(hist.specPath, "docs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md");
+  assert.ok(calls.some((c) => c.startsWith("log --first-parent")));
+  results.push("passes: readRcHistory lists merged PRs #24 and #31 and the migration added over main");
+
+  const verify = path.join(here, "verify.mjs");
+  const repo = path.resolve(here, "../../..");
+  const smoke = execFileSync(process.execPath, [verify, "--self-check", "--rc", rcSha], { encoding: "utf8", cwd: repo });
+  assert.equal(smoke, `self-check ok expected=${rcSha} rc=5.0.4 branch=rc/5.0.4\n`);
+  results.push(`passes: --self-check --rc prints the rc head (${smoke.trim()})`);
+  const plain = execFileSync(process.execPath, [verify, "--self-check"], { encoding: "utf8", cwd: repo });
+  assert.match(plain, /^self-check ok expected=[0-9a-f]{40}\n$/);
+  assert.ok(!plain.includes(" rc="));
+  const refuse = (argv, pattern) => {
+    let failed = false;
+    try {
+      execFileSync(process.execPath, [verify, ...argv], { encoding: "utf8", cwd: repo, stdio: ["ignore", "pipe", "pipe"] });
+    } catch (error) {
+      failed = true;
+      assert.equal(error.status, 1, argv.join(" "));
+      assert.match(`${error.stderr ?? ""}`, pattern, argv.join(" "));
+    }
+    assert.ok(failed, `expected exit 1 for ${argv.join(" ")}`);
+  };
+  refuse(["--self-check", "--rc", rcSha, "--rc-version", "5.0.2"], /5\.0\.2 stays on the per-PR flow/);
+  refuse(["--self-check", "--rc", rcSha, "--rc-version", "5.0.3"], /5\.0\.3 stays on the per-PR flow/);
+  refuse(["--self-check", "--rc", "abc"], /full 40-char/);
+  refuse(["--self-check", "--rc", rcSha, "--commit", other], /disagrees/);
+  refuse(["--self-check", "--rc", rcSha, "--url", "https://demo.pcserp.app"], /production keeps the release-tag/);
+  results.push("passes: verify.mjs --rc refuses 5.0.2, 5.0.3, a short SHA, a disagreeing --commit, and production");
 }
 
 for (const line of results) console.log(line);

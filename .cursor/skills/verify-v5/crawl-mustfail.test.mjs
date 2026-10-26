@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateCrawlRow } from "./checks.mjs";
 import { captureFailure, REDACTED, redactedDocumentHtml, redactText, startFailureRecorder } from "./evidence.mjs";
-import { crawl, CRAWL_WIDTHS, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
+import { crawl, CRAWL_ROLES, CRAWL_WIDTHS, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
 import { drillCoverageFailures, drillDiscoveryFailures, drillLoadPlan, drillPath, loadSeedCrawlTargets, partCFailures } from "./drill.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -23,12 +23,30 @@ const { chromium } = require("@playwright/test");
 // so a 1050 ms response measures >= 1550 ms (typically ~1.6 s). A budget loosened by even 500 ms lets them pass,
 // which this file then reports as MUST-FAIL WENT GREEN (the old 1.8 s fixtures measured ~2.3 s).
 const SLOW_MS = 1050;
-const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${extra}</head><body><main>${body}</main></body></html>`;
+// Good pages have to satisfy the phone checks: 16px text, 44px controls, no clipped money/status/header.
+const PHONE_OK_CSS = `<style>html,body{margin:0;font-size:16px}a,button,input,select,textarea,summary{font-size:16px;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;box-sizing:border-box}</style>`;
+const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}${extra}</head><body><main>${body}</main></body></html>`;
+// Bad phone fixtures opt out of the 44px floor so a 20px control stays 20px.
+const bare = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-size:16px}</style></head><body><main>${body}</main></body></html>`;
+const clip = (css, text, attrs = "") => `<span ${attrs} style="display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${css}">${text}</span>`;
+const ACTIONS = [
+  ["executive", "Open the at-risk job"],
+  ["pm", "Approve CO-001"],
+  ["superintendent", "Submit the plan"],
+  ["foreman", "Report today's quantities"],
+].map(([role, label]) => `<a data-testid="role-primary-action" data-role="${role}" href="/app/jobs/good">${label}</a>`).join("");
+const JOB_LINK = `<a data-testid="job-link" href="/app/jobs/good">25-031</a>`;
+let appMode = "good";
+const appBody = () => {
+  if (appMode === "missing") return JOB_LINK;
+  if (appMode === "buried") return `${JOB_LINK}<details><summary>More</summary>${ACTIONS}</details>`;
+  return `${JOB_LINK}${ACTIONS}`;
+};
 const job = (body) => shell(`<h1>Job</h1><div data-testid="cost-tree-row">03-210 Footing concrete</div>${body}`);
 const co = (status, n = "CO-001") => `<article data-testid="co-card" data-co-number="${Number(n.slice(3))}" data-status="${status}"><h3>${n} · Wall</h3><p>No lines yet. Price it per cost item.</p></article>`;
 const PAGES = {
-  "/login": () => shell(`<button data-testid="role-pm" onclick="location.href='/app'">Project Manager</button>`),
-  "/app": () => shell(`<a data-testid="job-link" href="/app/jobs/good">25-031</a>`),
+  "/login": () => shell(["executive", "pm", "superintendent", "foreman"].map((r) => `<button data-testid="role-${r}" onclick="location.href='/app'">${r}</button>`).join("")),
+  "/app": () => shell(appBody()),
   "/roadmap": () => shell("<h1>Roadmap</h1><h2>Shipped</h2><p>5.0.0</p><h2>Next</h2><p>5.0.1</p>"),
   "/roadmap-nomain": () => "<!doctype html><html><body><h1>Roadmap</h1></body></html>",
   "/app/jobs/good": () => job("<p>Cedar Creek. Superintendent notes. Stubborn clay.</p>"),
@@ -57,7 +75,18 @@ const PAGES = {
   "/status-fault": () => layout(boundary("route-error", "Page load failed")),
   "/app/jobs/route-error-marker": () => layout(boundary("route-error", "Could not show this job")), // marker only
   "/app/jobs/global-error": () => `<!doctype html><html><head><title>Load failed · Pitbull</title></head><body>${boundary("global-error", "Shell load failed")}</body></html>`,
-  "/app/jobs/next-builtin": () => `<!doctype html><html><head><meta charset="utf-8"></head><body><div><h2>This page couldn’t load</h2><p>A server error occurred. Reload to try again.</p></div></body></html>`,
+  "/app/jobs/next-builtin": () => `<!doctype html><html><head><meta charset="utf-8">${PHONE_OK_CSS}</head><body><div><h2>This page couldn’t load</h2><p>A server error occurred. Reload to try again.</p></div></body></html>`,
+  // Phone layout. These are crawled on their own (not in the 390/1280 pass) so a must-pass at 320
+  // is not also judged at desktop width.
+  "/phone/overflow": () => bare(`<div style="width:422px;height:12px">spill</div>`),
+  "/phone/tap": () => bare(`<button type="button" style="width:20px;height:20px;min-width:0;min-height:0;font-size:16px;padding:0;border:0;box-sizing:border-box;overflow:visible">Go</button>`),
+  "/phone/text": () => bare(`<span style="font-size:10px">Tiny label</span><input aria-label="Hours" style="width:44px;height:44px;font-size:14px;box-sizing:border-box">`),
+  "/phone/money": () => bare(clip("max-width:36px", "$1,234.56", 'data-cents="123456"')),
+  "/phone/status": () => bare(clip("max-width:32px", "At risk", 'data-status="at-risk"')),
+  "/phone/header": () => bare(`<table><tr><th style="display:inline-block;max-width:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Actual</th></tr></table>`),
+  "/phone/secondary-bare": () => bare(`<nav data-testid="job-strip">${clip("max-width:40px", "Cedar Creek Bridge")}</nav>`),
+  "/phone/secondary-title": () => bare(`<nav data-testid="job-strip">${clip("max-width:40px", "Cedar Creek Bridge", 'title="Cedar Creek Bridge"')}</nav>`),
+  "/phone/desktop-ellipsis": () => bare(clip("max-width:40px", "Cedar Creek Bridge", 'title="Cedar Creek Bridge"')),
   // Evidence redaction: a failing page that sets a cookie, prints a canary token, and makes a request with
   // an Authorization header and a token in the query.
   "/app/jobs/leaky": () => job(`<p>${CANARY_TOKEN}</p><script>document.cookie = "sid=${CANARY_COOKIE}; path=/"; console.error("leak ${CANARY_TOKEN}"); fetch("/api/broken?access_token=${CANARY_QUERY}", { headers: { Authorization: "Bearer ${CANARY_TOKEN}" } });</script>`),
@@ -76,7 +105,7 @@ const PAGES = {
 const CANARY_TOKEN = "canary-verify-token-1111-not-real";
 const CANARY_COOKIE = "canarycookie1111notreal";
 const CANARY_QUERY = "qtok1111canary1111notreal1111";
-const layout = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><nav aria-label="Main"><a href="/app">Portfolio</a></nav>${body}</body></html>`;
+const layout = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}</head><body><nav aria-label="Main"><a href="/app">Portfolio</a></nav>${body}</body></html>`;
 const boundary = (testid, title) => `<main data-testid="${testid}"><div><span>Pitbull</span><h1>${title}</h1><p>This screen failed to render. Try again. If it keeps failing, open the demo login and pick a role.</p><button type="button">Try again</button><a href="/login">Demo login</a></div></main>`;
 const planPage = (crew) => shell(`<h1>Daily plan · ${crew}</h1><span data-testid="plan-detail-status">Approved</span><a data-testid="plan-detail-back" href="/app">back</a>`);
 const PLAN_FOR = { "77-001": "p-good", "77-002": "p-slow", "77-004": "p-500" };
@@ -106,7 +135,13 @@ const DRILL_PAGES = {
   "07-boundary": () => layout(boundary("route-error", "Page load failed")), // drill-down lands on the PR #15 boundary
 };
 const server = http.createServer((req, res) => {
-  const p = req.url.split("?")[0];
+  const url = new URL(req.url, "http://127.0.0.1");
+  if (url.pathname === "/__landing") {
+    appMode = url.searchParams.get("mode") || "good";
+    res.writeHead(204);
+    return res.end();
+  }
+  const p = url.pathname;
   const dm = p.match(/^\/app\/jobs\/(77-00\d)\/cost-items\/([^/]+)$/);
   const route = PAGES[p] ?? (dm && DRILL_PAGES[dm[2]] ? () => DRILL_PAGES[dm[2]](dm[1]) : undefined);
   if (!route) {
@@ -160,6 +195,13 @@ let noMainRows;
 let drillRows;
 let partCRows;
 let evRows;
+let phoneBadRows;
+let phonePassRows;
+let overflowWideRows;
+let desktopClipRows;
+let roleRows;
+let buriedRows;
+let missingRows;
 // Failure evidence through the real crawl (as verify.mjs runs it): failing loads, a failing drill-down and
 // a short discovery are captured; passing loads are not.
 const evRoot = mkdtempSync(path.join(os.tmpdir(), "crawl-evidence-"));
@@ -177,6 +219,20 @@ try {
   roadmapRows = await crawl(browser, base, { pages: ["/roadmap"], roles: ["pm"], widths: [...CRAWL_WIDTHS, ...ROADMAP_EXTRA_WIDTHS] });
   noMainRows = await crawl(browser, base, { pages: ["/roadmap-nomain"], roles: ["pm"], widths: [1440] });
   evRows = await crawl(browser, base, { pages: ["/app", "/app/jobs/good", "/app/jobs/http500", "/app/jobs/route-error", "/app/jobs/leaky", "/app/jobs/77-005"], roles: ["pm"], widths: [1280], drill: evDrill, evidence: { dir: evRoot, secrets: [CANARY_TOKEN] } });
+  phoneBadRows = await crawl(browser, base, {
+    pages: ["/phone/overflow", "/phone/tap", "/phone/text", "/phone/money", "/phone/status", "/phone/header", "/phone/secondary-bare"],
+    roles: ["pm"],
+    widths: [320],
+  });
+  phonePassRows = await crawl(browser, base, { pages: ["/phone/secondary-title"], roles: ["pm"], widths: [320] });
+  overflowWideRows = await crawl(browser, base, { pages: ["/phone/overflow"], roles: ["pm"], widths: [1280] });
+  desktopClipRows = await crawl(browser, base, { pages: ["/phone/desktop-ellipsis"], roles: ["pm"], widths: [1280] });
+  roleRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320] });
+  await fetch(`${base}/__landing?mode=buried`);
+  buriedRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320] });
+  await fetch(`${base}/__landing?mode=missing`);
+  missingRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320] });
+  await fetch(`${base}/__landing?mode=good`);
 } finally {
   await browser.close();
   server.close();
@@ -192,6 +248,53 @@ for (const width of [390, 1280]) {
     const f = evaluateCrawlRow(rows.find((r) => r.path === p && r.width === width));
     assert.ok(f.some((x) => re.test(x)), `${p}@${width} must fail with ${re}; got ${JSON.stringify(f)}`);
     lines.push(`FAILS as expected: ${p}@${width} → ${f.find((x) => re.test(x))}`);
+  }
+}
+{
+  const bad = {
+    "/phone/overflow": /document scrollWidth 422px > viewport 320px/,
+    "/phone/tap": /tap target button 20×20px < 44×44/,
+    "/phone/text": /secondary text 10px < 12px/,
+    "/phone/money": /clipped money "\$1,234\.56"/,
+    "/phone/status": /clipped status pill "At risk"/,
+    "/phone/header": /clipped table header "Actual"/,
+    "/phone/secondary-bare": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
+  };
+  for (const [p, re] of Object.entries(bad)) {
+    const row = phoneBadRows.find((r) => r.path === p && r.width === 320);
+    const f = evaluateCrawlRow(row);
+    assert.ok(f.some((x) => re.test(x)), `${p}@320 must fail with ${re}; got ${JSON.stringify(f)}`);
+    lines.push(`FAILS as expected: ${p}@320 → ${f.find((x) => re.test(x))}`);
+  }
+  const textRow = phoneBadRows.find((r) => r.path === "/phone/text");
+  const textFails = evaluateCrawlRow(textRow);
+  assert.ok(textFails.some((x) => /input text 14px < 16px/.test(x)), `input under 16px must fail; got ${JSON.stringify(textFails)}`);
+  lines.push(`FAILS as expected: /phone/text@320 → ${textFails.find((x) => /input text/.test(x))}`);
+  const overflow = phoneBadRows.find((r) => r.path === "/phone/overflow");
+  assert.equal(overflow.docScrollWidth, 422, `overflow fixture document scrollWidth must be 422, got ${overflow.docScrollWidth}`);
+  assert.equal(overflow.viewportWidth, 320);
+  const titleRow = phonePassRows.find((r) => r.path === "/phone/secondary-title" && r.width === 320);
+  assert.ok(titleRow.clips.some((c) => c.kind === "secondary" && c.reachable), `title fixture must be a reachable secondary clip; got ${JSON.stringify(titleRow.clips)}`);
+  assert.deepEqual(evaluateCrawlRow(titleRow), [], `phone secondary ellipsis with a title must pass; got ${JSON.stringify(evaluateCrawlRow(titleRow))}`);
+  lines.push("passes: /phone/secondary-title@320 ellipsis with title");
+  const wide = overflowWideRows.find((r) => r.path === "/phone/overflow" && r.width === 1280);
+  assert.ok(wide.docScrollWidth <= wide.viewportWidth, `a 422px block must not widen a 1280 viewport; scrollWidth ${wide.docScrollWidth} viewport ${wide.viewportWidth}`);
+  assert.deepEqual(evaluateCrawlRow(wide), [], `422px block at a 1280 viewport must pass the phone overflow check; got ${JSON.stringify(evaluateCrawlRow(wide))}`);
+  lines.push("passes: /phone/overflow@1280 (422px block is inside a 1280 viewport)");
+  const desk = desktopClipRows.find((r) => r.path === "/phone/desktop-ellipsis");
+  const deskFails = evaluateCrawlRow(desk);
+  assert.ok(deskFails.some((x) => /clipped text at 1280px/.test(x)), `desktop ellipsis must fail; got ${JSON.stringify(deskFails)}`);
+  lines.push(`FAILS as expected: /phone/desktop-ellipsis@1280 → ${deskFails.find((x) => /clipped text at 1280px/.test(x))}`);
+  for (const role of CRAWL_ROLES) {
+    const good = roleRows.find((r) => r.role === role && r.path === "/app");
+    assert.deepEqual(evaluateCrawlRow(good), [], `${role} /app@320 must pass one-tap; got ${JSON.stringify(evaluateCrawlRow(good))}`);
+    lines.push(`passes: ${role} /app@320 one-tap primary action`);
+    const buried = evaluateCrawlRow(buriedRows.find((r) => r.role === role && r.path === "/app"));
+    assert.ok(buried.some((x) => /not one tap/.test(x)), `${role} buried action must fail; got ${JSON.stringify(buried)}`);
+    lines.push(`FAILS as expected: ${role} /app@320 buried → ${buried.find((x) => /not one tap/.test(x))}`);
+    const missing = evaluateCrawlRow(missingRows.find((r) => r.role === role && r.path === "/app"));
+    assert.ok(missing.some((x) => /no one-tap primary action/.test(x)), `${role} missing action must fail; got ${JSON.stringify(missing)}`);
+    lines.push(`FAILS as expected: ${role} /app@320 missing → ${missing.find((x) => /no one-tap primary action/.test(x))}`);
   }
 }
 {
