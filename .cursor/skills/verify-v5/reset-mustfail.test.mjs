@@ -44,6 +44,9 @@ const VARIANTS = {
   // Client aborts the Reset demo POST (net::ERR_ABORTED) but still navigates to /app?reset=1 — must PASS
   // (Next.js server-action redirect abort; #11 / #20 fail-fast flake).
   "post-aborted-ok": { delay: 200, clientAbortNavigate: true },
+  // Same abort, and the client never navigates. Must FAIL, and the reason must name net::ERR_ABORTED
+  // (not only "not ready" after the timeout). The abort itself stays ignored for fail-fast.
+  "post-aborted-dead": { delay: 200, clientAbortDead: true },
   // The reset lands, but the new page's own same-origin POST (a fetch, like a server action) answers 500
   // and the rows never come: still fails fast, but the reason must name that POST, not call it the reset POST.
   "side-post-500": { delay: 200, rows: 0, sidePost: true },
@@ -88,14 +91,14 @@ ${c.landing === "app-boundary-marker" ? boundaryHtml("Could not show the portfol
 <script>document.cookie = "sid=${CANARY_COOKIE}; path=/"; console.error("[error] boom ${CANARY_TOKEN}");</script></body></html>`;
   }
   if (afterReset && c.landing === "no-seeded") return `<!doctype html><html><body><button data-testid="user-menu">Marcus</button>${content}</body></html>`;
-  const abortNav = !afterReset && c.clientAbortNavigate
+  const abortNav = !afterReset && (c.clientAbortNavigate || c.clientAbortDead)
     ? `<script>
 document.querySelector("form").addEventListener("submit", (e) => {
   e.preventDefault();
   const c = new AbortController();
   fetch("/v/${v}/reset", { method: "POST", headers: { "Next-Action": "reset-demo" }, signal: c.signal }).catch(() => {});
   setTimeout(() => c.abort(), 30);
-  setTimeout(() => { location.href = "/v/${v}/app?reset=1"; }, ${c.delay + 50});
+  ${c.clientAbortDead ? "" : `setTimeout(() => { location.href = "/v/${v}/app?reset=1"; }, ${c.delay + 50});`}
 });
 </script>`
     : "";
@@ -124,7 +127,7 @@ const server = http.createServer((req, res) => {
   }
   if (m[2] === "reset") {
     // Reseed immediately; delay the response so AbortController surfaces net::ERR_ABORTED first.
-    if (VARIANTS[v].clientAbortNavigate) {
+    if (VARIANTS[v].clientAbortNavigate || VARIANTS[v].clientAbortDead) {
       resets[v] += 1;
       if (!VARIANTS[v].stale) seeded[v] += 1;
       return setTimeout(() => {
@@ -182,7 +185,12 @@ assert.ok(out.good.ok && out.good.median < 1000, show("good"));
 lines.push(`passes: ${show("good")}`);
 assert.ok(out["post-aborted-ok"].ok && out["post-aborted-ok"].median < 1000, `ERR_ABORTED + navigate must pass: ${show("post-aborted-ok")}`);
 assert.equal(out["post-aborted-ok"].values.length, 5, "all 5 aborted-ok samples must record a ready time");
+assert.ok(!/net::ERR_ABORTED/.test(out["post-aborted-ok"].detail), `a sample that becomes ready must not fail on the ignored abort: ${show("post-aborted-ok")}`);
 lines.push(`passes (net::ERR_ABORTED then /app?reset=1, no fail-fast): ${show("post-aborted-ok")}`);
+assert.equal(out["post-aborted-dead"].ok, false, `abort with no navigation must fail: ${show("post-aborted-dead")}`);
+assert.ok(out["post-aborted-dead"].failures.some((f) => /reset POST .*net::ERR_ABORTED/.test(f)), `dead abort must name net::ERR_ABORTED: ${JSON.stringify(out["post-aborted-dead"].failures)}`);
+assert.ok(out["post-aborted-dead"].failures.some((f) => /then not ready after 3000 ms/.test(f)), `dead abort still waits out the timeout: ${JSON.stringify(out["post-aborted-dead"].failures)}`);
+lines.push(`FAILS as expected (abort remembered, then not ready): ${show("post-aborted-dead")}`);
 assert.ok(out.chatty.ok && out.chatty.median < 1000 && out.chatty.idleMedian > 2000, `idle is info only: ${show("chatty")}`);
 lines.push(`passes (idle info only): ${show("chatty")}`);
 assert.ok(out["chatty-forever"].ok && out["chatty-forever"].idleValues.every((x) => x === "capped"), `idle capped and info only: ${show("chatty-forever")}`);

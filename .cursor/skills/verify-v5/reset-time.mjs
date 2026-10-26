@@ -25,7 +25,11 @@
 // "Page load failed" / "Shell load failed" boundary, by text or by its data-testid marker): neither can
 // turn into a ready page. net::ERR_ABORTED is ignored in fail-fast: Next.js aborts the server-action
 // POST when soft-navigating after redirect("/app?reset=1"); treating that abort as failure raced READY
-// and flaked CI (#11 / #20). Keep polling for READY / the 20 s timeout instead. Every failure reason
+// and flaked CI (#11 / #20). Keep polling for READY / the 20 s timeout instead. The ignored abort is
+// remembered. If that sample then times out or fails, the reason names it
+// (`reset POST /app net::ERR_ABORTED at N ms, then not ready`), so a client that aborted and never
+// navigated is not reported as a bare "not ready". A different network error, including
+// net::ERR_NETWORK_CHANGED, still fails at once. Every failure reason
 // names the URL with its query and what <main> and its job rows showed on the last check. The pass
 // rule above is unchanged.
 // When verify.mjs registered an evidence folder on the page (setFailureEvidence), each failed sample is
@@ -61,8 +65,8 @@ function contentState(seen, expectedRows) {
  * other failing same-origin POST is named by its own method and path and marked as not the reset request.
  * Tolerates page doubles without these events.
  */
-function watchResetPost(page, origin) {
-  const state = { failure: null, reset: null };
+function watchResetPost(page, origin, now = Date.now) {
+  const state = { failure: null, reset: null, ignoredAbort: null };
   const sameOrigin = (u) => {
     try {
       return new URL(u).origin === origin;
@@ -97,7 +101,11 @@ function watchResetPost(page, origin) {
     if (state.failure || !isPost(req)) return;
     const err = req.failure?.()?.errorText ?? "request failed";
     // Next server-action redirect aborts the action fetch; not a Railway cut-off.
-    if (err === "net::ERR_ABORTED") return;
+    // Remember it: a sample that then never becomes ready must name the abort, not only "not ready".
+    if (err === "net::ERR_ABORTED") {
+      if (!state.ignoredAbort) state.ignoredAbort = { label: label(req), at: now() };
+      return;
+    }
     state.failure = `${label(req)} failed: ${err}`;
   };
   const offs = [];
@@ -112,6 +120,9 @@ function watchResetPost(page, origin) {
   return {
     get failure() {
       return state.failure;
+    },
+    get ignoredAbort() {
+      return state.ignoredAbort;
     },
     stop: () => offs.forEach((off) => off()),
   };
@@ -235,10 +246,16 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
     }
   };
   const net = trackRequests(page, now);
-  const post = watchResetPost(page, new URL(base).origin);
+  const post = watchResetPost(page, new URL(base).origin, now);
   try {
     const t0 = now();
     const deadline = t0 + timeoutMs;
+    // Empty when this sample has not ignored an abort. Otherwise the failure reason leads with it.
+    const abortNote = () => {
+      const aborted = post.ignoredAbort;
+      if (!aborted) return "";
+      return `${aborted.label} net::ERR_ABORTED at ${Math.max(0, aborted.at - t0)} ms, then `;
+    };
     await page.getByRole("button", { name: "Reset demo" }).click({ timeout: timeoutMs });
     // Each check is atomic: `seen` is replaced wholesale by one check's single-task snapshot. If any
     // read throws, that check is a failed read: nothing from it or from an earlier check is carried
@@ -257,12 +274,15 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
       else if (all) throw new Error(`reset ready at ${at - t0} ms, after the ${timeoutMs} ms timeout`);
       else if (seen.errorScreen) {
         // An error screen never becomes the reseeded portfolio: fail now, not at the timeout.
-        throw new Error(`reset failed fast at ${at - t0} ms: error screen ${seen.errorScreen} (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
+        throw new Error(`reset failed fast at ${at - t0} ms: ${abortNote()}error screen ${seen.errorScreen} (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
       } else if (post.failure) {
         // A same-origin POST was cut off or refused (the 502b reset POST got 499): no redirect is coming.
-        throw new Error(`reset failed fast at ${at - t0} ms: ${post.failure} (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
+        throw new Error(`reset failed fast at ${at - t0} ms: ${abortNote()}${post.failure} (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
       } else if (at >= deadline) {
-        throw new Error(`reset not ready after ${timeoutMs} ms (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
+        const note = abortNote();
+        throw new Error(note
+          ? `${note}not ready after ${timeoutMs} ms (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`
+          : `reset not ready after ${timeoutMs} ms (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
       } else await sleep(Math.min(pollMs, Math.max(1, deadline - at)));
     }
     // Information only: watch until the network has been quiet for RESET_IDLE_MS, at most RESET_IDLE_CAP_MS after READY.

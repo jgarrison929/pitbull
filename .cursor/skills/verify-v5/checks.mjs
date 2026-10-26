@@ -138,6 +138,10 @@ export function secondaryReachable({ text, title, ariaLabel, expanded }) {
  * still passes). measurePage records them only when phone checks are on (`--rc` for 5.0.4 or later,
  * or `--phone-checks`). The default crawl omits them.
  * docScrollWidth / viewportWidth: max(documentElement, body) scrollWidth vs the crawl viewport (320 or 390).
+ * stripPastRight: at 320 and 390, visible elements inside [data-testid=job-strip] whose
+ *   getBoundingClientRect().right is greater than documentElement.clientWidth.
+ *   { text, right, clientWidth }. Missing means the crawl did not record the clause (phone checks off,
+ *   or a width other than 320/390). An empty array means the strip is inside the viewport.
  * tapMisses: { tag, w, h, text } under 44×44 at phone widths.
  * textMisses: { kind: "secondary"|"input", px, text }.
  * clips: { kind: "money"|"status"|"header"|"title"|"secondary"|"text", text, reachable, ellipsis }.
@@ -151,6 +155,12 @@ export function evaluatePhoneUx(row) {
   if (PHONE_OVERFLOW_WIDTHS.includes(width) && Number.isFinite(row.docScrollWidth) && Number.isFinite(row.viewportWidth)) {
     if (!(row.docScrollWidth <= row.viewportWidth)) {
       f.push(`${where}: document scrollWidth ${px(row.docScrollWidth)}px > viewport ${px(row.viewportWidth)}px`);
+    }
+  }
+  // 5.0.4-0 clause 2. Same widths as clause 1. A missing field is the crawl not recording it.
+  if (PHONE_OVERFLOW_WIDTHS.includes(width) && Array.isArray(row.stripPastRight)) {
+    for (const hit of row.stripPastRight) {
+      f.push(`${where}: job-strip element "${clipLabel(hit.text)}" right ${px(hit.right)} > clientWidth ${px(hit.clientWidth)}`);
     }
   }
   if (Number.isFinite(width) && width <= PHONE_MAX_PX) {
@@ -234,9 +244,12 @@ export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS, phoneChecks =
   // Plan pages (#706, read-only) render the plan's status and lines.
   const costItemPage = /^\/app\/jobs\/[^/]+\/cost-items\/[^/]+$/.test(row.path);
   const planPage = /^\/app\/jobs\/[^/]+\/plans\/[^/]+$/.test(row.path);
-  if (row.path.startsWith("/app/jobs/") && !costItemPage && !planPage && !(c.costRows > 0)) f.push(`${where}: job has no cost rows`);
+  // /changes renders the changes list (job-changes-full li), not the cost tree. ≥1 item is the seeded-row rule.
+  const changesPage = /^\/app\/jobs\/[^/]+\/changes$/.test(row.path);
+  if (row.path.startsWith("/app/jobs/") && !costItemPage && !planPage && !changesPage && !(c.costRows > 0)) f.push(`${where}: job has no cost rows`);
   if (costItemPage && !(c.costItemTiles > 0)) f.push(`${where}: cost item page has no budget tile`);
   if (planPage && !(c.planStatus > 0)) f.push(`${where}: plan page has no plan status`);
+  if (changesPage && !(c.changeItems > 0)) f.push(`${where}: changes page has 0 items`);
   // Phone layout is off for the default crawl and for 5.0.2 / 5.0.3 per-PR verifies.
   // --rc (5.0.4 or later) and --phone-checks turn it on. The must-fail tests call evaluatePhoneUx directly.
   if (phoneChecks) f.push(...evaluatePhoneUx(row));

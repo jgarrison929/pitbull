@@ -39,7 +39,7 @@ import { capRawText, captureFailure, RAW_TEXT_CAP, redactHeaders, redactText, re
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
 import { execFileSync } from "node:child_process";
 import { PORTFOLIO_ROWS_TIMEOUT_MS, PORTFOLIO_SETTLE_MS, PORTFOLIO_STEP, portfolioOk, runPortfolioStep, waitForRowCount } from "./portfolio.mjs";
-import { CRAWL_ROLES, CRAWL_WIDTHS, expectedNavLoads, navCrawlPages, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
+import { CRAWL_ROLES, CRAWL_WIDTHS, changesPath, expectedNavLoads, navCrawlPages, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
 import { csvLeafCodes, drillCoverageFailures, drillDiscoveryFailures, drillItemCount, drillItemList, drillLoadPlan, drillPath, expectedDrillLoads, partCFailures, partCItemFor, seedChildEnv, leakedSeedEnvKeys, SEED_CHILD_ENV_ALLOW, seedDrillItems } from "./drill.mjs";
 import {
   acceptanceItems,
@@ -49,10 +49,13 @@ import {
   buildRcChecks,
   deployedForMainRule,
   failureSegments,
+  appliedMigrationTags,
+  evaluateAppliedJournal,
   evaluateRcAcceptance,
   evaluateRcHead,
   evaluateRcMigrations,
   journalAppliesCleanly,
+  journalSkipFailures,
   migrationsAdded,
   parseRcMerges,
   phoneChecksEnabled,
@@ -163,9 +166,11 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
   assert.match(src, /phoneChecks = false/, "phone checks default off");
   assert.match(src, /if \(phoneChecks\) f\.push\(\.\.\.evaluatePhoneUx\(row\)\)/, "evaluateCrawlRow calls evaluatePhoneUx only when asked");
   const crawlSrc = readFileSync(path.join(here, "crawl.mjs"), "utf8");
-  for (const field of ["docScrollWidth", "viewportWidth", "tapMisses", "textMisses", "clips", "primaryActions", "clipCount"]) {
+  for (const field of ["docScrollWidth", "viewportWidth", "tapMisses", "textMisses", "clips", "primaryActions", "clipCount", "stripPastRight", "changeItems"]) {
     assert.ok(crawlSrc.includes(field), `measurePage must record ${field}`);
   }
+  assert.match(crawlSrc, /phoneOverflowWidths\.includes\(intendedW\)/, "job-strip right edge is recorded only at the phone overflow widths");
+  assert.match(crawlSrc, /rect\.right > clientWidth/, "job-strip clause compares getBoundingClientRect().right to clientWidth");
   assert.match(crawlSrc, /classifyClip\(/, "the crawl classifies clips with classifyClip");
   assert.match(crawlSrc, /secondaryReachable\(/, "the crawl decides reachability with secondaryReachable");
   assert.match(crawlSrc, /textHasMoney\(/, "a $ amount anywhere in the clipped text is money");
@@ -185,12 +190,22 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
     evaluateCrawlRow({
       ...phone,
       docScrollWidth: 422,
+      stripPastRight: [{ text: "I-5 Culvert 24-077", right: 373, clientWidth: 320 }],
       tapMisses: [{ tag: "button", w: 20, h: 20, text: "Go" }],
       textMisses: [{ kind: "secondary", px: 11, text: "Portfolio" }],
       clips: [{ kind: "money", text: "$1,234.56", reachable: true, ellipsis: true }],
       primaryActions: [],
     }),
   );
+  const stripPast = evaluatePhoneUx({ ...phone, stripPastRight: [{ text: "I-5 Culvert 24-077", right: 373, clientWidth: 320 }] });
+  mustFail("job-strip element past clientWidth at 320", stripPast);
+  assert.match(stripPast[0], /job-strip element "I-5 Culvert 24-077" right 373 > clientWidth 320/, stripPast[0]);
+  const strip390 = evaluatePhoneUx({ ...phone, width: 390, docScrollWidth: 390, viewportWidth: 390, stripPastRight: [{ text: "I-5 Culvert 24-077", right: 410, clientWidth: 390 }] });
+  mustFail("job-strip element past clientWidth at 390", strip390);
+  assert.match(strip390[0], /job-strip element "I-5 Culvert 24-077" right 410 > clientWidth 390/);
+  mustPass("job-strip wrapped inside clientWidth", evaluatePhoneUx({ ...phone, stripPastRight: [] }));
+  mustPass("job-strip observation missing is skipped", evaluatePhoneUx(phone));
+  mustPass("job-strip past the edge at 1280 is outside the clause", evaluatePhoneUx({ ...phone, width: 1280, docScrollWidth: 1280, viewportWidth: 1280, stripPastRight: [{ text: "I-5 Culvert 24-077", right: 1400, clientWidth: 1280 }] }));
   mustFail("document scrollWidth 422px at viewport 320", evaluatePhoneUx({ ...phone, docScrollWidth: 422 }));
   mustFail("document scrollWidth 400px at viewport 390", evaluatePhoneUx({ ...phone, width: 390, docScrollWidth: 400, viewportWidth: 390 }));
   mustPass("422px document inside a 1280 viewport", evaluatePhoneUx({ ...phone, width: 1280, docScrollWidth: 422, viewportWidth: 1280 }));
@@ -289,13 +304,26 @@ mustFail("M5 reset did not restore", evaluateM5({ ...m5good, afterReset: { ...m5
 {
   const jobs = ["24-118", "25-031", "24-077", "26-010"];
   const pages = navCrawlPages(jobs);
-  assert.deepEqual(pages, ["/app", "/app/jobs/24-118", "/app/jobs/25-031", "/app/jobs/24-077", "/app/jobs/26-010", "/app/assistant", "/changelog", "/status", "/roadmap"]);
+  const changesPages = jobs.map((j) => changesPath(j));
+  assert.deepEqual(pages, [
+    "/app",
+    "/app/jobs/24-118", "/app/jobs/24-118/changes",
+    "/app/jobs/25-031", "/app/jobs/25-031/changes",
+    "/app/jobs/24-077", "/app/jobs/24-077/changes",
+    "/app/jobs/26-010", "/app/jobs/26-010/changes",
+    "/app/assistant", "/changelog", "/status", "/roadmap",
+  ]);
+  for (const p of changesPages) assert.ok(pages.includes(p), p);
   const plan = navCrawlPlan(jobs);
   assert.deepEqual(plan[0].widths, [320, 390, 768, 1280]);
   assert.deepEqual(plan[1], { pages: ["/roadmap"], widths: [375, 1440] });
-  // 4 roles × 9 pages × 4 widths = 144, plus /roadmap × 4 roles × 2 extra widths = 8.
-  assert.equal(expectedNavLoads(plan), 152);
-  results.push("nav crawl plan: 9 pages incl. /roadmap × 4 widths + /roadmap × 375/1440 → 152 loads");
+  // 4 roles × 13 pages × 4 widths = 208, plus /roadmap × 4 roles × 2 extra widths = 8.
+  // 13 = /app + 4 job pages + 4 /changes + assistant + changelog + status + /roadmap.
+  assert.equal(expectedNavLoads(plan), 216);
+  const omitted = plan.map((pass) => ({ ...pass, pages: pass.pages.filter((p) => !p.endsWith("/changes")) }));
+  assert.equal(expectedNavLoads(omitted), 152, "a plan without /changes is the old 152-load count");
+  assert.notEqual(expectedNavLoads(omitted), expectedNavLoads(plan), "dropping /changes fails the load count");
+  results.push("nav crawl plan: 13 pages incl. /changes and /roadmap × 4 widths + /roadmap × 375/1440 → 216 loads; without /changes the count is 152");
   const row = (role, width) => ({ ...good, role, width, path: "/roadmap", final: "/roadmap", seededCounts: {}, hasMain: true });
   const full = CRAWL_ROLES.flatMap((r) => [...CRAWL_WIDTHS, ...ROADMAP_EXTRA_WIDTHS].map((w) => row(r, w)));
   mustPass("/roadmap crawled for 4 roles × 6 widths", roadmapCoverageFailures(full));
@@ -393,7 +421,13 @@ mustFail("M5 reset did not restore", evaluateM5({ ...m5good, afterReset: { ...m5
   mustPass("role without access refused (404) on every item", drillCoverageFailures(rows.map((r) => (r.role === "executive" ? { ...r, status: 404, seededCounts: { costItemTiles: 0 } } : r)), big, { roles: CRAWL_ROLES, access: noExec }));
   // The job-page cost-rows rule still applies to job pages (and anything under /app/jobs/ that is not a cost item).
   mustFailWith("job page still needs cost rows", [evaluateCrawlRow({ ...good, seededCounts: { costRows: 0, costItemTiles: 1 } })].flat(), /job has no cost rows/);
-  mustFailWith("job changes page still needs cost rows", evaluateCrawlRow({ ...good, path: "/app/jobs/25-031/changes", final: "/app/jobs/25-031/changes", seededCounts: { costRows: 0 } }), /job has no cost rows/);
+  const changesRow = { ...good, path: "/app/jobs/25-031/changes", final: "/app/jobs/25-031/changes", text: "Luis Ortega changed the pour", seededCounts: { costRows: 0, changeItems: 3 } };
+  mustPass("job changes page with items does not need cost rows", evaluateCrawlRow(changesRow));
+  mustPass("job changes page at 1500 ms", evaluateCrawlRow({ ...changesRow, idleMs: 1500 }));
+  mustFailWith("job changes page with 0 items", evaluateCrawlRow({ ...changesRow, seededCounts: { costRows: 12, changeItems: 0 } }), /changes page has 0 items/);
+  mustFailWith("job changes page 1501 ms", evaluateCrawlRow({ ...changesRow, idleMs: 1501 }), /1501 ms > 1500 ms budget/);
+  mustFailWith("job changes page TODO", evaluateCrawlRow({ ...changesRow, text: "TODO wire the list" }), /banned "TODO"/);
+  mustFailWith("job changes page HTTP 500", evaluateCrawlRow({ ...changesRow, status: 500 }), /navigation HTTP 500/);
   assert.equal(drillItemCount(big), 16);
   for (const l of wentGreen) console.log(l);
   assert.deepEqual(wentGreen, [], `${wentGreen.length} drill-down must-fail case(s) passed`);
@@ -1009,6 +1043,24 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     const abortedOk = await step(five({ serverMs: 700, postFailAt: 100, postFailText: "net::ERR_ABORTED" }));
     mustPass("runResetTimeStep: reset POST net::ERR_ABORTED then ready (no fail-fast)", verdict(abortedOk));
     assert.deepEqual(abortedOk.values, [700, 700, 700, 700, 700], JSON.stringify(abortedOk));
+    assert.ok(!/net::ERR_ABORTED/.test(abortedOk.detail), abortedOk.detail);
+  }
+  {
+    // Abort, and the page never navigates / never becomes ready. The ignore stays; the timeout reason names the abort.
+    const dead = await step(five({ serverMs: 700, postFailAt: 100, postFailText: "net::ERR_ABORTED", seededAt: Infinity, urlAt: Infinity }));
+    mustFail("runResetTimeStep: reset POST net::ERR_ABORTED and never navigates", verdict(dead));
+    assert.equal(dead.values.length, 0, JSON.stringify(dead));
+    const deadHits = dead.failures.filter((f) => /^reset \d+ failed:/.test(f));
+    assert.equal(deadHits.length, 5, JSON.stringify(dead.failures));
+    assert.ok(deadHits.every((f) => /reset POST \/app net::ERR_ABORTED at \d+ ms, then not ready after 20000 ms \(url \/app, seeded-at unchanged, main visible, 4\/4 job rows\)/.test(f)), JSON.stringify(dead.failures));
+  }
+  {
+    const changed = await step(five({ serverMs: 700, postFailAt: 100, postFailText: "net::ERR_NETWORK_CHANGED", seededAt: Infinity }));
+    mustFail("runResetTimeStep: reset POST net::ERR_NETWORK_CHANGED fails fast", verdict(changed));
+    const hits = changed.failures.filter((f) => /^reset \d+ failed:/.test(f));
+    assert.equal(hits.length, 5, JSON.stringify(changed.failures));
+    assert.ok(hits.every((f) => /reset failed fast at \d+ ms: reset POST \/app failed: net::ERR_NETWORK_CHANGED/.test(f)), JSON.stringify(changed.failures));
+    assert.ok(!changed.failures.some((f) => /after 20000 ms/.test(f)), "NETWORK_CHANGED must not wait for the timeout");
   }
   {
     const hard = await step(five({ serverMs: 700, postFailAt: 100, postFailText: "net::ERR_CONNECTION_RESET", seededAt: Infinity }));
@@ -1526,6 +1578,21 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.deepEqual(unmapped.prs, []);
   assert.equal(unmapped.detail, "no file map for this check");
 
+  const cssOnly = [{ number: 25, sha: "a".repeat(40), subject: "type scale (#25)", files: ["v5/src/app/globals.css"] }];
+  for (const [name, text] of [
+    ["clipped table header", 'pm@1280 /app: clipped table header "Actual"'],
+    ["tap target", "foreman@320 /app: tap target button 20×20px < 44×44 (\"Go\")"],
+    ["document scrollWidth", overflow],
+  ]) {
+    const hit = attributeFailure(text, cssOnly);
+    assert.deepEqual(hit.prs, [25], `${name} must name the globals.css PR; got ${JSON.stringify(hit)}`);
+    assert.ok(!hit.prs.includes(31));
+  }
+  const cssTrace = attributeChecks([{ name: "nav crawl", ok: false, detail: 'pm@1280 /app: clipped table header "Actual"' }], cssOnly);
+  assert.match(cssTrace[0].detail, /PR #25$/);
+  mustFail("clipped failure traced to the PR that only changed globals.css", ["PR #25"]);
+  results.push("FAILS as expected: clipped table header, tap target, and document scrollWidth name PR #25 when only globals.css changed");
+
   const parsed = parseRcMerges(`${"e".repeat(40)}\tMerge pull request #24 from org/branch\n${"f".repeat(40)}\tnotes with no number\nnot-a-sha\tphone overflow (#9)\n${"1".repeat(40)}\tphone overflow (#18)\n`);
   assert.deepEqual(parsed.map((m) => m.number), [24, 18]);
 
@@ -1533,6 +1600,60 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   const clean = [{ tag: "0015", when: 15 }, { tag: "0016_rc", when: 16 }];
   assert.equal(journalAppliesCleanly(clean), true);
   assert.equal(journalAppliesCleanly([{ when: 20 }, { when: 10 }]), false);
+  const outOfOrder = [
+    { idx: 20, tag: "0020_schedule_activities", when: 1793030000000 },
+    { idx: 23, tag: "0023_later", when: 1793060000000 },
+    { idx: 21, tag: "0021_skipped", when: 1793040000000 },
+  ];
+  const skipped = journalSkipFailures(outOfOrder);
+  assert.deepEqual(skipped, ["0021 would be skipped"]);
+  mustFail("journal ordered 0020, 0023, 0021", skipped);
+  const gap = [
+    { idx: 20, tag: "0020_schedule_activities", when: 1793030000000 },
+    { idx: 23, tag: "0023_later", when: 1793060000000 },
+  ];
+  assert.deepEqual(journalSkipFailures(gap), [], "a reserved gap with increasing when is allowed");
+  const appliedAll = outOfOrder.map((e) => e.tag);
+  const orderFails = evaluateAppliedJournal({ journal: outOfOrder, statusLabel: appliedAll.join(", "), healthMigrations: appliedAll });
+  assert.ok(orderFails.some((f) => f === "0021 would be skipped"), JSON.stringify(orderFails));
+  const missingStatus = evaluateAppliedJournal({
+    journal: [{ tag: "0020_schedule_activities", when: 1793030000000 }, { tag: "0019_crews_contract", when: 1793020000000 }],
+    statusLabel: "0019_crews_contract",
+    healthMigrations: ["0019_crews_contract", "0020_schedule_activities"],
+  });
+  assert.ok(missingStatus.some((f) => /0020_schedule_activities is not applied/.test(f)), JSON.stringify(missingStatus));
+  assert.ok(missingStatus.some((f) => /0020 would be skipped|0019 would be skipped/.test(f)) || missingStatus.some((f) => /not applied/.test(f)));
+  const statusOnly = evaluateAppliedJournal({
+    journal: [{ tag: "0020_schedule_activities", when: 1793030000000 }],
+    statusLabel: "0019_crews_contract",
+    healthMigrations: ["0020_schedule_activities"],
+  });
+  mustFail("/status list missing 0020_schedule_activities", statusOnly);
+  assert.ok(statusOnly.some((f) => /0020_schedule_activities is not applied on \/status/.test(f)), JSON.stringify(statusOnly));
+  const extra = evaluateAppliedJournal({
+    journal: [{ tag: "0020_schedule_activities", when: 1793030000000 }],
+    statusLabel: "0020_schedule_activities, 0099_extra",
+    healthMigrations: ["0020_schedule_activities"],
+  });
+  assert.ok(extra.some((f) => /\/status applied tag 0099_extra is not in the journal/.test(f)), JSON.stringify(extra));
+  const healthMiss = evaluateAppliedJournal({
+    journal: [{ tag: "0020_schedule_activities", when: 1793030000000 }],
+    statusLabel: "0020_schedule_activities",
+    healthMigrations: [],
+  });
+  assert.ok(healthMiss.some((f) => /0020_schedule_activities is not applied on \/health/.test(f)), JSON.stringify(healthMiss));
+  assert.deepEqual(evaluateAppliedJournal({ journal: gap, statusLabel: gap.map((e) => e.tag).join(", "), healthMigrations: gap.map((e) => e.tag) }), []);
+  const headJournal = JSON.parse(execFileSync("git", ["show", "HEAD:v5/drizzle/meta/_journal.json"], { cwd: path.resolve(here, "../../.."), encoding: "utf8" }));
+  assert.equal(headJournal.entries.length, 21, "main's journal is 21 tags");
+  assert.equal(headJournal.entries.at(-1).tag, "0020_schedule_activities");
+  assert.deepEqual(journalSkipFailures(headJournal.entries), []);
+  const headTags = headJournal.entries.map((e) => e.tag);
+  assert.deepEqual(evaluateAppliedJournal({ journal: headJournal.entries, statusLabel: headTags.join(", "), healthMigrations: headTags }), []);
+  results.push("passes: HEAD journal has 21 tags ending 0020_schedule_activities; when increases; a gap is allowed; 0021 out of order would be skipped; a /status list missing 0020 is not applied");
+  const verifyJournal = readFileSync(path.join(here, "verify.mjs"), "utf8");
+  assert.match(verifyJournal, /evaluateAppliedJournal\(\{/);
+  assert.match(verifyJournal, /journal migrations applied in order/);
+  assert.doesNotMatch(verifyJournal, /if \(rc\) \{[^}]*status-migrations/s, "status-migrations is read on every run, not only --rc");
   assert.deepEqual(migrationsAdded([{ tag: "0015" }], clean).map((m) => m.tag), ["0016_rc"]);
   const notApplied = evaluateRcMigrations({ added, journal: clean, appliedLabel: "0015", healthOk: true });
   mustFail("rc migration is not applied", notApplied);
@@ -1581,6 +1702,12 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   const idle = buildRcChecks({ history, crawlRan: false, crawlFailures: [], migrationsLabel: "0015, 0016_rc", healthOk: true });
   assert.ok(idle.some((c) => c.name === "acceptance 5.0.4-0" && !c.ok && /not executed/.test(c.detail)));
   assert.ok(idle.some((c) => c.name === "ellipsis/clipping at ≤480" && !c.ok && /nav crawl did not run/.test(c.detail)));
+  const stripFail = 'pm@320 /app: job-strip element "I-5 Culvert 24-077" right 373 > clientWidth 320';
+  const stripRc = buildRcChecks({ history: { ...history, added: [] }, crawlRan: true, crawlFailures: [stripFail], migrationsLabel: "(none)", healthOk: true });
+  const stripItem = stripRc.find((c) => c.name === "acceptance 5.0.4-0");
+  assert.equal(stripItem.ok, false);
+  assert.match(stripItem.detail, /job-strip element "I-5 Culvert 24-077" right 373 > clientWidth 320/);
+  mustFail("acceptance 5.0.4-0 fails when a job-strip element is past clientWidth", [stripItem.detail]);
   const cleanCrawl = buildRcChecks({ history: { ...history, added: [] }, crawlRan: true, crawlFailures: [clip1280], migrationsLabel: "(none)", healthOk: true });
   assert.equal(cleanCrawl.find((c) => c.name === "acceptance 5.0.4-0").ok, true);
   assert.equal(cleanCrawl.find((c) => c.name === "ellipsis/clipping at ≤480").ok, true);
@@ -1670,6 +1797,27 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   refuse(["--self-check", "--rc", rcSha, "--commit", other], /disagrees/);
   refuse(["--self-check", "--rc", rcSha, "--url", "https://demo.pcserp.app"], /production keeps the release-tag/);
   results.push("passes: verify.mjs --rc refuses 5.0.2, 5.0.3, a short SHA, a disagreeing --commit, and production");
+}
+
+// ---- every skill test is named in the Run-it block and in a ci.yml job ----
+{
+  const repo = path.resolve(here, "../../..");
+  const skill = readFileSync(path.join(here, "SKILL.md"), "utf8");
+  const runIt = skill.split("## Run it")[1]?.split(/^## /m)[0] ?? "";
+  const ci = readFileSync(path.join(repo, ".github/workflows/ci.yml"), "utf8");
+  const tests = readdirSync(here).filter((name) => name.endsWith(".test.mjs")).sort();
+  assert.ok(tests.includes("stress-seed-mustfail.test.mjs"));
+  assert.ok(runIt.includes("stress-seed-mustfail.test.mjs"), "Run-it must list stress-seed-mustfail");
+  assert.match(skill, /verify-v5 must-fail browser/);
+  assert.match(skill, /verify-v5-mustfail/);
+  assert.doesNotMatch(skill, /verify-v5-skill` job runs it \(with the crawl and portfolio must-fail files\)/);
+  for (const name of tests) {
+    assert.ok(runIt.includes(name), `${name} must be named in the SKILL.md Run-it block`);
+    assert.ok(ci.includes(name), `${name} must be named in a ci.yml job`);
+  }
+  assert.match(skill, /pass \(stale/);
+  assert.match(skill, /nothing may create, start, or stop a container/);
+  results.push(`passes: ${tests.length} skill tests are named in Run-it and in ci.yml; stale ci-gate and staging run conditions are documented`);
 }
 
 for (const line of results) console.log(line);

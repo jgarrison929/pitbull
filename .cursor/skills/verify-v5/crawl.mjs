@@ -1,7 +1,7 @@
 // Browser half of the nav crawl: signs in by role card and measures each page. Evaluation lives in
 // checks.mjs (evaluateCrawlRow) so the must-fail tests can drive the same code against a fake server.
 import path from "node:path";
-import { classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, secondaryReachable, textHasMoney } from "./checks.mjs";
+import { classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, PHONE_OVERFLOW_WIDTHS, secondaryReachable, textHasMoney } from "./checks.mjs";
 import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillDiscoveryFailures, drillPath, partCItemFor } from "./drill.mjs";
 import { captureFailure, secretValues, startFailureRecorder } from "./evidence.mjs";
 
@@ -10,9 +10,24 @@ export const CRAWL_WIDTHS = [320, 390, 768, 1280];
 /** Extra widths /roadmap is also crawled at (5.0.1 acceptance check 12 used 375 and 1440). */
 export const ROADMAP_EXTRA_WIDTHS = [375, 1440];
 
-/** Main nav-crawl pages: /app, every seeded job page, assistant, changelog, status and /roadmap. */
+/** `/app/jobs/<job>/changes` — the job's full changes list. */
+export function changesPath(job) {
+  return `/app/jobs/${job}/changes`;
+}
+
+/**
+ * Main nav-crawl pages: /app, every seeded job page, that job's /changes, assistant, changelog, status and /roadmap.
+ * /changes is every seeded job, every role, every crawl width. It is not gated on a version.
+ */
 export function navCrawlPages(seedJobNumbers) {
-  return ["/app", ...seedJobNumbers.map((j) => `/app/jobs/${j}`), "/app/assistant", "/changelog", "/status", "/roadmap"];
+  return [
+    "/app",
+    ...seedJobNumbers.flatMap((j) => [`/app/jobs/${j}`, changesPath(j)]),
+    "/app/assistant",
+    "/changelog",
+    "/status",
+    "/roadmap",
+  ];
 }
 
 /** Passes the nav crawl runs: every page × CRAWL_WIDTHS, then /roadmap × ROADMAP_EXTRA_WIDTHS. */
@@ -78,7 +93,7 @@ export function watch(page, sink) {
  * and evaluateCrawlRow's default (phoneChecks false) does not read them.
  */
 function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
-  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks } = arg;
+  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks, phoneOverflowWidths } = arg;
   const doc = document.documentElement;
   const vw = Math.min(intendedW, window.visualViewport?.width ?? intendedW);
   const sw = Math.max(doc.scrollWidth, document.body?.scrollWidth ?? 0);
@@ -115,6 +130,7 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
       portfolioRows: document.querySelectorAll('[data-testid="job-link"]').length,
       costItemTiles: document.querySelectorAll('[data-testid="cost-item-cb"]').length,
       planStatus: document.querySelectorAll('[data-testid="plan-detail-status"]').length,
+      changeItems: document.querySelectorAll('[data-testid="job-changes-full"] li').length,
     },
   };
   if (!phoneChecks) return out;
@@ -250,6 +266,28 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
   out.clips = clips;
   out.clipCount = clips.length;
   out.primaryActions = primaryActions;
+  // 5.0.4-0 clause 2, same gate as the other phone observations: 320 and 390 only.
+  // A strip with overflow-x:auto can keep document scrollWidth inside the viewport while a
+  // flex-shrink:0 pill's box still ends past clientWidth. Clause 1 does not see that.
+  if (Array.isArray(phoneOverflowWidths) && phoneOverflowWidths.includes(intendedW)) {
+    const clientWidth = doc.clientWidth;
+    const strip = document.querySelector("[data-testid='job-strip']");
+    const stripPastRight = [];
+    if (strip) {
+      for (const el of strip.querySelectorAll("*")) {
+        if (!shown(el)) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.right > clientWidth) {
+          stripPastRight.push({
+            text: oneLine(el.innerText || el.getAttribute("aria-label") || el.textContent).slice(0, 80),
+            right: rect.right,
+            clientWidth,
+          });
+        }
+      }
+    }
+    out.stripPastRight = stripPastRight;
+  }
   return out;
 }
 
@@ -281,6 +319,7 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
     minSecondary: MIN_SECONDARY_FONT_PX,
     minInput: MIN_INPUT_FONT_PX,
     phoneChecks: phoneChecks === true,
+    phoneOverflowWidths: PHONE_OVERFLOW_WIDTHS,
   });
   if (shotDir) {
     await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });
