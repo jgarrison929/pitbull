@@ -77,6 +77,33 @@ export async function proxy(request: NextRequest) {
   const sessionId = createHash("sha256").update(token).digest("hex");
   const db = proxySql(databaseUrl);
   try {
+    if (parsed.kind === "plan") {
+      // One round-trip for plan drills: session + job + plan (was session⋈job
+      // then a second plan select — two serial RTTs on every plan navigation).
+      const rows = await db<{ job_id: string; plan_id: string | null }[]>`
+        select j.id as job_id, p.id as plan_id
+        from sessions s
+        inner join jobs j on j.company_id = s.company_id
+        left join daily_plans p
+          on p.job_id = j.id
+         and p.id = ${parsed.planId}::uuid
+        where s.id = ${sessionId}
+          and s.expires_at > now()
+          and j.number = ${parsed.number}
+        limit 1`;
+      const row = rows[0];
+      if (!row) {
+        const sessions = await db<{ company_id: string }[]>`
+          select company_id from sessions
+          where id = ${sessionId} and expires_at > now()
+          limit 1`;
+        if (!sessions[0]) return NextResponse.next();
+        return notFoundResponse();
+      }
+      if (!row.plan_id) return notFoundResponse();
+      return NextResponse.next();
+    }
+
     // One round-trip: session + job (was two serial queries after a fresh connect).
     const rows = await db<{ job_id: string }[]>`
       select j.id as job_id
@@ -112,13 +139,6 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // plan
-    const plans = await db<{ id: string }[]>`
-      select id from daily_plans
-      where job_id = ${jobId}
-        and id = ${parsed.planId}::uuid
-      limit 1`;
-    if (plans.length === 0) return notFoundResponse();
     return NextResponse.next();
   } catch {
     return NextResponse.next();

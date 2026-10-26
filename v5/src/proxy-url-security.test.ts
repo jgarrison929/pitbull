@@ -27,6 +27,15 @@ describe("proxySql connection-string security", () => {
     expect(src).not.toMatch(/postgres\(\s*rawDatabaseUrl\s*,/);
   });
 
+  it("must-fail: plan drills use one session⋈job⋈plan query (not a follow-up select)", () => {
+    const src = readFileSync(join(process.cwd(), "src/proxy.ts"), "utf8");
+    expect(src).toMatch(/left join daily_plans p/);
+    // Old shape: session⋈job, then a second `select id from daily_plans`.
+    expect(src).not.toMatch(
+      /select id from daily_plans\s+where job_id = \$\{jobId\}/,
+    );
+  });
+
   it("must-fail: job route through proxy with slash password — no leak, not 500", async () => {
     const postgresCalls: string[] = [];
     const lines: string[] = [];
