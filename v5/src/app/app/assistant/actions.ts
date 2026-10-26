@@ -115,6 +115,8 @@ function argsFromForm(formData: FormData): JobArgs {
     title: str("title"),
     revision: str("revision"),
     csv: str("csv"),
+    file: str("file"),
+    mode: str("mode"),
     date: str("date"),
     crew: str("crew"),
     crewId: str("crewId"),
