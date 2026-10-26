@@ -16,7 +16,7 @@ import { parseArgs } from "node:util";
 import { evaluateStressSeed, STRESS_JOB_NUMBER } from "./checks.mjs";
 import { signInRole } from "./crawl.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
-import { redactText, secretValues } from "./evidence.mjs";
+import { redactText, safeJson, secretValues } from "./evidence.mjs";
 
 const SECRETS = secretValues(process.env);
 const safe = (x) => redactText(x, SECRETS);
@@ -89,6 +89,6 @@ try {
 }
 const failures = evaluateStressSeed(observed);
 const result = { url: base, observed, failures, passed: failures.length === 0 };
-if (args.out) writeFileSync(args.out, safe(JSON.stringify(result, null, 2)) + "\n");
+if (args.out) writeFileSync(args.out, safeJson(result, SECRETS) + "\n");
 console.log(safe(`${failures.length ? "FAIL" : "PASS"} stress seed (V5_SEED_STRESS=1): ${failures.length ? failures.join("; ") : `sign-in → ${observed.landedOn}, stress job ${STRESS_JOB_NUMBER} 1, Stress Crew 1, stress plans on it ${observed.stressPlansOnStressCrew}, orphan crew_id 0`}`));
 process.exit(failures.length ? 1 : 0);

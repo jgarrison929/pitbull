@@ -30,29 +30,37 @@ export function secretValues(environment = process.env) {
   return [...new Set(out)];
 }
 
+const htmlEscape = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const jsonEscape = (x) => JSON.stringify(x).slice(1, -1);
+
 /**
- * Spellings of a secret that can appear in logs or evidence: raw, URL-encoded, and the
- * JSON.stringify string-content form (verify.mjs / captureFailure run redactText on already-stringified
- * JSON; a password with " or \ is escaped there, so split(secret) alone misses it).
+ * Every spelling a secret can take once it has been serialized: raw, URL-encoded, JSON-escaped (once and
+ * twice, for a JSON string inside JSON), HTML-escaped, and combinations. A `"` or `\` in a secret would
+ * otherwise come out escaped and slip past a raw-text match.
  */
-function secretForms(x) {
-  if (typeof x !== "string" || x.length < 2) return [];
-  const forms = [x, encodeURIComponent(x)];
-  // JSON.stringify("a\"b").slice(1,-1) === 'a\\"b' — the form inside a JSON string value.
-  const jsonForm = JSON.stringify(x).slice(1, -1);
-  if (jsonForm !== x) forms.push(jsonForm);
-  return forms;
+export function secretForms(secrets = []) {
+  const out = new Set();
+  for (const x of secrets) {
+    if (typeof x !== "string" || x.length < 2) continue;
+    for (const base of [x, encodeURIComponent(x)]) {
+      const j = jsonEscape(base);
+      for (const f of [base, j, jsonEscape(j), htmlEscape(base), htmlEscape(j), base.replace(/"/g, "&#34;")]) out.add(f);
+    }
+  }
+  return [...out].filter((f) => f.length >= 2).sort((a, b) => b.length - a.length);
 }
 
 /**
- * Replace every secret value (and its URL-encoded / JSON-escaped forms) with [redacted]; also any
+ * Replace every secret value, in every serialized form (secretForms), with [redacted]; also any
  * postgres:// URL with userinfo, and Bearer / Basic credentials, whatever their value.
+ * `jsonText: true` is for text that is already JSON: the userinfo pattern then never crosses a `"`, so
+ * redaction can't break the JSON (the secret forms above still catch escaped values).
  */
-export function redactText(text, secrets = []) {
+export function redactText(text, secrets = [], { jsonText = false } = {}) {
   let s = String(text ?? "");
-  const all = [...new Set(secrets.flatMap(secretForms))].sort((a, b) => b.length - a.length);
-  for (const x of all) s = s.split(x).join(REDACTED);
-  s = s.replace(/postgres(ql)?:\/\/[^\s"'<>]*@[^\s"'<>]*/gi, `postgres://${REDACTED}`);
+  for (const x of secretForms(secrets)) s = s.split(x).join(REDACTED);
+  // Raw text: the userinfo may hold any character, so match up to the last @ of the whitespace-free run.
+  s = jsonText ? s.replace(/postgres(ql)?:\/\/[^\s"'<>]*@[^\s"'<>]*/gi, `postgres://${REDACTED}`) : s.replace(/postgres(ql)?:\/\/\S*@[^\s"'<>]*/gi, `postgres://${REDACTED}`);
   s = s.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/g, `$1 ${REDACTED}`);
   // Query strings anywhere in the text (HTML, logs): secret-named or token-looking values.
   s = s.replace(/([?&](?:amp;)?)([A-Za-z0-9_.-]+)=([^&#"'\s<>]*)/g, (m, sep, k, v) => {
@@ -65,6 +73,30 @@ export function redactText(text, secrets = []) {
     return SECRET_QUERY_KEY.test(k) || TOKENISH_VALUE.test(d) ? `${sep}${k}=REDACTED` : m;
   });
   return s;
+}
+
+/**
+ * Deep copy of a JSON-able value with every string (keys too) redacted while still raw, before any
+ * escaping. Errors become their message; cycles become "[circular]".
+ */
+export function redactValue(value, secrets = [], seen = new WeakSet()) {
+  if (typeof value === "string") return redactText(value, secrets);
+  if (value instanceof Error) return redactText(value.message, secrets);
+  if (value === null || typeof value !== "object") return value;
+  if (typeof value.toJSON === "function") return redactValue(value.toJSON(), secrets, seen);
+  if (seen.has(value)) return "[circular]";
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((v) => redactValue(v, secrets, seen));
+  if (value instanceof Map) return redactValue(Object.fromEntries(value), secrets, seen);
+  return Object.fromEntries(Object.entries(value).map(([k, v]) => [redactText(k, secrets), redactValue(v, secrets, seen)]));
+}
+
+/**
+ * The only way skill evidence JSON is serialized: redact the structured value first (raw strings),
+ * stringify, then redact the JSON text again for any escaped secret form (defense in depth).
+ */
+export function safeJson(value, secrets = [], space = 2) {
+  return redactText(JSON.stringify(redactValue(value, secrets), null, space), secrets, { jsonText: true });
 }
 
 /** URL with userinfo removed and secret-named or token-looking query values replaced (reset=1 stays). */
@@ -185,11 +217,12 @@ export async function captureFailure(page, { dir, kind, label, reason, recorder,
     failedRequests: ev
       .filter((e) => e.kind === "request")
       .map((e) => ({ method: e.method, url: redactUrl(e.url, all), status: e.status, ...(e.failure ? { failure: clean(e.failure) } : {}), requestHeaders: redactHeaders(e.headers, all) })),
-    ...JSON.parse(clean(JSON.stringify(extra))),
+    ...extra,
     files: { png: files.png, html: files.html },
     captureErrors,
   };
-  writeFileSync(path.join(dir, files.json), JSON.stringify(record, null, 2) + "\n");
+  // reason, extra and every field are redacted as raw values before stringifying (safeJson).
+  writeFileSync(path.join(dir, files.json), safeJson(record, all) + "\n");
   return files;
 }
 

@@ -37,7 +37,7 @@ import { runM2, runM4M5 } from "./numbers.mjs";
 import { ciGateIsPass } from "./status-ci-gate.mjs";
 import { PORTFOLIO_STEP, runPortfolioStep } from "./portfolio.mjs";
 import { RESET_BUDGET_MS, RESET_STEP, runResetTimeStep } from "./reset-time.mjs";
-import { redactText, secretValues, setFailureEvidence } from "./evidence.mjs";
+import { redactText, safeJson, secretValues, setFailureEvidence } from "./evidence.mjs";
 
 // Any crash prints one redacted line: never a DATABASE_URL, password or VERIFY_TOKEN from an error message.
 for (const ev of ["uncaughtException", "unhandledRejection"]) {
@@ -170,7 +170,7 @@ while (!commitMatches(health.body.commit).ok && Date.now() < deadline) {
   await new Promise((r) => setTimeout(r, 15000));
   health = await fetchHealth().catch((error) => ({ status: 0, body: { error: String(error) } }));
 }
-writeFileSync(path.join(outDir, "health.json"), safe(JSON.stringify(health, null, 2)));
+writeFileSync(path.join(outDir, "health.json"), safeJson(health, SECRETS));
 check("/health returns 200", health.status === 200, health.status);
 check("/health status ok", health.body.status === "ok", health.body.status);
 check("/health db ok", health.body.db === "ok", health.body.db);
@@ -182,7 +182,7 @@ check("/health db ok", health.body.db === "ok", health.body.db);
 if (mainCiOn) {
   const deployedFull = resolveSha(String(health.body.commit ?? "")) ?? null;
   const results = commitResults({ target, mainCi, mainCiError, release, releaseError, deployedFull, maxAgeHours: Number(args["max-green-age-hours"]) });
-  writeFileSync(path.join(outDir, "main-ci.json"), safe(JSON.stringify({ target, ...mainCi, release, deployedFull, results }, null, 2)));
+  writeFileSync(path.join(outDir, "main-ci.json"), safeJson({ target, ...mainCi, release, deployedFull, results }, SECRETS));
   for (const r of results) {
     if (r.severity === "WARN") warnings.push({ name: r.name, detail: r.detail });
     else check(r.name, r.severity === "PASS", r.detail);
@@ -247,7 +247,7 @@ try {
     built: await text("status-built"),
     database: await text("status-database"),
   };
-  writeFileSync(path.join(outDir, "status.json"), safe(JSON.stringify(status, null, 2)));
+  writeFileSync(path.join(outDir, "status.json"), safeJson(status, SECRETS));
   await page.screenshot({ path: path.join(outDir, "status.png"), fullPage: true });
   check("/status shows Operational", status.health === "Operational", status.health);
   {
@@ -344,7 +344,7 @@ async function navCrawl(browser) {
     const coverageFailures = drillCoverageFailures(rows, seedDrill, { roles: CRAWL_ROLES, budgetMs });
     writeFileSync(
       path.join(outDir, "crawl.json"),
-      safe(JSON.stringify({ pages, plan, roles: CRAWL_ROLES, widths: CRAWL_WIDTHS, budgetMs, slowest: slow && { ...slow, text: undefined }, slowestDrill: slowDrill && { ...slowDrill, text: undefined }, drill: { seedItems: seedDrill, itemCount: drillItemCount(seedDrill), access: DRILL_ROLE_ACCESS, plan: Object.fromEntries([...drill.plan].map(([k, v]) => [k, v.map((x) => x.path)])), discovery: drill.records, discoveryFailures, coverageFailures }, partC: { name: PART_C_CHECK_4, active: seedTargets.active, planLinked: seedTargets.planLinked, records: drill.partC.records, failures: partC, slowest: slowPartC && { ...slowPartC, text: undefined } }, failures, rows: rows.map((r) => ({ ...r, text: undefined, textChars: r.text.length })) }, null, 2)),
+      safeJson({ pages, plan, roles: CRAWL_ROLES, widths: CRAWL_WIDTHS, budgetMs, slowest: slow && { ...slow, text: undefined }, slowestDrill: slowDrill && { ...slowDrill, text: undefined }, drill: { seedItems: seedDrill, itemCount: drillItemCount(seedDrill), access: DRILL_ROLE_ACCESS, plan: Object.fromEntries([...drill.plan].map(([k, v]) => [k, v.map((x) => x.path)])), discovery: drill.records, discoveryFailures, coverageFailures }, partC: { name: PART_C_CHECK_4, active: seedTargets.active, planLinked: seedTargets.planLinked, records: drill.partC.records, failures: partC, slowest: slowPartC && { ...slowPartC, text: undefined } }, failures, rows: rows.map((r) => ({ ...r, text: undefined, textChars: r.text.length })) }, SECRETS),
     );
     const expectedLoads = expectedNavLoads(plan);
     check(
@@ -424,7 +424,7 @@ async function numberChecks(browser) {
         (m5.failures.length ? ` — ${m5.failures.join("; ")}` : ""),
     );
   });
-  writeFileSync(path.join(outDir, "numbers.json"), safe(JSON.stringify(numbers, null, 2)));
+  writeFileSync(path.join(outDir, "numbers.json"), safeJson(numbers, SECRETS));
 }
 
 async function flows(browser) {
@@ -577,7 +577,7 @@ async function flows(browser) {
     const r = await runResetTimeStep(page, base, { expectedRows: expectedJobCount });
     writeFileSync(
       path.join(outDir, "reset-times.json"),
-      safe(JSON.stringify(
+      safeJson(
         {
           budgetMs: RESET_BUDGET_MS,
           ready: "path <base>/app with reset=1 + new seeded-at + <main> visible with exactly the seeded job rows, all within 20 s of the click",
@@ -588,9 +588,8 @@ async function flows(browser) {
           failures: r.failures,
           infoOnlyNotInPassRule: { definition: "ready + no request in flight for 500 ms, watched at most 3000 ms after ready (capped)", idleValues: r.idleValues, idleMedian: r.idleMedian },
         },
-        null,
-        2,
-      )),
+        SECRETS,
+      ),
     );
     check(RESET_STEP, r.ok, r.detail);
   });
@@ -725,7 +724,7 @@ const result = {
   checks,
   warnings,
 };
-writeFileSync(path.join(outDir, "result.json"), safe(JSON.stringify(result, null, 2)));
+writeFileSync(path.join(outDir, "result.json"), safeJson(result, SECRETS));
 
 // Stamp the deploy so /status can show last-verify (requires VERIFY_TOKEN on the app + runner).
 // When VERIFY_TOKEN is set, a stamp failure fails the run (non-zero exit).
@@ -751,7 +750,7 @@ if (passed && process.env.VERIFY_TOKEN) {
         console.log(`stamped last-verify ${body.lastVerifyAt ?? checkedAt}`);
       } else {
         stampFailed = true;
-        console.log(`stamp failed HTTP ${res.status}: ${safe(JSON.stringify(body))}`);
+        console.log(`stamp failed HTTP ${res.status}: ${safeJson(body, SECRETS, 0)}`);
       }
     } catch (error) {
       stampFailed = true;

@@ -2,7 +2,8 @@
 // Must-fail self-tests for the pure checks in checks.mjs. Each new check must FAIL on bad input and
 // PASS on the good twin of that input. No network, no Playwright. Run: node checks.test.mjs
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -23,7 +24,7 @@ import {
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
-import { redactHeaders, redactText, redactUrl, secretValues } from "./evidence.mjs";
+import { captureFailure, redactHeaders, redactText, redactUrl, safeJson, secretValues } from "./evidence.mjs";
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
 import { execFileSync } from "node:child_process";
 import { PORTFOLIO_ROWS_TIMEOUT_MS, PORTFOLIO_SETTLE_MS, PORTFOLIO_STEP, portfolioOk, runPortfolioStep, waitForRowCount } from "./portfolio.mjs";
@@ -977,6 +978,55 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   const sv = secretValues({ VERIFY_TOKEN: "vt-canary-123456", GH_TOKEN: "ghp_canary123456", HOME: "/home/x", PORT: "3100" });
   assert.ok(sv.includes("vt-canary-123456") && sv.includes("ghp_canary123456") && !sv.includes("/home/x") && !sv.includes("3100"), JSON.stringify(sv));
   results.push("passes: secretValues takes VERIFY_TOKEN / GH_TOKEN, not HOME or PORT");
+}
+
+// ---- secrets with " and \ : redacted before serializing, so no escaped form survives (lead review 5646583341) ----
+{
+  const pw = String.raw`ab"cd\ef`;
+  const url = `postgres://u:${pw}@h:5432/d`;
+  const token = String.raw`vt"canary\9999-not-real`;
+  const secrets = secretValues({ DATABASE_URL: url, VERIFY_TOKEN: token });
+  const jsonEsc = (x) => JSON.stringify(x).slice(1, -1);
+  // Every form that must never be written: raw, JSON-escaped (once, twice), URL-encoded, HTML-escaped.
+  const forms = [pw, url, token].flatMap((x) => [x, jsonEsc(x), jsonEsc(jsonEsc(x)), encodeURIComponent(x), jsonEsc(encodeURIComponent(x)), x.replace(/"/g, "&quot;")]);
+  forms.push(String.raw`ab\"cd\\ef`, "ab&quot;cd\\ef"); // the exact strings the lead saw survive
+  const leaked = (text) => forms.filter((f) => text.includes(f));
+  {
+    const value = { err: url, msg: `connect failed for ${url}`, nested: [{ why: `password ${pw}` }, new Error(`boom ${url}`)], [`key ${pw}`]: token, auth: `Bearer ${token}` };
+    const out = safeJson(value, secrets);
+    assert.deepEqual(leaked(out), [], `safeJson must not leak a " / \\ secret in any form; got ${out}`);
+    assert.doesNotThrow(() => JSON.parse(out), "safeJson output is still valid JSON");
+    // A postgres URL that is not in the secret list (e.g. echoed by a driver error): only redacting the raw
+    // string catches it; once JSON-escaped, the quote ends the userinfo pattern before the @.
+    const other = String.raw`postgres://other:xy"zz\qq@db.test:5432/x`;
+    const o = safeJson({ error: `connect failed: ${other}`, list: [other] }, []);
+    assert.ok(!o.includes("xy") && !o.includes("zz") && !o.includes("qq@"), `safeJson must redact an unlisted postgres URL whose password has " and \\ ; got ${o}`);
+    results.push(`passes: safeJson redacts a " and \\ password (${JSON.stringify(pw)}) and token before stringifying; no raw or escaped form, valid JSON`);
+  }
+  {
+    // captureFailure (evidence.mjs) with a page double: reason, url, html, and the `extra` field all carry the secret.
+    const dir = mkdtempSync(path.join(os.tmpdir(), "esc-evidence-"));
+    const page = {
+      context: () => ({ cookies: async () => [] }),
+      screenshot: async ({ path: p }) => writeFileSync(p, "png"),
+      content: async () => `<p>${pw}</p><p>${pw.replace(/"/g, "&quot;")}</p><script>var u = ${JSON.stringify(url)}; var t = ${JSON.stringify(JSON.stringify(token))};</script>`,
+      url: () => `http://h.test/app?reset=1&note=${encodeURIComponent(pw)}`,
+    };
+    const files = await captureFailure(page, { dir, kind: "reset", label: "esc", reason: `reset failed: ${url} / ${jsonEsc(url)}`, secrets, extra: { err: url, deep: { list: [url, `x ${jsonEsc(pw)}`] } } });
+    assert.ok(files.json && files.html && files.png, JSON.stringify(files));
+    const written = readdirSync(dir).map((f) => readFileSync(path.join(dir, f), "utf8"));
+    const hits = written.flatMap((t) => leaked(t));
+    rmSync(dir, { recursive: true, force: true });
+    assert.deepEqual(hits, [], `captureFailure must not write a " / \\ secret in any form (json, html, extra); got ${JSON.stringify(hits)}`);
+    results.push("passes: captureFailure writes no raw or escaped \" / \\ secret to json (incl. extra), html or the url");
+  }
+  {
+    // Raw text (stdout, crash lines): the whole userinfo goes even when it holds a quote.
+    const line = redactText(`FAIL stress seed: crashed: Invalid URL ${url} (input "${url}")`, []);
+    assert.ok(!line.includes(pw) && !line.includes("cd\\ef"), `raw-text userinfo with " must be redacted with no secret list; got ${line}`);
+    assert.deepEqual(leaked(redactText(`crash ${url} ${jsonEsc(url)} ${token}`, secrets)), []);
+    results.push("passes: stdout/crash text: a \" / \\ password URL is redacted (pattern and secret forms)");
+  }
 }
 
 for (const line of results) console.log(line);

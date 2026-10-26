@@ -41,6 +41,9 @@ const VARIANTS = {
   // Fail fast with a reason (502b: the reset server action was cut off, Railway logged POST 499).
   "post-499": { delay: 200, postStatus: 499 }, // the reset POST answers 499: no redirect is coming
   "post-abort": { delay: 200, abort: true }, // the reset POST's connection is dropped with no answer
+  // The reset lands, but the new page's own same-origin POST (a fetch, like a server action) answers 500
+  // and the rows never come: still fails fast, but the reason must name that POST, not call it the reset POST.
+  "side-post-500": { delay: 200, rows: 0, sidePost: true },
   // Lands on /app?reset=1 but renders an error screen instead of the portfolio:
   "next-error": { delay: 200, landing: "next-error" }, // Next 16's built-in app-error screen, no layout
   "app-boundary": { delay: 200, landing: "app-boundary" }, // PR #15 route boundary inside the layout: seeded-at new, <main>, 0 rows
@@ -68,6 +71,7 @@ const page = (v, afterReset) => {
   const detach = c.detachThenUrlMs && afterReset
     ? `<script>setTimeout(() => { document.querySelector('[data-testid="seeded-at"]').remove(); history.replaceState(null, "", location.pathname.replace(/reset$/, "app") + "?reset=1"); }, ${c.detachThenUrlMs})</script>`
     : "";
+  const side = c.sidePost && afterReset ? `<script>fetch("/v/${v}/side", { method: "POST" });</script>` : "";
   const content = afterReset && c.main === false ? `<div>${body}</div>` : `<main>${body}</main>`;
   if (afterReset && c.landing === "next-error") {
     return `<!doctype html><html><body><div><h2>This page couldn’t load</h2><p>A server error occurred. Reload to try again.</p><button>Reload</button></div>
@@ -85,7 +89,7 @@ ${c.landing === "app-boundary-marker" ? boundaryHtml("Could not show the portfol
 <button data-testid="user-menu">Marcus</button>
 <time data-testid="seeded-at" datetime="seed-${seeded[v]}">seeded</time>
 <form method="post" action="/v/${v}/reset"><button type="submit">Reset demo</button></form>
-${content}${late}${chatter}${detach}</body></html>`;
+${content}${late}${chatter}${detach}${side}</body></html>`;
 };
 const server = http.createServer((req, res) => {
   const u = new URL(req.url, "http://x");
@@ -93,6 +97,10 @@ const server = http.createServer((req, res) => {
   if (u.pathname === "/api/broken") {
     res.writeHead(500);
     return res.end("broken");
+  }
+  if (/^\/v\/[^/]+\/side$/.test(u.pathname)) {
+    res.writeHead(500);
+    return res.end("side failed");
   }
   const m = /^\/v\/([^/]+)\/(app|reset|other)$/.exec(u.pathname);
   const v = m?.[1];
@@ -170,6 +178,7 @@ assert.equal(resets.stale, 5, "the stale page was really reset 5 times");
 for (const [v, re] of [
   ["post-499", /reset failed fast at (\d+) ms: reset POST \/v\/post-499\/reset answered HTTP 499 \(url \/v\/post-499\/(app|reset)[^,]*, (seeded-at|page read failed)[^)]*job rows\)/],
   ["post-abort", /reset failed fast at (\d+) ms: reset POST \/v\/post-abort\/reset failed: net::ERR_[A-Z_]+ \(url \/v\/post-abort\/[^,]+, (seeded-at|page read failed)[^)]*\)/],
+  ["side-post-500", /reset failed fast at (\d+) ms: POST \/v\/side-post-500\/side \(not the reset request\) answered HTTP 500 \(url \/v\/side-post-500\/app\?reset=1, seeded-at new, main visible, 0\/4 job rows\)/],
   ["next-error", /reset failed fast at (\d+) ms: error screen "This page couldn.t load" \(url \/v\/next-error\/app\?reset=1, page read failed: seeded-at element missing; main missing, 0\/4 job rows\)/],
   ["app-boundary", /reset failed fast at (\d+) ms: error screen marker \[data-testid="route-error"\] "Page load failed" \(url \/v\/app-boundary\/app\?reset=1, seeded-at new, main visible, 0\/4 job rows\)/],
   ["app-boundary-marker", /reset failed fast at (\d+) ms: error screen marker \[data-testid="route-error"\] \(url \/v\/app-boundary-marker\/app\?reset=1, seeded-at new, main visible, 0\/4 job rows\)/],

@@ -158,13 +158,13 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
       const page = await ctx.newPage();
       const sink = { responses: [], console: [], page: [] };
       watch(page, sink);
-      const rec = evidence ? startFailureRecorder(page) : null;
+      const failureRecorder = evidence ? startFailureRecorder(page) : null;
       let mark = 0;
       const capture = (kind, label, reason) =>
-        captureFailure(page, { dir: evidence.dir, kind, label: `${role}-w${width}-${label}`, reason, recorder: rec, mark, secrets, extra: { role, width } }).catch(() => null);
+        captureFailure(page, { dir: evidence.dir, kind, label: `${role}-w${width}-${label}`, reason, recorder: failureRecorder, mark, secrets, extra: { role, width } }).catch(() => null);
       /** measurePage + evidence: a failing or throwing load is captured before the page moves on. */
       const load = async (href, extra = {}) => {
-        mark = rec?.mark() ?? 0;
+        mark = failureRecorder?.mark() ?? 0;
         let row;
         try {
           row = { ...(await measurePage(page, base, href, sink, { width, role, shotDir })), ...extra };
@@ -213,15 +213,15 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
         }
         for (const job of drill?.partC?.active ?? []) {
           // Part C crawl check 4: one cost item page + one plan page for this active job at this role×width.
-          const rec = { role, width, job, costItemPath: null, planPath: null, planSource: null, why: {} };
-          drill.partC.records.push(rec);
+          const partCRecord = { role, width, job, costItemPath: null, planPath: null, planSource: null, why: {} };
+          drill.partC.records.push(partCRecord);
           const code = partCItemFor(drill.partC.planLinked, job, ri, wi, widths.length);
           const want = code && drillPath(job, code);
-          if (!code) rec.why["cost-item"] = "seed has no plan-linked cost item";
-          else if (!found.has(want)) rec.why["cost-item"] = `${want} not linked from the job page`;
+          if (!code) partCRecord.why["cost-item"] = "seed has no plan-linked cost item";
+          else if (!found.has(want)) partCRecord.why["cost-item"] = `${want} not linked from the job page`;
           let planLinks = [];
           if (want && found.has(want)) {
-            rec.costItemPath = want;
+            partCRecord.costItemPath = want;
             const row = await load(want, { partC: "cost-item", job });
             rows.push(row);
             onRow?.(row);
@@ -229,17 +229,17 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
           }
           const planHref = planLinks[0] ?? planCards[job]?.[0] ?? null;
           if (!planHref) {
-            rec.why.plan = "no plan link on the cost item's labor rows or the job page";
+            partCRecord.why.plan = "no plan link on the cost item's labor rows or the job page";
             continue;
           }
-          rec.planPath = planHref;
-          rec.planSource = planLinks[0] ? "cost item labor row" : "job page plan card";
+          partCRecord.planPath = planHref;
+          partCRecord.planSource = planLinks[0] ? "cost item labor row" : "job page plan card";
           const row = await load(planHref, { partC: "plan", job });
           rows.push(row);
           onRow?.(row);
         }
       } finally {
-        rec?.stop();
+        failureRecorder?.stop();
         await ctx.close();
       }
     }

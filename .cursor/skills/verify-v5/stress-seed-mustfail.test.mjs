@@ -13,7 +13,9 @@
 // Run: node .cursor/skills/verify-v5/stress-seed-mustfail.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +26,8 @@ const require = createRequire(path.join(here, "../../../v5/package.json"));
 const postgres = require("postgres");
 const script = path.join(here, "stress-seed.mjs");
 
-export const TEST_PASSWORDS = ["ab/cd", "p@ss/word", "Zq:/?#@%x"];
+// ab"cd\ef: a quote and a backslash come out escaped in JSON (lead review on PR #20).
+export const TEST_PASSWORDS = ["ab/cd", "p@ss/word", "Zq:/?#@%x", String.raw`ab"cd\ef`];
 const USER = "pvskill_user";
 const DB = "pv_skill_db";
 const lines = [];
@@ -38,8 +41,9 @@ const closedPort = await new Promise((r) => {
   });
 });
 
-/** Every way the secret could show up in output. */
-const leaks = (out, pw) => [pw, encodeURIComponent(pw), `${USER}:${pw}`].filter((x) => out.includes(x));
+/** Every way the secret could show up in output or evidence: raw, URL-encoded, JSON-escaped (once, twice), HTML-escaped. */
+const jsonEsc = (x) => JSON.stringify(x).slice(1, -1);
+const leaks = (out, pw) => [...new Set([pw, encodeURIComponent(pw), `${USER}:${pw}`, jsonEsc(pw), jsonEsc(jsonEsc(pw)), jsonEsc(`${USER}:${pw}`), pw.replace(/"/g, "&quot;")])].filter((x) => out.includes(x));
 
 const runSeed = (url, extraArgs = []) => {
   const r = spawnSync(process.execPath, [script, "--url", `http://127.0.0.1:${closedPort}`, ...extraArgs], {
@@ -61,10 +65,16 @@ for (const pw of TEST_PASSWORDS) {
   assert.deepEqual({ user: o.user, pass: o.pass, host: o.host, port: o.port, database: o.database }, { user: USER, pass: pw, host: ["127.0.0.1"], port: [closedPort], database: DB }, `postgres.js reads the same parts for ${JSON.stringify(pw)}`);
   await sql.end({ timeout: 1 });
   lines.push(`passes: ${JSON.stringify(pw)} → user ${USER}, host 127.0.0.1:${closedPort}, db ${DB}; postgres.js options agree`);
-  // 2. leak
-  const r = runSeed(url);
+  // 2. leak (stdout/stderr and the --out evidence file)
+  const outDir = mkdtempSync(path.join(os.tmpdir(), "stress-seed-out-"));
+  const outFile = path.join(outDir, "stress-seed.json");
+  const r = runSeed(url, ["--out", outFile]);
+  const written = readFileSync(outFile, "utf8");
+  rmSync(outDir, { recursive: true, force: true });
   assert.equal(r.status, 1, `stress-seed must exit 1 on a closed port; got ${r.status}: ${r.out.slice(0, 300)}`);
   assert.deepEqual(leaks(r.out, pw), [], `stress-seed output must not contain the password ${JSON.stringify(pw)}: ${JSON.stringify(r.out.slice(0, 400))}`);
+  assert.deepEqual(leaks(written, pw), [], `stress-seed --out must not contain the password ${JSON.stringify(pw)} in any form: ${written.slice(0, 400)}`);
+  assert.doesNotThrow(() => JSON.parse(written), "--out is valid JSON");
   assert.match(r.out, new RegExp(`FAIL stress seed .*ECONNREFUSED 127\\.0\\.0\\.1:${closedPort}`), `must fail by connecting to the parsed host:port; got ${JSON.stringify(r.out.slice(0, 400))}`);
   lines.push(`FAILS as expected (no leak): ${JSON.stringify(pw)} → ${r.out.trim().split("\n")[0].slice(0, 160)}`);
 }

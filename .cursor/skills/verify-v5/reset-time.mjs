@@ -51,12 +51,14 @@ function contentState(seen, expectedRows) {
 }
 
 /**
- * Watches the reset POST (the Reset demo server action / form post to the app's origin): returns
- * { failure } once it answers HTTP >= 400 or fails on the network. Tolerates page doubles without
- * these events.
+ * Watches same-origin POSTs after the Reset demo click and returns { failure } once one answers HTTP >= 400
+ * or fails on the network. The reset request itself (the Reset demo form submit, a navigation POST, or
+ * the Next server action, a POST carrying a Next-Action header) is reported as "reset POST <path>"; any
+ * other failing same-origin POST is named by its own method and path and marked as not the reset request.
+ * Tolerates page doubles without these events.
  */
 function watchResetPost(page, origin) {
-  const state = { failure: null };
+  const state = { failure: null, reset: null };
   const sameOrigin = (u) => {
     try {
       return new URL(u).origin === origin;
@@ -68,17 +70,31 @@ function watchResetPost(page, origin) {
     const x = new URL(u);
     return `${x.pathname}${x.search}`;
   };
+  const isPost = (req) => typeof req?.method === "function" && req.method() === "POST" && sameOrigin(req.url());
+  const isResetRequest = (req) => {
+    let headers = {};
+    try {
+      headers = req.headers?.() ?? {};
+    } catch {
+      // diagnostics only
+    }
+    return Boolean(req.isNavigationRequest?.()) || Object.keys(headers).some((k) => k.toLowerCase() === "next-action");
+  };
+  const label = (req) => (req === state.reset ? `reset POST ${where(req.url())}` : `POST ${where(req.url())} (not the reset request)`);
+  const onRequest = (req) => {
+    if (!state.reset && isPost(req) && isResetRequest(req)) state.reset = req;
+  };
   const onResponse = (r) => {
     const req = typeof r?.request === "function" ? r.request() : null;
-    if (state.failure || !req || req.method?.() !== "POST" || !sameOrigin(r.url()) || !(r.status() >= 400)) return;
-    state.failure = `reset POST ${where(r.url())} answered HTTP ${r.status()}`;
+    if (state.failure || !isPost(req) || !(r.status() >= 400)) return;
+    state.failure = `${label(req)} answered HTTP ${r.status()}`;
   };
   const onFailed = (req) => {
-    if (state.failure || typeof req?.method !== "function" || req.method() !== "POST" || !sameOrigin(req.url())) return;
-    state.failure = `reset POST ${where(req.url())} failed: ${req.failure?.()?.errorText ?? "request failed"}`;
+    if (state.failure || !isPost(req)) return;
+    state.failure = `${label(req)} failed: ${req.failure?.()?.errorText ?? "request failed"}`;
   };
   const offs = [];
-  for (const [e, f] of [["response", onResponse], ["requestfailed", onFailed]]) {
+  for (const [e, f] of [["request", onRequest], ["response", onResponse], ["requestfailed", onFailed]]) {
     try {
       page.on(e, f);
       offs.push(() => page.off(e, f));
@@ -236,7 +252,7 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
         // An error screen never becomes the reseeded portfolio: fail now, not at the timeout.
         throw new Error(`reset failed fast at ${at - t0} ms: error screen ${seen.errorScreen} (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
       } else if (post.failure) {
-        // The reset POST was cut off or refused (the 502b 499): no redirect is coming.
+        // A same-origin POST was cut off or refused (the 502b reset POST got 499): no redirect is coming.
         throw new Error(`reset failed fast at ${at - t0} ms: ${post.failure} (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
       } else if (at >= deadline) {
         throw new Error(`reset not ready after ${timeoutMs} ms (url ${seen.href ?? "unknown"}, ${stateOf(seen)})`);
