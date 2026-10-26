@@ -104,12 +104,39 @@ export const PRIMARY_ACTION_VERB = {
 };
 
 /**
+ * Kind of a clipped box. Protected content wins over a secondary label:
+ * a status pill, money (`data-cents` or a `$` amount), a table header, or an h1 / page title
+ * anywhere in the box (the element, an ancestor that is that thing, or a descendant).
+ * A secondary label is only the job strip, the company name, or `data-clip="secondary"`.
+ * Being inside `header` does not make a clip secondary.
+ */
+export function classifyClip({ statusInBox, centsInBox, moneyText, headerInBox, titleInBox, secondaryBox }) {
+  if (statusInBox) return "status";
+  if (centsInBox || moneyText) return "money";
+  if (headerInBox) return "header";
+  if (titleInBox) return "title";
+  if (secondaryBox) return "secondary";
+  return "text";
+}
+
+/** Own title or aria-label must equal the full text after trimming, or a proven expansion is open. */
+export function secondaryReachable({ text, title, ariaLabel, expanded }) {
+  const full = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!full) return false;
+  const eq = (value) => String(value ?? "").replace(/\s+/g, " ").trim() === full;
+  if (eq(title) || eq(ariaLabel)) return true;
+  return expanded === true;
+}
+
+/**
  * Phone layout observations from the crawl (missing fields are skipped, so a row that predates them
- * still passes; measurePage always records them).
+ * still passes). measurePage records them only when phone checks are on (`--rc` for 5.0.4 or later,
+ * or `--phone-checks`). The default crawl omits them.
  * docScrollWidth / viewportWidth: max(documentElement, body) scrollWidth vs the crawl viewport (320 or 390).
  * tapMisses: { tag, w, h, text } under 44×44 at phone widths.
  * textMisses: { kind: "secondary"|"input", px, text }.
- * clips: { kind: "money"|"status"|"header"|"secondary"|"text", text, reachable }.
+ * clips: { kind: "money"|"status"|"header"|"title"|"secondary"|"text", text, reachable, ellipsis }.
+ * clipCount: every clipped element. When it is greater than clips.length, a later clip was not listed.
  * primaryActions: { role, text, tag, visible, inView, blocked } from the landing page.
  */
 export function evaluatePhoneUx(row) {
@@ -134,15 +161,21 @@ export function evaluatePhoneUx(row) {
     const textShown = row.textMisses?.length ?? 0;
     if ((row.textMissCount ?? textShown) > textShown) f.push(`${where}: ${row.textMissCount} text nodes under the phone size floor`);
   }
+  const clipShown = row.clips?.length ?? 0;
+  if ((row.clipCount ?? clipShown) > clipShown) f.push(`${where}: ${row.clipCount} clipped elements, only ${clipShown} listed`);
+  const phone = Number.isFinite(width) && width <= PHONE_MAX_PX;
+  const desktop = Number.isFinite(width) && width >= DESKTOP_MIN_PX;
   for (const c of row.clips ?? []) {
     const label = clipLabel(c.text);
     if (c.kind === "money") f.push(`${where}: clipped money "${label}"`);
     else if (c.kind === "status") f.push(`${where}: clipped status pill "${label}"`);
     else if (c.kind === "header") f.push(`${where}: clipped table header "${label}"`);
-    else if (Number.isFinite(width) && width >= DESKTOP_MIN_PX) f.push(`${where}: clipped text at ${width}px "${label}"`);
-    else if (c.kind === "secondary" && Number.isFinite(width) && width <= PHONE_MAX_PX && c.reachable) {
-      // Phone secondary labels (job strip, company name) may ellipsize when the full text is reachable.
-    } else if (c.kind === "secondary") f.push(`${where}: clipped secondary label "${label}" with no reachable full text`);
+    else if (c.kind === "title") f.push(`${where}: clipped page title "${label}"`);
+    else if (desktop) f.push(`${where}: clipped text at ${width}px "${label}"`);
+    else if (c.kind === "secondary" && phone && c.ellipsis === true && c.reachable === true) {
+      // At ≤480 only, a secondary label may ellipsize when its own title or aria-label equals the full text, or a proven expansion is open.
+    } else if (c.kind === "secondary" && phone && c.ellipsis !== true) f.push(`${where}: clipped secondary label "${label}" is a hard clip`);
+    else if (c.kind === "secondary") f.push(`${where}: clipped secondary label "${label}" with no reachable full text`);
     else f.push(`${where}: clipped text "${label}"`);
   }
   if (row.path === "/app" && Number.isFinite(width) && width <= PHONE_MAX_PX && Array.isArray(row.primaryActions)) {
@@ -172,7 +205,7 @@ function clipLabel(text) {
  *        errorBoundaryMarkers: [selector-matched testids], docScrollWidth, viewportWidth, tapMisses,
  *        textMisses, clips, primaryActions }
  */
-export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS } = {}) {
+export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS, phoneChecks = false } = {}) {
   const f = [];
   const where = `${row.role}@${row.width} ${row.path}`;
   if (row.status !== 200) f.push(`${where}: navigation HTTP ${row.status}`);
@@ -199,7 +232,9 @@ export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS } = {}) {
   if (row.path.startsWith("/app/jobs/") && !costItemPage && !planPage && !(c.costRows > 0)) f.push(`${where}: job has no cost rows`);
   if (costItemPage && !(c.costItemTiles > 0)) f.push(`${where}: cost item page has no budget tile`);
   if (planPage && !(c.planStatus > 0)) f.push(`${where}: plan page has no plan status`);
-  f.push(...evaluatePhoneUx(row));
+  // Phone layout is off for the default crawl and for 5.0.2 / 5.0.3 per-PR verifies.
+  // --rc (5.0.4 or later) and --phone-checks turn it on. The must-fail tests call evaluatePhoneUx directly.
+  if (phoneChecks) f.push(...evaluatePhoneUx(row));
   return f;
 }
 

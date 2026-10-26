@@ -6,7 +6,7 @@
 // (last green commit, red main HEAD) — see SKILL.md.
 // Usage: node .cursor/skills/verify-v5/verify.mjs [--url URL] [--commit SHA] [--wait SECONDS] [--shots DIR]
 //        [--main-ci auto|on|off] [--max-green-age-hours 24] [--page-budget-ms 1500] [--self-check]
-//        [--rc SHA] [--rc-version 5.0.4]
+//        [--rc SHA] [--rc-version 5.0.4] [--phone-checks]
 // Writes evidence to .cursor/skills/verify-v5/evidence/<timestamp>/ and exits 1 on any failed check.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -41,10 +41,12 @@ import { RESET_BUDGET_MS, RESET_STEP, runResetTimeStep } from "./reset-time.mjs"
 import { redactText, safeJson, secretValues, setFailureEvidence } from "./evidence.mjs";
 import {
   attributeChecks,
+  browserFailureCheck,
   buildRcChecks,
   deployedForMainRule,
   evaluateRcHead,
   journalAppliesCleanly,
+  phoneChecksEnabled,
   readRcHistory,
   resolveRcMode,
 } from "./rc.mjs";
@@ -75,6 +77,9 @@ const { values: args } = parseArgs({
     // RC handover (from 5.0.4): staging must serve this exact rc/<version> head. Absent = per-PR flow.
     rc: { type: "string" },
     "rc-version": { type: "string", default: "5.0.4" },
+    // Phone layout checks (overflow, tap, text, clipping, one-tap). Also on for --rc at 5.0.4+.
+    // Default crawl and 5.0.2 / 5.0.3 per-PR verifies leave this off.
+    "phone-checks": { type: "boolean", default: false },
   },
 });
 
@@ -94,6 +99,7 @@ if (targetError) {
 }
 const production = target === "production";
 const { rc, error: rcError } = resolveRcMode({ version: args["rc-version"], sha: args.rc, commit: args.commit, target });
+const phoneChecks = phoneChecksEnabled({ rc, flag: args["phone-checks"] });
 if (rcError) {
   console.error(rcError);
   process.exit(1);
@@ -263,8 +269,9 @@ let statusCommitShown = null;
 let migrationsLabel = null;
 const rcSignals = { crawlRan: false, crawlFailures: [] };
 
-const browser = await chromium.launch();
+let browser;
 try {
+  browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
   check("/ redirects to /login", new URL(page.url()).pathname === "/login", page.url());
@@ -342,8 +349,13 @@ try {
   await flows(browser);
   await navCrawl(browser);
   await numberChecks(browser);
+} catch (error) {
+  // A dead deploy used to reach only the process crash handler, which prints "verify-v5 crashed"
+  // and never writes rc.json. Name the failure and let the RC block below still write it.
+  const failed = browserFailureCheck(statusCommitShown, error?.message ?? error);
+  check(failed.name, false, failed.detail);
 } finally {
-  await browser.close();
+  await browser?.close();
 }
 
 check(
@@ -374,8 +386,8 @@ async function navCrawl(browser) {
   };
   await step("nav crawl: 4 roles × pages × 320/390/768/1280", async () => {
     const rows = [];
-    for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
-    const failures = rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs }));
+    for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined, phoneChecks, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
+    const failures = rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks }));
     rcSignals.crawlRan = true;
     rcSignals.crawlFailures = failures;
     const slow = slowestRow(rows);
@@ -400,7 +412,7 @@ async function navCrawl(browser) {
     );
     // /roadmap gets the same per-load checks; this names its coverage (5.0.1 acceptance check 12).
     const roadmapRows = rows.filter((r) => r.path === "/roadmap");
-    const roadmapFailures = roadmapCoverageFailures(rows, { budgetMs });
+    const roadmapFailures = roadmapCoverageFailures(rows, { budgetMs, phoneChecks });
     check(
       "nav crawl includes /roadmap",
       roadmapFailures.length === 0,

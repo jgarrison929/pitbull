@@ -13,8 +13,10 @@ import {
   resolveTarget,
   bannedHits,
   emptyHitAllowed,
+  classifyClip,
   DESKTOP_MIN_PX,
   evaluateCrawlRow,
+  evaluatePhoneUx,
   evaluateM2,
   evaluateM4,
   evaluateM5,
@@ -27,6 +29,7 @@ import {
   PHONE_MAX_PX,
   PHONE_OVERFLOW_WIDTHS,
   PRIMARY_ACTION_VERB,
+  secondaryReachable,
   shaMatches,
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
@@ -41,14 +44,17 @@ import {
   acceptanceItems,
   attributeChecks,
   attributeFailure,
+  browserFailureCheck,
   buildRcChecks,
   deployedForMainRule,
+  failureSegments,
   evaluateRcAcceptance,
   evaluateRcHead,
   evaluateRcMigrations,
   journalAppliesCleanly,
   migrationsAdded,
   parseRcMerges,
+  phoneChecksEnabled,
   readRcHistory,
   resolveRcMode,
 } from "./rc.mjs";
@@ -129,30 +135,71 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
     assert.match(src, new RegExp(`^export const ${name} = ${value};$`, "m"), `${name} must be the literal ${value}`);
   }
   assert.match(src, /^export function evaluatePhoneUx\(row\) \{$/m, "evaluatePhoneUx takes only the row");
+  assert.match(src, /phoneChecks = false/, "phone checks default off");
+  assert.match(src, /if \(phoneChecks\) f\.push\(\.\.\.evaluatePhoneUx\(row\)\)/, "evaluateCrawlRow calls evaluatePhoneUx only when asked");
   const crawlSrc = readFileSync(path.join(here, "crawl.mjs"), "utf8");
-  for (const field of ["docScrollWidth", "viewportWidth", "tapMisses", "textMisses", "clips", "primaryActions"]) {
+  for (const field of ["docScrollWidth", "viewportWidth", "tapMisses", "textMisses", "clips", "primaryActions", "clipCount"]) {
     assert.ok(crawlSrc.includes(field), `measurePage must record ${field}`);
   }
+  assert.match(crawlSrc, /classifyClip\(/, "the crawl classifies clips with classifyClip");
+  assert.match(crawlSrc, /secondaryReachable\(/, "the crawl decides reachability with secondaryReachable");
+  assert.doesNotMatch(crawlSrc, /clips\.length < 8/, "a clip cap must not drop a later clip");
+  assert.doesNotMatch(crawlSrc, /closest\("a\[href\]"\)/, "a link is not a reachable full text");
+  assert.doesNotMatch(crawlSrc, /data-clip='secondary'\], header/, "a header is not a secondary label");
   const phone = {
     ...good, width: 320, docScrollWidth: 320, viewportWidth: 320,
     tapMisses: [], textMisses: [], clips: [], primaryActions: [],
   };
-  mustPass("phone observations within the floors", evaluateCrawlRow(phone));
-  mustFail("document scrollWidth 422px at viewport 320", evaluateCrawlRow({ ...phone, docScrollWidth: 422 }));
-  mustFail("document scrollWidth 400px at viewport 390", evaluateCrawlRow({ ...phone, width: 390, docScrollWidth: 400, viewportWidth: 390 }));
-  mustPass("422px document inside a 1280 viewport", evaluateCrawlRow({ ...phone, width: 1280, docScrollWidth: 422, viewportWidth: 1280 }));
-  mustFail("tap target 20×20", evaluateCrawlRow({ ...phone, tapMisses: [{ tag: "button", w: 20, h: 20, text: "Go" }] }));
-  mustFail("tap target 44×43.9", evaluateCrawlRow({ ...phone, tapMisses: [{ tag: "a", w: 44, h: 43.9, text: "Portfolio" }] }));
-  mustPass("tap target exactly 44×44 is not a miss", evaluateCrawlRow(phone));
-  mustFail("secondary text 11px", evaluateCrawlRow({ ...phone, textMisses: [{ kind: "secondary", px: 11, text: "Portfolio" }] }));
-  mustFail("input text 14px", evaluateCrawlRow({ ...phone, textMisses: [{ kind: "input", px: 14, text: "Hours" }] }));
-  mustFail("clipped money, even with a title", evaluateCrawlRow({ ...phone, clips: [{ kind: "money", text: "$1,234.56", reachable: true }] }));
-  mustFail("clipped money at 1280", evaluateCrawlRow({ ...phone, width: 1280, clips: [{ kind: "money", text: "$1,234.56", reachable: true }] }));
-  mustFail("clipped status pill 'At risk'", evaluateCrawlRow({ ...phone, clips: [{ kind: "status", text: "At risk", reachable: true }] }));
-  mustFail("clipped table header 'Actual'", evaluateCrawlRow({ ...phone, clips: [{ kind: "header", text: "Actual", reachable: true }] }));
-  mustFail("desktop ellipsis even with a title", evaluateCrawlRow({ ...phone, width: 1280, clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: true }] }));
-  mustFail("phone secondary ellipsis with no reachable full text", evaluateCrawlRow({ ...phone, clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: false }] }));
-  mustPass("phone secondary ellipsis with a title", evaluateCrawlRow({ ...phone, clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: true }] }));
+  const allowedSecondary = { kind: "secondary", text: "Cedar Creek Bridge", reachable: true, ellipsis: true };
+  mustPass("phone observations within the floors", evaluatePhoneUx(phone));
+  mustPass(
+    "default crawl ignores phone failures",
+    evaluateCrawlRow({
+      ...phone,
+      docScrollWidth: 422,
+      tapMisses: [{ tag: "button", w: 20, h: 20, text: "Go" }],
+      textMisses: [{ kind: "secondary", px: 11, text: "Portfolio" }],
+      clips: [{ kind: "money", text: "$1,234.56", reachable: true, ellipsis: true }],
+      primaryActions: [],
+    }),
+  );
+  mustFail("document scrollWidth 422px at viewport 320", evaluatePhoneUx({ ...phone, docScrollWidth: 422 }));
+  mustFail("document scrollWidth 400px at viewport 390", evaluatePhoneUx({ ...phone, width: 390, docScrollWidth: 400, viewportWidth: 390 }));
+  mustPass("422px document inside a 1280 viewport", evaluatePhoneUx({ ...phone, width: 1280, docScrollWidth: 422, viewportWidth: 1280 }));
+  mustFail("tap target 20×20", evaluatePhoneUx({ ...phone, tapMisses: [{ tag: "button", w: 20, h: 20, text: "Go" }] }));
+  mustFail("tap target 44×43.9", evaluatePhoneUx({ ...phone, tapMisses: [{ tag: "a", w: 44, h: 43.9, text: "Portfolio" }] }));
+  mustPass("tap target exactly 44×44 is not a miss", evaluatePhoneUx(phone));
+  mustFail("secondary text 11px", evaluatePhoneUx({ ...phone, textMisses: [{ kind: "secondary", px: 11, text: "Portfolio" }] }));
+  mustFail("input text 14px", evaluatePhoneUx({ ...phone, textMisses: [{ kind: "input", px: 14, text: "Hours" }] }));
+  mustFail("clipped money, even with a title", evaluatePhoneUx({ ...phone, clips: [{ kind: "money", text: "$1,234.56", reachable: true, ellipsis: true }] }));
+  mustFail("clipped money at 1280", evaluatePhoneUx({ ...phone, width: 1280, clips: [{ kind: "money", text: "$1,234.56", reachable: true, ellipsis: true }] }));
+  mustFail("clipped status pill 'At risk'", evaluatePhoneUx({ ...phone, clips: [{ kind: "status", text: "At risk", reachable: true, ellipsis: true }] }));
+  mustFail("clipped table header 'Actual'", evaluatePhoneUx({ ...phone, clips: [{ kind: "header", text: "Actual", reachable: true, ellipsis: true }] }));
+  mustFail("clipped page title", evaluatePhoneUx({ ...phone, clips: [{ kind: "title", text: "Cedar Creek Bridge", reachable: true, ellipsis: true }] }));
+  mustFail("desktop ellipsis even with a title", evaluatePhoneUx({ ...phone, width: 1280, clips: [{ ...allowedSecondary }] }));
+  mustFail("phone secondary ellipsis with no reachable full text", evaluatePhoneUx({ ...phone, clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: false, ellipsis: true }] }));
+  mustFail("phone secondary hard clip", evaluatePhoneUx({ ...phone, clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: true, ellipsis: false }] }));
+  mustPass("phone secondary ellipsis with a title", evaluatePhoneUx({ ...phone, clips: [{ ...allowedSecondary }] }));
+  const eight = Array.from({ length: 8 }, () => ({ ...allowedSecondary }));
+  const capped = evaluatePhoneUx({ ...phone, clips: eight, clipCount: 9 });
+  mustFail("9th clip hidden past a list of 8", capped);
+  assert.ok(capped.some((x) => /9 clipped elements, only 8 listed/.test(x)), `cap must be named; got ${JSON.stringify(capped)}`);
+  assert.equal(classifyClip({ centsInBox: true, secondaryBox: true }), "money", "money inside a secondary box is money");
+  assert.equal(classifyClip({ moneyText: true, secondaryBox: true }), "money");
+  assert.equal(classifyClip({ statusInBox: true, secondaryBox: true }), "status", "a status pill inside a secondary box is a status pill");
+  assert.equal(classifyClip({ headerInBox: true, secondaryBox: true }), "header", "a th inside a secondary box is a table header");
+  assert.equal(classifyClip({ titleInBox: true, secondaryBox: true }), "title", "an h1 inside a secondary box is a page title");
+  assert.equal(classifyClip({ secondaryBox: true }), "secondary");
+  assert.equal(classifyClip({}), "text");
+  assert.equal(secondaryReachable({ text: "Cedar Creek Bridge", title: "Cedar Creek Bridge" }), true);
+  assert.equal(secondaryReachable({ text: "Cedar Creek Bridge", ariaLabel: "  Cedar   Creek Bridge " }), true);
+  assert.equal(secondaryReachable({ text: "Cedar Creek Bridge", title: "See Cedar Creek Bridge" }), false, "a title that merely contains the text is not the full text");
+  assert.equal(secondaryReachable({ text: "Cedar Creek Bridge", expanded: true }), true);
+  assert.equal(secondaryReachable({ text: "Cedar Creek Bridge" }), false);
+  assert.equal(phoneChecksEnabled({}), false);
+  assert.equal(phoneChecksEnabled({ rc: null, flag: false }), false);
+  assert.equal(phoneChecksEnabled({ flag: true }), true);
+  assert.equal(phoneChecksEnabled({ rc: { version: "5.0.4", sha: "a".repeat(40) } }), true);
   const action = (role, text, extra = {}) => ({ role, text, tag: "A", visible: true, inView: true, blocked: false, ...extra });
   const landing = (role, actions) => ({
     ...phone, role, path: "/app", final: "/app", seededCounts: { portfolioRows: 4, costRows: 0 },
@@ -163,13 +210,14 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
       action("foreman", "Report today's quantities"),
     ],
   });
-  for (const role of ["executive", "pm", "superintendent", "foreman"]) mustPass(`${role} one-tap primary action`, evaluateCrawlRow(landing(role)));
-  mustFail("primary action inside a closed disclosure", evaluateCrawlRow(landing("pm", [action("pm", "Approve CO-001", { visible: false, inView: false, blocked: true })])));
-  mustFail("landing page with no primary action", evaluateCrawlRow(landing("foreman", [])));
-  mustFail("primary action below the fold", evaluateCrawlRow(landing("superintendent", [action("superintendent", "Submit tomorrow's plan", { inView: false })])));
-  mustPass("desktop landing does not require a one-tap action", evaluateCrawlRow({ ...landing("pm", []), width: 1280 }));
+  for (const role of ["executive", "pm", "superintendent", "foreman"]) mustPass(`${role} one-tap primary action`, evaluatePhoneUx(landing(role)));
+  mustFail("primary action inside a closed disclosure", evaluatePhoneUx(landing("pm", [action("pm", "Approve CO-001", { visible: false, inView: false, blocked: true })])));
+  mustFail("landing page with no primary action", evaluatePhoneUx(landing("foreman", [])));
+  mustFail("primary action below the fold", evaluatePhoneUx(landing("superintendent", [action("superintendent", "Submit tomorrow's plan", { inView: false })])));
+  mustPass("desktop landing does not require a one-tap action", evaluatePhoneUx({ ...landing("pm", []), width: 1280 }));
   // The old overflow check is unchanged: 1px still fails, and a phone pass does not clear it.
   mustFail("horizontal overflow 1px still fails beside a clean document width", evaluateCrawlRow({ ...phone, overflowPx: 1 }));
+  mustFail("phone checks on does not clear a 1px overflow", evaluateCrawlRow({ ...phone, overflowPx: 1 }, { phoneChecks: true }));
 }
 
 // ---- M2 ----
@@ -700,6 +748,10 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     assert.match(src, /const results = commitResults\(\{ target, mainCi, mainCiError, release, releaseError, deployedFull: deployedForMainRule\(rc\?\.sha, deployedFull\),/);
     assert.match(src, /evaluateRcHead\(\{ rcSha: rc\.sha, shown: status\.commit/);
     assert.match(src, /attributeChecks\(checks, merges\)/);
+    assert.match(src, /"phone-checks": \{ type: "boolean", default: false \}/);
+    assert.match(src, /phoneChecksEnabled\(\{ rc, flag: args\["phone-checks"\] \}\)/);
+    assert.match(src, /browserFailureCheck\(statusCommitShown/);
+    assert.match(src, /evaluateCrawlRow\(r, \{ budgetMs, phoneChecks \}\)/);
     assert.doesNotMatch(src, /evaluateMain\(/, "verify.mjs must not call evaluateMain directly");
     assert.doesNotMatch(src, /v5Commits\.find/, "verify.mjs must not pick the expected commit itself");
     assert.doesNotMatch(src, /"(skip|no)-release|skipRelease|skip_release/i, "no release skip flag");
@@ -1308,14 +1360,46 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
 
   assert.equal(resolveRcMode({ sha: "" }).rc, null);
   assert.equal(resolveRcMode({ sha: "" }).error, null);
+  assert.match(resolveRcMode({ version: "5.0.2" }).error, /5\.0\.2 stays on the per-PR flow/);
+  assert.equal(resolveRcMode({ version: "5.0.2" }).rc, null);
+  assert.match(resolveRcMode({ version: "5.0.2", sha: "" }).error, /5\.0\.2 stays on the per-PR flow/);
+  assert.match(resolveRcMode({ version: "5.0.3", sha: "" }).error, /5\.0\.3 stays on the per-PR flow/);
   assert.match(resolveRcMode({ version: "5.0.2", sha: rcSha }).error, /5\.0\.2 stays on the per-PR flow/);
   assert.match(resolveRcMode({ version: "5.0.3", sha: rcSha }).error, /5\.0\.3 stays on the per-PR flow/);
-  assert.match(resolveRcMode({ version: "5.1.0", sha: rcSha }).error, /RC flow starts at 5\.0\.4/);
+  assert.equal(resolveRcMode({ version: "5.1.0", sha: rcSha }).rc.branch, "rc/5.1.0");
+  assert.equal(resolveRcMode({ version: "5.0.5", sha: rcSha }).rc.branch, "rc/5.0.5");
+  assert.match(resolveRcMode({ version: "5.0.1", sha: rcSha }).error, /RC flow starts at 5\.0\.4/);
   assert.match(resolveRcMode({ sha: "abc" }).error, /full 40-char/);
   assert.match(resolveRcMode({ sha: rcSha, commit: other }).error, /disagrees/);
   assert.match(resolveRcMode({ sha: rcSha, target: "production" }).error, /production keeps the release-tag/);
   assert.equal(resolveRcMode({ sha: rcSha, commit: rcSha.toUpperCase(), target: "staging" }).rc.branch, "rc/5.0.4");
-  results.push("passes: 5.0.2 and 5.0.3 stay per PR; a short SHA, a disagreeing --commit, and production are refused");
+  results.push("passes: 5.0.2 and 5.0.3 stay per PR even with no --rc; 5.0.4 and later are an RC; a short SHA, a disagreeing --commit, and production are refused");
+  for (const version of ["5.0.2", "5.0.3"]) {
+    let refused;
+    try {
+      refused = execFileSync(process.execPath, [path.join(here, "verify.mjs"), "--self-check", "--rc-version", version], {
+        encoding: "utf8",
+        env: { ...process.env, VERIFY_TOKEN: "" },
+        timeout: 60_000,
+      });
+      refused = { status: 0, stdout: refused, stderr: "" };
+    } catch (error) {
+      refused = { status: error.status, stdout: String(error.stdout ?? ""), stderr: String(error.stderr ?? "") };
+    }
+    assert.equal(refused.status, 1, `--rc-version ${version} without --rc must exit 1`);
+    assert.match(`${refused.stderr}\n${refused.stdout}`, new RegExp(`${version.replaceAll(".", "\\.")} stays on the per-PR flow`));
+    assert.doesNotMatch(refused.stdout, /self-check ok/, `refused ${version} must not print self-check ok`);
+    results.push(`FAILS as expected: --self-check --rc-version ${version} (no --rc) → ${version} stays on the per-PR flow`);
+  }
+  const down = browserFailureCheck(null, "net::ERR_CONNECTION_REFUSED\n    at goto");
+  assert.equal(down.ok, false);
+  assert.equal(down.name, "/status unreachable");
+  assert.match(down.detail, /ERR_CONNECTION_REFUSED/);
+  assert.doesNotMatch(down.detail, /\n/);
+  const later = browserFailureCheck("abc123", "page closed");
+  assert.equal(later.name, "browser run stopped");
+  assert.equal(browserFailureCheck(undefined, "").detail, "no error message");
+  results.push("FAILS as expected: /status not read → /status unreachable; a later browser throw is browser run stopped");
 
   assert.equal(deployedForMainRule(rcSha, other), undefined);
   assert.equal(deployedForMainRule(null, other), other);
@@ -1360,6 +1444,22 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.ok(!tracedMiss[0].detail.includes("#31"));
   mustFail("failure traced to the PR that changed the mapped files", [`PR #${named.prs[0]}`]);
   results.push("passes: document scrollWidth names PR #24 (layout.tsx, shell.tsx) and does not name PR #31 (plans.ts)");
+
+  const clipLine = 'foreman@320 /app: clipped money "$1,234.56"';
+  const twoMerges = [
+    { number: 24, sha: "d".repeat(40), subject: "fix(v5): phone overflow (#24)", files: ["v5/src/app/layout.tsx"] },
+    { number: 40, sha: "e".repeat(40), subject: "format money (#40)", files: ["v5/src/components/app/format.tsx"] },
+  ];
+  const combined = `4/4 page loads, 2 failures; slowest 80 ms (pm@320 /app), budget 1500 ms — ${overflow}; ${clipLine}`;
+  const firstRule = attributeFailure(`nav crawl ${combined}`, twoMerges);
+  assert.deepEqual(firstRule.prs, [24], `the combined detail must still hit only the first rule; got ${JSON.stringify(firstRule)}`);
+  assert.deepEqual(failureSegments(combined), [overflow, clipLine]);
+  const splitTrace = attributeChecks([{ name: "nav crawl", ok: false, detail: combined }], twoMerges);
+  assert.deepEqual(splitTrace[0].prs, [24, 40], `each failure line names its own PR; got ${JSON.stringify(splitTrace[0])}`);
+  assert.match(splitTrace[0].detail, /document scrollWidth 422px > viewport 320px — PR #24/);
+  assert.match(splitTrace[0].detail, /clipped money "\$1,234\.56" — PR #40/);
+  assert.ok(!splitTrace[0].detail.includes("#31"));
+  results.push("FAILS as expected: two crawl lines → PR #24 (layout.tsx) and PR #40 (format.tsx), not the first rule alone");
 
   const unmapped = attributeFailure("portfolio row count was 3", merges);
   assert.deepEqual(unmapped.prs, []);

@@ -7,16 +7,51 @@ export const RC_VERSION = "5.0.4";
 /** Versions that keep a verify run per PR. Not an RC handover. */
 export const PER_PR_VERSIONS = ["5.0.2", "5.0.3"];
 
+function versionParts(version) {
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(version ?? "").trim());
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+/** True when `version` is a 5.x.y at or after `floor` (default 5.0.4). 5.0.10 is after 5.0.4. */
+export function rcVersionAtLeast(version, floor = RC_VERSION) {
+  const a = versionParts(version);
+  const b = versionParts(floor);
+  if (!a || !b) return false;
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
+  return true;
+}
+
+/**
+ * Phone layout checks run for an RC handover (5.0.4 or later) or when `--phone-checks` is passed.
+ * A per-PR run, including 5.0.2 and 5.0.3, leaves them off.
+ */
+export function phoneChecksEnabled({ rc, flag } = {}) {
+  return flag === true || Boolean(rc);
+}
+
+/**
+ * The browser run threw before it could finish. /status was not read when `statusRead` is still null,
+ * which is the case when the deploy cannot be reached. A later throw, after the commit was scraped, is
+ * a different check so the rc handover still names what it had already seen.
+ */
+export function browserFailureCheck(statusRead, message) {
+  const detail = String(message ?? "").split("\n")[0] || "no error message";
+  if (statusRead == null) return { name: "/status unreachable", ok: false, detail };
+  return { name: "browser run stopped", ok: false, detail };
+}
+
 /**
  * --rc <sha> means this run is the handover of rc/<version> (default 5.0.4).
  * Returns { rc: { version, sha, branch } | null, error }.
  * target "production" is refused: production keeps the release-tag rule.
+ * 5.0.2 and 5.0.3 are refused even when --rc is omitted.
+ * A version at or after 5.0.4 is accepted when a SHA is present.
  */
 export function resolveRcMode({ version = RC_VERSION, sha, commit, target } = {}) {
-  if (sha == null || String(sha).trim() === "") return { rc: null, error: null };
   const v = String(version ?? "").trim();
   if (PER_PR_VERSIONS.includes(v)) return { rc: null, error: `${v} stays on the per-PR flow; RC handover starts at ${RC_VERSION}` };
-  if (v !== RC_VERSION) return { rc: null, error: `RC flow starts at ${RC_VERSION} (got ${v || "(empty)"})` };
+  if (sha == null || String(sha).trim() === "") return { rc: null, error: null };
+  if (!rcVersionAtLeast(v)) return { rc: null, error: `RC flow starts at ${RC_VERSION} (got ${v || "(empty)"})` };
   const s = String(sha).trim().toLowerCase();
   if (!/^[0-9a-f]{40}$/.test(s)) return { rc: null, error: `--rc must be the full 40-char rc head SHA (got length ${s.length})` };
   if (commit != null && String(commit).trim() !== "" && String(commit).trim().toLowerCase() !== s) {
@@ -126,13 +161,45 @@ export function attributeFailure(text, merges) {
   return { prs: hits.map((h) => h.number), rule: rule.id, detail: `PR #${hits.map((h) => h.number).join(", #")}` };
 }
 
-/** Copy failing checks, appending the PR trace to `detail`. Passing checks are unchanged. */
+/**
+ * Failure lines inside a check detail. A crawl detail is `summary — failure; failure`, and the summary
+ * can contain `; `. When the text after ` — ` contains `@<width>`, only that tail is split.
+ * Otherwise the whole detail is split on `; `.
+ */
+export function failureSegments(detail) {
+  const text = String(detail ?? "").trim();
+  if (!text) return [];
+  const parts = text.split(/\s+—\s+/);
+  if (parts.length > 1) {
+    const tail = parts.slice(1).join(" — ").trim();
+    if (/@\d+\b/.test(tail)) return tail.split(/;\s+/).map((s) => s.trim()).filter(Boolean);
+  }
+  return text.split(/;\s+/).map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Copy failing checks, appending the PR trace to `detail`. Passing checks are unchanged.
+ * Each failure line is attributed on its own. One line keeps `detail — PR #N`.
+ * Several lines each gain their own trace, so the first matching rule cannot hide a later line.
+ */
 export function attributeChecks(checks, merges) {
   return (checks ?? []).map((c) => {
     if (c.ok) return { ...c, prs: [] };
-    const attr = attributeFailure(`${c.name} ${c.detail ?? ""}`, merges);
-    const trace = attr.prs.length ? `PR #${attr.prs.join(", #")}` : attr.detail;
-    return { ...c, prs: attr.prs, detail: `${c.detail ?? ""} — ${trace}` };
+    const segments = failureSegments(c.detail);
+    if (segments.length <= 1) {
+      const attr = attributeFailure(`${c.name} ${c.detail ?? ""}`, merges);
+      const trace = attr.prs.length ? `PR #${attr.prs.join(", #")}` : attr.detail;
+      return { ...c, prs: attr.prs, detail: `${c.detail ?? ""} — ${trace}` };
+    }
+    const prs = [];
+    const rendered = [];
+    for (const segment of segments) {
+      const attr = attributeFailure(`${c.name} ${segment}`, merges);
+      for (const n of attr.prs) if (!prs.includes(n)) prs.push(n);
+      const trace = attr.prs.length ? `PR #${attr.prs.join(", #")}` : attr.detail;
+      rendered.push(`${segment} — ${trace}`);
+    }
+    return { ...c, prs, detail: rendered.join("; ") };
   });
 }
 
