@@ -24,7 +24,7 @@ import {
 } from "@/server/progress";
 import { listChangeOrders } from "@/server/change-orders";
 import { listCrews } from "@/server/plans";
-import { requireUser } from "@/server/session";
+import { requireUser, type CurrentUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
 import { actions, jobChanges } from "@/server/assistant/actions";
 import { LocalTime } from "@/components/app/local-time";
@@ -44,9 +44,19 @@ export default function JobPage({ params }: PageProps<"/app/jobs/[number]">) {
   );
 }
 
-async function Job({ params }: { params: Promise<{ number: string }> }) {
+/**
+ * Job page body. Optional `user` is a test seam so vitest can server-render
+ * the real page (M8t-page) without cookies — production always uses requireUser.
+ */
+export async function Job({
+  params,
+  user: userOverride,
+}: {
+  params: Promise<{ number: string }>;
+  user?: CurrentUser;
+}) {
   const { number } = await params;
-  const user = await requireUser();
+  const user = userOverride ?? (await requireUser());
   const p = await getJob(user.companyId, number);
   // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
   if (!p) notFound();

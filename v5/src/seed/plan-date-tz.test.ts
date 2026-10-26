@@ -187,16 +187,18 @@ describe("seed plan dates use job time zone", () => {
     expect(today).not.toBe(utcDay(now));
   });
 
-  it("M8 page wiring: job page uses jobPagePlanSurface + JobNewPlanSlot", () => {
+  it("M8 page wiring: job page mounts JobNewPlanSlot (lint-style; output test is authoritative)", () => {
     const src = readFileSync(
       join(process.cwd(), "src/app/app/jobs/[number]/page.tsx"),
       "utf8",
     );
     expect(src).toMatch(/jobPagePlanSurface\s*\(\s*plans\s*\)/);
-    expect(src).toMatch(/JobNewPlanSlot/);
+    // JSX mount — unused import alone must not satisfy this.
+    expect(src).toMatch(/<JobNewPlanSlot\b/);
+    expect(src).not.toMatch(/\bNewPlanForm\b/);
     expect(src).not.toMatch(/splitPlansByPlanToday\s*\(/);
     expect(src).not.toMatch(/jobPagePlans\s*\(/);
-    // Page must not invent a UTC calendar day for New plan (M8t).
-    expect(src).not.toMatch(/toISOString\(\)\.slice\(\s*0\s*,\s*10\s*\)/);
+    // Any UTC calendar-day spelling on the page (slice / split / toJSON).
+    expect(src).not.toMatch(/toISOString\s*\(/);
   });
 });
