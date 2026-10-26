@@ -2,7 +2,7 @@
  * Job page query budget under seeded field history (30 working days / job).
  *
  * Measures the same server data path as `app/jobs/[number]/page.tsx` against
- * a DB with V5_DB_LATENCY_MS simulated RTT, and bounds getPlansForJob so an
+ * a DB with V5_DB_LATENCY_MS simulated RTT, and bounds plan loads so an
  * N+1 (one query per history plan) cannot return.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -14,13 +14,15 @@ import {
 } from "@/db";
 import { companies } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { calendarDateInTz } from "@/lib/plan-date";
+import { planDateToday } from "@/lib/plan-date";
 import { jobChanges } from "@/server/assistant/actions";
 import { listChangeOrders } from "@/server/change-orders";
 import {
   getJob,
   getJobEvControls,
+  getJobPagePlans,
   getPlansForJob,
+  getPortfolio,
 } from "@/server/data";
 import { listCrews } from "@/server/plans";
 import {
@@ -42,8 +44,11 @@ const PAGE_RENDER_BUDGET_MS = 500;
 async function loadJobPageData(companyId: string, number: string) {
   const p = await getJob(companyId, number);
   if (!p) throw new Error(`job ${number} missing`);
+  const todayLA = planDateToday(seedNow());
+  // Shell JobStrip pays getPortfolio on every /app/* page — include it.
   const [
-    plans,
+    portfolio,
+    pagePlans,
     changes,
     draftClaim,
     evControls,
@@ -51,7 +56,8 @@ async function loadJobPageData(companyId: string, number: string) {
     coData,
     crewRows,
   ] = await Promise.all([
-    getPlansForJob(companyId, p.job.id),
+    getPortfolio(companyId),
+    getJobPagePlans(companyId, p.job.id, todayLA),
     jobChanges(companyId, p.job.number),
     draftClaimForJob(companyId, p.job.id),
     getJobEvControls(companyId, p.job.id),
@@ -59,14 +65,7 @@ async function loadJobPageData(companyId: string, number: string) {
     listChangeOrders(companyId, p.job.number),
     listCrews(companyId),
   ]);
-  const todayLA = calendarDateInTz(seedNow());
-  const openPlans = plans
-    .filter((pl) => pl.planDate >= todayLA)
-    .sort((a, b) => a.planDate.localeCompare(b.planDate));
-  const historyPlans = plans
-    .filter((pl) => pl.planDate < todayLA)
-    .slice()
-    .sort((a, b) => b.planDate.localeCompare(a.planDate));
+  const { openPlans, historyPlans } = pagePlans;
   const reportable = openPlans.filter(
     (pl) => pl.status === "issued" || pl.status === "reported",
   );
@@ -74,14 +73,10 @@ async function loadJobPageData(companyId: string, number: string) {
     companyId,
     reportable.map((pl) => pl.id),
   );
-  // Touch the same aggregates the page prints so rollup work stays timed.
-  const historyMh = historyPlans.reduce(
-    (s, pl) => s + pl.lines.reduce((a, l) => a + l.manHours, 0),
-    0,
-  );
+  const historyMh = historyPlans.reduce((s, pl) => s + pl.manHours, 0);
   return {
     p,
-    plans,
+    portfolio,
     openPlans,
     historyPlans,
     changes,
@@ -145,7 +140,7 @@ describe.skipIf(!db)("job page query budget (field history)", () => {
       rows.push({
         number,
         queries,
-        plans: summary!.plans.length,
+        open: summary!.openPlans.length,
         history: summary!.historyPlans.length,
         historyMh: summary!.historyMh,
         msP50: Math.round(samples[Math.floor(samples.length / 2)] * 100) / 100,
@@ -169,7 +164,10 @@ describe.skipIf(!db)("job page query budget (field history)", () => {
     };
     for (const row of rows) {
       expect(row.history).toBe(FIELD_HISTORY_WORKING_DAYS);
-      expect(row.historyMh).toBeCloseTo(expectedMh[row.number as (typeof JOBS)[number]], 1);
+      expect(row.historyMh).toBeCloseTo(
+        expectedMh[row.number as (typeof JOBS)[number]],
+        1,
+      );
       expect(row.msP50).toBeLessThan(PAGE_RENDER_BUDGET_MS);
     }
   });
@@ -181,7 +179,7 @@ describe.skipIf(!db)("job page query budget (field history)", () => {
     const plans = await getPlansForJob(companyId, p!.job.id);
     const queries = getDbQueryCount();
     const history = plans.filter(
-      (pl) => pl.planDate < calendarDateInTz(seedNow()),
+      (pl) => pl.planDate < planDateToday(seedNow()),
     );
     expect(history.length).toBe(FIELD_HISTORY_WORKING_DAYS);
     // N+1 would be 1 + history (or 1 + plans) — this bound goes red if it returns.
@@ -195,8 +193,27 @@ describe.skipIf(!db)("job page query budget (field history)", () => {
       const rows = await getPlansForJob(companyId, job!.job.id);
       expect(getDbQueryCount()).toBeLessThanOrEqual(PLANS_QUERY_BUDGET);
       expect(
-        rows.filter((pl) => pl.planDate < calendarDateInTz(seedNow())).length,
+        rows.filter((pl) => pl.planDate < planDateToday(seedNow())).length,
       ).toBe(FIELD_HISTORY_WORKING_DAYS);
+    }
+  });
+
+  it("getJobPagePlans history MH matches full-line sum (exact)", async () => {
+    for (const number of JOBS) {
+      const job = await getJob(companyId, number);
+      expect(job).not.toBeNull();
+      const today = planDateToday(seedNow());
+      const full = await getPlansForJob(companyId, job!.job.id);
+      const page = await getJobPagePlans(companyId, job!.job.id, today);
+      const fullHistMh = full
+        .filter((pl) => pl.planDate < today)
+        .reduce(
+          (s, pl) => s + pl.lines.reduce((a, l) => a + l.manHours, 0),
+          0,
+        );
+      const pageHistMh = page.historyPlans.reduce((s, pl) => s + pl.manHours, 0);
+      expect(pageHistMh).toBeCloseTo(fullHistMh, 5);
+      expect(page.historyPlans.length).toBe(FIELD_HISTORY_WORKING_DAYS);
     }
   });
 

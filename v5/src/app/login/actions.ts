@@ -23,8 +23,15 @@ export async function signIn(formData: FormData) {
   const role = formData.get("role");
   if (typeof role !== "string" || !roles.includes(role as Role))
     redirect("/login");
-  await sweepExpiredSandboxes();
   const current = await getCurrentUser();
+  // Do not await a full expired-sandbox cascade on the critical path: under a
+  // busy staging DB that DELETE can stall past the verify crawl's 20s
+  // waitForURL(/\/app/). Role switch reuses the session company; new visitors
+  // still get a sandbox. Sweep runs best-effort in the background (and on
+  // Reset demo) so TTL cleanup continues without blocking sign-in.
+  if (!current) {
+    void sweepExpiredSandboxes().catch(() => {});
+  }
   const companyId =
     current?.companyId ?? (await sandboxForVisitor(await visitorHash()));
   await startSession(companyId, role as Role);

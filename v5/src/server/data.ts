@@ -271,10 +271,19 @@ export async function getJob(
 
 export type JobDetail = NonNullable<Awaited<ReturnType<typeof getJob>>>;
 
-export async function getPlansForJob(companyId: string, jobId: string) {
+type PlanHeaderRow = {
+  plan: typeof dailyPlans.$inferSelect;
+  foreman: string;
+  crew: string;
+};
+
+async function listPlanHeaders(
+  companyId: string,
+  jobId: string,
+): Promise<PlanHeaderRow[]> {
   const db = requireDb();
   // crew_id is NOT NULL after 0019; name always comes from crews.
-  const plans = await db
+  return db
     .select({
       plan: dailyPlans,
       foreman: users.name,
@@ -287,36 +296,135 @@ export async function getPlansForJob(companyId: string, jobId: string) {
       and(eq(dailyPlans.companyId, companyId), eq(dailyPlans.jobId, jobId)),
     )
     .orderBy(asc(dailyPlans.planDate));
+}
+
+async function loadPlanLinesByPlanId(companyId: string, planIds: string[]) {
+  if (planIds.length === 0) {
+    return new Map<string, ReturnType<typeof planLine>[]>();
+  }
+  const db = requireDb();
+  const lines = await db
+    .select({ line: dailyPlanLines, item: costItems })
+    .from(dailyPlanLines)
+    .innerJoin(costItems, eq(costItems.id, dailyPlanLines.costItemId))
+    .where(
+      and(
+        eq(dailyPlanLines.companyId, companyId),
+        inArray(dailyPlanLines.planId, planIds),
+      ),
+    )
+    .orderBy(asc(dailyPlanLines.sort));
+  const linesByPlan = new Map<string, ReturnType<typeof planLine>[]>();
+  for (const row of lines) {
+    const mapped = planLine(row.line, row.item);
+    const list = linesByPlan.get(row.line.planId);
+    if (list) list.push(mapped);
+    else linesByPlan.set(row.line.planId, [mapped]);
+  }
+  return linesByPlan;
+}
+
+export async function getPlansForJob(companyId: string, jobId: string) {
+  const plans = await listPlanHeaders(companyId, jobId);
   // Fixed query count: one lines fetch for every plan on this job (not per-plan
   // and not company-wide). History length must not add round-trips.
-  const planIds = plans.map(({ plan }) => plan.id);
-  const lines = planIds.length
-    ? await db
-        .select({ line: dailyPlanLines, item: costItems })
-        .from(dailyPlanLines)
-        .innerJoin(costItems, eq(costItems.id, dailyPlanLines.costItemId))
-        .where(
-          and(
-            eq(dailyPlanLines.companyId, companyId),
-            inArray(dailyPlanLines.planId, planIds),
-          ),
-        )
-        .orderBy(asc(dailyPlanLines.sort))
-    : [];
-  const linesByPlan = new Map<string, typeof lines>();
-  for (const row of lines) {
-    const list = linesByPlan.get(row.line.planId);
-    if (list) list.push(row);
-    else linesByPlan.set(row.line.planId, [row]);
-  }
+  const linesByPlan = await loadPlanLinesByPlanId(
+    companyId,
+    plans.map(({ plan }) => plan.id),
+  );
   return plans.map(({ plan, foreman, crew }) => ({
     ...plan,
     crew,
     foreman,
-    lines: (linesByPlan.get(plan.id) ?? []).map(({ line, item }) =>
-      planLine(line, item),
-    ),
+    lines: linesByPlan.get(plan.id) ?? [],
   }));
+}
+
+/** History rail row: counts only — no per-line payload. */
+export type PlanHistorySummary = {
+  id: string;
+  planDate: string;
+  crew: string;
+  status: (typeof dailyPlans.$inferSelect)["status"];
+  returnReason: string | null;
+  lineCount: number;
+  manHours: number;
+};
+
+/**
+ * Job page plans: full lines for today/future cards only; past days as
+ * aggregated history summaries so 30 days of field history does not ship
+ * every line into the RSC payload (page budget / networkidle).
+ */
+export async function getJobPagePlans(
+  companyId: string,
+  jobId: string,
+  todayLA: string,
+): Promise<{
+  openPlans: Awaited<ReturnType<typeof getPlansForJob>>;
+  historyPlans: PlanHistorySummary[];
+}> {
+  const headers = await listPlanHeaders(companyId, jobId);
+  const openHeaders = headers.filter(({ plan }) => plan.planDate >= todayLA);
+  const historyHeaders = headers.filter(({ plan }) => plan.planDate < todayLA);
+
+  const linesByPlan = await loadPlanLinesByPlanId(
+    companyId,
+    openHeaders.map(({ plan }) => plan.id),
+  );
+
+  const openPlans = openHeaders.map(({ plan, foreman, crew }) => ({
+    ...plan,
+    crew,
+    foreman,
+    lines: linesByPlan.get(plan.id) ?? [],
+  }));
+
+  const historyIds = historyHeaders.map(({ plan }) => plan.id);
+  const totals = new Map<string, { lineCount: number; manHours: number }>();
+  if (historyIds.length) {
+    const db = requireDb();
+    const rows = await db
+      .select({
+        planId: dailyPlanLines.planId,
+        lineCount: sql<number>`count(*)::int`.mapWith(Number),
+        // Same formula as planLine manHours: (workers * hoursTenths) / 10.
+        manHours: sql<number>`(sum(${dailyPlanLines.workers} * ${dailyPlanLines.hoursTenths})::float8 / 10)`.mapWith(
+          Number,
+        ),
+      })
+      .from(dailyPlanLines)
+      .where(
+        and(
+          eq(dailyPlanLines.companyId, companyId),
+          inArray(dailyPlanLines.planId, historyIds),
+        ),
+      )
+      .groupBy(dailyPlanLines.planId);
+    for (const r of rows) {
+      totals.set(r.planId, { lineCount: r.lineCount, manHours: r.manHours });
+    }
+  }
+
+  const historyPlans: PlanHistorySummary[] = historyHeaders
+    .map(({ plan, crew }) => {
+      const t = totals.get(plan.id) ?? { lineCount: 0, manHours: 0 };
+      return {
+        id: plan.id,
+        planDate: plan.planDate,
+        crew,
+        status: plan.status,
+        returnReason: plan.returnReason,
+        lineCount: t.lineCount,
+        manHours: t.manHours,
+      };
+    })
+    .sort((a, b) => b.planDate.localeCompare(a.planDate));
+
+  return {
+    openPlans: openPlans.sort((a, b) => a.planDate.localeCompare(b.planDate)),
+    historyPlans,
+  };
 }
 
 export type PlanLine = ReturnType<typeof planLine>;
