@@ -167,6 +167,9 @@ async function measureScrollHeight(page: Page): Promise<number> {
  *
  * Do NOT walk getBoundingClientRect bottoms: fixed/sticky + scrollY overshoots,
  * then min-h-svh locks the tall viewport (job-desktop overshoot on 79c0db0).
+ *
+ * Throws if scrollHeight never settles within 30 frames — never return last
+ * and screenshot a short viewport (Verify #48).
  */
 async function waitForScrollHeightStable(page: Page): Promise<number> {
   // Touch below-fold layout before measuring.
@@ -191,14 +194,15 @@ async function waitForScrollHeightStable(page: Page): Promise<number> {
       last = h;
     }
   }
-  return last < 0 ? await measureScrollHeight(page) : last;
+  throw new Error(`scrollHeight not stable after 30 frames (last=${last})`);
 }
 
 /**
  * Grow the viewport to the document height so sticky `h-svh` rails paint the
  * full page (fullPage stitching otherwise clips them at the original 800px).
  * After resize, grow only while scrollHeight still exceeds the viewport —
- * never chase min-h-svh fill (scrollHeight === viewport).
+ * never chase min-h-svh fill (scrollHeight === viewport). Throw if still
+ * overflowing after the bounded grow loop — never silent-proceed short.
  */
 async function fitViewportToPage(page: Page) {
   const box = page.viewportSize();
@@ -214,9 +218,16 @@ async function fitViewportToPage(page: Page) {
   for (let i = 0; i < 5; i++) {
     const current = page.viewportSize()?.height ?? 0;
     const h = await measureScrollHeight(page);
-    if (h <= current) break;
+    if (h <= current) return;
     await page.setViewportSize({ width: box.width, height: h });
     await waitForLayout(page);
+  }
+  const finalHeight = page.viewportSize()?.height ?? 0;
+  const still = await measureScrollHeight(page);
+  if (still > finalHeight) {
+    throw new Error(
+      `viewport still overflowing after 5 grows (viewport=${finalHeight}, scrollHeight=${still})`,
+    );
   }
 }
 
@@ -462,6 +473,65 @@ test.describe("visual baselines", () => {
         failed,
         "expected a one-digit Current budget change to fail the dark twin",
       ).toBe(true);
+    });
+
+    /**
+     * A page whose scrollHeight keeps growing must fail loudly — never size
+     * a short viewport and screenshot (Verify #48 item 2).
+     */
+    test("fitViewport throws when scrollHeight never settles", async ({
+      page,
+    }) => {
+      await page.setContent("<!doctype html><html><body><p>grow</p></body></html>");
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.evaluate(() => {
+        let h = 2000;
+        Object.defineProperty(document.documentElement, "scrollHeight", {
+          configurable: true,
+          get() {
+            return ++h;
+          },
+        });
+        Object.defineProperty(document.body, "scrollHeight", {
+          configurable: true,
+          get() {
+            return h;
+          },
+        });
+      });
+
+      await expect(fitViewportToPage(page)).rejects.toThrow(
+        /scrollHeight not stable after 30 frames \(last=\d+\)/,
+      );
+    });
+
+    /**
+     * Stable but always-overflowing content must fail the grow loop — never
+     * silent-break with content taller than the viewport.
+     */
+    test("fitViewport throws when content still overflows after grow loop", async ({
+      page,
+    }) => {
+      await page.setContent("<!doctype html><html><body><p>overflow</p></body></html>");
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.evaluate(() => {
+        Object.defineProperty(document.documentElement, "scrollHeight", {
+          configurable: true,
+          get() {
+            return window.innerHeight + 100;
+          },
+        });
+        Object.defineProperty(document.body, "scrollHeight", {
+          configurable: true,
+          get() {
+            return window.innerHeight + 100;
+          },
+        });
+      });
+
+      await expect(fitViewportToPage(page)).rejects.toThrow(
+        /viewport still overflowing after 5 grows/,
+      );
     });
   });
 });
