@@ -5,6 +5,9 @@
 // independently of physical % so PV is not forced equal to EV.
 import type {
   actionRuns,
+  activities,
+  activityCostItems,
+  calendarHolidays,
   changeOrderEvents,
   changeOrderLines,
   changeOrders,
@@ -16,6 +19,7 @@ import type {
   dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
+  jobCalendars,
   jobs,
   milestoneLogs,
   pmPercentLogs,
@@ -48,6 +52,7 @@ import {
 } from "./field-history";
 import { finalizeSeedWithHistory } from "./finalize-history";
 import { seedId } from "./ids";
+import { buildScheduleSeed } from "./schedule";
 import { seedStressJob } from "./stress";
 
 export { seedId } from "./ids";
@@ -504,6 +509,10 @@ export type SeedRows = {
   dailyPlans: Insert<typeof dailyPlans>[];
   dailyPlanEvents: Insert<typeof dailyPlanEvents>[];
   dailyPlanLines: Insert<typeof dailyPlanLines>[];
+  jobCalendars: Insert<typeof jobCalendars>[];
+  calendarHolidays: Insert<typeof calendarHolidays>[];
+  activities: Insert<typeof activities>[];
+  activityCostItems: Insert<typeof activityCostItems>[];
   /** Post-history change orders (baked by finalizeSeedWithHistory). */
   changeOrders: Insert<typeof changeOrders>[];
   changeOrderLines: Insert<typeof changeOrderLines>[];
@@ -529,6 +538,10 @@ export const WORK_SEED_KEYS = [
   "dailyPlans",
   "dailyPlanEvents",
   "dailyPlanLines",
+  "jobCalendars",
+  "calendarHolidays",
+  "activities",
+  "activityCostItems",
   "changeOrders",
   "changeOrderLines",
   "changeOrderEvents",
@@ -578,6 +591,10 @@ export function seed(companyId: string, today: Date): SeedRows {
     dailyPlans: [],
     dailyPlanEvents: [],
     dailyPlanLines: [],
+    jobCalendars: [],
+    calendarHolidays: [],
+    activities: [],
+    activityCostItems: [],
     changeOrders: [],
     changeOrderLines: [],
     changeOrderEvents: [],
@@ -1053,6 +1070,27 @@ export function seed(companyId: string, today: Date): SeedRows {
   // Period 2 drafts, COs, I-5 cycle, and action_runs — same end state as the
   // former live seedActionHistory path, without hundreds of SQL round-trips.
   finalizeSeedWithHistory(out, companyId, today);
+
+  // 5.1.0-a schedule graph (calendars, activities, cost-item links). Harbor omitted.
+  {
+    const schedule = buildScheduleSeed({
+      companyId,
+      today,
+      id,
+      jobs: out.jobs.map((j) => ({ id: j.id!, number: j.number! })),
+      costItems: out.costItems.map((c) => ({
+        id: c.id!,
+        code: c.code!,
+        jobId: c.jobId!,
+        isLeaf: c.isLeaf ?? true,
+      })),
+      cedarPlanDate: isoDate(addDays(today, 1)),
+    });
+    out.jobCalendars.push(...schedule.jobCalendars);
+    out.calendarHolidays.push(...schedule.calendarHolidays);
+    out.activities.push(...schedule.activities);
+    out.activityCostItems.push(...schedule.activityCostItems);
+  }
 
   // Optional 10k WBS for local/perf only. Do not set V5_SEED_STRESS on the
   // Playwright webServer — e2e stress specs call ensureStressJob instead so

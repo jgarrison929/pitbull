@@ -29,7 +29,7 @@ describe("insertWork statement budget (formula)", () => {
   it("whole reset formula stays under the remote RTT budget", () => {
     const n = resetTransactionStatementCount(rows);
     expect(n).toBeLessThanOrEqual(RESET_MAX_STATEMENTS);
-    // 5ms × 30 = 150ms ≪ 600ms target even if every statement waited.
+    // 5ms × cap ≪ 600ms target even if every statement waited.
     expect(n * 5).toBeLessThan(600);
   });
 
