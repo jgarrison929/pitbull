@@ -988,6 +988,47 @@ describe.skipIf(!db)("rail date/crew scoping (fresh sandbox per test)", () => {
   });
 });
 
+describe.skipIf(!db)("updateLine pour uniqueness after 24-118 reported seed", () => {
+  const created: string[] = [];
+  const prevSeedNow = process.env.V5_SEED_NOW;
+
+  afterAll(async () => {
+    if (prevSeedNow === undefined) delete process.env.V5_SEED_NOW;
+    else process.env.V5_SEED_NOW = prevSeedNow;
+    for (const id of created) {
+      await db!.delete(companies).where(eq(companies.id, id));
+    }
+  }, 120_000);
+
+  it("Change the pour picks Cedar draft when LA tomorrow lands on seeded today plans", async () => {
+    // UTC morning = prior evening in America/Los_Angeles: seed isoDate(today)
+    // equals LA "tomorrow", so date:"tomorrow" would see Culvert issued +
+    // Interchange reported. Drafts + lineRef "pour" must still hit Cedar 04-210.
+    process.env.V5_SEED_NOW = "2026-10-21T06:00:00.000Z";
+    const companyId = await createSandbox();
+    created.push(companyId);
+    const foreman: CurrentUser = {
+      userId: seedId(companyId, "user:foreman"),
+      companyId,
+      name: "Luis Ortega",
+      title: "Foreman",
+      role: "foreman",
+      companyName: "Demo",
+      seededAt: new Date("2026-10-21T06:00:00.000Z"),
+      expiresAt: null,
+    };
+    const prompt = "Change the pour to 80 man-hours";
+    const intent = route(prompt, JOB_REFS)!;
+    expect(intent.action).toBe("dailyPlan.updateLine");
+    const out = await run(foreman, prompt, intent.action, intent.args);
+    expect(out.result.summary).toMatch(/man-hours 60 → 80/);
+    expect(out.result.summary).toMatch(/04-210/);
+    expect(out.result.summary).not.toMatch(/Which plan/);
+    expect(out.result.summary).not.toMatch(/Culvert Crew A/);
+    expect(out.result.summary).not.toMatch(/Interchange Crew 1/);
+  }, 120_000);
+});
+
 describe("formatMhPerUnit", () => {
   it("shows stored thousandths, not toPrecision(2) rounding", () => {
     expect(formatMhPerUnit(2)).toBe("2.000");

@@ -1067,6 +1067,104 @@ export function seed(companyId: string, today: Date): SeedRows {
     );
   }
 
+  // 5.0.4-a: reported plan on 24-118 for Interchange Crew 1 — pending approval.
+  // Posts no cost until approved, so locked EV/AC on 25-031 stay unchanged.
+  // Job-zone today (same as I-5 / Cedar) — UTC isoDate collides with Cedar
+  // "tomorrow" after 00:00Z and makes "Submit tomorrow's plan" ask.
+  {
+    const planId = id("plan:sr99:today");
+    const sr99Cost = (code: string) => id(`cost:sr99:${code}`);
+    const todayIso = planDateToday(today, timeZoneForJob());
+    const createdAt = new Date(`${todayIso}T06:00:00.000Z`);
+    const submittedAt = new Date(`${todayIso}T07:00:00.000Z`);
+    const reportedAt = new Date(`${todayIso}T16:00:00.000Z`);
+    out.dailyPlans.push({
+      id: planId,
+      companyId,
+      jobId: id("job:sr99"),
+      crewId: interchangeCrewId,
+      foremanId,
+      planDate: todayIso,
+      status: "reported",
+      weather: "Partly cloudy, 60°F",
+      equipment: [{ name: "Concrete pump, 32 m", hours: 8 }],
+      submittedAt,
+      reportedAt,
+      createdAt,
+      createdById: foremanId,
+    });
+    out.dailyPlanEvents.push(
+      {
+        id: id("plan-event:sr99:today:created"),
+        companyId,
+        planId,
+        kind: "created",
+        actorRole: "superintendent",
+        actorId: superintendentId,
+        detail: "",
+        at: createdAt,
+      },
+      {
+        id: id("plan-event:sr99:today:submitted"),
+        companyId,
+        planId,
+        kind: "submitted",
+        actorRole: "superintendent",
+        actorId: superintendentId,
+        detail: "",
+        at: submittedAt,
+      },
+      {
+        id: id("plan-event:sr99:today:reported"),
+        companyId,
+        planId,
+        kind: "reported",
+        actorRole: "foreman",
+        actorId: foremanId,
+        detail: "",
+        at: reportedAt,
+      },
+    );
+    const sr99Lines = [
+      {
+        code: "06-200",
+        activity: "Deck pour, span 2 mid-bay",
+        location: "Span 2",
+        qty: 48,
+        workers: 5,
+        hours: 8,
+        reportedQty: 45,
+        reportedMh: 42,
+      },
+      {
+        code: "08-400",
+        activity: "HMA binder course, north approach",
+        location: "North approach",
+        qty: 120,
+        workers: 4,
+        hours: 8,
+        reportedQty: 110,
+        reportedMh: 34,
+      },
+    ];
+    sr99Lines.forEach((l, i) =>
+      out.dailyPlanLines.push({
+        id: id(`plan-line:sr99:today:${i}`),
+        companyId,
+        planId,
+        costItemId: sr99Cost(l.code),
+        activity: l.activity,
+        location: l.location,
+        qtyMilli: toMilli(l.qty),
+        workers: l.workers,
+        hoursTenths: l.hours * 10,
+        sort: i,
+        reportedQtyMilli: toMilli(l.reportedQty),
+        reportedHoursTenths: Math.round(l.reportedMh * 10),
+      }),
+    );
+  }
+
   // Period 2 drafts, COs, I-5 cycle, and action_runs — same end state as the
   // former live seedActionHistory path, without hundreds of SQL round-trips.
   finalizeSeedWithHistory(out, companyId, today);

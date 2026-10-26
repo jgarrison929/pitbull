@@ -156,9 +156,9 @@ describe("seed", () => {
     for (const j of [sr99, cedar, i5]) expect(j.earned).toBeGreaterThan(0);
   });
 
-  it("has tomorrow's Cedar draft and today's I-5 draft on real cost items", () => {
-    // 30 working days × 3 jobs of approved history + 2 open drafts.
-    expect(rows.dailyPlans.length).toBe(30 * 3 + 2);
+  it("has tomorrow's Cedar draft, I-5 issued today, and 24-118 reported today", () => {
+    // 30 working days × 3 jobs + Cedar tomorrow + I-5 today + SR-99 reported today.
+    expect(rows.dailyPlans.length).toBe(30 * 3 + 3);
     // Cedar tomorrow stays draft; I-5 today is issued (returned) after history bake.
     expect(
       rows.dailyPlans.filter((p) => p.status === "draft"),
@@ -195,6 +195,9 @@ describe("seed", () => {
     const i5 = rows.dailyPlans.find(
       (p) => p.id === seedId(company, "plan:i5:today"),
     )!;
+    const sr99Today = rows.dailyPlans.find(
+      (p) => p.id === seedId(company, "plan:sr99:today"),
+    )!;
     expect(cedar).toMatchObject({
       planDate: "2026-10-20",
       status: "draft",
@@ -205,6 +208,28 @@ describe("seed", () => {
       status: "issued",
       crewId: seedId(company, "crew:culvert-a"),
     });
+    expect(sr99Today).toMatchObject({
+      planDate: "2026-10-19",
+      status: "reported",
+      crewId: seedId(company, "crew:interchange-1"),
+      foremanId: seedId(company, "user:foreman"),
+    });
+    const sr99Lines = rows.dailyPlanLines.filter(
+      (l) => l.planId === sr99Today.id,
+    );
+    expect(sr99Lines).toHaveLength(2);
+    expect(
+      sr99Lines.every(
+        (l) => l.reportedQtyMilli != null && l.reportedHoursTenths != null,
+      ),
+    ).toBe(true);
+    // Pending report: no cost_entries sourced from these lines.
+    const lineIds = new Set(sr99Lines.map((l) => l.id));
+    expect(
+      rows.costEntries.some(
+        (e) => e.sourcePlanLineId && lineIds.has(e.sourcePlanLineId),
+      ),
+    ).toBe(false);
     const ids = new Set(rows.costItems.map((c) => c.id));
     expect(rows.dailyPlanLines.every((l) => ids.has(l.costItemId))).toBe(true);
     expect(rows.users.map((u) => u.role)).toEqual([

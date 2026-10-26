@@ -1,0 +1,54 @@
+import Link from "next/link";
+import type { NextStepsResult } from "@/server/next-steps";
+
+/** Role home list: verb-first next actions above the portfolio KPIs. */
+export function NextSteps({ data }: { data: NextStepsResult }) {
+  const { items, moreCount, doneMessage } = data;
+  return (
+    <section
+      className="rounded-lg border bg-card"
+      data-testid="next-steps"
+      aria-labelledby="next-steps-title"
+    >
+      <header className="border-b px-4 py-3 lg:px-6">
+        <h2 id="next-steps-title" className="text-section font-semibold">
+          What needs you today
+        </h2>
+      </header>
+      {items.length === 0 ? (
+        <p
+          className="px-4 py-3 text-body text-muted-foreground lg:px-6"
+          data-testid="next-steps-done"
+        >
+          {doneMessage}
+        </p>
+      ) : (
+        <ul className="divide-y">
+          {items.map((step) => (
+            <li key={step.id}>
+              <Link
+                href={step.href}
+                className="tap-target flex min-h-11 items-center px-4 py-3 text-body font-medium hover:bg-muted/60 lg:px-6"
+                data-testid="next-step"
+                data-step-id={step.id}
+              >
+                {step.label}
+              </Link>
+            </li>
+          ))}
+          {moreCount > 0 ? (
+            <li>
+              <Link
+                href="#jobs"
+                className="tap-target flex min-h-11 items-center px-4 py-3 text-label text-muted-foreground hover:bg-muted/60 lg:px-6"
+                data-testid="next-steps-more"
+              >
+                {moreCount} more on the Jobs list
+              </Link>
+            </li>
+          ) : null}
+        </ul>
+      )}
+    </section>
+  );
+}

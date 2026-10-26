@@ -45,10 +45,12 @@ export function AssistantPanel({
   runs,
   variant,
   demoRole,
+  compact = false,
 }: {
   runs: RunView[];
   variant: "rail" | "page";
   demoRole: DemoRole;
+  compact?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<AskState, FormData>(
     ask,
@@ -59,11 +61,16 @@ export function AssistantPanel({
   const listRef = useRef<HTMLOListElement>(null);
   const pathname = usePathname();
   const [listening, setListening] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const canSpeak = useSyncExternalStore(
     noop,
     () => speechCtor() !== null,
     () => false,
   );
+  const visibleRuns =
+    compact && !showAll && runs.length > 3 ? runs.slice(-3) : runs;
+  const hiddenCount =
+    compact && !showAll && runs.length > 3 ? runs.length - 3 : 0;
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     const fd = new FormData(e.currentTarget);
@@ -113,21 +120,34 @@ export function AssistantPanel({
           Runs the same actions as the screens
         </span>
       </div>
+      {hiddenCount > 0 ? (
+        <div className="border-b px-4 py-2">
+          <button
+            type="button"
+            className="tap-target text-label font-medium text-foreground underline underline-offset-2"
+            data-testid="assistant-show-conversation"
+            onClick={() => setShowAll(true)}
+          >
+            Show conversation ({hiddenCount} earlier)
+          </button>
+        </div>
+      ) : null}
       <ol
         ref={listRef}
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-4 p-4",
           variant === "rail" && "overflow-y-auto",
+          compact && !showAll && "max-h-72 overflow-y-auto",
         )}
         aria-live="polite"
       >
-        {runs.length === 0 && (
+        {visibleRuns.length === 0 && (
           <li className="text-sm text-muted-foreground">
             Ask about cost, schedule or tomorrow&apos;s crew plan. Each answer
             shows the action it ran.
           </li>
         )}
-        {runs.map((r) => (
+        {visibleRuns.map((r) => (
           <li
             key={r.id}
             className="flex flex-col gap-1.5"

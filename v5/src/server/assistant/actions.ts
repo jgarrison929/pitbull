@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
 import { requireDb } from "@/db";
 import {
   actionRuns,
@@ -379,6 +379,105 @@ export function matchLine(
     best?.score ? scored.filter((s) => s.score === best.score) : scored
   ).map((s) => `${s.l.code} ${s.l.activity}`);
   return { ask: `Which line do you mean? ${options.join("; ")}.` };
+}
+
+type DraftLinePick =
+  | { status: "ok"; job: JobDetail; plan: Plan; line: Line }
+  | { status: "none" }
+  | { status: "ask"; summary: string; href?: string; job?: string };
+
+/**
+ * Resolve a plan line for updateLine when the caller named words ("the pour")
+ * instead of a line id. Drafts only — issued/reported lines are locked.
+ *
+ * Prefer the unique draft whose activity matches lineRef ("pour" → Cedar
+ * 04-210) over a bare "tomorrow" date match that can still collide with
+ * other crews' non-draft plans. Working surface = planDate ≥ project today.
+ */
+async function pickDraftPlanForLineRef(
+  user: CurrentUser,
+  opts: { job?: string; lineRef?: string },
+): Promise<DraftLinePick> {
+  const todayIso = planDateToday(seedNow(), timeZoneForJob());
+  const conditions = [
+    eq(dailyPlans.companyId, user.companyId),
+    eq(dailyPlans.status, "draft"),
+    gte(dailyPlans.planDate, todayIso),
+  ];
+
+  let scopedJob: JobDetail | undefined;
+  if (opts.job) {
+    scopedJob = await resolveJob(user, opts.job);
+    if (!scopedJob) return { status: "none" };
+    conditions.push(eq(dailyPlans.jobId, scopedJob.job.id));
+  } else {
+    // Rail shorthand with no job: this foreman's drafts only (same as scopedPlan).
+    conditions.push(eq(dailyPlans.foremanId, user.userId));
+  }
+
+  const rows = await requireDb()
+    .select({ id: dailyPlans.id, jobId: dailyPlans.jobId })
+    .from(dailyPlans)
+    .where(and(...conditions))
+    .orderBy(asc(dailyPlans.planDate), asc(dailyPlans.id));
+
+  type Cand = { job: JobDetail; plan: Plan };
+  const drafts: Cand[] = [];
+  for (const r of rows) {
+    const j = scopedJob ?? (await jobById(user, r.jobId));
+    if (!j) continue;
+    const plan = (await getPlansForJob(user.companyId, j.job.id)).find(
+      (p) => p.id === r.id,
+    );
+    if (!plan) continue;
+    drafts.push({ job: j, plan });
+  }
+
+  if (drafts.length === 0) return { status: "none" };
+
+  const ref = opts.lineRef ?? "";
+  type Hit = { job: JobDetail; plan: Plan; line: Line };
+  const hits: Hit[] = [];
+  for (const d of drafts) {
+    const m = matchLine(d.plan.lines, ref);
+    if ("line" in m) hits.push({ job: d.job, plan: d.plan, line: m.line });
+  }
+
+  if (hits.length === 1) {
+    const h = hits[0]!;
+    return { status: "ok", job: h.job, plan: h.plan, line: h.line };
+  }
+  if (hits.length > 1) {
+    const first = hits[0]!;
+    return {
+      status: "ask",
+      summary: `Which plan should I change? ${formatPlanChoices(hits.map((h) => h.plan))}. Name the crew.`,
+      href: jobHref(first.job),
+      job: first.job.job.number,
+    };
+  }
+
+  // No lineRef hit: one draft → ask which line; several → ask which plan.
+  if (drafts.length === 1) {
+    const d = drafts[0]!;
+    const m = matchLine(d.plan.lines, ref);
+    if ("line" in m)
+      return { status: "ok", job: d.job, plan: d.plan, line: m.line };
+    return {
+      status: "ask",
+      summary: m.ask,
+      href: jobHref(d.job),
+      job: d.job.job.number,
+    };
+  }
+
+  const first = drafts[0]!;
+  return {
+    status: "ask",
+    summary: `Which plan should I change? ${formatPlanChoices(drafts.map((d) => d.plan))}. Name the crew.`,
+    href: jobHref(first.job),
+    job: first.job.job.number,
+  };
 }
 
 async function findLineById(user: CurrentUser, lineId: string) {
@@ -784,28 +883,22 @@ export const actions: Record<ActionName, ActionDef> = {
             errors: { form: "That plan line isn't in this sandbox." },
           };
       } else {
-        const p = await scopedPlan(user, {
-          job,
-          date: "tomorrow",
-        });
-        if (p.status === "ask") {
+        // Drafts only — issued/reported plans are locked for line edits.
+        // Prefer tomorrow's draft; if that date is empty or shares the day with
+        // other crews' non-draft plans (calendar skew), pick the unique draft
+        // whose activity matches lineRef ("the pour" → Cedar 04-210).
+        const picked = await pickDraftPlanForLineRef(user, { job, lineRef });
+        if (picked.status === "ask") {
           return {
-            summary: `Which plan should I change? ${formatPlanChoices(p.plans)}. Name the crew.`,
-            href: p.job ? jobHref(p.job) : undefined,
-            job: p.job?.job.number ?? job,
+            summary: picked.summary,
+            href: picked.href,
+            job: picked.job,
             refused: true,
           };
         }
-        if (p.status !== "ok")
+        if (picked.status === "none")
           return { summary: "There is no crew plan to change." };
-        const m = matchLine(p.plan.lines, lineRef ?? "");
-        if ("ask" in m)
-          return {
-            summary: m.ask,
-            href: jobHref(p.job),
-            job: p.job.job.number,
-          };
-        found = { job: p.job, plan: p.plan, line: m.line };
+        found = picked;
       }
       const { job: j, plan, line } = found;
       const where = { href: jobHref(j), job: j.job.number, line: line.code };
