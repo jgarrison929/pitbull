@@ -136,25 +136,60 @@ async function stabilize(page: Page) {
   await waitForPinnedFonts(page);
 }
 
+/** Double rAF so injected stabilize styles (time chips) finish reflow. */
+async function waitForLayout(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
+
+/**
+ * True content bottom — scrollHeight alone can under-report after late wrap
+ * (harbor-phone light once clipped the Changes card at 2557 vs 2729 baseline;
+ * overlapping pixels matched, so it was a short viewport, not shorter UI).
+ */
+async function measureContentHeight(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const doc = document.documentElement;
+    const body = document.body;
+    let bottom = Math.max(
+      doc.scrollHeight,
+      body?.scrollHeight ?? 0,
+      doc.offsetHeight,
+      body?.offsetHeight ?? 0,
+    );
+    const root = body ?? doc;
+    for (const el of root.querySelectorAll("main *, footer, li, section")) {
+      const r = el.getBoundingClientRect();
+      if (r.height === 0 && r.width === 0) continue;
+      bottom = Math.max(bottom, r.bottom + window.scrollY);
+    }
+    return Math.ceil(bottom);
+  });
+}
+
 /**
  * Grow the viewport to the document height so sticky `h-svh` rails paint the
  * full page (fullPage stitching otherwise clips them at the original 800px).
+ * Remeasure after resize — min-h-svh / wrap can grow once the viewport tallens.
  */
 async function fitViewportToPage(page: Page) {
   const box = page.viewportSize();
   if (!box) throw new Error("no viewport");
-  const contentHeight = await page.evaluate(() =>
-    Math.ceil(
-      Math.max(
-        document.documentElement.scrollHeight,
-        document.body?.scrollHeight ?? 0,
-      ),
-    ),
-  );
-  await page.setViewportSize({
-    width: box.width,
-    height: Math.max(box.height, contentHeight),
-  });
+  await waitForLayout(page);
+  let last = 0;
+  for (let i = 0; i < 8; i++) {
+    const contentHeight = await measureContentHeight(page);
+    const next = Math.max(box.height, contentHeight);
+    const current = page.viewportSize()?.height ?? 0;
+    if (next === last && next === current) break;
+    last = next;
+    await page.setViewportSize({ width: box.width, height: next });
+    await waitForLayout(page);
+  }
 }
 
 async function shotPage(page: Page, name: string) {
