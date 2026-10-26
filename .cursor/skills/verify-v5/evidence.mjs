@@ -44,7 +44,7 @@ export function secretValues(environment = process.env) {
  * decoded the same way at each level, so a secret that itself looks escaped is still found.
  * Self-contained (no outside references): redactedDocumentHtml ships its source into the page.
  */
-export function scrubSecrets(text, secrets, mark) {
+export function scrubSecrets(text, secrets, mark, opts) {
   const src = String(text ?? "");
   const list = (Array.isArray(secrets) ? secrets : []).filter((x) => typeof x === "string" && x.length >= 2);
   if (!src || !list.length) return src;
@@ -75,6 +75,25 @@ export function scrubSecrets(text, secrets, mark) {
         ENT.lastIndex = i;
         m = ENT.exec(s);
         if (m) val = m[1] ? fromCp(parseInt(m[1], 16)) : m[2] ? fromCp(parseInt(m[2], 10)) : NAMED[m[3]] ?? NAMED[m[3].toLowerCase()] ?? null;
+        // Named references are also recognized without a trailing ';'. Longest name in NAMED wins, so
+        // "&quotb" is quot, not a failed longer token. A miss falls through and advances one character.
+        if (!m || val === null) {
+          let name = "";
+          let best = null;
+          let bestLen = 0;
+          for (let j = i + 1; j < s.length && j - (i + 1) < 32 && /[A-Za-z0-9]/.test(s[j]); j++) {
+            name += s[j];
+            const lower = name.toLowerCase();
+            const hit = name in NAMED ? NAMED[name] : lower in NAMED ? NAMED[lower] : undefined;
+            if (hit !== undefined) (best = hit), (bestLen = name.length);
+          }
+          if (best !== null && bestLen > 0) {
+            let end = i + 1 + bestLen;
+            if (s[end] === ";") end += 1;
+            m = [s.slice(i, end)];
+            val = best;
+          }
+        }
       } else if (c === "\\") {
         ESC.lastIndex = i;
         m = ESC.exec(s);
@@ -152,17 +171,20 @@ export function scrubSecrets(text, secrets, mark) {
       for (let at = v.s.indexOf(nd); at >= 0; at = v.s.indexOf(nd, at + 1)) spans.push([v.a[at], v.b[at + nd.length - 1]]);
     }
   }
-  if (!spans.length) return src;
+  if (!spans.length) return opts?.spans ? [] : src;
   spans.sort((x, y) => x[0] - y[0] || y[1] - x[1]);
+  const merged = [];
   let out = "";
   let pos = 0;
   for (let i = 0; i < spans.length; ) {
     let [from, to] = spans[i];
     for (i++; i < spans.length && spans[i][0] <= to; i++) to = Math.max(to, spans[i][1]);
+    merged.push([from, to]);
     out += src.slice(pos, from) + mark;
     pos = to + 1;
   }
-  return out + src.slice(pos);
+  // opts.spans is for the raw-text cap (callers in this file). The page calls scrubSecrets with 3 args.
+  return opts?.spans ? merged : out + src.slice(pos);
 }
 
 /**
@@ -191,7 +213,10 @@ export function redactText(text, secrets = [], { jsonText = false } = {}) {
 
 /**
  * Deep copy of a JSON-able value with every string (keys too) redacted while still raw, before any
- * escaping. Errors become their message; cycles become "[circular]".
+ * escaping. Errors become their message. A true cycle (an object reached again through itself) becomes
+ * "[circular]". A value that is merely shared — the same array on `slowest` and again on `rows` — is
+ * copied at each place, because JSON has no references. The seen set is path-scoped: it is removed
+ * when that visit finishes, so a later sibling is not mistaken for a cycle.
  */
 export function redactValue(value, secrets = [], seen = new WeakSet()) {
   if (typeof value === "string") return redactText(value, secrets);
@@ -200,17 +225,55 @@ export function redactValue(value, secrets = [], seen = new WeakSet()) {
   if (typeof value.toJSON === "function") return redactValue(value.toJSON(), secrets, seen);
   if (seen.has(value)) return "[circular]";
   seen.add(value);
-  if (Array.isArray(value)) return value.map((v) => redactValue(v, secrets, seen));
-  if (value instanceof Map) return redactValue(Object.fromEntries(value), secrets, seen);
-  return Object.fromEntries(Object.entries(value).map(([k, v]) => [redactText(k, secrets), redactValue(v, secrets, seen)]));
+  try {
+    if (Array.isArray(value)) return value.map((v) => redactValue(v, secrets, seen));
+    if (value instanceof Map) return redactValue(Object.fromEntries(value), secrets, seen);
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [redactText(k, secrets), redactValue(v, secrets, seen)]));
+  } finally {
+    seen.delete(value);
+  }
+}
+
+/**
+ * Redact secrets inside JSON string literals only (keys and values). Structural characters stay, so a
+ * secret that happens to look like `": "` cannot break the document. Each literal is decoded, scrubbed,
+ * and re-encoded. The caller parses the result.
+ */
+export function redactJsonText(json, secrets = []) {
+  const src = String(json ?? "");
+  let out = "";
+  for (let i = 0; i < src.length; ) {
+    if (src[i] !== '"') {
+      out += src[i++];
+      continue;
+    }
+    let j = i + 1;
+    let raw = "";
+    while (j < src.length) {
+      if (src[j] === "\\") {
+        raw += src[j] + (src[j + 1] ?? "");
+        j += 2;
+        continue;
+      }
+      if (src[j] === '"') break;
+      raw += src[j++];
+    }
+    const decoded = JSON.parse(`"${raw}"`);
+    out += JSON.stringify(redactText(decoded, secrets));
+    i = j + 1;
+  }
+  return out;
 }
 
 /**
  * The only way skill evidence JSON is serialized: redact the structured value first (raw strings),
- * stringify, then redact the JSON text again for any escaped secret form (defense in depth).
+ * stringify, then scrub secrets only inside JSON string literals. The result is parsed before it is
+ * returned, so a scrub that broke the JSON throws instead of being written.
  */
 export function safeJson(value, secrets = [], space = 2) {
-  return redactText(JSON.stringify(redactValue(value, secrets), null, space), secrets, { jsonText: true });
+  const scrubbed = redactJsonText(JSON.stringify(redactValue(value, secrets), null, space), secrets);
+  JSON.parse(scrubbed);
+  return scrubbed;
 }
 
 /**
@@ -275,8 +338,33 @@ export function redactHeaders(headers = {}, secrets = []) {
 
 // Console / page error text is kept long while raw and cut to TEXT_CAP only after redaction, so a cut can't
 // leave a secret's prefix behind (a cut first would keep "…ab&c" of "ab&cd1234", which no match finds).
-const RAW_TEXT_CAP = 100_000;
+// RAW_TEXT_CAP is applied first, while the text is still raw. A secret that starts before that cut and
+// ends after it would otherwise leave a prefix the later scrub cannot see. capRawText looks past the cut
+// (far enough for an encoded form) and replaces any span that crosses it.
+export const RAW_TEXT_CAP = 100_000;
 export const TEXT_CAP = 2000;
+
+/** Keep at most `cap` characters. A secret that straddles the cut is replaced in the kept head. */
+export function capRawText(text, secrets = [], cap = RAW_TEXT_CAP) {
+  const src = String(text ?? "");
+  if (src.length <= cap) return src;
+  const list = (Array.isArray(secrets) ? secrets : []).filter((x) => typeof x === "string" && x.length >= 2);
+  const longest = list.reduce((m, s) => Math.max(m, s.length), 0);
+  const extra = Math.max(64, longest * 12);
+  const window = src.slice(0, Math.min(src.length, cap + extra));
+  const spans = scrubSecrets(window, list, REDACTED, { spans: true });
+  const crossing = spans.filter((sp) => sp[0] < cap && sp[1] >= cap);
+  if (!crossing.length) return src.slice(0, cap);
+  let out = "";
+  let pos = 0;
+  for (const [from, to] of crossing) {
+    if (from < pos) continue;
+    out += src.slice(pos, from) + REDACTED;
+    pos = Math.min(to + 1, cap);
+  }
+  if (pos < cap) out += src.slice(pos, cap);
+  return out;
+}
 
 /** page.on that tolerates page-like test doubles which don't support every event. */
 function listen(page, event, fn) {
@@ -298,13 +386,13 @@ function listen(page, event, fn) {
  * Collects console errors, uncaught page errors and failed requests (status >= 400 or a network failure)
  * from now on. mark() returns a position; since(mark) returns what arrived after it.
  */
-export function startFailureRecorder(page) {
+export function startFailureRecorder(page, secrets = []) {
   const events = [];
   const offs = [
     listen(page, "console", (m) => {
-      if (m?.type?.() === "error") events.push({ kind: "console", text: String(m.text()).slice(0, RAW_TEXT_CAP) });
+      if (m?.type?.() === "error") events.push({ kind: "console", text: capRawText(String(m.text()), secrets) });
     }),
-    listen(page, "pageerror", (e) => events.push({ kind: "pageerror", text: String(e?.stack ?? e?.message ?? e).slice(0, RAW_TEXT_CAP) })),
+    listen(page, "pageerror", (e) => events.push({ kind: "pageerror", text: capRawText(String(e?.stack ?? e?.message ?? e), secrets) })),
     listen(page, "response", (r) => {
       if (typeof r?.status !== "function" || r.status() < 400) return;
       const req = r.request();

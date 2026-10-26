@@ -6,6 +6,7 @@
 // (last green commit, red main HEAD) — see SKILL.md.
 // Usage: node .cursor/skills/verify-v5/verify.mjs [--url URL] [--commit SHA] [--wait SECONDS] [--shots DIR]
 //        [--main-ci auto|on|off] [--max-green-age-hours 24] [--page-budget-ms 1500] [--self-check]
+//        [--rc SHA] [--rc-version 5.0.4] [--phone-checks]
 // Writes evidence to .cursor/skills/verify-v5/evidence/<timestamp>/ and exits 1 on any failed check.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -38,6 +39,17 @@ import { ciGateIsPass } from "./status-ci-gate.mjs";
 import { PORTFOLIO_STEP, runPortfolioStep } from "./portfolio.mjs";
 import { RESET_BUDGET_MS, RESET_STEP, runResetTimeStep } from "./reset-time.mjs";
 import { redactText, safeJson, secretValues, setFailureEvidence } from "./evidence.mjs";
+import {
+  attributeChecks,
+  browserFailureCheck,
+  buildRcChecks,
+  deployedForMainRule,
+  evaluateRcHead,
+  journalAppliesCleanly,
+  phoneChecksEnabled,
+  readRcHistory,
+  resolveRcMode,
+} from "./rc.mjs";
 
 // Any crash prints one redacted line: never a DATABASE_URL, password or VERIFY_TOKEN from an error message.
 for (const ev of ["uncaughtException", "unhandledRejection"]) {
@@ -62,6 +74,12 @@ const { values: args } = parseArgs({
     target: { type: "string", default: "auto" },
     "max-green-age-hours": { type: "string", default: String(MAX_GREEN_AGE_HOURS) },
     "page-budget-ms": { type: "string", default: String(PAGE_BUDGET_MS) },
+    // RC handover (from 5.0.4): staging must serve this exact rc/<version> head. Absent = per-PR flow.
+    rc: { type: "string" },
+    "rc-version": { type: "string", default: "5.0.4" },
+    // Phone layout checks (overflow, tap, text, clipping, one-tap). Also on for --rc at 5.0.4+.
+    // Default crawl and 5.0.2 / 5.0.3 per-PR verifies leave this off.
+    "phone-checks": { type: "boolean", default: false },
   },
 });
 
@@ -80,7 +98,19 @@ if (targetError) {
   process.exit(1);
 }
 const production = target === "production";
-if (!args["self-check"]) console.log(`target ${target} (${production ? "expects the newest v5 release tag" : "expects the last green main commit"})`);
+const { rc, error: rcError } = resolveRcMode({ version: args["rc-version"], sha: args.rc, commit: args.commit, target });
+const phoneChecks = phoneChecksEnabled({ rc, flag: args["phone-checks"] });
+if (rcError) {
+  console.error(rcError);
+  process.exit(1);
+}
+if (!args["self-check"]) {
+  console.log(
+    rc
+      ? `target ${target} (RC ${rc.branch} head ${rc.sha})`
+      : `target ${target} (${production ? "expects the newest v5 release tag" : "expects the last green main commit"})`,
+  );
+}
 const mainCiOn = production || args["main-ci"] === "on" || (args["main-ci"] === "auto" && !isLocal && !args["self-check"]);
 
 // main's CI: last green v5 commit (ci-gate success) and whether main HEAD is red. Read before the
@@ -109,7 +139,10 @@ if (production) {
 // Full 40-char SHA everywhere. Production: the newest v5 release tag's commit (never last green main).
 // Staging: last green v5 commit on main when main CI is read, else the last origin/main commit
 // touching v5/ (self-check and local runs, no network).
-const expectedFull = expectedCommitFor({ target, pinned: args.commit, release, mainCi, fallback: () => resolveDefaultCommit(repo) })
+// RC handover: the --rc SHA itself. Staging must serve that commit, not last green main.
+const expectedFull = (rc
+  ? rc.sha
+  : expectedCommitFor({ target, pinned: args.commit, release, mainCi, fallback: () => resolveDefaultCommit(repo) }))
   .trim()
   .toLowerCase();
 const resolveSha = resolvePrefix(repo);
@@ -127,7 +160,7 @@ if (args["self-check"]) {
     );
     process.exit(1);
   }
-  console.log(`self-check ok expected=${expectedFull}`);
+  console.log(rc ? `self-check ok expected=${expectedFull} rc=${rc.version} branch=${rc.branch}` : `self-check ok expected=${expectedFull}`);
   process.exit(0);
 }
 
@@ -181,8 +214,9 @@ check("/health db ok", health.body.db === "ok", health.body.db);
 
 if (mainCiOn) {
   const deployedFull = resolveSha(String(health.body.commit ?? "")) ?? null;
-  const results = commitResults({ target, mainCi, mainCiError, release, releaseError, deployedFull, maxAgeHours: Number(args["max-green-age-hours"]) });
-  writeFileSync(path.join(outDir, "main-ci.json"), safeJson({ target, ...mainCi, release, deployedFull, results }, SECRETS));
+  // An RC deploy is not main's last green commit. The last-green comparison stays for every other run.
+  const results = commitResults({ target, mainCi, mainCiError, release, releaseError, deployedFull: deployedForMainRule(rc?.sha, deployedFull), maxAgeHours: Number(args["max-green-age-hours"]) });
+  writeFileSync(path.join(outDir, "main-ci.json"), safeJson({ target, ...mainCi, release, deployedFull, rc: rc ?? null, results }, SECRETS));
   for (const r of results) {
     if (r.severity === "WARN") warnings.push({ name: r.name, detail: r.detail });
     else check(r.name, r.severity === "PASS", r.detail);
@@ -230,8 +264,14 @@ async function scanBannedVisible(page, label) {
   for (const h of bannedHits(visible)) bannedHitList.push(`${label}: "${h.match}" (${h.id})`);
 }
 
-const browser = await chromium.launch();
+/** RC handover reads these after the browser run. Unset on a per-PR run. */
+let statusCommitShown = null;
+let migrationsLabel = null;
+const rcSignals = { crawlRan: false, crawlFailures: [] };
+
+let browser;
 try {
+  browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
   check("/ redirects to /login", new URL(page.url()).pathname === "/login", page.url());
@@ -247,6 +287,12 @@ try {
     built: await text("status-built"),
     database: await text("status-database"),
   };
+  statusCommitShown = status.commit;
+  if (rc) {
+    // A missing test id must not abort the crawl. Migrations are judged after the browser run.
+    migrationsLabel = await page.getByTestId("status-migrations").textContent({ timeout: 5000 }).then((t) => t?.trim() ?? "").catch(() => null);
+    status.migrations = migrationsLabel;
+  }
   writeFileSync(path.join(outDir, "status.json"), safeJson(status, SECRETS));
   await page.screenshot({ path: path.join(outDir, "status.png"), fullPage: true });
   check("/status shows Operational", status.health === "Operational", status.health);
@@ -254,6 +300,10 @@ try {
   const m = commitMatches(status.commit);
   check("/status commit matches (full SHA)", m.ok, m.detail);
 }
+  if (rc) {
+    const head = evaluateRcHead({ rcSha: rc.sha, shown: status.commit, resolve: resolveSha });
+    check("staging /status serves the rc head", head.ok, head.ok ? head.detail : head.failures.join("; "));
+  }
   check("/status database ok", status.database === "ok", status.database);
   check(
     "/status shows version",
@@ -299,8 +349,13 @@ try {
   await flows(browser);
   await navCrawl(browser);
   await numberChecks(browser);
+} catch (error) {
+  // A dead deploy used to reach only the process crash handler, which prints "verify-v5 crashed"
+  // and never writes rc.json. Name the failure and let the RC block below still write it.
+  const failed = browserFailureCheck(statusCommitShown, error?.message ?? error);
+  check(failed.name, false, failed.detail);
 } finally {
-  await browser.close();
+  await browser?.close();
 }
 
 check(
@@ -331,8 +386,10 @@ async function navCrawl(browser) {
   };
   await step("nav crawl: 4 roles × pages × 320/390/768/1280", async () => {
     const rows = [];
-    for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
-    const failures = rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs }));
+    for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined, phoneChecks, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
+    const failures = rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks }));
+    rcSignals.crawlRan = true;
+    rcSignals.crawlFailures = failures;
     const slow = slowestRow(rows);
     const drillRows = rows.filter((r) => r.drill);
     const pageRows = rows.filter((r) => !r.drill && !r.partC);
@@ -355,7 +412,7 @@ async function navCrawl(browser) {
     );
     // /roadmap gets the same per-load checks; this names its coverage (5.0.1 acceptance check 12).
     const roadmapRows = rows.filter((r) => r.path === "/roadmap");
-    const roadmapFailures = roadmapCoverageFailures(rows, { budgetMs });
+    const roadmapFailures = roadmapCoverageFailures(rows, { budgetMs, phoneChecks });
     check(
       "nav crawl includes /roadmap",
       roadmapFailures.length === 0,
@@ -712,6 +769,56 @@ async function flows(browser) {
     );
   });
   await phone.close();
+}
+
+if (rc) {
+  let history = null;
+  let historyError = null;
+  try {
+    let present = false;
+    try {
+      execFileSync("git", ["cat-file", "-e", `${rc.sha}^{commit}`], { cwd: repo, stdio: "ignore" });
+      present = true;
+    } catch {
+      present = false;
+    }
+    if (!present) execFileSync("git", ["fetch", "origin", rc.branch], { cwd: repo, encoding: "utf8" });
+    history = readRcHistory({
+      version: rc.version,
+      sha: rc.sha,
+      mainRef: "origin/main",
+      git: (gitArgs) => execFileSync("git", gitArgs, { cwd: repo, encoding: "utf8" }),
+    });
+  } catch (error) {
+    historyError = String(error.message ?? error).split("\n")[0];
+  }
+  const healthOk = health.status === 200 && health.body?.status === "ok" && health.body?.db === "ok";
+  checks.push(...buildRcChecks({
+    history,
+    historyError,
+    crawlRan: rcSignals.crawlRan,
+    crawlFailures: rcSignals.crawlFailures,
+    migrationsLabel,
+    healthOk,
+  }));
+  const merges = history?.merges ?? [];
+  const attributed = attributeChecks(checks, merges);
+  checks.splice(0, checks.length, ...attributed);
+  writeFileSync(
+    path.join(outDir, "rc.json"),
+    safeJson({
+      version: rc.version,
+      sha: rc.sha,
+      branch: rc.branch,
+      statusCommit: statusCommitShown,
+      migrationsLabel,
+      merges,
+      added: history?.added ?? [],
+      journalApplies: history ? journalAppliesCleanly(history.journal) : null,
+      specPath: history?.specPath ?? null,
+      attributions: checks.filter((c) => !c.ok).map((c) => ({ name: c.name, prs: c.prs ?? [], detail: c.detail })),
+    }, SECRETS),
+  );
 }
 
 const passed = checks.every((c) => c.ok);

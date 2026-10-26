@@ -288,7 +288,7 @@ export async function timeOneReset(page, base, { expectedRows, now = Date.now, s
 export async function runResetTimeStep(page, base, opts = {}) {
   const samples = [];
   const evidence = failureEvidenceFor(page);
-  const recorder = evidence ? startFailureRecorder(page) : null;
+  const recorder = evidence ? startFailureRecorder(page, evidence.secrets) : null;
   for (let i = 0; i < RESET_SAMPLES; i++) {
     const mark = recorder?.mark() ?? 0;
     try {

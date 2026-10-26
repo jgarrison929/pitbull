@@ -4,15 +4,16 @@
 // right reason, and the good pages and the two named seeded empty states must PASS.
 // Run: node .cursor/skills/verify-v5/crawl-mustfail.test.mjs
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { evaluateCrawlRow } from "./checks.mjs";
+import { evaluateCrawlRow, evaluatePhoneUx } from "./checks.mjs";
 import { captureFailure, REDACTED, redactedDocumentHtml, redactText, startFailureRecorder } from "./evidence.mjs";
-import { crawl, CRAWL_WIDTHS, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
+import { crawl, CRAWL_ROLES, CRAWL_WIDTHS, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
 import { drillCoverageFailures, drillDiscoveryFailures, drillLoadPlan, drillPath, loadSeedCrawlTargets, partCFailures } from "./drill.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -23,12 +24,30 @@ const { chromium } = require("@playwright/test");
 // so a 1050 ms response measures >= 1550 ms (typically ~1.6 s). A budget loosened by even 500 ms lets them pass,
 // which this file then reports as MUST-FAIL WENT GREEN (the old 1.8 s fixtures measured ~2.3 s).
 const SLOW_MS = 1050;
-const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${extra}</head><body><main>${body}</main></body></html>`;
+// Good pages have to satisfy the phone checks: 16px text, 44px controls, no clipped money/status/header.
+const PHONE_OK_CSS = `<style>html,body{margin:0;font-size:16px}a,button,input,select,textarea,summary{font-size:16px;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;box-sizing:border-box}</style>`;
+const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}${extra}</head><body><main>${body}</main></body></html>`;
+// Bad phone fixtures opt out of the 44px floor so a 20px control stays 20px.
+const bare = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-size:16px}</style></head><body><main>${body}</main></body></html>`;
+const clip = (css, text, attrs = "") => `<span ${attrs} style="display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${css}">${text}</span>`;
+const ACTIONS = [
+  ["executive", "Open the at-risk job"],
+  ["pm", "Approve CO-001"],
+  ["superintendent", "Submit the plan"],
+  ["foreman", "Report today's quantities"],
+].map(([role, label]) => `<a data-testid="role-primary-action" data-role="${role}" href="/app/jobs/good">${label}</a>`).join("");
+const JOB_LINK = `<a data-testid="job-link" href="/app/jobs/good">25-031</a>`;
+let appMode = "good";
+const appBody = () => {
+  if (appMode === "missing") return JOB_LINK;
+  if (appMode === "buried") return `${JOB_LINK}<details><summary>More</summary>${ACTIONS}</details>`;
+  return `${JOB_LINK}${ACTIONS}`;
+};
 const job = (body) => shell(`<h1>Job</h1><div data-testid="cost-tree-row">03-210 Footing concrete</div>${body}`);
 const co = (status, n = "CO-001") => `<article data-testid="co-card" data-co-number="${Number(n.slice(3))}" data-status="${status}"><h3>${n} · Wall</h3><p>No lines yet. Price it per cost item.</p></article>`;
 const PAGES = {
-  "/login": () => shell(`<button data-testid="role-pm" onclick="location.href='/app'">Project Manager</button>`),
-  "/app": () => shell(`<a data-testid="job-link" href="/app/jobs/good">25-031</a>`),
+  "/login": () => shell(["executive", "pm", "superintendent", "foreman"].map((r) => `<button data-testid="role-${r}" onclick="location.href='/app'">${r}</button>`).join("")),
+  "/app": () => shell(appBody()),
   "/roadmap": () => shell("<h1>Roadmap</h1><h2>Shipped</h2><p>5.0.0</p><h2>Next</h2><p>5.0.1</p>"),
   "/roadmap-nomain": () => "<!doctype html><html><body><h1>Roadmap</h1></body></html>",
   "/app/jobs/good": () => job("<p>Cedar Creek. Superintendent notes. Stubborn clay.</p>"),
@@ -57,7 +76,43 @@ const PAGES = {
   "/status-fault": () => layout(boundary("route-error", "Page load failed")),
   "/app/jobs/route-error-marker": () => layout(boundary("route-error", "Could not show this job")), // marker only
   "/app/jobs/global-error": () => `<!doctype html><html><head><title>Load failed · Pitbull</title></head><body>${boundary("global-error", "Shell load failed")}</body></html>`,
-  "/app/jobs/next-builtin": () => `<!doctype html><html><head><meta charset="utf-8"></head><body><div><h2>This page couldn’t load</h2><p>A server error occurred. Reload to try again.</p></div></body></html>`,
+  "/app/jobs/next-builtin": () => `<!doctype html><html><head><meta charset="utf-8">${PHONE_OK_CSS}</head><body><div><h2>This page couldn’t load</h2><p>A server error occurred. Reload to try again.</p></div></body></html>`,
+  // Phone layout. These are crawled on their own (not in the 390/1280 pass) so a must-pass at 320
+  // is not also judged at desktop width.
+  "/phone/overflow": () => bare(`<div style="width:422px;height:12px">spill</div>`),
+  "/phone/tap": () => bare(`<button type="button" style="width:20px;height:20px;min-width:0;min-height:0;font-size:16px;padding:0;border:0;box-sizing:border-box;overflow:visible">Go</button>`),
+  "/phone/text": () => bare(`<span style="font-size:10px">Tiny label</span><input aria-label="Hours" style="width:44px;height:44px;font-size:14px;box-sizing:border-box">`),
+  "/phone/money": () => bare(clip("max-width:36px", "$1,234.56", 'data-cents="123456"')),
+  "/phone/status": () => bare(clip("max-width:32px", "At risk", 'data-status="at-risk"')),
+  "/phone/header": () => bare(`<table><tr><th style="display:inline-block;max-width:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Actual</th></tr></table>`),
+  "/phone/secondary-bare": () => bare(`<nav data-testid="job-strip">${clip("max-width:40px", "Cedar Creek Bridge")}</nav>`),
+  "/phone/secondary-title": () => bare(`<nav data-testid="job-strip">${clip("max-width:40px", "Cedar Creek Bridge", 'title="Cedar Creek Bridge"')}</nav>`),
+  "/phone/desktop-ellipsis": () => bare(clip("max-width:40px", "Cedar Creek Bridge", 'title="Cedar Creek Bridge"')),
+  // Eight allowed secondary ellipses, then a ninth money clip. A cap of 8 would hide the money.
+  "/phone/nine": () => bare(
+    Array.from({ length: 8 }, () => clip("display:block;max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary" title="Cedar Creek Bridge"')).join("")
+      + clip("display:block;max-width:36px", "$1,234.56", 'data-cents="123456"'),
+  ),
+  // The clipped box is the secondary container. The money / status / th is inside it, not the clipped element itself.
+  "/phone/money-in-secondary": () => bare(`<nav data-testid="job-strip" style="display:block;max-width:40px;overflow:hidden;white-space:nowrap"><span data-cents="123456">$1,234.56</span></nav>`),
+  "/phone/status-in-secondary": () => bare(`<nav data-testid="job-strip" style="display:block;max-width:40px;overflow:hidden;white-space:nowrap"><span data-status="at-risk">At risk</span></nav>`),
+  "/phone/th-in-secondary": () => bare(`<div data-clip="secondary" style="display:block;max-width:28px;overflow:hidden;white-space:nowrap"><table><tr><th>Actual cost to date</th></tr></table></div>`),
+  // overflow:hidden, title equals the full text, no text-overflow:ellipsis. A hard clip.
+  "/phone/hard-clip": () => bare(`<span data-clip="secondary" title="Cedar Creek Bridge" style="display:inline-block;overflow:hidden;white-space:nowrap;max-width:40px">Cedar Creek Bridge</span>`),
+  "/phone/link-reach": () => bare(`<a href="/app/jobs/good">${clip("max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary"')}</a>`),
+  "/phone/h1": () => bare(`<header><h1 title="Cedar Creek Bridge" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40px;font-size:16px">Cedar Creek Bridge</h1></header>`),
+  "/phone/ancestor-title": () => bare(`<div title="Cedar Creek Bridge">${clip("max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary"')}</div>`),
+  "/phone/title-contains": () => bare(clip("max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary" title="See Cedar Creek Bridge"')),
+  "/phone/expand-fake": () => bare(clip("max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary" aria-expanded="true"')),
+  "/phone/expand-real": () => bare(`${clip("max-width:40px", "Cedar Creek Bridge", 'id="clip" data-clip="secondary" aria-expanded="true" aria-controls="full"')}<span id="full">Cedar Creek Bridge</span>`),
+  "/phone/aria-label": () => bare(clip("max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary" aria-label="Cedar Creek Bridge"')),
+  // 120px overflow:hidden job strip. The label is a valid ellipsis (40px, own title equals the text).
+  // The money span is width 96px, so its right edge is at 136px and the strip cuts it. The span itself
+  // is not overflow:hidden, so only the strip's clip can report the money.
+  "/phone/money-beside-label": () => bare(`<nav data-testid="job-strip" style="display:block;width:120px;overflow:hidden;white-space:nowrap;font-size:16px"><span title="Cedar Creek Bridge" style="display:inline-block;width:40px;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cedar Creek Bridge</span><span data-cents="123456789" style="display:inline-block;width:96px">$1,234,567.89</span></nav>`),
+  // Same strip, short money that fits inside 120px. Only the allowed ellipsis remains.
+  "/phone/money-fits": () => bare(`<nav data-testid="job-strip" style="display:block;width:120px;overflow:hidden;white-space:nowrap;font-size:16px"><span title="Cedar Creek Bridge" style="display:inline-block;width:40px;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cedar Creek Bridge</span><span data-cents="100" style="display:inline-block">$1.00</span></nav>`),
+  "/phone/budget-money": () => bare(clip("max-width:40px", "Budget $1,234,567", 'data-clip="secondary" title="Budget $1,234,567"')),
   // Evidence redaction: a failing page that sets a cookie, prints a canary token, and makes a request with
   // an Authorization header and a token in the query.
   "/app/jobs/leaky": () => job(`<p>${CANARY_TOKEN}</p><script>document.cookie = "sid=${CANARY_COOKIE}; path=/"; console.error("leak ${CANARY_TOKEN}"); fetch("/api/broken?access_token=${CANARY_QUERY}", { headers: { Authorization: "Bearer ${CANARY_TOKEN}" } });</script>`),
@@ -76,7 +131,7 @@ const PAGES = {
 const CANARY_TOKEN = "canary-verify-token-1111-not-real";
 const CANARY_COOKIE = "canarycookie1111notreal";
 const CANARY_QUERY = "qtok1111canary1111notreal1111";
-const layout = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><nav aria-label="Main"><a href="/app">Portfolio</a></nav>${body}</body></html>`;
+const layout = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}</head><body><nav aria-label="Main"><a href="/app">Portfolio</a></nav>${body}</body></html>`;
 const boundary = (testid, title) => `<main data-testid="${testid}"><div><span>Pitbull</span><h1>${title}</h1><p>This screen failed to render. Try again. If it keeps failing, open the demo login and pick a role.</p><button type="button">Try again</button><a href="/login">Demo login</a></div></main>`;
 const planPage = (crew) => shell(`<h1>Daily plan · ${crew}</h1><span data-testid="plan-detail-status">Approved</span><a data-testid="plan-detail-back" href="/app">back</a>`);
 const PLAN_FOR = { "77-001": "p-good", "77-002": "p-slow", "77-004": "p-500" };
@@ -106,7 +161,13 @@ const DRILL_PAGES = {
   "07-boundary": () => layout(boundary("route-error", "Page load failed")), // drill-down lands on the PR #15 boundary
 };
 const server = http.createServer((req, res) => {
-  const p = req.url.split("?")[0];
+  const url = new URL(req.url, "http://127.0.0.1");
+  if (url.pathname === "/__landing") {
+    appMode = url.searchParams.get("mode") || "good";
+    res.writeHead(204);
+    return res.end();
+  }
+  const p = url.pathname;
   const dm = p.match(/^\/app\/jobs\/(77-00\d)\/cost-items\/([^/]+)$/);
   const route = PAGES[p] ?? (dm && DRILL_PAGES[dm[2]] ? () => DRILL_PAGES[dm[2]](dm[1]) : undefined);
   if (!route) {
@@ -160,6 +221,15 @@ let noMainRows;
 let drillRows;
 let partCRows;
 let evRows;
+let phoneBadRows;
+let phonePassRows;
+let phoneRuleRows;
+let phoneGatedRows;
+let overflowWideRows;
+let desktopClipRows;
+let roleRows;
+let buriedRows;
+let missingRows;
 // Failure evidence through the real crawl (as verify.mjs runs it): failing loads, a failing drill-down and
 // a short discovery are captured; passing loads are not.
 const evRoot = mkdtempSync(path.join(os.tmpdir(), "crawl-evidence-"));
@@ -177,6 +247,29 @@ try {
   roadmapRows = await crawl(browser, base, { pages: ["/roadmap"], roles: ["pm"], widths: [...CRAWL_WIDTHS, ...ROADMAP_EXTRA_WIDTHS] });
   noMainRows = await crawl(browser, base, { pages: ["/roadmap-nomain"], roles: ["pm"], widths: [1440] });
   evRows = await crawl(browser, base, { pages: ["/app", "/app/jobs/good", "/app/jobs/http500", "/app/jobs/route-error", "/app/jobs/leaky", "/app/jobs/77-005"], roles: ["pm"], widths: [1280], drill: evDrill, evidence: { dir: evRoot, secrets: [CANARY_TOKEN] } });
+  phoneBadRows = await crawl(browser, base, {
+    pages: ["/phone/overflow", "/phone/tap", "/phone/text", "/phone/money", "/phone/status", "/phone/header", "/phone/secondary-bare"],
+    roles: ["pm"],
+    widths: [320],
+    phoneChecks: true,
+  });
+  phonePassRows = await crawl(browser, base, { pages: ["/phone/secondary-title", "/phone/expand-real", "/phone/aria-label", "/phone/money-fits"], roles: ["pm"], widths: [320], phoneChecks: true });
+  phoneRuleRows = await crawl(browser, base, {
+    pages: ["/phone/nine", "/phone/money-in-secondary", "/phone/status-in-secondary", "/phone/th-in-secondary", "/phone/hard-clip", "/phone/link-reach", "/phone/h1", "/phone/ancestor-title", "/phone/title-contains", "/phone/expand-fake", "/phone/money-beside-label", "/phone/budget-money"],
+    roles: ["pm"],
+    widths: [320],
+    phoneChecks: true,
+  });
+  // The same bad pages, with phone checks off: the default crawl must not record or fail them.
+  phoneGatedRows = await crawl(browser, base, { pages: ["/phone/tap", "/phone/money", "/phone/nine"], roles: ["pm"], widths: [320] });
+  overflowWideRows = await crawl(browser, base, { pages: ["/phone/overflow"], roles: ["pm"], widths: [1280], phoneChecks: true });
+  desktopClipRows = await crawl(browser, base, { pages: ["/phone/desktop-ellipsis"], roles: ["pm"], widths: [1280], phoneChecks: true });
+  roleRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320], phoneChecks: true });
+  await fetch(`${base}/__landing?mode=buried`);
+  buriedRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320], phoneChecks: true });
+  await fetch(`${base}/__landing?mode=missing`);
+  missingRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320], phoneChecks: true });
+  await fetch(`${base}/__landing?mode=good`);
 } finally {
   await browser.close();
   server.close();
@@ -192,6 +285,116 @@ for (const width of [390, 1280]) {
     const f = evaluateCrawlRow(rows.find((r) => r.path === p && r.width === width));
     assert.ok(f.some((x) => re.test(x)), `${p}@${width} must fail with ${re}; got ${JSON.stringify(f)}`);
     lines.push(`FAILS as expected: ${p}@${width} → ${f.find((x) => re.test(x))}`);
+  }
+}
+{
+  const bad = {
+    "/phone/overflow": /document scrollWidth 422px > viewport 320px/,
+    "/phone/tap": /tap target button 20×20px < 44×44/,
+    "/phone/text": /secondary text 10px < 12px/,
+    "/phone/money": /clipped money "\$1,234\.56"/,
+    "/phone/status": /clipped status pill "At risk"/,
+    "/phone/header": /clipped table header "Actual"/,
+    "/phone/secondary-bare": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
+  };
+  for (const [p, re] of Object.entries(bad)) {
+    const row = phoneBadRows.find((r) => r.path === p && r.width === 320);
+    const f = evaluatePhoneUx(row);
+    assert.ok(f.some((x) => re.test(x)), `${p}@320 must fail with ${re}; got ${JSON.stringify(f)}`);
+    lines.push(`FAILS as expected: ${p}@320 → ${f.find((x) => re.test(x))}`);
+  }
+  const textRow = phoneBadRows.find((r) => r.path === "/phone/text");
+  const textFails = evaluatePhoneUx(textRow);
+  assert.ok(textFails.some((x) => /input text 14px < 16px/.test(x)), `input under 16px must fail; got ${JSON.stringify(textFails)}`);
+  lines.push(`FAILS as expected: /phone/text@320 → ${textFails.find((x) => /input text/.test(x))}`);
+  const overflow = phoneBadRows.find((r) => r.path === "/phone/overflow");
+  assert.equal(overflow.docScrollWidth, 422, `overflow fixture document scrollWidth must be 422, got ${overflow.docScrollWidth}`);
+  assert.equal(overflow.viewportWidth, 320);
+  const titleRow = phonePassRows.find((r) => r.path === "/phone/secondary-title" && r.width === 320);
+  assert.ok(titleRow.clips.some((c) => c.kind === "secondary" && c.reachable && c.ellipsis === true), `title fixture must be a reachable secondary ellipsis; got ${JSON.stringify(titleRow.clips)}`);
+  assert.deepEqual(evaluatePhoneUx(titleRow), [], `phone secondary ellipsis with a title must pass; got ${JSON.stringify(evaluatePhoneUx(titleRow))}`);
+  lines.push("passes: /phone/secondary-title@320 ellipsis with its own title");
+  for (const p of ["/phone/expand-real", "/phone/aria-label"]) {
+    const row = phonePassRows.find((r) => r.path === p);
+    assert.ok(row.clips.some((c) => c.kind === "secondary" && c.reachable && c.ellipsis === true), `${p} must be a reachable secondary ellipsis; got ${JSON.stringify(row.clips)}`);
+    assert.deepEqual(evaluatePhoneUx(row), [], `${p} must pass; got ${JSON.stringify(evaluatePhoneUx(row))}`);
+    lines.push(`passes: ${p}@320 full text reachable`);
+  }
+  const rules = {
+    "/phone/nine": /clipped money "\$1,234\.56"/,
+    "/phone/money-in-secondary": /clipped money "\$1,234\.56"/,
+    "/phone/status-in-secondary": /clipped status pill "At risk"/,
+    "/phone/th-in-secondary": /clipped table header "Actual cost to date"/,
+    "/phone/hard-clip": /clipped secondary label "Cedar Creek Bridge" is a hard clip/,
+    "/phone/link-reach": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
+    "/phone/h1": /clipped page title "Cedar Creek Bridge"/,
+    "/phone/ancestor-title": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
+    "/phone/title-contains": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
+    "/phone/expand-fake": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
+    "/phone/money-beside-label": /clipped money/,
+    "/phone/budget-money": /clipped money "Budget \$1,234,567"/,
+  };
+  for (const [p, re] of Object.entries(rules)) {
+    const row = phoneRuleRows.find((r) => r.path === p);
+    const f = evaluatePhoneUx(row);
+    assert.ok(f.some((x) => re.test(x)), `${p}@320 must fail with ${re}; got ${JSON.stringify(f)} clips ${JSON.stringify(row.clips)}`);
+    lines.push(`FAILS as expected: ${p}@320 → ${f.find((x) => re.test(x))}`);
+  }
+  const nine = phoneRuleRows.find((r) => r.path === "/phone/nine");
+  assert.equal(nine.clips.length, 9, `all 9 clips must be listed, not capped at 8; got ${nine.clips.length} ${JSON.stringify(nine.clips.map((c) => c.kind))}`);
+  assert.equal(nine.clipCount, 9);
+  assert.ok(nine.clips.some((c) => c.kind === "money"), "the 9th clip is the money value");
+  const moneyBox = phoneRuleRows.find((r) => r.path === "/phone/money-in-secondary");
+  assert.ok(moneyBox.clips.some((c) => c.kind === "money"), `money inside a secondary container is money; got ${JSON.stringify(moneyBox.clips)}`);
+  const statusBox = phoneRuleRows.find((r) => r.path === "/phone/status-in-secondary");
+  assert.ok(statusBox.clips.some((c) => c.kind === "status"), `status inside a secondary container is status; got ${JSON.stringify(statusBox.clips)}`);
+  const thBox = phoneRuleRows.find((r) => r.path === "/phone/th-in-secondary");
+  assert.ok(thBox.clips.some((c) => c.kind === "header"), `th inside a secondary container is a header; got ${JSON.stringify(thBox.clips)}`);
+  const hard = phoneRuleRows.find((r) => r.path === "/phone/hard-clip");
+  assert.ok(hard.clips.some((c) => c.kind === "secondary" && c.ellipsis === false && c.reachable === true), `hard clip is secondary, reachable, not ellipsis; got ${JSON.stringify(hard.clips)}`);
+  const link = phoneRuleRows.find((r) => r.path === "/phone/link-reach");
+  assert.ok(link.clips.some((c) => c.reachable === false), `a link does not make the clip reachable; got ${JSON.stringify(link.clips)}`);
+  const h1 = phoneRuleRows.find((r) => r.path === "/phone/h1");
+  assert.ok(h1.clips.some((c) => c.kind === "title"), `h1 in a header is a page title; got ${JSON.stringify(h1.clips)}`);
+  const beside = phoneRuleRows.find((r) => r.path === "/phone/money-beside-label");
+  assert.ok(beside.clips.some((c) => c.kind === "money" && c.text.includes("$1,234,567.89")), `the strip that cuts the money is reported as money; got ${JSON.stringify(beside.clips)}`);
+  assert.ok(beside.clips.some((c) => c.kind === "secondary" && c.reachable === true && c.ellipsis === true), `the titled label is still its own clip; got ${JSON.stringify(beside.clips)}`);
+  const besideFails = evaluatePhoneUx(beside);
+  assert.ok(besideFails.some((x) => /clipped money/.test(x) && x.includes("$1,234,567.89")), JSON.stringify(besideFails));
+  const budget = phoneRuleRows.find((r) => r.path === "/phone/budget-money");
+  assert.ok(budget.clips.some((c) => c.kind === "money"), `Budget $1,234,567 is money; got ${JSON.stringify(budget.clips)}`);
+  const fits = phonePassRows.find((r) => r.path === "/phone/money-fits");
+  assert.ok(fits.clips.some((c) => c.kind === "secondary" && c.reachable === true && c.ellipsis === true), `the fitting twin keeps the ellipsis; got ${JSON.stringify(fits.clips)}`);
+  assert.ok(!fits.clips.some((c) => c.kind === "money"), `money that fits is not a clip; got ${JSON.stringify(fits.clips)}`);
+  assert.deepEqual(evaluatePhoneUx(fits), [], `money that fits inside the strip must pass; got ${JSON.stringify(evaluatePhoneUx(fits))}`);
+  lines.push("passes: /phone/money-fits@320 money inside the 120px strip");
+  const ancestor = phoneRuleRows.find((r) => r.path === "/phone/ancestor-title");
+  assert.ok(ancestor.clips.some((c) => c.reachable === false), `an ancestor title is not the element's own title; got ${JSON.stringify(ancestor.clips)}`);
+  for (const p of ["/phone/tap", "/phone/money", "/phone/nine"]) {
+    const row = phoneGatedRows.find((r) => r.path === p);
+    assert.ok(!("clips" in row) && !("tapMisses" in row) && !("docScrollWidth" in row), `${p} with phone checks off must omit phone fields; keys ${Object.keys(row).join(",")}`);
+    const f = evaluateCrawlRow(row);
+    assert.deepEqual(f, [], `default crawl of ${p} must pass; got ${JSON.stringify(f)}`);
+    lines.push(`passes: ${p}@320 with phone checks off (default crawl)`);
+  }
+  const wide = overflowWideRows.find((r) => r.path === "/phone/overflow" && r.width === 1280);
+  assert.ok(wide.docScrollWidth <= wide.viewportWidth, `a 422px block must not widen a 1280 viewport; scrollWidth ${wide.docScrollWidth} viewport ${wide.viewportWidth}`);
+  assert.deepEqual(evaluatePhoneUx(wide), [], `422px block at a 1280 viewport must pass the phone overflow check; got ${JSON.stringify(evaluatePhoneUx(wide))}`);
+  lines.push("passes: /phone/overflow@1280 (422px block is inside a 1280 viewport)");
+  const desk = desktopClipRows.find((r) => r.path === "/phone/desktop-ellipsis");
+  const deskFails = evaluatePhoneUx(desk);
+  assert.ok(deskFails.some((x) => /clipped text at 1280px/.test(x)), `desktop ellipsis must fail; got ${JSON.stringify(deskFails)}`);
+  lines.push(`FAILS as expected: /phone/desktop-ellipsis@1280 → ${deskFails.find((x) => /clipped text at 1280px/.test(x))}`);
+  for (const role of CRAWL_ROLES) {
+    const good = roleRows.find((r) => r.role === role && r.path === "/app");
+    assert.deepEqual(evaluatePhoneUx(good), [], `${role} /app@320 must pass one-tap; got ${JSON.stringify(evaluatePhoneUx(good))}`);
+    lines.push(`passes: ${role} /app@320 one-tap primary action`);
+    const buried = evaluatePhoneUx(buriedRows.find((r) => r.role === role && r.path === "/app"));
+    assert.ok(buried.some((x) => /not one tap/.test(x)), `${role} buried action must fail; got ${JSON.stringify(buried)}`);
+    lines.push(`FAILS as expected: ${role} /app@320 buried → ${buried.find((x) => /not one tap/.test(x))}`);
+    const missing = evaluatePhoneUx(missingRows.find((r) => r.role === role && r.path === "/app"));
+    assert.ok(missing.some((x) => /no one-tap primary action/.test(x)), `${role} missing action must fail; got ${JSON.stringify(missing)}`);
+    lines.push(`FAILS as expected: ${role} /app@320 missing → ${missing.find((x) => /no one-tap primary action/.test(x))}`);
   }
 }
 {
@@ -506,5 +709,37 @@ let htmlCases = 0;
     rmSync(evRoot, { recursive: true, force: true });
   }
 }
+{
+  // /status cannot be reached: verify.mjs must write rc.json and print FAIL /status unreachable.
+  // The process crash handler ("verify-v5 crashed") is not the result.
+  const repo = path.resolve(here, "../../..");
+  const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim();
+  const env = { ...process.env };
+  delete env.VERIFY_TOKEN;
+  let ran;
+  try {
+    const stdout = execFileSync(process.execPath, [path.join(here, "verify.mjs"), "--rc", head, "--url", "http://127.0.0.1:1", "--main-ci", "off"], {
+      encoding: "utf8",
+      cwd: repo,
+      env,
+      timeout: 180_000,
+    });
+    ran = { status: 0, stdout, stderr: "" };
+  } catch (error) {
+    ran = { status: error.status, stdout: String(error.stdout ?? ""), stderr: String(error.stderr ?? "") };
+  }
+  const out = `${ran.stdout}\n${ran.stderr}`;
+  assert.equal(ran.status, 1, `unreachable /status must exit 1; got ${ran.status}\n${out.slice(-800)}`);
+  assert.match(ran.stdout, /FAIL \/status unreachable/);
+  assert.doesNotMatch(out, /verify-v5 crashed/);
+  const evidence = ran.stdout.match(/evidence: (\S+)/);
+  assert.ok(evidence, `stdout must name the evidence dir; got ${ran.stdout.slice(-500)}`);
+  const rc = JSON.parse(readFileSync(path.join(repo, evidence[1], "rc.json"), "utf8"));
+  assert.equal(rc.sha, head);
+  assert.equal(rc.version, "5.0.4");
+  assert.ok((rc.attributions ?? []).some((a) => a.name === "/status unreachable"), `rc.json must name /status unreachable; got ${JSON.stringify(rc.attributions)}`);
+  lines.push(`FAILS as expected: /status unreachable → FAIL /status unreachable, rc.json sha ${rc.sha.slice(0, 12)}`);
+  rmSync(path.join(repo, evidence[1]), { recursive: true, force: true });
+}
 for (const l of lines) console.log(l);
-console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases, ${flightCases} real-Chromium flight/URL redaction cases)`);
+console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length + phoneBadRows.length + phoneRuleRows.length + phoneGatedRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases, ${flightCases} real-Chromium flight/URL redaction cases)`);
