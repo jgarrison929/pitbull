@@ -101,4 +101,33 @@ describe("seed plan dates use job time zone", () => {
     expect(history.length).toBeGreaterThan(0);
     expect(history.every((p) => p.planDate < today)).toBe(true);
   });
+
+  it("weekday evening 00:30Z: history below LA today and unique (job, crew, date)", () => {
+    // Monday evening PT — UTC has rolled to Tuesday. UTC workingDaysBefore would
+    // include LA-today (Mon) and collide with open I-5 on daily_plans_job_crew_date_uidx.
+    const now = new Date("2026-10-27T00:30:00.000Z");
+    expect(utcDay(now)).toBe("2026-10-27");
+    expect(assistantToday(now)).toBe("2026-10-26");
+
+    const rows = seed(company, now);
+    const today = assistantToday(now);
+    const history = rows.dailyPlans.filter((p) => p.status === "approved");
+    expect(history.every((p) => p.planDate < today)).toBe(true);
+
+    const i5 = rows.dailyPlans.find(
+      (p) => p.id === seedId(company, "plan:i5:today"),
+    )!;
+    const cedar = rows.dailyPlans.find(
+      (p) => p.id === seedId(company, "plan:cedar:tomorrow"),
+    )!;
+    expect(i5.planDate).toBe(today);
+    expect(cedar.planDate).toBe(assistantTomorrow(now));
+
+    const seen = new Set<string>();
+    for (const plan of rows.dailyPlans) {
+      const key = `${plan.jobId}:${plan.crewId}:${plan.planDate}`;
+      expect(seen.has(key), `duplicate ${key}`).toBe(false);
+      seen.add(key);
+    }
+  });
 });
