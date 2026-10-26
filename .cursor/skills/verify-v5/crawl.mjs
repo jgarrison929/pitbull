@@ -1,7 +1,7 @@
 // Browser half of the nav crawl: signs in by role card and measures each page. Evaluation lives in
 // checks.mjs (evaluateCrawlRow) so the must-fail tests can drive the same code against a fake server.
 import path from "node:path";
-import { classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, secondaryReachable } from "./checks.mjs";
+import { classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, secondaryReachable, textHasMoney } from "./checks.mjs";
 import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillDiscoveryFailures, drillPath, partCItemFor } from "./drill.mjs";
 import { captureFailure, secretValues, startFailureRecorder } from "./evidence.mjs";
 
@@ -72,12 +72,12 @@ export function watch(page, sink) {
 }
 
 /**
- * DOM scan passed to page.evaluate. classifyClip and secondaryReachable are arguments so the page
- * runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
+ * DOM scan passed to page.evaluate. classifyClip, secondaryReachable and textHasMoney are arguments
+ * so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
  * Phone observations are recorded only when phoneChecks is true. Otherwise those fields are omitted,
  * and evaluateCrawlRow's default (phoneChecks false) does not read them.
  */
-function scanPage(arg, classifyClip, secondaryReachable) {
+function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
   const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks } = arg;
   const doc = document.documentElement;
   const vw = Math.min(intendedW, window.visualViewport?.width ?? intendedW);
@@ -175,14 +175,36 @@ function scanPage(arg, classifyClip, secondaryReachable) {
     if (!target || target === el || !shown(target)) return false;
     return oneLine(target.textContent) === oneLine(el.textContent);
   };
+  // Money, a status pill, a table header, or an h1 / page title. A container that cuts one of these
+  // is reported even when a different child is clipped on its own (a titled ellipsis beside the money).
+  const protectedSelector = "[data-cents], [data-status], th, [data-clip='header'], h1, [data-testid='page-title'], [data-clip='title']";
+  const directText = (node) => {
+    let direct = "";
+    for (const n of node.childNodes) if (n.nodeType === 3) direct += n.textContent;
+    return oneLine(direct);
+  };
+  const sticksOutOf = (node, box) => {
+    const r = node.getBoundingClientRect();
+    if (!(r.width > 0 || r.height > 0)) return false;
+    return r.right > box.right + 0.5 || r.left < box.left - 0.5;
+  };
+  const hidesProtected = (el) => {
+    const box = el.getBoundingClientRect();
+    for (const node of el.querySelectorAll("*")) {
+      const protectedNode = node.matches(protectedSelector) || textHasMoney(directText(node));
+      if (protectedNode && sticksOutOf(node, box)) return true;
+    }
+    return false;
+  };
   const clips = [];
   for (const el of document.querySelectorAll("body *")) {
     if (!isClipped(el)) continue;
-    if ([...el.querySelectorAll("*")].some(isClipped)) continue;
+    // Nested non-protected clips stay deepest-only. A container that itself cuts protected content is kept.
+    if ([...el.querySelectorAll("*")].some(isClipped) && !hidesProtected(el)) continue;
     const kind = classifyClip({
       statusInBox: boxHas(el, "[data-status]"),
       centsInBox: boxHas(el, "[data-cents]"),
-      moneyText: /^\$[\d,]/.test(oneLine(el.textContent)),
+      moneyText: textHasMoney(oneLine(el.textContent)),
       headerInBox: boxHas(el, "th, [data-clip='header']"),
       titleInBox: boxHas(el, "h1, [data-testid='page-title'], [data-clip='title']"),
       // The element or an ancestor that is the secondary label. A header is not secondary.
@@ -236,7 +258,8 @@ const measureDom = new Function(
   "arg",
   "const classifyClip = (" + classifyClip.toString() + ");\n" +
     "const secondaryReachable = (" + secondaryReachable.toString() + ");\n" +
-    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable);",
+    "const textHasMoney = (" + textHasMoney.toString() + ");\n" +
+    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney);",
 );
 
 /** Full navigation to base+p; time is wall clock from goto until network idle (includes Playwright's 500 ms idle window). */

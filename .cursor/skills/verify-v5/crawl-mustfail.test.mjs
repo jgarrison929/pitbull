@@ -106,6 +106,13 @@ const PAGES = {
   "/phone/expand-fake": () => bare(clip("max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary" aria-expanded="true"')),
   "/phone/expand-real": () => bare(`${clip("max-width:40px", "Cedar Creek Bridge", 'id="clip" data-clip="secondary" aria-expanded="true" aria-controls="full"')}<span id="full">Cedar Creek Bridge</span>`),
   "/phone/aria-label": () => bare(clip("max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary" aria-label="Cedar Creek Bridge"')),
+  // 120px overflow:hidden job strip. The label is a valid ellipsis (40px, own title equals the text).
+  // The money span is width 96px, so its right edge is at 136px and the strip cuts it. The span itself
+  // is not overflow:hidden, so only the strip's clip can report the money.
+  "/phone/money-beside-label": () => bare(`<nav data-testid="job-strip" style="display:block;width:120px;overflow:hidden;white-space:nowrap;font-size:16px"><span title="Cedar Creek Bridge" style="display:inline-block;width:40px;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cedar Creek Bridge</span><span data-cents="123456789" style="display:inline-block;width:96px">$1,234,567.89</span></nav>`),
+  // Same strip, short money that fits inside 120px. Only the allowed ellipsis remains.
+  "/phone/money-fits": () => bare(`<nav data-testid="job-strip" style="display:block;width:120px;overflow:hidden;white-space:nowrap;font-size:16px"><span title="Cedar Creek Bridge" style="display:inline-block;width:40px;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cedar Creek Bridge</span><span data-cents="100" style="display:inline-block">$1.00</span></nav>`),
+  "/phone/budget-money": () => bare(clip("max-width:40px", "Budget $1,234,567", 'data-clip="secondary" title="Budget $1,234,567"')),
   // Evidence redaction: a failing page that sets a cookie, prints a canary token, and makes a request with
   // an Authorization header and a token in the query.
   "/app/jobs/leaky": () => job(`<p>${CANARY_TOKEN}</p><script>document.cookie = "sid=${CANARY_COOKIE}; path=/"; console.error("leak ${CANARY_TOKEN}"); fetch("/api/broken?access_token=${CANARY_QUERY}", { headers: { Authorization: "Bearer ${CANARY_TOKEN}" } });</script>`),
@@ -246,9 +253,9 @@ try {
     widths: [320],
     phoneChecks: true,
   });
-  phonePassRows = await crawl(browser, base, { pages: ["/phone/secondary-title", "/phone/expand-real", "/phone/aria-label"], roles: ["pm"], widths: [320], phoneChecks: true });
+  phonePassRows = await crawl(browser, base, { pages: ["/phone/secondary-title", "/phone/expand-real", "/phone/aria-label", "/phone/money-fits"], roles: ["pm"], widths: [320], phoneChecks: true });
   phoneRuleRows = await crawl(browser, base, {
-    pages: ["/phone/nine", "/phone/money-in-secondary", "/phone/status-in-secondary", "/phone/th-in-secondary", "/phone/hard-clip", "/phone/link-reach", "/phone/h1", "/phone/ancestor-title", "/phone/title-contains", "/phone/expand-fake"],
+    pages: ["/phone/nine", "/phone/money-in-secondary", "/phone/status-in-secondary", "/phone/th-in-secondary", "/phone/hard-clip", "/phone/link-reach", "/phone/h1", "/phone/ancestor-title", "/phone/title-contains", "/phone/expand-fake", "/phone/money-beside-label", "/phone/budget-money"],
     roles: ["pm"],
     widths: [320],
     phoneChecks: true,
@@ -324,6 +331,8 @@ for (const width of [390, 1280]) {
     "/phone/ancestor-title": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
     "/phone/title-contains": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
     "/phone/expand-fake": /clipped secondary label "Cedar Creek Bridge" with no reachable full text/,
+    "/phone/money-beside-label": /clipped money/,
+    "/phone/budget-money": /clipped money "Budget \$1,234,567"/,
   };
   for (const [p, re] of Object.entries(rules)) {
     const row = phoneRuleRows.find((r) => r.path === p);
@@ -347,6 +356,18 @@ for (const width of [390, 1280]) {
   assert.ok(link.clips.some((c) => c.reachable === false), `a link does not make the clip reachable; got ${JSON.stringify(link.clips)}`);
   const h1 = phoneRuleRows.find((r) => r.path === "/phone/h1");
   assert.ok(h1.clips.some((c) => c.kind === "title"), `h1 in a header is a page title; got ${JSON.stringify(h1.clips)}`);
+  const beside = phoneRuleRows.find((r) => r.path === "/phone/money-beside-label");
+  assert.ok(beside.clips.some((c) => c.kind === "money" && c.text.includes("$1,234,567.89")), `the strip that cuts the money is reported as money; got ${JSON.stringify(beside.clips)}`);
+  assert.ok(beside.clips.some((c) => c.kind === "secondary" && c.reachable === true && c.ellipsis === true), `the titled label is still its own clip; got ${JSON.stringify(beside.clips)}`);
+  const besideFails = evaluatePhoneUx(beside);
+  assert.ok(besideFails.some((x) => /clipped money/.test(x) && x.includes("$1,234,567.89")), JSON.stringify(besideFails));
+  const budget = phoneRuleRows.find((r) => r.path === "/phone/budget-money");
+  assert.ok(budget.clips.some((c) => c.kind === "money"), `Budget $1,234,567 is money; got ${JSON.stringify(budget.clips)}`);
+  const fits = phonePassRows.find((r) => r.path === "/phone/money-fits");
+  assert.ok(fits.clips.some((c) => c.kind === "secondary" && c.reachable === true && c.ellipsis === true), `the fitting twin keeps the ellipsis; got ${JSON.stringify(fits.clips)}`);
+  assert.ok(!fits.clips.some((c) => c.kind === "money"), `money that fits is not a clip; got ${JSON.stringify(fits.clips)}`);
+  assert.deepEqual(evaluatePhoneUx(fits), [], `money that fits inside the strip must pass; got ${JSON.stringify(evaluatePhoneUx(fits))}`);
+  lines.push("passes: /phone/money-fits@320 money inside the 120px strip");
   const ancestor = phoneRuleRows.find((r) => r.path === "/phone/ancestor-title");
   assert.ok(ancestor.clips.some((c) => c.reachable === false), `an ancestor title is not the element's own title; got ${JSON.stringify(ancestor.clips)}`);
   for (const p of ["/phone/tap", "/phone/money", "/phone/nine"]) {

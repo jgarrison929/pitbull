@@ -163,24 +163,28 @@ export function attributeFailure(text, merges) {
 
 /**
  * Failure lines inside a check detail. A crawl detail is `summary — failure; failure`, and the summary
- * can contain `; `. When the text after ` — ` contains `@<width>`, only that tail is split.
- * Otherwise the whole detail is split on `; `.
+ * can contain `; `. When the text after ` — ` contains `@<width>`, the tail is split and each failure
+ * keeps that summary (`summary — failure`). Otherwise the whole detail is split on `; `.
  */
 export function failureSegments(detail) {
   const text = String(detail ?? "").trim();
   if (!text) return [];
   const parts = text.split(/\s+—\s+/);
   if (parts.length > 1) {
+    const summary = parts[0].trim();
     const tail = parts.slice(1).join(" — ").trim();
-    if (/@\d+\b/.test(tail)) return tail.split(/;\s+/).map((s) => s.trim()).filter(Boolean);
+    if (summary && /@\d+\b/.test(tail)) {
+      return tail.split(/;\s+/).map((s) => s.trim()).filter(Boolean).map((segment) => `${summary} — ${segment}`);
+    }
   }
   return text.split(/;\s+/).map((s) => s.trim()).filter(Boolean);
 }
 
 /**
  * Copy failing checks, appending the PR trace to `detail`. Passing checks are unchanged.
- * Each failure line is attributed on its own. One line keeps `detail — PR #N`.
- * Several lines each gain their own trace, so the first matching rule cannot hide a later line.
+ * Each failure line is attributed on its own and keeps the summary that preceded ` — `.
+ * One line keeps `detail — PR #N`. Several lines read `summary — failure — PR #N`,
+ * so the first matching rule cannot hide a later line.
  */
 export function attributeChecks(checks, merges) {
   return (checks ?? []).map((c) => {
@@ -372,7 +376,9 @@ export function readRcHistory({ version = RC_VERSION, sha, git, mainRef = "origi
   }
   const mainJournal = JSON.parse(git(["show", `${mainRef}:v5/drizzle/meta/_journal.json`]) || "{}");
   const rcJournal = JSON.parse(git(["show", `${sha}:v5/drizzle/meta/_journal.json`]) || "{}");
-  const specList = String(git(["ls-tree", "--name-only", sha, "docs/v5/specs"]) ?? "").split("\n").map((s) => s.trim());
+  // A trailing slash plus -r. `git ls-tree --name-only <sha> docs/v5/specs` (no slash, no -r)
+  // prints only the directory, so the spec file would never match.
+  const specList = String(git(["ls-tree", "-r", "--name-only", sha, "docs/v5/specs/"]) ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
   const specPath = specList.find((name) => name.startsWith(`docs/v5/specs/${version}-`) && name.endsWith(".md"));
   const spec = specPath ? git(["show", `${sha}:${specPath}`]) : "";
   return {

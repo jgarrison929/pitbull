@@ -105,7 +105,7 @@ export const PRIMARY_ACTION_VERB = {
 
 /**
  * Kind of a clipped box. Protected content wins over a secondary label:
- * a status pill, money (`data-cents` or a `$` amount), a table header, or an h1 / page title
+ * a status pill, money (`data-cents` or a `$` amount anywhere in the text), a table header, or an h1 / page title
  * anywhere in the box (the element, an ancestor that is that thing, or a descendant).
  * A secondary label is only the job strip, the company name, or `data-clip="secondary"`.
  * Being inside `header` does not make a clip secondary.
@@ -117,6 +117,11 @@ export function classifyClip({ statusInBox, centsInBox, moneyText, headerInBox, 
   if (titleInBox) return "title";
   if (secondaryBox) return "secondary";
   return "text";
+}
+
+/** A dollar amount anywhere in the text. `$` followed by a digit (`Budget $1,234,567`). `$` alone is not money. */
+export function textHasMoney(text) {
+  return /\$\d[\d,]*/.test(String(text ?? ""));
 }
 
 /** Own title or aria-label must equal the full text after trimming, or a proven expansion is open. */

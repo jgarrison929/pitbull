@@ -2,7 +2,7 @@
 // Must-fail self-tests for the pure checks in checks.mjs. Each new check must FAIL on bad input and
 // PASS on the good twin of that input. No network, no Playwright. Run: node checks.test.mjs
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +31,7 @@ import {
   PRIMARY_ACTION_VERB,
   secondaryReachable,
   shaMatches,
+  textHasMoney,
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
@@ -69,6 +70,30 @@ const mustPass = (name, failures) => {
   assert.deepEqual(failures, [], `good case failed: ${name}`);
   results.push(`passes: ${name}`);
 };
+
+/** Temporary git repo with a journal and, when asked, docs/v5/specs/5.0.4-*.md. */
+function specFixture(withSpec) {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "verify-v5-spec-"));
+  const run = (args) => execFileSync("git", args, { cwd: dir, encoding: "utf8" });
+  run(["init", "-b", "main"]);
+  run(["config", "user.email", "verify-v5@example.com"]);
+  run(["config", "user.name", "verify-v5"]);
+  const journal = path.join(dir, "v5/drizzle/meta/_journal.json");
+  mkdirSync(path.dirname(journal), { recursive: true });
+  writeFileSync(journal, JSON.stringify({ entries: [{ tag: "0015", when: 15 }] }));
+  const specs = path.join(dir, "docs/v5/specs");
+  mkdirSync(specs, { recursive: true });
+  writeFileSync(path.join(specs, "README.md"), "# specs\n");
+  if (withSpec) {
+    writeFileSync(
+      path.join(specs, "5.0.4-clear-next-steps-and-mobile-polish.md"),
+      "### Acceptance check for 5.0.4-0\n\nDocument scrollWidth stays within the phone viewport.\n",
+    );
+  }
+  run(["add", "."]);
+  run(["-c", "commit.gpgsign=false", "commit", "-m", "fixture"]);
+  return { dir, sha: run(["rev-parse", "HEAD"]).trim() };
+}
 
 // ---- banned words ----
 for (const bad of ["Coming soon", "coming  soon", "This is a stub", "STUB data", "stubs", "FIXME", "fixme: wire it", "TBD", "tbd", "WIP", "wip", "TODO", "Lorem ipsum", "placeholder", "ERP", "an erp", "Not implemented"]) {
@@ -143,6 +168,9 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
   }
   assert.match(crawlSrc, /classifyClip\(/, "the crawl classifies clips with classifyClip");
   assert.match(crawlSrc, /secondaryReachable\(/, "the crawl decides reachability with secondaryReachable");
+  assert.match(crawlSrc, /textHasMoney\(/, "a $ amount anywhere in the clipped text is money");
+  assert.match(crawlSrc, /hidesProtected/, "a container that cuts protected content is still reported");
+  assert.doesNotMatch(crawlSrc, /some\(isClipped\)\) continue;/, "a clipped child must not hide a container that cuts protected content");
   assert.doesNotMatch(crawlSrc, /clips\.length < 8/, "a clip cap must not drop a later clip");
   assert.doesNotMatch(crawlSrc, /closest\("a\[href\]"\)/, "a link is not a reachable full text");
   assert.doesNotMatch(crawlSrc, /data-clip='secondary'\], header/, "a header is not a secondary label");
@@ -191,6 +219,12 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
   assert.equal(classifyClip({ titleInBox: true, secondaryBox: true }), "title", "an h1 inside a secondary box is a page title");
   assert.equal(classifyClip({ secondaryBox: true }), "secondary");
   assert.equal(classifyClip({}), "text");
+  assert.equal(textHasMoney("$1,234.56"), true);
+  assert.equal(textHasMoney("$1,234,567.89"), true);
+  assert.equal(textHasMoney("Budget $1,234,567"), true, "a $ amount anywhere in the text is money");
+  assert.equal(textHasMoney("Cedar Creek Bridge"), false);
+  assert.equal(textHasMoney("$"), false);
+  assert.equal(textHasMoney("$,000"), false);
   assert.equal(secondaryReachable({ text: "Cedar Creek Bridge", title: "Cedar Creek Bridge" }), true);
   assert.equal(secondaryReachable({ text: "Cedar Creek Bridge", ariaLabel: "  Cedar   Creek Bridge " }), true);
   assert.equal(secondaryReachable({ text: "Cedar Creek Bridge", title: "See Cedar Creek Bridge" }), false, "a title that merely contains the text is not the full text");
@@ -1450,14 +1484,15 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     { number: 24, sha: "d".repeat(40), subject: "fix(v5): phone overflow (#24)", files: ["v5/src/app/layout.tsx"] },
     { number: 40, sha: "e".repeat(40), subject: "format money (#40)", files: ["v5/src/components/app/format.tsx"] },
   ];
-  const combined = `4/4 page loads, 2 failures; slowest 80 ms (pm@320 /app), budget 1500 ms — ${overflow}; ${clipLine}`;
+  const summary = "4/4 page loads, 2 failures; slowest 80 ms (pm@320 /app), budget 1500 ms";
+  const combined = `${summary} — ${overflow}; ${clipLine}`;
   const firstRule = attributeFailure(`nav crawl ${combined}`, twoMerges);
   assert.deepEqual(firstRule.prs, [24], `the combined detail must still hit only the first rule; got ${JSON.stringify(firstRule)}`);
-  assert.deepEqual(failureSegments(combined), [overflow, clipLine]);
+  assert.deepEqual(failureSegments(combined), [`${summary} — ${overflow}`, `${summary} — ${clipLine}`]);
   const splitTrace = attributeChecks([{ name: "nav crawl", ok: false, detail: combined }], twoMerges);
   assert.deepEqual(splitTrace[0].prs, [24, 40], `each failure line names its own PR; got ${JSON.stringify(splitTrace[0])}`);
-  assert.match(splitTrace[0].detail, /document scrollWidth 422px > viewport 320px — PR #24/);
-  assert.match(splitTrace[0].detail, /clipped money "\$1,234\.56" — PR #40/);
+  assert.match(splitTrace[0].detail, /4\/4 page loads, 2 failures; slowest 80 ms \(pm@320 \/app\), budget 1500 ms — foreman@320 \/app: document scrollWidth 422px > viewport 320px — PR #24/);
+  assert.match(splitTrace[0].detail, /4\/4 page loads, 2 failures; slowest 80 ms \(pm@320 \/app\), budget 1500 ms — foreman@320 \/app: clipped money "\$1,234\.56" — PR #40/);
   assert.ok(!splitTrace[0].detail.includes("#31"));
   results.push("FAILS as expected: two crawl lines → PR #24 (layout.tsx) and PR #40 (format.tsx), not the first rule alone");
 
@@ -1528,6 +1563,7 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   results.push("passes: 5.0.4-0 is executed by the crawl; 5.0.4-a through 5.0.4-g stay not executed; a desktop clip is not the ≤480 check");
 
   const sha = "9".repeat(40);
+  const foundRepo = specFixture(true);
   const calls = [];
   const git = (args) => {
     calls.push(args.join(" "));
@@ -1538,17 +1574,50 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     if (args[0] === "diff") return args[2].startsWith("e") ? "v5/src/app/layout.tsx\nv5/src/components/app/shell.tsx\n" : "v5/src/server/plans.ts\n";
     if (args[0] === "show" && args[1].startsWith("origin/main:")) return JSON.stringify({ entries: [{ tag: "0015", when: 15 }] });
     if (args[0] === "show" && args[1] === `${sha}:v5/drizzle/meta/_journal.json`) return JSON.stringify({ entries: clean });
-    if (args[0] === "ls-tree") return "docs/v5/specs/README.md\ndocs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md\n";
-    if (args[0] === "show") return "### Acceptance check for 5.0.4-0\n\nbody\n";
+    if (args[0] === "ls-tree" || (args[0] === "show" && String(args[1]).includes(":docs/"))) {
+      const forwarded = args.map((part) => part.replaceAll(sha, foundRepo.sha));
+      return execFileSync("git", forwarded, { cwd: foundRepo.dir, encoding: "utf8" });
+    }
     throw new Error(args.join(" "));
   };
-  const hist = readRcHistory({ sha, git });
+  let hist;
+  try {
+    hist = readRcHistory({ sha, git });
+  } finally {
+    rmSync(foundRepo.dir, { recursive: true, force: true });
+  }
   assert.deepEqual(hist.merges.map((m) => m.number), [24, 31]);
   assert.deepEqual(hist.merges[0].files, ["v5/src/app/layout.tsx", "v5/src/components/app/shell.tsx"]);
   assert.deepEqual(hist.added.map((m) => m.tag), ["0016_rc"]);
   assert.equal(hist.specPath, "docs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md");
+  assert.match(hist.spec, /### Acceptance check for 5\.0\.4-0/);
+  assert.ok(calls.some((c) => c === `ls-tree -r --name-only ${sha} docs/v5/specs/`), calls.join("\n"));
   assert.ok(calls.some((c) => c.startsWith("log --first-parent")));
   results.push("passes: readRcHistory lists merged PRs #24 and #31 and the migration added over main");
+
+  const present = specFixture(true);
+  const absent = specFixture(false);
+  try {
+    const presentGit = (args) => execFileSync("git", args, { cwd: present.dir, encoding: "utf8" });
+    const found = readRcHistory({ sha: present.sha, git: presentGit, mainRef: "main" });
+    assert.equal(found.specPath, "docs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md");
+    assert.match(found.spec, /### Acceptance check for 5\.0\.4-0/);
+    const directoryOnly = execFileSync("git", ["ls-tree", "--name-only", present.sha, "docs/v5/specs"], { cwd: present.dir, encoding: "utf8" }).trim();
+    assert.equal(directoryOnly, "docs/v5/specs", "without -r or a trailing slash, git lists the directory and the spec file is missed");
+    const absentGit = (args) => execFileSync("git", args, { cwd: absent.dir, encoding: "utf8" });
+    const missing = readRcHistory({ sha: absent.sha, git: absentGit, mainRef: "main" });
+    assert.equal(missing.specPath, null);
+    assert.equal(missing.spec, "");
+    const noSpec = buildRcChecks({ history: missing, crawlRan: false, crawlFailures: [], migrationsLabel: "(none)", healthOk: true });
+    const acceptance = noSpec.find((c) => c.name === "rc acceptance items");
+    assert.ok(acceptance && !acceptance.ok, JSON.stringify(noSpec));
+    assert.match(acceptance.detail, /no spec at this SHA/);
+    mustFail("no spec at this SHA", [acceptance.detail]);
+  } finally {
+    rmSync(present.dir, { recursive: true, force: true });
+    rmSync(absent.dir, { recursive: true, force: true });
+  }
+  results.push("passes: real git ls-tree -r finds docs/v5/specs/5.0.4-*.md at the SHA");
 
   const verify = path.join(here, "verify.mjs");
   const repo = path.resolve(here, "../../..");
