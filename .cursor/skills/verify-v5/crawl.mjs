@@ -1,7 +1,7 @@
 // Browser half of the nav crawl: signs in by role card and measures each page. Evaluation lives in
 // checks.mjs (evaluateCrawlRow) so the must-fail tests can drive the same code against a fake server.
 import path from "node:path";
-import { classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, secondaryReachable, textHasMoney } from "./checks.mjs";
+import { classifyClip, DESKTOP_MIN_PX, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, secondaryReachable, textHasMoney } from "./checks.mjs";
 import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillDiscoveryFailures, drillPath, partCItemFor } from "./drill.mjs";
 import { captureFailure, secretValues, startFailureRecorder } from "./evidence.mjs";
 
@@ -194,11 +194,12 @@ export function watch(page, sink) {
 /**
  * DOM scan passed to page.evaluate. classifyClip, secondaryReachable and textHasMoney are arguments
  * so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
- * Phone observations are recorded only when phoneChecks is true. Otherwise those fields are omitted,
- * and evaluateCrawlRow's default (phoneChecks false) does not read them.
+ * Tap targets, text size, and document scroll are recorded only when phoneChecks is true.
+ * Protected clips are recorded at desktop widths even when phone checks are off.
+ * Below desktop, with phone checks off, those fields are omitted.
  */
 function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
-  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks } = arg;
+  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks, desktopMin } = arg;
   const doc = document.documentElement;
   const vw = Math.min(intendedW, window.visualViewport?.width ?? intendedW);
   const sw = Math.max(doc.scrollWidth, document.body?.scrollWidth ?? 0);
@@ -241,12 +242,13 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
       .map((a) => (a.getAttribute("href") ?? "").split(/[?#]/)[0])
       .filter((h) => /^\/app\/jobs\/[^/]+\/schedule$/.test(h)),
   };
-  if (!phoneChecks) return out;
+  // Phone-width rows stay free of clip fields unless phone checks are on.
+  if (!phoneChecks && intendedW < desktopMin) return out;
   const tapMisses = [];
   let tapMissCount = 0;
   const textMisses = [];
   let textMissCount = 0;
-  if (intendedW <= phoneMax) {
+  if (phoneChecks && intendedW <= phoneMax) {
     for (const el of document.querySelectorAll('a, button, input, select, textarea, summary, [role="button"], [role="link"]')) {
       if (el.matches('input[type="hidden"]') || !shown(el)) continue;
       if (getComputedStyle(el).pointerEvents === "none") continue;
@@ -348,6 +350,11 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
       }),
     });
   }
+  if (!phoneChecks) {
+    out.clips = clips;
+    out.clipCount = clips.length;
+    return out;
+  }
   const primaryActions = [...document.querySelectorAll('[data-testid="next-step"], [data-testid="role-primary-action"]')].slice(0, 16).map((el) => {
     const rect = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
@@ -405,6 +412,7 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
     minSecondary: MIN_SECONDARY_FONT_PX,
     minInput: MIN_INPUT_FONT_PX,
     phoneChecks: phoneChecks === true,
+    desktopMin: DESKTOP_MIN_PX,
   });
   if (shotDir) {
     await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });

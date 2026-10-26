@@ -88,6 +88,8 @@ const PAGES = {
   "/phone/secondary-bare": () => bare(`<nav data-testid="job-strip">${clip("max-width:40px", "Cedar Creek Bridge")}</nav>`),
   "/phone/secondary-title": () => bare(`<nav data-testid="job-strip">${clip("max-width:40px", "Cedar Creek Bridge", 'title="Cedar Creek Bridge"')}</nav>`),
   "/phone/desktop-ellipsis": () => bare(clip("max-width:40px", "Cedar Creek Bridge", 'title="Cedar Creek Bridge"')),
+  // Full text sits in an overflow-x scroller. The pill's own box is not overflow:hidden.
+  "/phone/status-scroller": () => bare(`<div style="width:48px;overflow-x:auto"><span data-status="at-risk" style="display:inline-block;white-space:nowrap">At risk</span></div>`),
   // Eight allowed secondary ellipses, then a ninth money clip. A cap of 8 would hide the money.
   "/phone/nine": () => bare(
     Array.from({ length: 8 }, () => clip("display:block;max-width:40px", "Cedar Creek Bridge", 'data-clip="secondary" title="Cedar Creek Bridge"')).join("")
@@ -239,6 +241,7 @@ let phoneRuleRows;
 let phoneGatedRows;
 let overflowWideRows;
 let desktopClipRows;
+let desktopProtectedRows = [];
 let roleRows;
 let buriedRows;
 let missingRows;
@@ -281,6 +284,13 @@ try {
   phoneGatedRows = await crawl(browser, base, { pages: ["/phone/tap", "/phone/money", "/phone/nine"], roles: ["pm"], widths: [320] });
   overflowWideRows = await crawl(browser, base, { pages: ["/phone/overflow"], roles: ["pm"], widths: [1280], phoneChecks: true });
   desktopClipRows = await crawl(browser, base, { pages: ["/phone/desktop-ellipsis"], roles: ["pm"], widths: [1280], phoneChecks: true });
+  // Default crawl (phone checks off) at desktop width: protected self-clips fail,
+  // a scroller-readable pill passes, and secondary ellipsis is not a default-crawl failure.
+  desktopProtectedRows = await crawl(browser, base, {
+    pages: ["/phone/money", "/phone/status", "/phone/header", "/phone/status-scroller", "/phone/desktop-ellipsis"],
+    roles: ["pm"],
+    widths: [1280],
+  });
   roleRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320], phoneChecks: true });
   await fetch(`${base}/__landing?mode=buried`);
   buriedRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320], phoneChecks: true });
@@ -423,6 +433,26 @@ for (const width of [390, 1280]) {
     assert.deepEqual(f, [], `default crawl of ${p} must pass; got ${JSON.stringify(f)}`);
     lines.push(`passes: ${p}@320 with phone checks off (default crawl)`);
   }
+  const protectedFail = {
+    "/phone/money": /clipped money/,
+    "/phone/status": /clipped status pill "At risk"/,
+    "/phone/header": /clipped table header "Actual"/,
+  };
+  for (const [p, re] of Object.entries(protectedFail)) {
+    const row = desktopProtectedRows.find((r) => r.path === p);
+    assert.ok(row && "clips" in row, `${p}@1280 default crawl must record clips`);
+    const f = evaluateCrawlRow(row);
+    assert.ok(f.some((x) => re.test(x)), `${p}@1280 default crawl must fail ${re}; got ${JSON.stringify(f)}`);
+    lines.push(`FAILS as expected: ${p}@1280 phone checks off → ${f.find((x) => re.test(x))}`);
+  }
+  const scroller = desktopProtectedRows.find((r) => r.path === "/phone/status-scroller");
+  assert.ok(scroller, "status scroller row missing");
+  assert.ok(!(scroller.clips ?? []).some((c) => c.kind === "status"), `a scroller-readable pill is not a status clip; got ${JSON.stringify(scroller.clips)}`);
+  assert.deepEqual(evaluateCrawlRow(scroller), [], `status inside overflow-x:auto must pass the default crawl; got ${JSON.stringify(evaluateCrawlRow(scroller))}`);
+  lines.push("passes: /phone/status-scroller@1280 (full text inside overflow-x:auto)");
+  const secondaryDesktop = desktopProtectedRows.find((r) => r.path === "/phone/desktop-ellipsis");
+  assert.deepEqual(evaluateCrawlRow(secondaryDesktop), [], `secondary ellipsis must pass the default crawl; got ${JSON.stringify(evaluateCrawlRow(secondaryDesktop))}`);
+  lines.push("passes: /phone/desktop-ellipsis@1280 with phone checks off");
   const wide = overflowWideRows.find((r) => r.path === "/phone/overflow" && r.width === 1280);
   assert.ok(wide.docScrollWidth <= wide.viewportWidth, `a 422px block must not widen a 1280 viewport; scrollWidth ${wide.docScrollWidth} viewport ${wide.viewportWidth}`);
   assert.deepEqual(evaluatePhoneUx(wide), [], `422px block at a 1280 viewport must pass the phone overflow check; got ${JSON.stringify(evaluatePhoneUx(wide))}`);
@@ -864,4 +894,4 @@ let htmlCases = 0;
   rmSync(path.join(repo, evidence[1]), { recursive: true, force: true });
 }
 for (const l of lines) console.log(l);
-console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length + phoneBadRows.length + phoneRuleRows.length + phoneGatedRows.length + scheduleRows.length + scheduleDenyRows.length + scheduleExcludedRows.length + schedulePhoneRows.length + schedulePhoneOffRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases, ${flightCases} real-Chromium flight/URL redaction cases)`);
+console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length + phoneBadRows.length + phoneRuleRows.length + phoneGatedRows.length + desktopProtectedRows.length + scheduleRows.length + scheduleDenyRows.length + scheduleExcludedRows.length + schedulePhoneRows.length + schedulePhoneOffRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases, ${flightCases} real-Chromium flight/URL redaction cases)`);

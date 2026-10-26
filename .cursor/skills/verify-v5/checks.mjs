@@ -80,7 +80,11 @@ export const PAGE_BUDGET_MS = 1500;
 export const PHONE_OVERFLOW_WIDTHS = [320, 390];
 /** Tap targets, text size, one-tap actions, and the secondary-label clipping exception apply at and under this width. */
 export const PHONE_MAX_PX = 480;
-/** Any clipped text fails at and above this width. */
+/**
+ * Desktop width. With phone checks on, any clipped text fails at and above this.
+ * With phone checks off, only protected clips fail at and above this
+ * (see evaluateDesktopProtectedClips).
+ */
 export const DESKTOP_MIN_PX = 768;
 /** Interactive controls at phone widths must be at least this square, in CSS pixels. */
 export const MIN_TAP_PX = 44;
@@ -204,6 +208,29 @@ function clipLabel(text) {
 }
 
 /**
+ * Money, status pill, table header, and page title clipped by their own element
+ * at ≥ DESKTOP_MIN_PX. Runs on every crawl, including when phone checks are off.
+ * Secondary ellipsis and other text stay in evaluatePhoneUx.
+ * A row whose clip list is shorter than clipCount fails, so a cap cannot hide one.
+ */
+export function evaluateDesktopProtectedClips(row) {
+  const f = [];
+  const where = `${row.role}@${row.width} ${row.path}`;
+  const width = row.width;
+  if (!(Number.isFinite(width) && width >= DESKTOP_MIN_PX)) return f;
+  const clipShown = row.clips?.length ?? 0;
+  if ((row.clipCount ?? clipShown) > clipShown) f.push(`${where}: ${row.clipCount} clipped elements, only ${clipShown} listed`);
+  for (const c of row.clips ?? []) {
+    const label = clipLabel(c.text);
+    if (c.kind === "money") f.push(`${where}: clipped money "${label}"`);
+    else if (c.kind === "status") f.push(`${where}: clipped status pill "${label}"`);
+    else if (c.kind === "header") f.push(`${where}: clipped table header "${label}"`);
+    else if (c.kind === "title") f.push(`${where}: clipped page title "${label}"`);
+  }
+  return f;
+}
+
+/**
  * One crawled page load → list of failure strings (empty = pass).
  * row: { role, width, path, status, final, idleMs, responses4xx5xx: [{url,status}], consoleErrors: [],
  *        pageErrors: [], text, overflowPx, emptyHits: [{text, coNumber, coStatus}], seededCounts,
@@ -241,8 +268,9 @@ export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS, phoneChecks =
   if (costItemPage && !(c.costItemTiles > 0)) f.push(`${where}: cost item page has no budget tile`);
   if (planPage && !(c.planStatus > 0)) f.push(`${where}: plan page has no plan status`);
   if (schedulePage && !(c.activityRows > 0)) f.push(`${where}: schedule page has no activities`);
-  // Phone layout is off for the default crawl and for 5.0.2 / 5.0.3 per-PR verifies.
-  // --rc (5.0.4 or later) and --phone-checks turn it on. The must-fail tests call evaluatePhoneUx directly.
+  // Phone layout (tap targets, text size, secondary ellipsis, any desktop text) is off unless
+  // --rc (5.0.4 or later) or --phone-checks. Protected clips at desktop widths still run.
+  if (!phoneChecks) f.push(...evaluateDesktopProtectedClips(row));
   if (phoneChecks) f.push(...evaluatePhoneUx(row));
   return f;
 }

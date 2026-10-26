@@ -162,10 +162,13 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
   assert.match(src, /^export function evaluatePhoneUx\(row\) \{$/m, "evaluatePhoneUx takes only the row");
   assert.match(src, /phoneChecks = false/, "phone checks default off");
   assert.match(src, /if \(phoneChecks\) f\.push\(\.\.\.evaluatePhoneUx\(row\)\)/, "evaluateCrawlRow calls evaluatePhoneUx only when asked");
+  assert.match(src, /if \(!phoneChecks\) f\.push\(\.\.\.evaluateDesktopProtectedClips\(row\)\)/, "default crawl still rejects protected desktop clips");
   const crawlSrc = readFileSync(path.join(here, "crawl.mjs"), "utf8");
   for (const field of ["docScrollWidth", "viewportWidth", "tapMisses", "textMisses", "clips", "primaryActions", "clipCount"]) {
     assert.ok(crawlSrc.includes(field), `measurePage must record ${field}`);
   }
+  assert.match(crawlSrc, /if \(!phoneChecks && intendedW < desktopMin\) return out/, "phone-width default crawl still omits clip fields");
+  assert.match(crawlSrc, /desktopMin: DESKTOP_MIN_PX/, "measurePage passes the desktop width");
   assert.match(crawlSrc, /classifyClip\(/, "the crawl classifies clips with classifyClip");
   assert.match(crawlSrc, /secondaryReachable\(/, "the crawl decides reachability with secondaryReachable");
   assert.match(crawlSrc, /textHasMoney\(/, "a $ amount anywhere in the clipped text is money");
@@ -189,6 +192,41 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
       textMisses: [{ kind: "secondary", px: 11, text: "Portfolio" }],
       clips: [{ kind: "money", text: "$1,234.56", reachable: true, ellipsis: true }],
       primaryActions: [],
+    }),
+  );
+  // Verify FAIL on #25/#26/#27: protected text cut by its own element at desktop width.
+  // Phone checks stay off. Secondary ellipsis at the same width still passes.
+  const desktopClip = (kind, text) => evaluateCrawlRow({
+    ...good,
+    width: 1280,
+    clips: [{ kind, text, reachable: true, ellipsis: true }],
+  });
+  const statusAtDesktop = desktopClip("status", "At ri");
+  mustFail("default crawl clips a status pill at 1280", statusAtDesktop);
+  assert.ok(statusAtDesktop.some((x) => /clipped status pill "At ri"/.test(x)), JSON.stringify(statusAtDesktop));
+  const moneyAtDesktop = desktopClip("money", "$665,000.(");
+  mustFail("default crawl clips money at 1280", moneyAtDesktop);
+  assert.ok(moneyAtDesktop.some((x) => x.includes('clipped money "$665,000.("')), JSON.stringify(moneyAtDesktop));
+  const headerAtDesktop = desktopClip("header", "Actu");
+  mustFail("default crawl clips a table header at 1280", headerAtDesktop);
+  assert.ok(headerAtDesktop.some((x) => /clipped table header "Actu"/.test(x)), JSON.stringify(headerAtDesktop));
+  const titleAtDesktop = desktopClip("title", "SCHEDULE PEF");
+  mustFail("default crawl clips a page title at 1280", titleAtDesktop);
+  assert.ok(titleAtDesktop.some((x) => /clipped page title "SCHEDULE PEF"/.test(x)), JSON.stringify(titleAtDesktop));
+  mustPass(
+    "default crawl allows secondary ellipsis at 1280",
+    evaluateCrawlRow({
+      ...good,
+      width: 1280,
+      clips: [{ kind: "secondary", text: "Cedar Creek Bridge", reachable: true, ellipsis: true }],
+    }),
+  );
+  mustPass(
+    "default crawl allows other desktop text ellipsis",
+    evaluateCrawlRow({
+      ...good,
+      width: 1280,
+      clips: [{ kind: "text", text: "Cedar Creek Bridge", reachable: false, ellipsis: true }],
     }),
   );
   mustFail("document scrollWidth 422px at viewport 320", evaluatePhoneUx({ ...phone, docScrollWidth: 422 }));
