@@ -34,10 +34,10 @@ describe("roadmap content", () => {
     }
   });
 
-  it("lists 5.0.2 as shipped and not under Next", () => {
-    expect(shipped.map((r) => r.version)).toContain("5.0.2");
-    expect(next.map((r) => r.version)).not.toContain("5.0.2");
-    expect(next[0]?.version).toBe("5.0.3");
+  it("lists 5.0.3 as shipped and not under Next", () => {
+    expect(shipped.map((r) => r.version)).toContain("5.0.3");
+    expect(next.map((r) => r.version)).not.toContain("5.0.3");
+    expect(next[0]?.version).toBe("5.0.4");
   });
 
   it("uses Next wording with no banned strings", () => {
@@ -50,7 +50,8 @@ describe("roadmap content", () => {
 
   it("lists Next in release order with no dates", () => {
     expect(next.map((r) => r.version)).toEqual([
-      "5.0.3",
+      "5.0.4",
+      "5.0.5",
       "5.1",
       "5.2",
       "5.3",
@@ -65,6 +66,6 @@ describe("roadmap content", () => {
   });
 
   it("lists shipped newest first", () => {
-    expect(shipped.map((r) => r.version)).toEqual(["5.0.2", "5.0.1", "5.0.0"]);
+    expect(shipped.map((r) => r.version)).toEqual(["5.0.3", "5.0.2", "5.0.1", "5.0.0"]);
   });
 });

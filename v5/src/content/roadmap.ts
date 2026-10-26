@@ -18,6 +18,11 @@ export type NextRelease = {
 
 export const shipped = [
   {
+    version: "5.0.3",
+    name: "Average Performance selectable per cost item, the dark theme, plan history by role and time, and faster job pages",
+    date: "2026-10-26",
+  },
+  {
     version: "5.0.2",
     name: "Crew labor rates, seeded field history, and drill-down from a cost item to its daily reports",
     date: "2026-10-26",
@@ -36,9 +41,10 @@ export const shipped = [
 
 export const next = [
   {
-    version: "5.0.3",
-    name: "The S-curve for each job and the portfolio, Average Performance selectable per cost item, and the dark theme",
+    version: "5.0.4",
+    name: "Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card",
   },
+  { version: "5.0.5", name: "The S-curve for each job and the portfolio" },
   { version: "5.1", name: "Schedule" },
   { version: "5.2", name: "Contracts and subs" },
   { version: "5.3", name: "Document control" },

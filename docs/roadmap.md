@@ -35,7 +35,7 @@ Public versions are `5.<feature>.<increment>`.
 | 5.0.0 | Old history | Passed 2026-10-24 | `v5.0.0` on the old history only | Superseded by 5.0.1 | **Shipped** |
 | 5.0.1 | Old history | Production verify 37/37 on 2026-10-25 | `v5.0.1` on the old history only | `demo.pcserp.app` and `app.pcserp.app` serve 5.0.1 at `05246e2e` | **Shipped** |
 | 5.0.2 | On `main`, version stamped | Passed 41/41 on `3d53c3f6`, 2026-10-26 at 9:12 AM PT | None | Not promoted | **Verified on staging, awaiting tag and production** |
-| 5.0.3 | Parts B to F on `main`; Part A open | Not run as a release | None | No | **Merged in part, awaiting Part A and verify** |
+| 5.0.3 | On main (Parts B to F, #29, #16) | Pending staging verify on the tagged sha | v5.0.3 | Not yet promoted | **In release** |
 | 5.0.4 | 5.0.4-0 on `main`, 5.0.4-c on `rc/5.0.4`; a, b, d, e, f open; g not started | Not run | None | No | **In build** |
 | 5.1.0 | 5.1.0-a on `main`; b, c, d open | 0020 applied on staging | None | No | **Merged in part, awaiting verify** |
 
@@ -100,7 +100,7 @@ State on 2026-10-26 at 10:40 AM PT. "Verify" is the latest Pitbull Verify verdic
 
 | PR | Slice | Target branch | State |
 |---|---|---|---|
-| [#12](https://github.com/jgarrison929/pitbull/pull/12) | 5.0.3 Part A, the S-curve | `main` | ci-gate green. Verify FAIL on an older head; current head waiting |
+| [#12](https://github.com/jgarrison929/pitbull/pull/12) | 5.0.5 (was 5.0.3 Part A), the S-curve | `main` | ci-gate green. Verify FAIL on an older head; current head waiting |
 | [#26](https://github.com/jgarrison929/pitbull/pull/26) | 5.0.4-a, "What needs you today" | `rc/5.0.4` | ci-gate green. Verify FAIL on an older head; current head waiting |
 | [#27](https://github.com/jgarrison929/pitbull/pull/27) | 5.0.4-b, page purpose lines and role-fit metrics | `rc/5.0.4` | ci-gate green. Verify FAIL on an older head; current head waiting |
 | [#32](https://github.com/jgarrison929/pitbull/pull/32) | 5.0.4-d, plan and report on phones | `rc/5.0.4` | ci-gate green, waiting for Verify |
@@ -126,8 +126,9 @@ Not started: 5.0.4-g (guided demo path), 5.1.1 wire-up (links table, link action
 | Version | Target (PT) | Increment | Spec | What is left |
 |---|---|---|---|---|
 | 5.0.2 | 2026-10-26 | Crew rates, field history, cost drill-down | [5.0.2](v5/specs/5.0.2-crew-rates-and-field-history.md) | Tag `v5.0.2`, promote production, production verify |
-| 5.0.3 | 2026-10-28 | The S-curve for each job and the portfolio, Average Performance selectable per cost item, and the dark theme | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) | Part A ([#12](https://github.com/jgarrison929/pitbull/pull/12)) passes Verify and merges. Then version stamp, changelog, staging verify of Parts A to F, tag |
+| 5.0.3 | 2026-10-26 | Average Performance per cost item, dark theme, plan history, faster job pages | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) (Parts B to F) | Staging verify on the tagged sha, tag, production verify |
 | 5.0.4 | 2026-10-30 | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) | Slices a, b, d, e, f pass Verify into `rc/5.0.4`. Slice g gets built. One RC handover with phone checks, then merge to `main` and tag |
+| 5.0.5 | 2026-11-02 | The S-curve for each job and the portfolio | [5.0.3 Part A](v5/specs/5.0.3-s-curve-and-forecast-methods.md) | #12 passes Verify and merges to main, then stamp, staging verify, tag |
 
 5.0.4 is a 5.0 increment because the app did not show what to do next and was crowded on phones (Joshua's review, 2026-10-25). That misses trust bar item 5. It adds no migration, so it runs beside 5.1.0.
 
@@ -135,12 +136,12 @@ Gaps still open in the 5.0 story:
 
 | Gap on `main` | Promised for 5.0? | Placed in |
 |---|---|---|
-| No S-curve | Yes, section 4 step 5 and M4 | 5.0.3 Part A ([#12](https://github.com/jgarrison929/pitbull/pull/12)) |
+| No S-curve | Yes, section 4 step 5 and M4 | 5.0.5 (was 5.0.3 Part A) ([#12](https://github.com/jgarrison929/pitbull/pull/12)) |
 | No page says what to do next. Phone pages were wider than the screen | Yes, trust bar item 5 | 5.0.4 (5.0.4-0 merged; the rest in build) |
 | Equipment hours on a plan cost nothing | Section 4 step 5 said "+ equipment". Decision 2026-10-24 | 5.6+ cost depth |
 | The foreman reports total man-hours per line, not hours per worker | Section 4 step 4. Decision 2026-10-24 | 5.6+ payroll export |
 
-Closed since the last refresh: plan history by role and time (5.0.3 Part D, `0018`), the crews contract (5.0.3 Part F, `0019`), Average Performance (Part B, `0017`), the dark theme (Part C), and the rail unknown-job refusal (Part E). All are on `main` and ship with the 5.0.3 tag.
+Closed since the last refresh: plan history by role and time (5.0.3 Part D, `0018`), the crews contract (5.0.3 Part F, `0019`), Average Performance (Part B, `0017`), the dark theme (Part C), and the rail unknown-job refusal (Part E). All are on `main` and ship with the 5.0.3 tag, together with the speed fixes [#29](https://github.com/jgarrison929/pitbull/pull/29) and [#16](https://github.com/jgarrison929/pitbull/pull/16). 5.0.3 is **Average Performance selectable per cost item, the dark theme, plan history by role and time, and faster job pages**. The S-curve moves to 5.0.5.
 
 ## Then: 5.1 Schedule
 
