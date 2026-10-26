@@ -71,7 +71,10 @@ test.describe("superintendent approve / return", () => {
 
     // Check 4: nothing posted before approval; pending on the job page.
     expect(await actualCents(page)).toBe(actualBefore);
-    const pending = page.getByTestId("approval-pending-04-210").first();
+    // Phone + desktop both mount cost rows; assert the visible one (5.0.4-e).
+    const pending = page.locator(
+      '[data-testid="approval-pending-04-210"]:visible',
+    );
     await expect(pending).toBeVisible();
     await expect(pending).toContainText("12");
     const pendingCents = 22 * BRIDGE_RATE_CENTS;
@@ -115,10 +118,12 @@ test.describe("superintendent approve / return", () => {
     const sinceAfterApprove = await sinceLockActualCents(page);
     expect(sinceAfterApprove).toBeGreaterThanOrEqual(22 * BRIDGE_RATE_CENTS);
 
-    await expect(page.getByTestId("approval-pending-04-210")).toHaveCount(0);
-    await expect(page.getByTestId("pending-04-210").first()).toContainText(
-      "12",
-    );
+    await expect(
+      page.locator('[data-testid="approval-pending-04-210"]:visible'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="pending-04-210"]:visible'),
+    ).toContainText("12");
     await expect(page.getByTestId("job-changes")).toContainText(/Approved/i);
 
     // Second approve via assistant must not double-post.

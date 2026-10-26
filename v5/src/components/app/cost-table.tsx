@@ -738,6 +738,33 @@ function VirtualTreeMobile({
                           </Figure>
                         ) : null}
                       </div>
+                      {/*
+                        Pending flags stay outside <details> so phone glance
+                        and e2e (approve-return @ 390) see them without a tap.
+                      */}
+                      {!estimateDraft &&
+                      ((l.approvalPendingQtyMilli ?? 0) > 0 ||
+                        (l.approvalPendingCents ?? 0) > 0) ? (
+                        <div
+                          className="mt-1 text-body text-caution"
+                          data-testid={`approval-pending-${l.code}`}
+                          data-cents={l.approvalPendingCents ?? 0}
+                        >
+                          +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
+                          {(l.approvalPendingCents ?? 0) > 0
+                            ? ` · ${usdExact(l.approvalPendingCents!)} pending`
+                            : " pending approval"}
+                        </div>
+                      ) : null}
+                      {!estimateDraft && pendingInstalledQtyMilli(l) > 0 ? (
+                        <div
+                          className="mt-1 text-body text-caution"
+                          data-testid={`pending-${l.code}`}
+                        >
+                          +{qty(pendingInstalledQtyMilli(l))} {l.unit} pending
+                          lock
+                        </div>
+                      ) : null}
                       <details className="mt-2">
                         <summary
                           data-text="label"
@@ -799,7 +826,14 @@ function VirtualTreeMobile({
                             {estimateDraft ? (
                               <MetricDash />
                             ) : (
-                              <InstalledCell l={l} />
+                              <span className="tabular-nums">
+                                {qty(
+                                  l.evMethod === "units"
+                                    ? l.claimedInstalledQtyMilli
+                                    : l.installedQtyMilli,
+                                )}{" "}
+                                / {qty(l.budgetQtyMilli)} {l.unit}
+                              </span>
                             )}
                           </div>
                           {!estimateDraft && l.earnDerivation ? (
@@ -818,30 +852,6 @@ function VirtualTreeMobile({
                               data-text="label"
                             >
                               <DerivationText text={l.forecastDerivation} />
-                            </div>
-                          ) : null}
-                          {!estimateDraft &&
-                          ((l.approvalPendingQtyMilli ?? 0) > 0 ||
-                            (l.approvalPendingCents ?? 0) > 0) ? (
-                            <div
-                              className="col-span-2 text-caution"
-                              data-testid={`approval-pending-${l.code}`}
-                              data-cents={l.approvalPendingCents ?? 0}
-                            >
-                              +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
-                              {(l.approvalPendingCents ?? 0) > 0
-                                ? ` · ${usdExact(l.approvalPendingCents!)} pending`
-                                : " pending approval"}
-                            </div>
-                          ) : null}
-                          {!estimateDraft &&
-                          pendingInstalledQtyMilli(l) > 0 ? (
-                            <div
-                              className="col-span-2 text-caution"
-                              data-testid={`pending-${l.code}`}
-                            >
-                              +{qty(pendingInstalledQtyMilli(l))} {l.unit}{" "}
-                              pending lock
                             </div>
                           ) : null}
                         </div>
