@@ -27,6 +27,9 @@ Slice IDs builders can take without waiting on each other. Prefer free slices fi
 | 5.0.3 Part A | [5.0.3](5.0.3-s-curve-and-forecast-methods.md#part-a-the-s-curve) | none | In flight: `server/curve.ts` |
 | 5.0.3 Part B | [5.0.3](5.0.3-s-curve-and-forecast-methods.md#part-b-average-performance-forecast) | **0017** | In flight |
 | 5.0.3 Part C | [5.0.3](5.0.3-s-curve-and-forecast-methods.md#part-c-the-dark-theme) | none | In flight |
+| 5.0.4-a | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-a-what-needs-you-today-role-home) | none | "What needs you today" role home; one seed row (reported plan on 24-118) |
+| 5.0.4-b | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-b-page-purpose-lines-and-role-fit-metrics) | none | Purpose line on every page; no CPI or SPI for the foreman |
+| 5.0.4-c | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-c-visual-tokens-and-card-primitives) | none | Type scale, `MetricCard`, tap targets; land after b |
 | 5.1.1 CPM library | [5.1.1](5.1.1-dependencies-and-cpm.md) | none | In flight: pure library, checks 1 to 6 + performance |
 
 Next free migration after 5.1.0-d: **0022** (likely 5.1.1 `activity_links`). 5.1.2 baselines claim **0023** unless the journal moved.
@@ -36,6 +39,7 @@ Next free migration after 5.1.0-d: **0022** (likely 5.1.1 `activity_links`). 5.1
 | 5.0.1 | [The superintendent plans the day, and a public roadmap page](5.0.1-superintendent-plans-the-day.md) | shipped 2026-10-25 |
 | 5.0.2 | [Crew rates, field history, and the cost drill-down](5.0.2-crew-rates-and-field-history.md) | 2026-10-26 (merged, verifying) |
 | 5.0.3 | [The S-curve, Average Performance, and the dark theme](5.0.3-s-curve-and-forecast-methods.md) | 2026-10-28 |
+| 5.0.4 | [Clear next steps and mobile polish](5.0.4-clear-next-steps-and-mobile-polish.md) | 2026-10-30 |
 | 5.1.0 | [Activities, calendar, Gantt, and plan-line links](5.1.0-activities-and-gantt.md) | 2026-10-29 |
 | 5.1.1 | [Dependencies, float, and the critical path](5.1.1-dependencies-and-cpm.md) | 2026-11-03 |
 | 5.1.2 | [Baseline and PV from baseline dates](5.1.2-baseline-and-pv.md) | 2026-11-10 |
