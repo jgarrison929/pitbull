@@ -36,6 +36,8 @@ export default defineConfig({
     env: {
       ...process.env,
       V5_ALLOW_ENSURE_STRESS: "1",
+      // Enables /app/error-probe throw for AppShell boundary e2e (unlinked; not crawled).
+      V5_ERROR_PROBE: process.env.V5_ERROR_PROBE ?? "1",
       // Deterministic ci-gate label in e2e (avoids live GitHub rate limits in CI).
       CI_GATE_RESULT: process.env.CI_GATE_RESULT ?? "pass",
       // Shape-only stamp so /status last-verify is never blank in smoke.
