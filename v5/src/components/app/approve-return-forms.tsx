@@ -16,7 +16,11 @@ export function ApproveReportForm({
     {},
   );
   return (
-    <form action={action} className="flex flex-col gap-1" data-testid="approve-form">
+    <form
+      action={action}
+      className="flex w-full flex-col gap-2"
+      data-testid="approve-form"
+    >
       <input type="hidden" name="action" value="dailyPlan.approve" />
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="planId" value={planId} />
@@ -24,13 +28,17 @@ export function ApproveReportForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60"
+        className="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-60 sm:w-auto"
         data-testid="approve-report"
       >
         {pending ? "Approving…" : "Approve report"}
       </button>
       {state.summary ? (
-        <p className="text-xs text-muted-foreground" data-testid="approve-summary">
+        <p
+          className="text-label text-muted-foreground"
+          data-testid="approve-summary"
+          data-text="label"
+        >
           {state.summary}
         </p>
       ) : null}
@@ -51,12 +59,17 @@ export function ReturnReportForm({
     {},
   );
   return (
-    <form action={action} className="flex flex-col gap-2" data-testid="return-form">
+    <form
+      action={action}
+      className="flex w-full flex-col gap-2"
+      data-testid="return-form"
+    >
       <input type="hidden" name="action" value="dailyPlan.return" />
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="planId" value={planId} />
       <input type="hidden" name="label" value="Return daily report" />
-      <label className="flex flex-col gap-0.5 text-xs">
+      {/* Required reason stays outside any collapsed region (5.0.4-d). */}
+      <label className="flex flex-col gap-1 text-label font-medium">
         Return reason
         <input
           name="reason"
@@ -64,20 +77,24 @@ export function ReturnReportForm({
           required
           maxLength={500}
           placeholder="Why is this going back?"
-          className="rounded-md border bg-background px-2 py-1 text-sm"
+          className="tap-target rounded-md border bg-background px-3 py-2 text-body"
           data-testid="return-reason"
         />
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border px-3 py-1.5 text-xs font-medium disabled:opacity-60"
+        className="tap-target w-full rounded-md border px-3 py-2 text-body font-medium disabled:opacity-60 sm:w-auto"
         data-testid="return-report"
       >
         {pending ? "Returning…" : "Return to foreman"}
       </button>
       {state.summary ? (
-        <p className="text-xs text-muted-foreground" data-testid="return-summary">
+        <p
+          className="text-label text-muted-foreground"
+          data-testid="return-summary"
+          data-text="label"
+        >
           {state.summary}
         </p>
       ) : null}

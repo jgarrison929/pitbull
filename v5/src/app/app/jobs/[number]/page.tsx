@@ -315,6 +315,7 @@ export async function Job({
                       unit: l.unit,
                       manHours: l.manHours,
                       qtyMilli: l.qtyMilli,
+                      budgetRate: l.budgetRate,
                       reportedManHours: reported?.manHours,
                       reportedQtyMilli: reported?.qtyMilli,
                     };
