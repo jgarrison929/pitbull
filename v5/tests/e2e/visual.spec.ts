@@ -219,12 +219,14 @@ function visualSuite(theme: "light" | "dark") {
         await signIn(page, "pm");
         await page.goto("/app/jobs/25-031/schedule");
         await expect(page.getByTestId("job-gantt")).toBeVisible();
-        await expect(page.getByTestId("gantt-chart")).toBeVisible();
+        const chart = page.getByTestId("gantt-chart");
+        await expect(chart).toBeVisible();
+        // Stack + chart both mount; scope to the desktop chart surface.
         await expect(
-          page.locator('[data-testid="gantt-activity"][data-code="A"]'),
+          chart.locator('[data-testid="gantt-activity"][data-code="A"]'),
         ).toBeVisible();
         await expect(
-          page.locator('[data-testid="gantt-activity"][data-code="C"]'),
+          chart.locator('[data-testid="gantt-activity"][data-code="C"]'),
         ).toBeVisible();
         await shotPage(page, `schedule-desktop${suffix}`);
       });
@@ -302,10 +304,12 @@ function visualSuite(theme: "light" | "dark") {
         await signIn(page, "pm");
         await page.goto("/app/jobs/25-031/schedule");
         await expect(page.getByTestId("job-gantt")).toBeVisible();
-        await expect(page.getByTestId("gantt-stack")).toBeVisible();
+        const stack = page.getByTestId("gantt-stack");
+        await expect(stack).toBeVisible();
         await expect(page.getByTestId("gantt-chart")).toBeHidden();
+        // Stack + chart both mount; scope to the phone stack surface.
         await expect(
-          page.locator('[data-testid="gantt-activity"][data-code="C"]'),
+          stack.locator('[data-testid="gantt-activity"][data-code="C"]'),
         ).toBeVisible();
         await expect(page.getByTestId("phone-tab-bar")).toBeVisible();
         await shotPage(page, `schedule-phone${suffix}`);
