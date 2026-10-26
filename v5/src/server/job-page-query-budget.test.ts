@@ -217,6 +217,26 @@ describe.skipIf(!db)("job page query budget (field history)", () => {
     }
   });
 
+  it("M4: history lineCount equals getPlansForJob lines.length (seed has >1)", async () => {
+    let sawMultiLine = false;
+    for (const number of JOBS) {
+      const job = await getJob(companyId, number);
+      expect(job).not.toBeNull();
+      const today = planDateToday(seedNow());
+      const full = await getPlansForJob(companyId, job!.job.id);
+      const page = await getJobPagePlans(companyId, job!.job.id, today);
+      const fullById = new Map(full.map((pl) => [pl.id, pl]));
+      for (const h of page.historyPlans) {
+        const real = fullById.get(h.id);
+        expect(real, `history plan ${h.id} missing from getPlansForJob`).toBeDefined();
+        expect(h.lineCount).toBe(real!.lines.length);
+        if (h.lineCount > 1) sawMultiLine = true;
+      }
+    }
+    // Constant `lineCount: 1` would pass if every seeded day had one line.
+    expect(sawMultiLine).toBe(true);
+  });
+
   it("server data load for each measured job stays under 500ms at 3ms RTT", async () => {
     for (const number of JOBS) {
       await loadJobPageData(companyId, number);
