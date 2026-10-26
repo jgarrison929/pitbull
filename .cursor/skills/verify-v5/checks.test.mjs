@@ -942,7 +942,7 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
 
 // ---- DATABASE_URL: special-character passwords parse to the right parts, and redaction hides them ----
 {
-  for (const pw of ["ab/cd", "p@ss/word", "Zq:/?#@%x"]) {
+  for (const pw of ["ab/cd", "p@ss/word", "Zq:/?#@%x", 'ab"cd\\ef']) {
     const url = `postgres://pv_user:${pw}@db.internal:5544/pv_db?sslmode=disable`;
     const p = parsePostgresUrl(url);
     assert.deepEqual(p && { user: p.user, password: p.password, host: p.host, port: p.port, database: p.database }, { user: "pv_user", password: pw, host: "db.internal", port: "5544", database: "pv_db" }, `parts for ${JSON.stringify(pw)}`);
@@ -952,7 +952,15 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     const msg = `TypeError: Invalid URL { input: '${url}' } pw=${pw} enc=${encodeURIComponent(pw)} ${p.connectionString}`;
     const red = redactText(msg, secrets);
     for (const leak of [pw, encodeURIComponent(pw), url]) assert.ok(!red.includes(leak), `redactText must hide ${JSON.stringify(leak)}: ${red}`);
-    results.push(`passes: DATABASE_URL password ${JSON.stringify(pw)} → pv_user@db.internal:5544/pv_db; an error message echoing it is fully redacted`);
+    // verify.mjs / captureFailure redact after JSON.stringify — " and \ in the password become \" \\.
+    const jsonBlob = JSON.stringify({ err: url, pw });
+    const jsonRed = redactText(jsonBlob, secrets);
+    const jsonPw = JSON.stringify(pw).slice(1, -1);
+    const jsonUrl = JSON.stringify(url).slice(1, -1);
+    for (const leak of [pw, jsonPw, url, jsonUrl, encodeURIComponent(pw)]) {
+      assert.ok(!jsonRed.includes(leak), `redactText(JSON.stringify(...)) must hide ${JSON.stringify(leak)}: ${jsonRed}`);
+    }
+    results.push(`passes: DATABASE_URL password ${JSON.stringify(pw)} → pv_user@db.internal:5544/pv_db; plain and JSON-stringified echoes are fully redacted`);
   }
   assert.equal(parsePostgresUrl("postgres://only-user@"), null);
   assert.equal(parsePostgresUrl("mysql://u:p@h/db"), null);

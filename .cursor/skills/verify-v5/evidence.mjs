@@ -31,12 +31,26 @@ export function secretValues(environment = process.env) {
 }
 
 /**
- * Replace every secret value (and its URL-encoded form) with [redacted]; also any postgres:// URL with
- * userinfo, and Bearer / Basic credentials, whatever their value.
+ * Spellings of a secret that can appear in logs or evidence: raw, URL-encoded, and the
+ * JSON.stringify string-content form (verify.mjs / captureFailure run redactText on already-stringified
+ * JSON; a password with " or \ is escaped there, so split(secret) alone misses it).
+ */
+function secretForms(x) {
+  if (typeof x !== "string" || x.length < 2) return [];
+  const forms = [x, encodeURIComponent(x)];
+  // JSON.stringify("a\"b").slice(1,-1) === 'a\\"b' — the form inside a JSON string value.
+  const jsonForm = JSON.stringify(x).slice(1, -1);
+  if (jsonForm !== x) forms.push(jsonForm);
+  return forms;
+}
+
+/**
+ * Replace every secret value (and its URL-encoded / JSON-escaped forms) with [redacted]; also any
+ * postgres:// URL with userinfo, and Bearer / Basic credentials, whatever their value.
  */
 export function redactText(text, secrets = []) {
   let s = String(text ?? "");
-  const all = [...new Set(secrets.flatMap((x) => (typeof x === "string" && x.length >= 2 ? [x, encodeURIComponent(x)] : [])))].sort((a, b) => b.length - a.length);
+  const all = [...new Set(secrets.flatMap(secretForms))].sort((a, b) => b.length - a.length);
   for (const x of all) s = s.split(x).join(REDACTED);
   s = s.replace(/postgres(ql)?:\/\/[^\s"'<>]*@[^\s"'<>]*/gi, `postgres://${REDACTED}`);
   s = s.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/g, `$1 ${REDACTED}`);

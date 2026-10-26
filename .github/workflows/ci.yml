@@ -178,6 +178,7 @@ jobs:
           node .cursor/skills/verify-v5/reset-mustfail.test.mjs
           node .cursor/skills/verify-v5/crawl-mustfail.test.mjs
           node .cursor/skills/verify-v5/portfolio-mustfail.test.mjs
+          node .cursor/skills/verify-v5/stress-seed-mustfail.test.mjs
 
   v5:
     name: v5 (lint, typecheck, test, build, e2e)
