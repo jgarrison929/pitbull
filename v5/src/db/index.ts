@@ -6,6 +6,11 @@ import {
   databaseConnectionString,
   databaseUrlHost,
 } from "./database-url";
+import {
+  DEFAULT_DB_POOL_MAX,
+  PROXY_DB_POOL_MAX,
+  dbPoolMaxFromEnv,
+} from "./pool-config";
 import * as schema from "./schema";
 
 export type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -16,6 +21,11 @@ export {
   databaseUrlHost,
   parsePostgresUrl,
 } from "./database-url";
+export {
+  DEFAULT_DB_POOL_MAX,
+  PROXY_DB_POOL_MAX,
+  dbPoolMaxFromEnv,
+} from "./pool-config";
 
 let db: Db | null = null;
 let sqlClient: ReturnType<typeof postgres> | null = null;
@@ -58,26 +68,6 @@ function sleepSync(ms: number) {
   while (performance.now() < end) {
     /* spin */
   }
-}
-
-/** Default shared-app pool size. Override with V5_DB_POOL_MAX (positive int). */
-export const DEFAULT_DB_POOL_MAX = 10;
-
-/** Proxy drill-down pool (src/proxy.ts) — documented for capacity math only. */
-export const PROXY_DB_POOL_MAX = 2;
-
-/**
- * App pool `max` from env. Invalid / missing → DEFAULT_DB_POOL_MAX.
- * Soft-capped so a typo cannot open hundreds of connections per process.
- */
-export function dbPoolMaxFromEnv(
-  env: Record<string, string | undefined> = process.env,
-): number {
-  const raw = env.V5_DB_POOL_MAX;
-  if (raw == null || raw === "") return DEFAULT_DB_POOL_MAX;
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n < 1) return DEFAULT_DB_POOL_MAX;
-  return Math.min(Math.floor(n), 50);
 }
 
 let poolMaxLogged = false;

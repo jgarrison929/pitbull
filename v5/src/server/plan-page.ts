@@ -10,10 +10,11 @@ import {
   jobs,
   users,
 } from "@/db/schema";
+import { CREW_RATE_EXPAND_DEFAULT_CENTS } from "@/lib/crew-rates";
 import { isUuid } from "@/lib/uuid";
 import { planLine } from "@/server/data";
 import type { PlanEventKind } from "@/server/plan-events";
-import { laborRateForPlan } from "@/server/plans";
+import { planLaborRateCentsSql } from "@/server/plans";
 import type { Role } from "@/server/session";
 
 export type PlanHistoryEvent = {
@@ -27,6 +28,9 @@ export type PlanHistoryEvent = {
  * Read-only daily plan: header, lines, and lifecycle history.
  * Invalid plan ids return null (page calls notFound) — never query Postgres
  * with a non-UUID (that throws and becomes a 500).
+ *
+ * After the job lookup, plan header (+ rate), lines, and history overlap —
+ * same numbers as the prior serial chain, fewer RTTs on cold / burst paths.
  */
 export async function getPlanPage(
   companyId: string,
@@ -43,38 +47,44 @@ export async function getPlanPage(
     .limit(1);
   if (!job) return null;
 
-  const [row] = await db
-    .select({
-      plan: dailyPlans,
-      foreman: users.name,
-      crewName: crews.name,
-    })
-    .from(dailyPlans)
-    .innerJoin(users, eq(users.id, dailyPlans.foremanId))
-    .innerJoin(crews, eq(crews.id, dailyPlans.crewId))
-    .where(
-      and(
-        eq(dailyPlans.companyId, companyId),
-        eq(dailyPlans.jobId, job.id),
-        eq(dailyPlans.id, planId),
-      ),
-    )
-    .limit(1);
+  const [row, lineRows, history] = await Promise.all([
+    db
+      .select({
+        plan: dailyPlans,
+        foreman: users.name,
+        crewName: crews.name,
+        // Same coalesce as laborRateForPlan — one RTT instead of a follow-up.
+        rateCents: planLaborRateCentsSql,
+      })
+      .from(dailyPlans)
+      .innerJoin(users, eq(users.id, dailyPlans.foremanId))
+      .innerJoin(crews, eq(crews.id, dailyPlans.crewId))
+      .where(
+        and(
+          eq(dailyPlans.companyId, companyId),
+          eq(dailyPlans.jobId, job.id),
+          eq(dailyPlans.id, planId),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    db
+      .select({ line: dailyPlanLines, item: costItems })
+      .from(dailyPlanLines)
+      .innerJoin(costItems, eq(costItems.id, dailyPlanLines.costItemId))
+      .where(
+        and(
+          eq(dailyPlanLines.companyId, companyId),
+          eq(dailyPlanLines.planId, planId),
+        ),
+      )
+      .orderBy(asc(dailyPlanLines.sort)),
+    buildPlanHistory(companyId, planId),
+  ]);
+
   if (!row) return null;
 
-  const { plan, foreman, crewName } = row;
-
-  const lineRows = await db
-    .select({ line: dailyPlanLines, item: costItems })
-    .from(dailyPlanLines)
-    .innerJoin(costItems, eq(costItems.id, dailyPlanLines.costItemId))
-    .where(
-      and(
-        eq(dailyPlanLines.companyId, companyId),
-        eq(dailyPlanLines.planId, plan.id),
-      ),
-    )
-    .orderBy(asc(dailyPlanLines.sort));
+  const { plan, foreman, crewName, rateCents } = row;
 
   const lines = lineRows.map(({ line, item }) => {
     const base = planLine(line, item);
@@ -87,9 +97,6 @@ export async function getPlanPage(
       reportedQtyMilli: line.reportedQtyMilli,
     };
   });
-
-  const rateCents = await laborRateForPlan(requireDb(), plan.id);
-  const history = await buildPlanHistory(companyId, plan.id);
 
   return {
     job: {
@@ -105,7 +112,7 @@ export async function getPlanPage(
       foreman,
       status: plan.status,
       weather: plan.weather,
-      rateCents,
+      rateCents: rateCents ?? CREW_RATE_EXPAND_DEFAULT_CENTS,
       returnReason: plan.returnReason,
     },
     lines,

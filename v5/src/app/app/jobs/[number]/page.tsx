@@ -15,7 +15,7 @@ import { JobNewPlanSlot } from "@/components/app/job-new-plan-slot";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { mh, pct, usdShort } from "@/lib/ev";
-import { getJob, getJobEvControls, getPlansForJob } from "@/server/data";
+import { getJob, getJobEvControls, getJobPagePlans } from "@/server/data";
 import { jobPagePlanSurface } from "@/server/job-page-plans";
 import {
   draftClaimForJob,
@@ -60,41 +60,8 @@ export async function Job({
   const p = await getJob(user.companyId, number);
   // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
   if (!p) notFound();
-  const [
-    plans,
-    changes,
-    draftClaim,
-    evControls,
-    approvalPending,
-    coData,
-    crewRows,
-  ] = await Promise.all([
-    getPlansForJob(user.companyId, p.job.id),
-    jobChanges(user.companyId, p.job.number),
-    draftClaimForJob(user.companyId, p.job.id),
-    getJobEvControls(user.companyId, p.job.id),
-    getApprovalPendingByCostItem(user.companyId, p.job.id),
-    listChangeOrders(user.companyId, p.job.number),
-    listCrews(user.companyId),
-  ]);
-  // Working surface: today and any future plan (seed tomorrow draft included).
-  // Past days (any status) collapse into field history — not peer primary cards.
-  const { open: openPlans, history: historyPlans } =
-    jobPagePlanSurface(plans);
-  const historyDay = (iso: string) =>
-    new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      timeZone: "UTC",
-    });
-  const reportable = openPlans.filter(
-    (pl) => pl.status === "issued" || pl.status === "reported",
-  );
-  const reportedByPlan = await getReportedActualsForPlans(
-    user.companyId,
-    reportable.map((pl) => pl.id),
-  );
+  // Role gates before the parallel fetch so capture roles skip lock / EV /
+  // crew-picker queries they never render (page budget).
   const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
   const canCreatePlan =
     actions["dailyPlan.create"].roles?.includes(user.role) ?? false;
@@ -117,6 +84,54 @@ export async function Job({
   };
   const canImport = actions["estimate.importCsv"].roles?.includes(user.role);
   const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
+  const [
+    pagePlans,
+    changes,
+    draftClaim,
+    evControls,
+    approvalPending,
+    coData,
+    crewRows,
+  ] = await Promise.all([
+    // Open cards keep full lines; 30-day history is summary-only (RSC budget).
+    // Today is computed inside getJobPagePlans via planDateToday(seedNow()).
+    getJobPagePlans(user.companyId, p.job.id),
+    jobChanges(user.companyId, p.job.number),
+    canLock
+      ? draftClaimForJob(user.companyId, p.job.id)
+      : Promise.resolve(null),
+    canEvEdit
+      ? getJobEvControls(user.companyId, p.job.id)
+      : Promise.resolve({ milestones: [], pmItems: [] }),
+    getApprovalPendingByCostItem(user.companyId, p.job.id),
+    listChangeOrders(user.companyId, p.job.number),
+    canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
+  ]);
+  // Typed payloads from getJobPagePlans (open = full lines; history = summaries).
+  const openPlans = pagePlans.openPlans;
+  const historyPlans = pagePlans.historyPlans;
+  // #18 / M8 page wiring: pass a `plans` list through jobPagePlanSurface (and the
+  // New-plan slot). Date-only keeps the array homogeneous — open cards and
+  // history summaries stay separately typed for render (lines vs lineCount).
+  const plans = [
+    ...openPlans.map((p) => ({ planDate: p.planDate })),
+    ...historyPlans.map((p) => ({ planDate: p.planDate })),
+  ];
+  const { today } = jobPagePlanSurface(plans);
+  const historyDay = (iso: string) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  const reportable = openPlans.filter(
+    (pl) => pl.status === "issued" || pl.status === "reported",
+  );
+  const reportedByPlan = await getReportedActualsForPlans(
+    user.companyId,
+    reportable.map((pl) => pl.id),
+  );
   const estimateDraft = p.job.estimateStatus === "draft";
   const jobMoney = p.money.job;
   // Initial combobox options: first leaves only. Large WBS uses server search.
@@ -244,11 +259,13 @@ export async function Job({
       ) : null}
       {/* Plans lead so Submit + crew footer stay reachable after KPI growth (#662). */}
       {canCreatePlan && !estimateDraft ? (
-        <JobNewPlanSlot
-          jobNumber={p.job.number}
-          crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
-          plans={plans}
-        />
+        <div className="contents" data-plan-today={today}>
+          <JobNewPlanSlot
+            jobNumber={p.job.number}
+            crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
+            plans={plans}
+          />
+        </div>
       ) : null}
       {openPlans.map((plan) => (
         <PlanCard
@@ -337,30 +354,27 @@ export async function Job({
             Approved field history · {historyPlans.length} working days
           </summary>
           <ul className="divide-y border-t text-sm">
-            {historyPlans.map((pl) => {
-              const mh = pl.lines.reduce((s, l) => s + l.manHours, 0);
-              return (
-                <li
-                  key={pl.id}
-                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2"
-                  data-testid="plan-history-row"
-                  data-plan-date={pl.planDate}
-                  data-plan-id={pl.id}
-                >
-                  <span className="font-medium">{historyDay(pl.planDate)}</span>
-                  <span className="text-muted-foreground">{pl.crew}</span>
-                  <span className="text-muted-foreground">
-                    {pl.lines.length}{" "}
-                    {pl.lines.length === 1 ? "line" : "lines"} · {mh} MH
+            {historyPlans.map((pl) => (
+              <li
+                key={pl.id}
+                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2"
+                data-testid="plan-history-row"
+                data-plan-date={pl.planDate}
+                data-plan-id={pl.id}
+              >
+                <span className="font-medium">{historyDay(pl.planDate)}</span>
+                <span className="text-muted-foreground">{pl.crew}</span>
+                <span className="text-muted-foreground">
+                  {pl.lineCount}{" "}
+                  {pl.lineCount === 1 ? "line" : "lines"} · {pl.manHours} MH
+                </span>
+                {pl.returnReason ? (
+                  <span className="text-xs text-caution">
+                    Returned: {pl.returnReason}
                   </span>
-                  {pl.returnReason ? (
-                    <span className="text-xs text-caution">
-                      Returned: {pl.returnReason}
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
+                ) : null}
+              </li>
+            ))}
           </ul>
         </details>
       ) : null}

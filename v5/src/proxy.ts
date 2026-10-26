@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import postgres from "postgres";
 import { databaseConnectionString } from "@/db/database-url";
+import { PROXY_DB_POOL_MAX } from "@/db/pool-config";
 import { parseJobDrillPath } from "@/lib/job-drill-path";
 import { isUuid } from "@/lib/uuid";
 
@@ -37,7 +38,7 @@ function proxySql(rawDatabaseUrl: string) {
   // cost on Railway (even private) dwarfs the 404 lookup itself.
   if (!sql || sqlConnectionString !== connectionString) {
     sql = postgres(connectionString, {
-      max: 2,
+      max: PROXY_DB_POOL_MAX,
       idle_timeout: 0,
       max_lifetime: 60 * 30,
       connect_timeout: 10,

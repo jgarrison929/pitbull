@@ -7,6 +7,7 @@ import {
   identifyDemoRole,
   initPostHog,
 } from "@/lib/posthog";
+import { schedulePostHogBoot } from "@/lib/posthog-boot";
 import type { DemoRole } from "@/lib/posthog-config";
 
 function PostHogPageViewTracker({ ready }: { ready: boolean }) {
@@ -23,8 +24,9 @@ function PostHogPageViewTracker({ ready }: { ready: boolean }) {
 
 /**
  * Client-only PostHog provider. Mount from the root layout.
- * Loads posthog-js lazily after hydration so page budgets stay under 1.5 s;
- * when the key is unset (CI / local / e2e) init is a complete no-op.
+ * Boots posthog-js only after window load + a min delay + idle so `/flags`
+ * does not inflate the verify crawl's networkidle page budget; when the key
+ * is unset (CI / local / e2e) init is a complete no-op.
  */
 export function PostHogProvider({
   children,
@@ -38,28 +40,16 @@ export function PostHogProvider({
 
   useEffect(() => {
     let cancelled = false;
-    let idleId: number | undefined;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const boot = () => {
+    const cancelSchedule = schedulePostHogBoot(() => {
       void initPostHog().then((client) => {
         if (cancelled || !client) return;
         identifyDemoRole(demoRole);
         setReady(true);
       });
-    };
-
-    // Defer past first paint / hydration so TTI stays within the page budget.
-    if (typeof window.requestIdleCallback === "function") {
-      idleId = window.requestIdleCallback(boot, { timeout: 2000 });
-    } else {
-      timeoutId = setTimeout(boot, 0);
-    }
-
+    });
     return () => {
       cancelled = true;
-      if (idleId != null) window.cancelIdleCallback?.(idleId);
-      if (timeoutId != null) clearTimeout(timeoutId);
+      cancelSchedule();
     };
     // Boot once after mount; demoRole updates are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
