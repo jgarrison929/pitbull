@@ -8,7 +8,13 @@ import {
 import { ChangeOrdersSection } from "@/components/app/change-orders";
 import { CostTable } from "@/components/app/cost-table";
 import { Money, StatusIndex, StatusPill } from "@/components/app/format";
-import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
+import {
+  Kpi,
+  KpiStrip,
+  MetricCard,
+  PageHeader,
+  Section,
+} from "@/components/app/page";
 import { EvMethodControls } from "@/components/app/ev-method-controls";
 import { ImportEstimateForm } from "@/components/app/import-estimate-form";
 import { JobNewPlanSlot } from "@/components/app/job-new-plan-slot";
@@ -387,7 +393,53 @@ export async function Job({
           </ul>
         </details>
       ) : null}
+      {/*
+        5.0.4-e: phone fold shows EAC + CPI first (2-col grid). EAC carries
+        cost variance; CPI carries earned and actual as its two secondaries.
+      */}
       <KpiStrip>
+        <MetricCard
+          label="Estimate at completion (EAC)"
+          value={
+            estimateDraft ? (
+              <span className="text-muted-foreground" data-testid="metric-dash">
+                —
+              </span>
+            ) : (
+              <span data-testid="job-eac" data-cents={p.eacCents}>
+                {usdShort(p.eacCents)}
+              </span>
+            )
+          }
+          secondary={
+            estimateDraft
+              ? ["Approve the estimate to forecast"]
+              : [
+                  `${p.costVarianceCents > 0 ? "+" : ""}${usdShort(p.costVarianceCents)} cost variance`,
+                ]
+          }
+        />
+        <MetricCard
+          label="Cost performance (CPI)"
+          value={
+            estimateDraft ? (
+              <span className="text-muted-foreground" data-testid="metric-dash">
+                —
+              </span>
+            ) : (
+              <StatusIndex index={p.cpi} varianceCents={p.costVarianceCents} />
+            )
+          }
+          secondary={
+            estimateDraft
+              ? ["— earned", "— actual"]
+              : [
+                  `Earned ${usdShort(p.earnedCents)}`,
+                  `Actual ${usdShort(p.actualCents)}`,
+                ]
+          }
+          testId="job-cpi"
+        />
         <Kpi
           label="Original budget"
           value={
@@ -470,67 +522,32 @@ export async function Job({
           testId="job-actual"
         />
         {costIndexes ? (
-          <>
-            <Kpi
-              label="Cost performance (CPI)"
-              value={
-                estimateDraft ? (
-                  <span
-                    className="text-muted-foreground"
-                    data-testid="metric-dash"
-                  >
-                    —
-                  </span>
-                ) : (
-                  <StatusIndex
-                    index={p.cpi}
-                    varianceCents={p.costVarianceCents}
-                  />
-                )
-              }
-              sub={
-                estimateDraft ? (
-                  "Estimate at completion (EAC) — · ETC —"
-                ) : (
-                  <>
-                    Estimate at completion (EAC){" "}
-                    <span data-testid="job-eac" data-cents={p.eacCents}>
-                      {usdShort(p.eacCents)}
-                    </span>
-                    {" · ETC "}
-                    {usdShort(p.etcCents)}
-                  </>
-                )
-              }
-              testId="job-cpi"
-            />
-            <Kpi
-              label="Schedule performance (SPI)"
-              value={
-                estimateDraft ? (
-                  <span
-                    className="text-muted-foreground"
-                    data-testid="metric-dash"
-                  >
-                    —
-                  </span>
-                ) : (
-                  <StatusIndex
-                    index={p.spi}
-                    varianceCents={p.scheduleVarianceCents}
-                  />
-                )
-              }
-              sub={
-                estimateDraft
-                  ? "After estimate approval"
-                  : p.sinceLockPlannedCents !== 0
-                    ? `Planned value (PV) ${usdShort(p.plannedCents)} · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
-                    : `schedule variance · Planned value (PV) ${usdShort(p.plannedCents)}`
-              }
-              testId="job-spi"
-            />
-          </>
+          <Kpi
+            label="Schedule performance (SPI)"
+            value={
+              estimateDraft ? (
+                <span
+                  className="text-muted-foreground"
+                  data-testid="metric-dash"
+                >
+                  —
+                </span>
+              ) : (
+                <StatusIndex
+                  index={p.spi}
+                  varianceCents={p.scheduleVarianceCents}
+                />
+              )
+            }
+            sub={
+              estimateDraft
+                ? "After estimate approval"
+                : p.sinceLockPlannedCents !== 0
+                  ? `Planned value (PV) ${usdShort(p.plannedCents)} · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
+                  : `schedule variance · Planned value (PV) ${usdShort(p.plannedCents)}`
+            }
+            testId="job-spi"
+          />
         ) : null}
       </KpiStrip>
       <p

@@ -1,8 +1,15 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ForecastMethodControl } from "@/components/app/forecast-method-control";
-import { Money } from "@/components/app/format";
-import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
+import { Figure, Money } from "@/components/app/format";
+import {
+  Kpi,
+  KpiStrip,
+  MetricCard,
+  PageHeader,
+  Section,
+} from "@/components/app/page";
 import { utcDay } from "@/lib/dates";
 import { mh, qty, usdCents } from "@/lib/ev";
 import { actions } from "@/server/assistant/actions";
@@ -31,6 +38,63 @@ export default function CostItemPage({
   );
 }
 
+function EntryDetail({
+  e,
+  jobNumber,
+  withTestIds = false,
+}: {
+  e: CostEntryRow;
+  jobNumber: string;
+  /**
+   * Desktop table only for row-scoped testids (labor/other/pending/date).
+   * `cost-entry-plan-link` is always set — Part C crawl check 4 filters by
+   * visible client rects, so phone cards and the desktop table do not collide.
+   */
+  withTestIds?: boolean;
+}) {
+  if (e.kind === "labor") {
+    return (
+      <>
+        {e.planId ? (
+          <Link
+            href={`/app/jobs/${jobNumber}/plans/${e.planId}`}
+            className="tap-target inline-flex items-center font-medium underline hover:no-underline"
+            data-testid="cost-entry-plan-link"
+          >
+            {e.crew ?? "Daily report"}
+          </Link>
+        ) : (
+          <span>{e.crew ?? (e.note || "Labor")}</span>
+        )}
+        {e.sinceLock ? (
+          <span
+            data-text="label"
+            className="ml-2 text-label text-caution"
+            data-testid={withTestIds ? "cost-entry-pending" : undefined}
+          >
+            pending lock
+          </span>
+        ) : null}
+      </>
+    );
+  }
+  return (
+    <>
+      {e.note || "Other cost"}
+      {e.sinceLock ? (
+        <span
+          data-text="label"
+          className="ml-2 text-label text-caution"
+          data-testid={withTestIds ? "cost-entry-pending" : undefined}
+        >
+          pending lock
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/** Desktop table rows — hidden on phones (5.0.4-e: no table on phones). */
 function EntryRows({
   entries,
   jobNumber,
@@ -58,25 +122,7 @@ function EntryRows({
               {utcDay(e.at)}
             </td>
             <td className="px-4 py-2">
-              {e.planId ? (
-                <a
-                  href={`/app/jobs/${jobNumber}/plans/${e.planId}`}
-                  className="font-medium underline hover:no-underline"
-                  data-testid="cost-entry-plan-link"
-                >
-                  {e.crew ?? "Daily report"}
-                </a>
-              ) : (
-                <span>{e.crew ?? (e.note || "Labor")}</span>
-              )}
-              {e.sinceLock ? (
-                <span
-                  className="ml-2 text-xs text-caution"
-                  data-testid="cost-entry-pending"
-                >
-                  pending lock
-                </span>
-              ) : null}
+              <EntryDetail e={e} jobNumber={jobNumber} withTestIds />
             </td>
             <td className="px-4 py-2 text-right tabular-nums">
               {e.manHours.toLocaleString("en-US", {
@@ -110,15 +156,7 @@ function EntryRows({
               {utcDay(e.at)}
             </td>
             <td className="px-4 py-2" colSpan={3}>
-              {e.note || "Other cost"}
-              {e.sinceLock ? (
-                <span
-                  className="ml-2 text-xs text-caution"
-                  data-testid="cost-entry-pending"
-                >
-                  pending lock
-                </span>
-              ) : null}
+              <EntryDetail e={e} jobNumber={jobNumber} withTestIds />
             </td>
             <td className="px-4 py-2 text-right tabular-nums">
               <Money cents={e.amountCents} exact />
@@ -128,6 +166,69 @@ function EntryRows({
         ),
       )}
     </>
+  );
+}
+
+/**
+ * Phone cards: one primary figure (amount) per entry (5.0.4-e).
+ * Entry testids stay on the desktop table only so e2e counts stay unique.
+ */
+function EntryCards({
+  entries,
+  jobNumber,
+}: {
+  entries: CostEntryRow[];
+  jobNumber: string;
+}) {
+  return (
+    <ul className="divide-y md:hidden" data-testid="cost-item-entries-cards">
+      {entries.map((e) => (
+        <li
+          key={e.id}
+          data-card
+          data-amount-cents={e.amountCents}
+          data-at={e.at}
+          className={
+            e.sinceLock ? "bg-caution-soft/80 px-4 py-3" : "px-4 py-3"
+          }
+        >
+          <div
+            data-text="label"
+            className="text-label text-muted-foreground"
+          >
+            {utcDay(e.at)}
+          </div>
+          <div className="mt-0.5 text-body">
+            <EntryDetail e={e} jobNumber={jobNumber} />
+          </div>
+          <Figure variant="primary" className="mt-1 block">
+            <Money cents={e.amountCents} exact />
+          </Figure>
+          {e.kind === "labor" ? (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+              <Figure variant="secondary">
+                {e.manHours.toLocaleString("en-US", {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}{" "}
+                MH
+              </Figure>
+              <Figure variant="secondary">
+                {e.rateCents != null ? usdCents(e.rateCents) : "—"}/hr
+              </Figure>
+            </div>
+          ) : null}
+          {e.kind === "labor" && e.approverName ? (
+            <p
+              data-text="label"
+              className="mt-1 text-label text-muted-foreground"
+            >
+              {e.approverName}
+            </p>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -167,7 +268,7 @@ async function CostItem({
           <>
             <a
               href={`/app/jobs/${data.job.number}`}
-              className="underline hover:no-underline"
+              className="tap-target inline-flex items-center underline hover:no-underline"
               data-testid="cost-item-back"
             >
               {data.job.number} · {data.job.name}
@@ -178,6 +279,12 @@ async function CostItem({
         }
       />
       <KpiStrip>
+        <MetricCard
+          label="Estimate at completion (EAC)"
+          value={<Money cents={data.forecast.eacCents} exact />}
+          secondary={[data.forecast.forecastDerivation]}
+          testId="cost-item-eac"
+        />
         <Kpi
           label="Current budget"
           value={<Money cents={data.rollup.budgetCents} exact />}
@@ -199,12 +306,6 @@ async function CostItem({
                 : undefined
           }
           testId="cost-item-ac"
-        />
-        <Kpi
-          label="Estimate at completion (EAC)"
-          value={<Money cents={data.forecast.eacCents} exact />}
-          sub={data.forecast.forecastDerivation}
-          testId="cost-item-eac"
         />
         <Kpi
           label="Installed"
@@ -254,7 +355,8 @@ async function CostItem({
             canEdit={canSetForecast}
           />
           <p
-            className="text-xs text-muted-foreground"
+            data-text="label"
+            className="text-label text-muted-foreground"
             data-testid="forecast-derivation"
           >
             {data.forecast.forecastDerivation}
@@ -273,90 +375,191 @@ async function CostItem({
       >
         {!data.hasLaborEntries ? (
           <p
-            className="border-b px-4 py-3 text-sm text-muted-foreground"
+            className="border-b px-4 py-3 text-body text-muted-foreground"
             data-testid="cost-item-empty-labor"
           >
             {EMPTY_LABOR}
           </p>
         ) : null}
         {data.entries.length === 0 ? null : (
-          <div className="overflow-x-auto" data-testid="cost-item-entries">
-            <table className="w-full min-w-[40rem] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-2 font-medium">Date</th>
-                  <th className="px-4 py-2 font-medium">Detail</th>
-                  <th className="px-4 py-2 text-right font-medium">MH</th>
-                  <th className="px-4 py-2 text-right font-medium">Rate</th>
-                  <th className="px-4 py-2 text-right font-medium">Amount</th>
-                  <th className="px-4 py-2 font-medium">Approver</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {sinceLockEntries.length > 0 ? (
+          <>
+            {sinceLockEntries.length > 0 ? (
+              <p
+                data-text="label"
+                className="border-b bg-muted/40 px-4 py-2 text-label text-muted-foreground md:hidden"
+              >
+                Posted since the {lockLabel} lock (pending)
+              </p>
+            ) : null}
+            <EntryCards
+              entries={
+                sinceLockEntries.length > 0
+                  ? sinceLockEntries
+                  : throughLockEntries
+              }
+              jobNumber={data.job.number}
+            />
+            {sinceLockEntries.length > 0 ? (
+              <>
+                <div
+                  data-card
+                  className="flex items-baseline justify-between gap-2 border-b px-4 py-3 text-caution md:hidden"
+                  data-total-cents={data.sinceLockCents}
+                >
+                  <span data-text="label" className="text-label font-medium">
+                    Subtotal · since {lockLabel} lock
+                  </span>
+                  <Figure variant="primary">
+                    <Money cents={data.sinceLockCents} exact />
+                  </Figure>
+                </div>
+                {throughLockEntries.length > 0 ? (
                   <>
-                    <tr
-                      className="bg-muted/40 text-xs text-muted-foreground"
-                      data-testid="cost-entries-since-lock-heading"
+                    <p
+                      data-text="label"
+                      className="border-b bg-muted/40 px-4 py-2 text-label text-muted-foreground md:hidden"
                     >
-                      <td className="px-4 py-2" colSpan={6}>
-                        Posted since the {lockLabel} lock (pending)
-                      </td>
-                    </tr>
-                    <EntryRows
-                      entries={sinceLockEntries}
+                      Through the {lockLabel} lock
+                    </p>
+                    <EntryCards
+                      entries={throughLockEntries}
                       jobNumber={data.job.number}
                     />
-                    <tr
-                      className="border-b font-medium text-caution"
-                      data-testid="cost-item-since-lock"
-                      data-total-cents={data.sinceLockCents}
-                    >
-                      <td className="px-4 py-2" colSpan={4}>
-                        Subtotal · since {lockLabel} lock
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">
-                        <Money cents={data.sinceLockCents} exact />
-                      </td>
-                      <td className="px-4 py-2" />
-                    </tr>
-                    {throughLockEntries.length > 0 ? (
-                      <tr
-                        className="bg-muted/40 text-xs text-muted-foreground"
-                        data-testid="cost-entries-through-lock-heading"
-                      >
-                        <td className="px-4 py-2" colSpan={6}>
-                          Through the {lockLabel} lock
-                        </td>
-                      </tr>
-                    ) : null}
                   </>
                 ) : null}
-                <EntryRows
-                  entries={throughLockEntries}
-                  jobNumber={data.job.number}
-                />
-              </tbody>
-              <tfoot>
-                <tr
-                  className="border-t-2 font-medium"
-                  data-testid="cost-item-totals"
-                  data-total-cents={data.postedTotalCents}
-                >
-                  <td className="px-4 py-2" colSpan={4}>
-                    Total
-                    {data.periodLabel
-                      ? ` · through ${data.periodLabel} lock`
-                      : ""}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
-                    <Money cents={data.postedTotalCents} exact />
-                  </td>
-                  <td className="px-4 py-2" />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+              </>
+            ) : null}
+            <div
+              data-card
+              className="flex items-baseline justify-between gap-2 px-4 py-3 md:hidden"
+              data-total-cents={data.postedTotalCents}
+            >
+              <span data-text="label" className="text-label font-medium">
+                Total
+                {data.periodLabel
+                  ? ` · through ${data.periodLabel} lock`
+                  : ""}
+              </span>
+              <Figure variant="primary">
+                <Money cents={data.postedTotalCents} exact />
+              </Figure>
+            </div>
+
+            <div
+              className="hidden overflow-x-auto md:block"
+              data-testid="cost-item-entries"
+            >
+              <table className="w-full min-w-[40rem] text-body">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th
+                      data-text="label"
+                      className="px-4 py-2 text-label font-medium"
+                    >
+                      Date
+                    </th>
+                    <th
+                      data-text="label"
+                      className="px-4 py-2 text-label font-medium"
+                    >
+                      Detail
+                    </th>
+                    <th
+                      data-text="label"
+                      className="px-4 py-2 text-right text-label font-medium"
+                    >
+                      MH
+                    </th>
+                    <th
+                      data-text="label"
+                      className="px-4 py-2 text-right text-label font-medium"
+                    >
+                      Rate
+                    </th>
+                    <th
+                      data-text="label"
+                      className="px-4 py-2 text-right text-label font-medium"
+                    >
+                      Amount
+                    </th>
+                    <th
+                      data-text="label"
+                      className="px-4 py-2 text-label font-medium"
+                    >
+                      Approver
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {sinceLockEntries.length > 0 ? (
+                    <>
+                      <tr
+                        className="bg-muted/40 text-label text-muted-foreground"
+                        data-testid="cost-entries-since-lock-heading"
+                      >
+                        <td className="px-4 py-2" colSpan={6} data-text="label">
+                          Posted since the {lockLabel} lock (pending)
+                        </td>
+                      </tr>
+                      <EntryRows
+                        entries={sinceLockEntries}
+                        jobNumber={data.job.number}
+                      />
+                      <tr
+                        className="border-b font-medium text-caution"
+                        data-testid="cost-item-since-lock"
+                        data-total-cents={data.sinceLockCents}
+                      >
+                        <td className="px-4 py-2" colSpan={4}>
+                          Subtotal · since {lockLabel} lock
+                        </td>
+                        <td className="px-4 py-2 text-right tabular-nums">
+                          <Money cents={data.sinceLockCents} exact />
+                        </td>
+                        <td className="px-4 py-2" />
+                      </tr>
+                      {throughLockEntries.length > 0 ? (
+                        <tr
+                          className="bg-muted/40 text-label text-muted-foreground"
+                          data-testid="cost-entries-through-lock-heading"
+                        >
+                          <td
+                            className="px-4 py-2"
+                            colSpan={6}
+                            data-text="label"
+                          >
+                            Through the {lockLabel} lock
+                          </td>
+                        </tr>
+                      ) : null}
+                    </>
+                  ) : null}
+                  <EntryRows
+                    entries={throughLockEntries}
+                    jobNumber={data.job.number}
+                  />
+                </tbody>
+                <tfoot>
+                  <tr
+                    className="border-t-2 font-medium"
+                    data-testid="cost-item-totals"
+                    data-total-cents={data.postedTotalCents}
+                  >
+                    <td className="px-4 py-2" colSpan={4}>
+                      Total
+                      {data.periodLabel
+                        ? ` · through ${data.periodLabel} lock`
+                        : ""}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      <Money cents={data.postedTotalCents} exact />
+                    </td>
+                    <td className="px-4 py-2" />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
         )}
       </Section>
     </>

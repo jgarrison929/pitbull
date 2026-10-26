@@ -7,7 +7,7 @@ import type { ValueSet, WbsMoney } from "@/lib/budget";
 import type { CostLine } from "@/lib/ev";
 import { mh, pct, pendingInstalledQtyMilli, qty, rollup } from "@/lib/ev";
 import { cn } from "@/lib/utils";
-import { Money, Progress, StatusIndex } from "./format";
+import { Figure, Money, Progress, StatusIndex } from "./format";
 import { DerivationText, TreeToggleIcon } from "./ui-glyphs";
 import { varianceStatus } from "@/lib/status";
 
@@ -65,7 +65,10 @@ function BudgetCell({
     <div className="whitespace-nowrap text-right">
       <Money cents={centsOf(money, set)} exact={exact} />
       {money.mhMilli > 0 ? (
-        <div className="text-xs tabular-nums text-muted-foreground">
+        <div
+          data-text="label"
+          className="text-label tabular-nums text-muted-foreground"
+        >
           {mh(money.mhMilli)} MH
         </div>
       ) : null}
@@ -92,7 +95,7 @@ function InstalledCell({ l }: { l: CostLine }) {
   const shown =
     l.evMethod === "units" ? l.claimedInstalledQtyMilli : l.installedQtyMilli;
   return (
-    <div className="text-right text-xs tabular-nums text-muted-foreground">
+    <div className="text-right text-label tabular-nums text-muted-foreground">
       <div>
         {qty(shown)} / {qty(l.budgetQtyMilli)} {l.unit}
       </div>
@@ -220,17 +223,20 @@ export function CostTable({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Filter cost codes…"
-          className="w-full max-w-sm rounded-md border bg-background px-3 py-1.5 text-sm"
+          className="w-full max-w-sm rounded-md border bg-background px-3 py-2 text-body"
           data-testid="cost-tree-filter"
           aria-label="Filter cost codes"
         />
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span
+          data-text="label"
+          className="text-label text-muted-foreground tabular-nums"
+        >
           {visible.length} shown
         </span>
         <div
           role="radiogroup"
           aria-label="Budget column shows"
-          className="ml-auto flex overflow-hidden rounded-md border text-xs"
+          className="ml-auto flex overflow-hidden rounded-md border text-label"
           data-testid="value-set"
           data-set={valueSet}
         >
@@ -243,7 +249,7 @@ export function CostTable({
               title={VALUE_SETS[set].title}
               onClick={() => setValueSet(set)}
               className={cn(
-                "px-2.5 py-1 text-muted-foreground",
+                "tap-target px-3 text-muted-foreground",
                 valueSet === set && "bg-muted font-medium text-foreground",
               )}
               data-testid={`value-set-${set}`}
@@ -335,29 +341,39 @@ export function CostTable({
           jobNumber={jobNumber}
           showCostIndexes={showCostIndexes}
         />
-        <div className="flex items-center justify-between border-t py-3 text-sm font-medium">
-          <span>
-            Job total
-            {estimateDraft ? null : ` · ${pct(t.percent)}`}
-          </span>
-          {showCostIndexes ? (
-            <span>
-              CPI{" "}
-              {estimateDraft ? (
-                <MetricDash />
-              ) : (
-                <StatusIndex
-                  index={t.cpi}
-                  varianceCents={t.costVarianceCents}
-                />
-              )}
-            </span>
-          ) : (
-            <span>
-              EAC{" "}
+        <div
+          data-card
+          className="flex flex-wrap items-baseline justify-between gap-2 border-t py-3"
+        >
+          <div className="min-w-0">
+            <div
+              data-text="label"
+              className="text-label font-medium text-muted-foreground"
+            >
+              Job total · EAC
+            </div>
+            <Figure variant="primary" className="mt-0.5 block">
               {estimateDraft ? <MetricDash /> : <Money cents={t.eacCents} />}
-            </span>
-          )}
+            </Figure>
+          </div>
+          <div className="flex flex-wrap items-baseline gap-x-3">
+            {estimateDraft ? null : (
+              <Figure variant="secondary">{pct(t.percent)} complete</Figure>
+            )}
+            {showCostIndexes ? (
+              <Figure variant="secondary">
+                CPI{" "}
+                {estimateDraft ? (
+                  <MetricDash />
+                ) : (
+                  <StatusIndex
+                    index={t.cpi}
+                    varianceCents={t.costVarianceCents}
+                  />
+                )}
+              </Figure>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
@@ -371,12 +387,16 @@ function CostCodeLabel({
   n: WbsNode;
   jobNumber?: string;
 }) {
-  const codeClass = "mr-2 font-mono text-xs text-muted-foreground";
+  const codeClass =
+    "mr-2 font-mono text-label text-muted-foreground";
   if (n.isLeaf && jobNumber) {
     return (
       <Link
         href={`/app/jobs/${jobNumber}/cost-items/${encodeURIComponent(n.code)}`}
-        className={cn(codeClass, "hover:underline hover:text-foreground")}
+        className={cn(
+          codeClass,
+          "tap-target inline-flex items-center hover:underline hover:text-foreground",
+        )}
         data-testid={`cost-code-link-${n.code}`}
       >
         {n.code}
@@ -618,7 +638,7 @@ function VirtualTreeMobile({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 88,
+    estimateSize: () => 112,
     measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 8,
   });
@@ -637,13 +657,15 @@ function VirtualTreeMobile({
         {virtualizer.getVirtualItems().map((v) => {
           const n = rows[v.index]!;
           const l = n.line;
+          const showDashBudget = estimateDraft && valueSet !== "ce";
           return (
             <div
               key={n.id}
               ref={virtualizer.measureElement}
               data-index={v.index}
+              data-card
               className={cn(
-                "absolute left-0 w-full border-b py-2",
+                "absolute left-0 w-full border-b px-2 py-3",
                 l &&
                   !estimateDraft &&
                   showCostIndexes &&
@@ -657,97 +679,193 @@ function VirtualTreeMobile({
               data-testid="cost-tree-row"
               {...rowData(n)}
             >
-              <div className="flex items-baseline justify-between gap-2 pr-2">
-                <div className="min-w-0">
-                  {!n.isLeaf ? (
-                    <button
-                      type="button"
-                      className="mr-1 inline-flex items-center text-xs"
-                      onClick={() => onToggle(n.id)}
-                      aria-expanded={!collapsed.has(n.id)}
-                    >
-                      <TreeToggleIcon expanded={!collapsed.has(n.id)} />
-                    </button>
-                  ) : null}
-                  <CostCodeLabel n={n} jobNumber={jobNumber} />
-                  <span className="font-medium">{n.description}</span>
-                </div>
-                {l ? (
-                  estimateDraft ? (
-                    <MetricDash />
-                  ) : showCostIndexes ? (
-                    <StatusIndex
-                      index={l.cpi}
-                      varianceCents={l.varianceCents}
-                    />
-                  ) : (
-                    <Money cents={l.earnedCents} exact />
-                  )
+              <div className="flex min-w-0 items-start gap-2 pr-1">
+                {!n.isLeaf ? (
+                  <button
+                    type="button"
+                    className="tap-target inline-flex shrink-0 items-center justify-center text-label text-muted-foreground"
+                    onClick={() => onToggle(n.id)}
+                    aria-expanded={!collapsed.has(n.id)}
+                    aria-label={
+                      collapsed.has(n.id) ? "Expand" : "Collapse"
+                    }
+                  >
+                    <TreeToggleIcon expanded={!collapsed.has(n.id)} />
+                  </button>
                 ) : null}
-              </div>
-              {l ? (
-                <div className="mt-1 grid grid-cols-3 gap-2 pr-2 text-xs">
-                  <div>
-                    <div className="text-muted-foreground">Earned</div>
-                    {estimateDraft ? (
-                      <MetricDash />
-                    ) : (
-                      <Money cents={l.earnedCents} exact />
-                    )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <CostCodeLabel n={n} jobNumber={jobNumber} />
+                    <span className="min-w-0 text-body font-medium whitespace-normal">
+                      {n.description}
+                    </span>
                   </div>
-                  <div>
-                    <div className="text-muted-foreground">Actual</div>
-                    {estimateDraft ? (
-                      <MetricDash />
-                    ) : (
-                      <Money cents={l.actualCents} exact />
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="text-muted-foreground">
-                      {VALUE_SETS[valueSet].label}
-                    </div>
-                    {estimateDraft && valueSet !== "ce" ? (
-                      <MetricDash />
-                    ) : (
-                      <BudgetCell money={n.money} set={valueSet} exact />
-                    )}
-                  </div>
-                  {!estimateDraft &&
-                  ((l.approvalPendingQtyMilli ?? 0) > 0 ||
-                    (l.approvalPendingCents ?? 0) > 0) ? (
-                    <div
-                      className="col-span-3 text-caution"
-                      data-testid={`approval-pending-${l.code}`}
-                      data-cents={l.approvalPendingCents ?? 0}
-                    >
-                      +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
-                      {(l.approvalPendingCents ?? 0) > 0
-                        ? ` · ${usdExact(l.approvalPendingCents!)} pending`
-                        : " pending approval"}
-                    </div>
-                  ) : null}
-                  {!estimateDraft && pendingInstalledQtyMilli(l) > 0 && (
-                    <div
-                      className="col-span-3 text-caution"
-                      data-testid={`pending-${l.code}`}
-                    >
-                      +{qty(pendingInstalledQtyMilli(l))} {l.unit} pending lock
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-1 flex items-baseline justify-between gap-2 pr-2 text-xs">
-                  <span className="text-muted-foreground">
-                    {VALUE_SETS[valueSet].label}
-                  </span>
-                  {estimateDraft && valueSet !== "ce" ? (
-                    <MetricDash />
+                  {l ? (
+                    <>
+                      <div
+                        data-text="label"
+                        className="mt-1 text-label text-muted-foreground"
+                      >
+                        EAC
+                      </div>
+                      <Figure variant="primary" className="mt-0.5 block">
+                        {estimateDraft ? (
+                          <MetricDash />
+                        ) : (
+                          <Money cents={l.eacCents} exact />
+                        )}
+                      </Figure>
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                        <Figure variant="secondary">
+                          {showDashBudget ? (
+                            <MetricDash />
+                          ) : (
+                            <>
+                              CB <Money cents={n.money.cbCents} exact />
+                            </>
+                          )}
+                        </Figure>
+                        {showCostIndexes ? (
+                          <Figure variant="secondary">
+                            {estimateDraft ? (
+                              <MetricDash />
+                            ) : (
+                              <StatusIndex
+                                index={l.cpi}
+                                varianceCents={l.varianceCents}
+                              />
+                            )}
+                          </Figure>
+                        ) : null}
+                      </div>
+                      <details className="mt-2">
+                        <summary
+                          data-text="label"
+                          className="tap-target flex cursor-pointer list-none items-center text-label font-medium text-muted-foreground [&::-webkit-details-marker]:hidden"
+                        >
+                          More
+                        </summary>
+                        <div className="grid grid-cols-2 gap-2 pt-2 text-body">
+                          <div>
+                            <div
+                              data-text="label"
+                              className="text-label text-muted-foreground"
+                            >
+                              Earned
+                            </div>
+                            {estimateDraft ? (
+                              <MetricDash />
+                            ) : (
+                              <Money cents={l.earnedCents} exact />
+                            )}
+                          </div>
+                          <div>
+                            <div
+                              data-text="label"
+                              className="text-label text-muted-foreground"
+                            >
+                              Actual
+                            </div>
+                            {estimateDraft ? (
+                              <MetricDash />
+                            ) : (
+                              <Money cents={l.actualCents} exact />
+                            )}
+                          </div>
+                          <div>
+                            <div
+                              data-text="label"
+                              className="text-label text-muted-foreground"
+                            >
+                              {VALUE_SETS[valueSet].label}
+                            </div>
+                            {showDashBudget ? (
+                              <MetricDash />
+                            ) : (
+                              <BudgetCell
+                                money={n.money}
+                                set={valueSet}
+                                exact
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <div
+                              data-text="label"
+                              className="text-label text-muted-foreground"
+                            >
+                              Installed
+                            </div>
+                            {estimateDraft ? (
+                              <MetricDash />
+                            ) : (
+                              <InstalledCell l={l} />
+                            )}
+                          </div>
+                          {!estimateDraft && l.earnDerivation ? (
+                            <div
+                              className="col-span-2 text-label text-pretty text-muted-foreground"
+                              data-testid="earn-derivation"
+                              data-text="label"
+                            >
+                              <DerivationText text={l.earnDerivation} />
+                            </div>
+                          ) : null}
+                          {!estimateDraft && l.forecastDerivation ? (
+                            <div
+                              className="col-span-2 text-label text-pretty text-muted-foreground"
+                              data-testid="forecast-derivation"
+                              data-text="label"
+                            >
+                              <DerivationText text={l.forecastDerivation} />
+                            </div>
+                          ) : null}
+                          {!estimateDraft &&
+                          ((l.approvalPendingQtyMilli ?? 0) > 0 ||
+                            (l.approvalPendingCents ?? 0) > 0) ? (
+                            <div
+                              className="col-span-2 text-caution"
+                              data-testid={`approval-pending-${l.code}`}
+                              data-cents={l.approvalPendingCents ?? 0}
+                            >
+                              +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
+                              {(l.approvalPendingCents ?? 0) > 0
+                                ? ` · ${usdExact(l.approvalPendingCents!)} pending`
+                                : " pending approval"}
+                            </div>
+                          ) : null}
+                          {!estimateDraft &&
+                          pendingInstalledQtyMilli(l) > 0 ? (
+                            <div
+                              className="col-span-2 text-caution"
+                              data-testid={`pending-${l.code}`}
+                            >
+                              +{qty(pendingInstalledQtyMilli(l))} {l.unit}{" "}
+                              pending lock
+                            </div>
+                          ) : null}
+                        </div>
+                      </details>
+                    </>
                   ) : (
-                    <BudgetCell money={n.money} set={valueSet} />
+                    <>
+                      <div
+                        data-text="label"
+                        className="mt-1 text-label text-muted-foreground"
+                      >
+                        {VALUE_SETS[valueSet].label}
+                      </div>
+                      <Figure variant="primary" className="mt-0.5 block">
+                        {showDashBudget ? (
+                          <MetricDash />
+                        ) : (
+                          <Money cents={centsOf(n.money, valueSet)} />
+                        )}
+                      </Figure>
+                    </>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
