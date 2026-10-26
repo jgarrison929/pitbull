@@ -121,7 +121,7 @@ Root `CHANGELOG.md` remains the Keep a Changelog file for the **legacy** 3.x lin
 
 ## Rule → enforcement
 
-Repeated agent mistakes are rejected by a check. The prose here names the rule; the check is what makes it stick. `node v5/scripts/agent-guards.mjs --prove` is the same command locally and in the v5 CI job.
+Repeated agent mistakes are rejected by a check. The prose here names the rule; the check is what makes it stick. `node v5/scripts/agent-guards.mjs --prove` is the same command locally and in the Agent guards CI job (own job, no npm cache).
 
 | Rule | Where it is enforced |
 |------|----------------------|

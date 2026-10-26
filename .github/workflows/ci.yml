@@ -180,6 +180,58 @@ jobs:
           node .cursor/skills/verify-v5/portfolio-mustfail.test.mjs
           node .cursor/skills/verify-v5/stress-seed-mustfail.test.mjs
 
+  # Own job: fetches the PR head / historical proof SHAs. Keep it off the v5
+  # job so CodeQL does not treat that fetch as cache-poisoning the shared npm
+  # cache. No secrets, no setup-node cache, contents: read only.
+  agent-guards:
+    name: Agent guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Pin Node from .nvmrc — do not set cache (no shared npm cache write).
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: v5/.nvmrc
+
+      # Same command locally: node v5/scripts/agent-guards.mjs --prove
+      # On a pull request the range is the PR head, not the merge commit, so a
+      # snapshot conflict is named here. --prove rejects the embedded past mistakes.
+      - name: Agent guards
+        run: |
+          set -eu
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags origin \
+              "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}" \
+              "+refs/pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/pr-head"
+          fi
+          git fetch --no-tags origin \
+            601fbe393e5206c411d6445dcb470220d816b2d1 \
+            fbc4a1fbb0804ef5dcf91036749a4a6f0264d2bd \
+            390fa3a937c6491615d4d1760c397e7909445510 \
+            1e1bc24cf588e6043ffe660c8b53b9c73335c671 \
+            107671f03f194768f549f79d9dbba17b40e37ff8 \
+            3650d64beabd841053087bd74b90dacf083ca44c \
+            615e0bf97c8f43086ea95bcca22cd072a0796ba4 \
+            69182163b92bdc4ecefa2371e2fe23a5933c5f48 \
+            643cbaf0d80d73e5868bb17388f356adbc26223f \
+            ae0062a412df3311406ab0ee835780001b4b5f15 \
+            || true
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            node v5/scripts/agent-guards.mjs --prove \
+              --range "origin/${GITHUB_BASE_REF}..origin/pr-head" \
+              --base "origin/${GITHUB_BASE_REF}" \
+              --head "origin/pr-head"
+          else
+            node v5/scripts/agent-guards.mjs --prove --range HEAD
+          fi
+
   v5:
     name: v5 (lint, typecheck, test, build, e2e)
     needs: changes
@@ -219,39 +271,6 @@ jobs:
           node-version-file: v5/.nvmrc
           cache: 'npm'
           cache-dependency-path: v5/package-lock.json
-
-      # Same command locally: node v5/scripts/agent-guards.mjs --prove
-      # On a pull request the range is the PR head, not the merge commit, so a
-      # snapshot conflict is named here. --prove rejects the embedded past mistakes.
-      - name: Agent guards
-        working-directory: ${{ github.workspace }}
-        run: |
-          set -eu
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            git fetch --no-tags origin \
-              "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}" \
-              "+refs/pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/pr-head"
-          fi
-          git fetch --no-tags origin \
-            601fbe393e5206c411d6445dcb470220d816b2d1 \
-            fbc4a1fbb0804ef5dcf91036749a4a6f0264d2bd \
-            390fa3a937c6491615d4d1760c397e7909445510 \
-            1e1bc24cf588e6043ffe660c8b53b9c73335c671 \
-            107671f03f194768f549f79d9dbba17b40e37ff8 \
-            3650d64beabd841053087bd74b90dacf083ca44c \
-            615e0bf97c8f43086ea95bcca22cd072a0796ba4 \
-            69182163b92bdc4ecefa2371e2fe23a5933c5f48 \
-            643cbaf0d80d73e5868bb17388f356adbc26223f \
-            ae0062a412df3311406ab0ee835780001b4b5f15 \
-            || true
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            node v5/scripts/agent-guards.mjs --prove \
-              --range "origin/${GITHUB_BASE_REF}..origin/pr-head" \
-              --base "origin/${GITHUB_BASE_REF}" \
-              --head "origin/pr-head"
-          else
-            node v5/scripts/agent-guards.mjs --prove --range HEAD
-          fi
 
       - name: Install dependencies
         run: npm ci
@@ -302,7 +321,7 @@ jobs:
   ci-gate:
     name: ci-gate
     if: always()
-    needs: [changes, v5, verify-v5-skill, verify-v5-mustfail]
+    needs: [changes, agent-guards, v5, verify-v5-skill, verify-v5-mustfail]
     runs-on: ubuntu-latest
     permissions:
       actions: read
