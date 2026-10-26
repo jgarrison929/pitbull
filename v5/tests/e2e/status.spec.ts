@@ -5,8 +5,10 @@ test("status page shows version, commit, ci-gate, last-verify and health", async
   page,
 }) => {
   await page.goto("/status");
-  await expect(page.getByRole("heading", { name: "Status" })).toBeVisible();
-  await expect(page.getByTestId("page-purpose")).toContainText(
+  const main = page.locator("main");
+  await expect(main.getByRole("heading", { name: "Status" })).toBeVisible();
+  await expect(main.getByTestId("page-purpose")).toHaveCount(1);
+  await expect(main.getByTestId("page-purpose")).toContainText(
     /which build is live/i,
   );
   await expect(page.getByTestId("status-version")).toHaveText(pkg.version);

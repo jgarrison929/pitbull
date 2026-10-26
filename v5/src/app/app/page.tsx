@@ -132,22 +132,27 @@ async function Portfolio() {
     </>
   );
   if (user.role !== "foreman") return portfolio;
-  // Foreman phone: purpose header, next steps, then compact assistant.
+  // One PageHeader for all widths — phone/desktop must not each mount purpose.
   return (
     <>
+      <PageHeader
+        title="What needs you today"
+        purpose={PURPOSE}
+        meta={user.title}
+      />
       <div
         className="flex flex-col gap-3 md:hidden"
         data-testid="foreman-phone"
       >
-        <PageHeader
-          title="What needs you today"
-          purpose={PURPOSE}
-          meta={user.title}
-        />
         {next}
         <Assistant variant="page" compact />
       </div>
-      <div className="hidden md:contents">{portfolio}</div>
+      <div className="hidden md:contents">
+        {next}
+        <Section title="Jobs" meta="Active jobs and percent complete">
+          <PortfolioTable jobs={jobs} role={user.role} />
+        </Section>
+      </div>
     </>
   );
 }

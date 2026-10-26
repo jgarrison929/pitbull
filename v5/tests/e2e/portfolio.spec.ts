@@ -4,16 +4,22 @@ async function signIn(page: Page, role = "executive") {
   await page.goto("/login");
   await page.getByTestId(`role-${role}`).click();
   await expect(page).toHaveURL(/\/app/);
+  // Soft redirect can briefly leave /login in the tree; wait until it is gone.
+  await expect(
+    page.getByRole("heading", { name: "Pick a role" }),
+  ).toHaveCount(0);
 }
 
 test("portfolio reads the visitor's sandbox from Postgres", async ({
   page,
 }) => {
   await signIn(page);
+  const main = page.locator("main");
   await expect(
-    page.getByRole("heading", { name: "What needs you today" }),
+    main.getByRole("heading", { name: "What needs you today" }),
   ).toBeVisible();
-  await expect(page.getByTestId("page-purpose")).toContainText(
+  await expect(main.getByTestId("page-purpose")).toHaveCount(1);
+  await expect(main.getByTestId("page-purpose")).toContainText(
     /next tasks across every job/i,
   );
   const table = page.getByTestId("portfolio-table");
