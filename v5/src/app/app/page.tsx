@@ -29,7 +29,8 @@ async function Portfolio() {
       getPortfolio(user.companyId),
       getNextSteps(user),
     ]);
-  const next = <NextSteps data={nextSteps} />;
+  // PageHeader owns the page title + purpose (5.0.4-b); NextSteps is untitled.
+  const next = <NextSteps data={nextSteps} titled={false} />;
   const costIndexes = showsCostIndexes(user.role);
   const atRiskLines =
     user.role === "executive"
@@ -51,14 +52,40 @@ async function Portfolio() {
           )
       : [];
 
-  const portfolio = (
+  if (user.role === "foreman") {
+    // One PageHeader for all widths — phone/desktop must not each mount purpose.
+    return (
+      <>
+        <PageHeader
+          title="What needs you today"
+          purpose={PURPOSE}
+          meta={user.title}
+        />
+        <div
+          className="flex flex-col gap-3 md:hidden"
+          data-testid="foreman-phone"
+        >
+          {next}
+          <Assistant variant="page" compact />
+        </div>
+        <div className="hidden md:contents">
+          {next}
+          <Section title="Jobs" meta="Active jobs and percent complete">
+            <PortfolioTable jobs={jobs} role={user.role} />
+          </Section>
+        </div>
+      </>
+    );
+  }
+
+  return (
     <>
-      {next}
       <PageHeader
         title="What needs you today"
         purpose={PURPOSE}
         meta={`${activeJobCount} active jobs · earned value to date`}
       />
+      {next}
       {atRiskLines.length > 0 ? (
         <ul
           className="flex flex-col gap-2 text-sm"
@@ -76,48 +103,46 @@ async function Portfolio() {
           ))}
         </ul>
       ) : null}
-      {user.role !== "foreman" ? (
-        <KpiStrip>
-          <Kpi
-            label="Contract value"
-            value={<Money cents={contractCents} />}
-            sub={`${activeJobCount} active jobs`}
-            testId="kpi-contract"
-          />
-          <Kpi
-            label="Earned to date"
-            value={<Money cents={totals.earnedCents} />}
-            sub={`vs ${usdShort(totals.plannedCents)} planned`}
-            testId="kpi-earned"
-          />
-          {costIndexes ? (
-            <>
-              <Kpi
-                label="Cost performance (CPI)"
-                value={
-                  <StatusIndex
-                    index={totals.cpi}
-                    varianceCents={totals.costVarianceCents}
-                  />
-                }
-                sub="earned ÷ actual · cost variance"
-                testId="kpi-cpi"
-              />
-              <Kpi
-                label="Schedule performance (SPI)"
-                value={
-                  <StatusIndex
-                    index={totals.spi}
-                    varianceCents={totals.scheduleVarianceCents}
-                  />
-                }
-                sub="earned ÷ planned · schedule variance"
-                testId="kpi-spi"
-              />
-            </>
-          ) : null}
-        </KpiStrip>
-      ) : null}
+      <KpiStrip>
+        <Kpi
+          label="Contract value"
+          value={<Money cents={contractCents} />}
+          sub={`${activeJobCount} active jobs`}
+          testId="kpi-contract"
+        />
+        <Kpi
+          label="Earned to date"
+          value={<Money cents={totals.earnedCents} />}
+          sub={`vs ${usdShort(totals.plannedCents)} planned`}
+          testId="kpi-earned"
+        />
+        {costIndexes ? (
+          <>
+            <Kpi
+              label="Cost performance (CPI)"
+              value={
+                <StatusIndex
+                  index={totals.cpi}
+                  varianceCents={totals.costVarianceCents}
+                />
+              }
+              sub="earned ÷ actual · cost variance"
+              testId="kpi-cpi"
+            />
+            <Kpi
+              label="Schedule performance (SPI)"
+              value={
+                <StatusIndex
+                  index={totals.spi}
+                  varianceCents={totals.scheduleVarianceCents}
+                />
+              }
+              sub="earned ÷ planned · schedule variance"
+              testId="kpi-spi"
+            />
+          </>
+        ) : null}
+      </KpiStrip>
       <Section
         id="jobs"
         title="Jobs"
@@ -129,30 +154,6 @@ async function Portfolio() {
       >
         <PortfolioTable jobs={jobs} role={user.role} />
       </Section>
-    </>
-  );
-  if (user.role !== "foreman") return portfolio;
-  // One PageHeader for all widths — phone/desktop must not each mount purpose.
-  return (
-    <>
-      <PageHeader
-        title="What needs you today"
-        purpose={PURPOSE}
-        meta={user.title}
-      />
-      <div
-        className="flex flex-col gap-3 md:hidden"
-        data-testid="foreman-phone"
-      >
-        {next}
-        <Assistant variant="page" compact />
-      </div>
-      <div className="hidden md:contents">
-        {next}
-        <Section title="Jobs" meta="Active jobs and percent complete">
-          <PortfolioTable jobs={jobs} role={user.role} />
-        </Section>
-      </div>
     </>
   );
 }

@@ -16,13 +16,15 @@ test("portfolio reads the visitor's sandbox from Postgres", async ({
 }) => {
   await signIn(page);
   const main = page.locator("main");
+  // One page h1 (PageHeader); NextSteps is untitled so this is not strict-mode 2.
   await expect(
-    main.getByRole("heading", { name: "What needs you today" }),
-  ).toBeVisible();
+    main.getByRole("heading", { level: 1, name: "What needs you today" }),
+  ).toHaveCount(1);
   await expect(main.getByTestId("page-purpose")).toHaveCount(1);
   await expect(main.getByTestId("page-purpose")).toContainText(
     /next tasks across every job/i,
   );
+  await expect(main.getByTestId("next-steps")).toBeVisible();
   const table = page.getByTestId("portfolio-table");
   for (const name of [
     "SR-99 / Airport Way Interchange",
