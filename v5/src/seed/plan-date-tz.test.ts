@@ -9,9 +9,11 @@ import { describe, expect, it } from "vitest";
 import {
   addCalendarDays,
   planDateToday,
+  splitPlansByPlanToday,
   timeZoneForJob,
 } from "@/lib/plan-date";
 import { seed, seedId } from "./index";
+import { seedStressJob } from "./stress";
 
 const company = "00000000-0000-4000-8000-0000000000pd";
 
@@ -129,5 +131,61 @@ describe("seed plan dates use job time zone", () => {
       expect(seen.has(key), `duplicate ${key}`).toBe(false);
       seen.add(key);
     }
+  });
+
+  it("M1b: Cedar createdAt is on LA-tomorrow, not UTC-tomorrow", () => {
+    const now = new Date("2026-10-27T00:30:00.000Z");
+    const rows = seed(company, now);
+    const cedar = rows.dailyPlans.find(
+      (p) => p.id === seedId(company, "plan:cedar:tomorrow"),
+    )!;
+    expect(cedar.createdAt!.toISOString().slice(0, 10)).toBe(
+      assistantTomorrow(now),
+    );
+    expect(cedar.createdAt!.toISOString().slice(0, 10)).not.toBe(
+      utcTomorrow(now),
+    );
+  });
+
+  it("M6: seeded action_run day labels use LA today/tomorrow", () => {
+    const now = new Date("2026-10-27T00:30:00.000Z");
+    // LA Mon Oct 26 / Tue Oct 27 — UTC would label Tue Oct 27 / Wed Oct 28.
+    const rows = seed(company, now);
+    const issued = rows.actionRuns.find((r) =>
+      r.summary.includes("Issued Culvert Crew A's plan"),
+    )!;
+    const cedarShow = rows.actionRuns.find((r) =>
+      r.summary.includes("Bridge Crew 2 on Cedar Creek Bridge"),
+    )!;
+    expect(issued.summary).toMatch(/Mon, Oct 26/);
+    expect(issued.summary).not.toMatch(/Tue, Oct 27/);
+    expect(cedarShow.summary).toMatch(/Tue, Oct 27/);
+    expect(cedarShow.summary).not.toMatch(/Wed, Oct 28/);
+  });
+
+  it("M7: seedStressJob planDate is LA-tomorrow", () => {
+    const now = new Date("2026-10-27T00:30:00.000Z");
+    const stress = seedStressJob(company, now);
+    expect(stress.dailyPlans[0]!.planDate).toBe(assistantTomorrow(now));
+    expect(stress.dailyPlans[0]!.planDate).not.toBe(utcTomorrow(now));
+  });
+
+  it("M8: splitPlansByPlanToday keeps LA-today open (not history)", () => {
+    const now = new Date("2026-10-27T00:30:00.000Z");
+    const rows = seed(company, now);
+    const i5 = rows.dailyPlans.find(
+      (p) => p.id === seedId(company, "plan:i5:today"),
+    )!;
+    const { today, open, history } = splitPlansByPlanToday(
+      rows.dailyPlans,
+      now,
+      timeZoneForJob(),
+    );
+    expect(today).toBe("2026-10-26");
+    expect(open.some((p) => p.id === i5.id)).toBe(true);
+    expect(history.some((p) => p.id === i5.id)).toBe(false);
+    // New-plan default = job-zone today (same value the page passes).
+    expect(today).toBe(assistantToday(now));
+    expect(today).not.toBe(utcDay(now));
   });
 });

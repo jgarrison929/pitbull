@@ -5,6 +5,7 @@ import {
   calendarDateInTz,
   planDateInWindow,
   planDateToday,
+  splitPlansByPlanToday,
   timeZoneForJob,
 } from "./plan-date";
 
@@ -54,5 +55,18 @@ describe("plan-date", () => {
     expect(planDateInWindow(addCalendarDays(today, -14), today)).toBe(true);
     expect(planDateInWindow(addCalendarDays(today, 15), today)).toBe(false);
     expect(planDateInWindow(addCalendarDays(today, -15), today)).toBe(false);
+  });
+
+  it("splitPlansByPlanToday keeps LA-today open after UTC midnight", () => {
+    const now = new Date("2026-10-27T00:30:00.000Z");
+    const plans = [
+      { id: "hist", planDate: "2026-10-23" },
+      { id: "today", planDate: "2026-10-26" },
+      { id: "tomorrow", planDate: "2026-10-27" },
+    ];
+    const { today, open, history } = splitPlansByPlanToday(plans, now);
+    expect(today).toBe("2026-10-26");
+    expect(open.map((p) => p.id)).toEqual(["today", "tomorrow"]);
+    expect(history.map((p) => p.id)).toEqual(["hist"]);
   });
 });

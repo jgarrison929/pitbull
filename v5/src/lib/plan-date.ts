@@ -67,3 +67,26 @@ export function planDateInWindow(
   const max = addCalendarDays(todayIso, windowDays);
   return planDate >= min && planDate <= max;
 }
+
+/**
+ * Job page working surface: open = today and future; history = before today.
+ * Uses job-zone today — a UTC revert drops LA-today into history after 00:00Z.
+ */
+export function splitPlansByPlanToday<T extends { planDate: string }>(
+  plans: T[],
+  now: Date,
+  timeZone: string = JOB_TIME_ZONE,
+): { today: string; open: T[]; history: T[] } {
+  const today = planDateToday(now, timeZone);
+  return {
+    today,
+    open: plans
+      .filter((p) => p.planDate >= today)
+      .slice()
+      .sort((a, b) => a.planDate.localeCompare(b.planDate)),
+    history: plans
+      .filter((p) => p.planDate < today)
+      .slice()
+      .sort((a, b) => b.planDate.localeCompare(a.planDate)),
+  };
+}
