@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { requireDb } from "@/db";
 import {
   costItems,
+  crews,
   dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
@@ -46,9 +47,11 @@ export async function getPlanPage(
     .select({
       plan: dailyPlans,
       foreman: users.name,
+      crewName: crews.name,
     })
     .from(dailyPlans)
     .innerJoin(users, eq(users.id, dailyPlans.foremanId))
+    .innerJoin(crews, eq(crews.id, dailyPlans.crewId))
     .where(
       and(
         eq(dailyPlans.companyId, companyId),
@@ -59,7 +62,7 @@ export async function getPlanPage(
     .limit(1);
   if (!row) return null;
 
-  const { plan, foreman } = row;
+  const { plan, foreman, crewName } = row;
 
   const lineRows = await db
     .select({ line: dailyPlanLines, item: costItems })
@@ -98,7 +101,7 @@ export async function getPlanPage(
     plan: {
       id: plan.id,
       planDate: plan.planDate,
-      crew: plan.crew,
+      crew: crewName,
       foreman,
       status: plan.status,
       weather: plan.weather,

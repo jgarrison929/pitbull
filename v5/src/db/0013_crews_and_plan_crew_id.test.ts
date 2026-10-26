@@ -122,7 +122,6 @@ describe("0013 crew backfill foreman pick", () => {
           id: seedId(companyId, "plan:older"),
           companyId,
           jobId,
-          crew: "Shared Crew",
           crewId,
           foremanId: olderForeman,
           planDate: "2026-10-01",
@@ -134,7 +133,6 @@ describe("0013 crew backfill foreman pick", () => {
           id: seedId(companyId, "plan:newer"),
           companyId,
           jobId,
-          crew: "Shared Crew",
           crewId,
           foremanId: newerForeman,
           planDate: "2026-10-15",
@@ -144,16 +142,18 @@ describe("0013 crew backfill foreman pick", () => {
         },
       ]);
 
+      // Same DISTINCT ON ordering 0013 used on text crew — via crews.name now.
       const rows = await db!.execute<{
         company_id: string;
         crew: string;
         foreman_id: string;
       }>(sql`
-        SELECT DISTINCT ON (company_id, crew)
-          company_id, crew, foreman_id
-        FROM daily_plans
-        WHERE company_id = ${companyId}
-        ORDER BY company_id, crew, plan_date DESC, id DESC
+        SELECT DISTINCT ON (p.company_id, c.name)
+          p.company_id, c.name AS crew, p.foreman_id
+        FROM daily_plans p
+        INNER JOIN crews c ON c.id = p.crew_id
+        WHERE p.company_id = ${companyId}
+        ORDER BY p.company_id, c.name, p.plan_date DESC, p.id DESC
       `);
       expect(rows).toHaveLength(1);
       expect(rows[0].crew).toBe("Shared Crew");
@@ -171,79 +171,6 @@ describe("0013 crew backfill foreman pick", () => {
       "daily_plans_job_crew_date_uidx",
     );
   });
-
-  it.skipIf(!db)(
-    "crew_id stays nullable so a pre-0013 shape insert succeeds",
-    async () => {
-      const nullable = await db!.execute<{ is_nullable: string }>(sql`
-        SELECT is_nullable
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'daily_plans'
-          AND column_name = 'crew_id'
-      `);
-      expect(nullable[0]?.is_nullable).toBe("YES");
-
-      const companyId = crypto.randomUUID();
-      created.push(companyId);
-      const today = new Date("2026-10-20T17:00:00.000Z");
-      const foremanId = seedId(companyId, "user:old-shape");
-      const jobId = seedId(companyId, "job:old-shape");
-      const planId = seedId(companyId, "plan:old-shape");
-
-      await db!.insert(companies).values({
-        id: companyId,
-        name: "Old Shape Co",
-        isSandbox: true,
-        seededAt: today,
-      });
-      await db!.insert(users).values({
-        id: foremanId,
-        companyId,
-        name: "Old Shape Foreman",
-        title: "Foreman",
-        role: "foreman",
-      });
-      await db!.insert(jobs).values({
-        id: jobId,
-        companyId,
-        number: "99-002",
-        name: "Old Shape Job",
-        shortName: "Old",
-        owner: "Test",
-        pmName: "PM",
-        finishOn: "2027-01-01",
-        contractCents: 1,
-        estimateStatus: "approved",
-      });
-
-      // Pre-0013 writers omit crew_id entirely (legacy text crew only).
-      await db!.execute(sql`
-        INSERT INTO daily_plans (
-          id, company_id, job_id, crew, foreman_id, plan_date, weather
-        ) VALUES (
-          ${planId}::uuid,
-          ${companyId}::uuid,
-          ${jobId}::uuid,
-          'Legacy Crew',
-          ${foremanId}::uuid,
-          '2026-10-21',
-          ''
-        )
-      `);
-
-      const rows = await db!.execute<{
-        id: string;
-        crew_id: string | null;
-        crew: string;
-      }>(sql`
-        SELECT id, crew_id, crew FROM daily_plans WHERE id = ${planId}::uuid
-      `);
-      expect(rows).toHaveLength(1);
-      expect(rows[0].crew).toBe("Legacy Crew");
-      expect(rows[0].crew_id).toBeNull();
-    },
-  );
 
   it.skipIf(!db)(
     "issued seed plan survives when a draft collides on job+crew+date",

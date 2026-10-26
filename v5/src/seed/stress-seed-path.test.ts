@@ -26,7 +26,6 @@ describe("appendWorkSeed / V5_SEED_STRESS path", () => {
       }
     }
     expect(stress.crews![0]!.name).toBe("Stress Crew");
-    expect(stress.dailyPlans![0]!.crew).toBe("Stress Crew");
     expect(stress.dailyPlans![0]!.crewId).toBe(stress.crews![0]!.id);
   });
 
@@ -106,7 +105,7 @@ describe("V5_SEED_STRESS=1 createSandbox (FK)", () => {
         .where(eq(dailyPlans.companyId, companyId));
       // 30 working days × 3 jobs + Cedar tomorrow + I-5 today + stress draft.
       expect(plans).toHaveLength(30 * 3 + 2 + 1);
-      expect(plans.every((p) => p.crewId && p.crew)).toBe(true);
+      expect(plans.every((p) => p.crewId)).toBe(true);
       const stressCrew = crewRows.find((c) => c.name === "Stress Crew")!;
       expect(plans.some((p) => p.crewId === stressCrew.id)).toBe(true);
     },

@@ -198,13 +198,11 @@ describe("seed", () => {
     expect(cedar).toMatchObject({
       planDate: "2026-10-20",
       status: "draft",
-      crew: "Bridge Crew 2",
       crewId: seedId(company, "crew:bridge-2"),
     });
     expect(i5).toMatchObject({
       planDate: "2026-10-19",
       status: "issued",
-      crew: "Culvert Crew A",
       crewId: seedId(company, "crew:culvert-a"),
     });
     const ids = new Set(rows.costItems.map((c) => c.id));

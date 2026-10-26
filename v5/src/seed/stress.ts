@@ -193,7 +193,6 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         id: planId,
         companyId,
         jobId,
-        crew: "Stress Crew",
         crewId: stressCrewId,
         foremanId,
         planDate,

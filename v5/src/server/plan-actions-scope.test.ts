@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
 import {
@@ -157,21 +157,13 @@ describe.skipIf(!db)("plan action scoping and guards", () => {
     expect(seededTomorrow.status).toBe("draft");
   });
 
-  it("duplicate check includes NULL crew_id legacy rows for the same text crew", async () => {
-    await db!.execute(sql`
-      INSERT INTO daily_plans (
-        id, company_id, job_id, crew, foreman_id, plan_date, weather, status
-      ) VALUES (
-        ${seedId(companyId, "plan:legacy-null")}::uuid,
-        ${companyId}::uuid,
-        ${cedarJobId}::uuid,
-        'Culvert Crew A',
-        ${seedId(companyId, "user:foreman")}::uuid,
-        '2026-10-20',
-        '',
-        'draft'
-      )
-    `);
+  it("duplicate check refuses a second plan for the same crew_id and date", async () => {
+    const first = await createDailyPlan(superintendent, {
+      jobId: cedarJobId,
+      crewId: culvertCrewId,
+      planDate: "2026-10-20",
+    });
+    expect("planId" in first).toBe(true);
     const dup = await createDailyPlan(superintendent, {
       jobId: cedarJobId,
       crewId: culvertCrewId,
