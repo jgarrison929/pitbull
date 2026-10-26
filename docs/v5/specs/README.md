@@ -27,6 +27,7 @@ Slice IDs builders can take without waiting on each other. Prefer free slices fi
 | 5.0.3 Part A | [5.0.3](5.0.3-s-curve-and-forecast-methods.md#part-a-the-s-curve) | none | In flight: `server/curve.ts` |
 | 5.0.3 Part B | [5.0.3](5.0.3-s-curve-and-forecast-methods.md#part-b-average-performance-forecast) | **0017** | In flight |
 | 5.0.3 Part C | [5.0.3](5.0.3-s-curve-and-forecast-methods.md#part-c-the-dark-theme) | none | In flight |
+| 5.0.4-0 | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-0-mobile-overflow-fix-in-flight-via-the-pitbull-lead) | none | In flight via the Pitbull lead: 422 px spill at 390 px |
 | 5.0.4-a | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-a-what-needs-you-today-role-home) | none | "What needs you today" role home; one seed row (reported plan on 24-118) |
 | 5.0.4-b | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-b-page-purpose-lines-and-role-fit-metrics) | none | Purpose line on every page; no CPI or SPI for the foreman |
 | 5.0.4-c | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-c-visual-tokens-and-card-primitives) | none | Type scale, `MetricCard`, tap targets; land after b |

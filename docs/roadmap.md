@@ -94,7 +94,7 @@ The fresh-start plan promises each item below in the 5.0.0 demo story (section 4
 2. 5.1 Schedule moves planned value onto baseline schedule dates. The S-curve is where that change shows. Without the S-curve, 5.1 has nothing to demo its main number on.
 3. Observed velocity supports parallel slices. 5.0.3 and 5.1.0 may run at the same time when file ownership does not collide.
 
-**5.0.4 (added 2026-10-25 at 8:10 PM PT).** Joshua's review said the app does not show what to do next and is crowded on phones. That misses trust bar item 5, so it is a 5.0 increment, sequenced after 5.0.3 and built on 5.0.3 Part C (dark theme). Target 2026-10-30: two days after 5.0.3, matching the one-to-two-day pace of 5.0.1 to 5.0.3. Its 7 slices add no migration, so they run beside 5.1.0. The 5.1 dates do not move.
+**5.0.4 (added 2026-10-25 at 8:10 PM PT).** Joshua's review said the app does not show what to do next and is crowded on phones. That misses trust bar item 5, so it is a 5.0 increment, sequenced after 5.0.3 and built on 5.0.3 Part C (dark theme). Target 2026-10-30: two days after 5.0.3, matching the one-to-two-day pace of 5.0.1 to 5.0.3. Its slices (5.0.4-0, already in flight via the Pitbull lead, then 5.0.4-a to 5.0.4-g) add no migration, so they run beside 5.1.0. The 5.1 dates do not move.
 
 | Version | Target (PT) | Increment | Spec |
 |---|---|---|---|
