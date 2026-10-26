@@ -31,11 +31,20 @@ export function secretValues(environment = process.env) {
 }
 
 const htmlEscape = (x) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+// The HTML serializer (page.content(), outerHTML) escapes only some characters, so a quote next to & < >
+// survives in a mixed form. Text nodes: & nbsp < > (quotes raw). Attribute values: & nbsp " per the spec,
+// and < > as well in newer Chromium (both spellings are listed; checked against real Chromium in
+// crawl-mustfail.test.mjs).
+const nbsp = (x) => x.replace(/\u00a0/g, "&nbsp;");
+const htmlTextEscape = (x) => nbsp(x.replace(/&/g, "&amp;")).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const htmlAttrEscape = (x) => nbsp(x.replace(/&/g, "&amp;")).replace(/"/g, "&quot;");
+const htmlAttrEscapeLtGt = (x) => htmlAttrEscape(x).replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const jsonEscape = (x) => JSON.stringify(x).slice(1, -1);
 
 /**
  * Every spelling a secret can take once it has been serialized: raw, URL-encoded, JSON-escaped (once and
- * twice, for a JSON string inside JSON), HTML-escaped, and combinations. A `"` or `\` in a secret would
+ * twice, for a JSON string inside JSON), HTML-escaped (fully, as a serialized text node, and as a
+ * serialized attribute value), and combinations. A `"` or `\` in a secret would
  * otherwise come out escaped and slip past a raw-text match.
  */
 export function secretForms(secrets = []) {
@@ -44,7 +53,8 @@ export function secretForms(secrets = []) {
     if (typeof x !== "string" || x.length < 2) continue;
     for (const base of [x, encodeURIComponent(x)]) {
       const j = jsonEscape(base);
-      for (const f of [base, j, jsonEscape(j), htmlEscape(base), htmlEscape(j), base.replace(/"/g, "&#34;")]) out.add(f);
+      for (const f of [base, j, jsonEscape(j), base.replace(/"/g, "&#34;")]) out.add(f);
+      for (const h of [htmlEscape, htmlTextEscape, htmlAttrEscape, htmlAttrEscapeLtGt]) for (const v of [base, j]) out.add(h(v));
     }
   }
   return [...out].filter((f) => f.length >= 2).sort((a, b) => b.length - a.length);
@@ -97,6 +107,46 @@ export function redactValue(value, secrets = [], seen = new WeakSet()) {
  */
 export function safeJson(value, secrets = [], space = 2) {
   return redactText(JSON.stringify(redactValue(value, secrets), null, space), secrets, { jsonText: true });
+}
+
+/**
+ * The page's HTML (doctype + <html>, as page.content() gives it) with every secret replaced by [redacted]
+ * in each text node, comment and attribute value before serializing, so no serializer escaping can hide
+ * one. Runs in a CDP isolated world on a detached clone of the document: the live page is not changed
+ * and page scripts can't see the secret list. Returns null when that is unavailable (not Chromium, a
+ * page double, a navigation in progress); callers fall back to page.content() + redactText.
+ */
+export async function redactedDocumentHtml(page, secrets = []) {
+  const values = [...new Set(secrets.flatMap((x) => (typeof x === "string" && x.length >= 2 ? [x, encodeURIComponent(x), jsonEscape(x)] : [])))].sort((a, b) => b.length - a.length);
+  let cdp = null;
+  try {
+    cdp = await page.context().newCDPSession(page);
+    const { frameTree } = await cdp.send("Page.getFrameTree");
+    const { executionContextId } = await cdp.send("Page.createIsolatedWorld", { frameId: frameTree.frame.id, worldName: "verify-v5-redact" });
+    const fn = (list, mark) => {
+      const scrub = (t) => list.reduce((s, x) => (s.includes(x) ? s.split(x).join(mark) : s), t);
+      const walk = (n) => {
+        if (n.nodeType === 3 || n.nodeType === 8) n.data = scrub(n.data);
+        if (n.nodeType === 1) for (const a of [...n.attributes]) a.value = scrub(a.value);
+        // <template> keeps its children in .content (a fragment); <meta content> is a string.
+        for (const c of [...n.childNodes, ...(n.content?.nodeType === 11 ? n.content.childNodes : [])]) walk(c);
+      };
+      const root = document.documentElement.cloneNode(true);
+      walk(root);
+      const dt = document.doctype ? new XMLSerializer().serializeToString(document.doctype) : "";
+      return dt + root.outerHTML;
+    };
+    const { result, exceptionDetails } = await cdp.send("Runtime.evaluate", {
+      expression: `(${fn})(${JSON.stringify(values)}, ${JSON.stringify(REDACTED)})`,
+      contextId: executionContextId,
+      returnByValue: true,
+    });
+    return exceptionDetails || typeof result?.value !== "string" ? null : result.value;
+  } catch {
+    return null;
+  } finally {
+    await cdp?.detach().catch(() => {});
+  }
 }
 
 /** URL with userinfo removed and secret-named or token-looking query values replaced (reset=1 stays). */
@@ -194,7 +244,9 @@ export async function captureFailure(page, { dir, kind, label, reason, recorder,
     captureErrors.push(`screenshot: ${clean(String(e?.message ?? e).split("\n")[0])}`);
   }
   try {
-    writeFileSync(path.join(dir, files.html), clean(await page.content()));
+    // DOM-level first (secrets replaced in a copy of the DOM before it is serialized), then the escaped
+    // forms over the serialized text as a backstop. A page double without CDP falls back to page.content().
+    writeFileSync(path.join(dir, files.html), clean((await redactedDocumentHtml(page, all)) ?? (await page.content())));
   } catch (e) {
     files.html = null;
     captureErrors.push(`html: ${clean(String(e?.message ?? e).split("\n")[0])}`);

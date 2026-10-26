@@ -1029,6 +1029,17 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   }
 }
 
+// ---- HTML serializer forms: text nodes escape & nbsp < > only, attributes & nbsp " (and < > in newer Chromium) ----
+// The exact strings the lead saw survive in real Chromium .html captures (re-review 5646855343); the real
+// Chromium check is in crawl-mustfail.test.mjs.
+{
+  for (const [pw, saved] of [[`x</>&"y`, `x&lt;/&gt;&amp;"y`], [`a&"b12`, `a&amp;"b12`], [`p<'q12`, `p&lt;'q12`], [`x</>&"y'z`, `x&lt;/&gt;&amp;&quot;y'z`], [`x</>&"y'z`, `x</>&amp;&quot;y'z`], [`n\u00a0b<"&12`, `n&nbsp;b&lt;"&amp;12`]]) {
+    const out = redactText(`<p>${saved}</p><a title="${saved}">`, [pw]);
+    assert.ok(!out.includes(saved), `redactText must catch ${JSON.stringify(pw)} serialized as ${JSON.stringify(saved)}; got ${out}`);
+    results.push(`passes: HTML-serialized ${JSON.stringify(saved)} of ${JSON.stringify(pw)} is redacted`);
+  }
+}
+
 for (const line of results) console.log(line);
 console.log(`ok: checks.test.mjs (${results.length} cases)`);
 

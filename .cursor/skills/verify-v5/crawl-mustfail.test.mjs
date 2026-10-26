@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateCrawlRow } from "./checks.mjs";
+import { captureFailure, REDACTED, redactedDocumentHtml, redactText } from "./evidence.mjs";
 import { crawl, CRAWL_WIDTHS, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures } from "./crawl.mjs";
 import { drillCoverageFailures, drillDiscoveryFailures, drillLoadPlan, drillPath, loadSeedCrawlTargets, partCFailures } from "./drill.mjs";
 
@@ -339,5 +340,65 @@ for (const width of [390, 1280]) {
   lines.push("passes: crawl evidence has no VERIFY_TOKEN canary, cookie value or token query value; Authorization redacted; clean loads not captured");
   rmSync(evRoot, { recursive: true, force: true });
 }
+// ---- .html capture vs real Chromium serialization (lead re-review 5646855343) ----
+// page.content() escapes text nodes as & nbsp < > only (quotes raw) and attribute values as & nbsp " (and
+// < > in newer Chromium), so a password mixing a quote with & < > survived a single all-five-escaped form.
+// Made-up passwords; each goes into text nodes (title, p, span, comment), attributes and a script.
+let htmlCases = 0;
+{
+  const PASSWORDS = [`x</>&"y'z`, `x</>&"y`, `a&"b12`, `p<'q12`, `n\u00a0b<"&12`];
+  const nb = (x) => x.replace(/\u00a0/g, "&nbsp;");
+  const textForm = (x) => nb(x.replace(/&/g, "&amp;")).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const attrForm = (x) => nb(x.replace(/&/g, "&amp;")).replace(/"/g, "&quot;");
+  const leakForms = (pw) => [...new Set([pw, textForm(pw), attrForm(pw), attrForm(pw).replace(/</g, "&lt;").replace(/>/g, "&gt;"), textForm(pw).replace(/"/g, "&quot;").replace(/'/g, "&#39;"), JSON.stringify(pw).slice(1, -1)])];
+  const leaks = (text, pw) => leakForms(pw).filter((f) => text.includes(f));
+  const browser = await chromium.launch();
+  const evRoot = mkdtempSync(path.join(os.tmpdir(), "html-evidence-"));
+  try {
+    for (const pw of PASSWORDS) {
+      const page = await browser.newPage();
+      await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><title>t</title></head><body><main><h1>Job</h1><p id="p"></p><span id="s"></span><a id="a" href="/x">link</a><input id="i"><template id="t"><b></b></template></main></body></html>`);
+      await page.evaluate((pw) => {
+        document.title = `Job ${pw}`;
+        document.getElementById("p").textContent = pw;
+        document.getElementById("s").textContent = `before ${pw} after`;
+        document.getElementById("a").setAttribute("title", pw);
+        document.getElementById("a").setAttribute("data-x", `pre ${pw} post`);
+        document.getElementById("i").setAttribute("value", pw);
+        document.getElementById("t").content.firstChild.textContent = pw;
+        document.querySelector("main").append(document.createComment(` ${pw} `));
+        const sc = document.createElement("script");
+        sc.type = "application/json";
+        sc.textContent = JSON.stringify({ pw });
+        document.body.append(sc);
+      }, pw);
+      const raw = await page.content();
+      // Sanity: Chromium really writes the mixed forms (this is what slipped through before).
+      const seen = leaks(raw, pw);
+      assert.ok(seen.length >= 2, `fixture must make Chromium serialize ${JSON.stringify(pw)} in escaped forms; saw ${JSON.stringify(seen)}`);
+      // Layer 1 (backstop): redactText over Chromium's own serialization catches every form.
+      const backstop = redactText(raw, [pw]);
+      assert.deepEqual(leaks(backstop, pw), [], `redactText(page.content()) must leave no form of ${JSON.stringify(pw)}; Chromium wrote ${JSON.stringify(seen)}`);
+      // Layer 2: DOM-level redaction before serializing.
+      const dom = await redactedDocumentHtml(page, [pw]);
+      assert.ok(typeof dom === "string" && dom.startsWith("<!DOCTYPE html>") && dom.includes("<main>") && dom.includes(REDACTED), `redactedDocumentHtml must return the page HTML with [redacted]; got ${String(dom).slice(0, 200)}`);
+      assert.deepEqual(leaks(dom, pw), [], `redactedDocumentHtml must leave no form of ${JSON.stringify(pw)}`);
+      assert.equal(await page.textContent("#p"), pw, "the live page is not changed by redaction");
+      // End to end: captureFailure's .html and .json.
+      const dir = path.join(evRoot, String(htmlCases));
+      const files = await captureFailure(page, { dir, kind: "crawl", label: `html-${htmlCases}`, reason: `failed on ${pw}`, secrets: [pw], extra: { pw } });
+      for (const f of [files.html, files.json]) {
+        const t = readFileSync(path.join(dir, f), "utf8");
+        assert.deepEqual(leaks(t, pw), [], `${f} must hold no raw, text-escaped or attribute-escaped form of ${JSON.stringify(pw)}`);
+      }
+      await page.close();
+      htmlCases += 1;
+      lines.push(`passes: real Chromium .html capture of ${JSON.stringify(pw)} (serialized as ${seen.length} forms) has none of them: backstop forms, DOM-level redaction, captureFailure html + json`);
+    }
+  } finally {
+    await browser.close();
+    rmSync(evRoot, { recursive: true, force: true });
+  }
+}
 for (const l of lines) console.log(l);
-console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length} fake page loads)`);
+console.log(`ok: crawl-mustfail.test.mjs (${rows.length + roadmapRows.length + noMainRows.length + drillRows.length + partCRows.length + evRows.length} fake page loads, ${htmlCases} real-Chromium .html redaction cases)`);
