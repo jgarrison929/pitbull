@@ -140,8 +140,10 @@ export function secondaryReachable({ text, title, ariaLabel, expanded }) {
  * docScrollWidth / viewportWidth: max(documentElement, body) scrollWidth vs the crawl viewport (320 or 390).
  * stripPastRight: at 320 and 390, visible elements inside [data-testid=job-strip] whose
  *   getBoundingClientRect().right is greater than documentElement.clientWidth.
- *   { text, right, clientWidth }. Missing means the crawl did not record the clause (phone checks off,
- *   or a width other than 320/390). An empty array means the strip is inside the viewport.
+ *   { text, right, clientWidth }. { missing: true } means phone checks were on at 320 or 390 and
+ *   [data-testid=job-strip] was absent on /app or /app/jobs/*. The field omitted means the crawl did
+ *   not record the clause (phone checks off, or a width other than 320/390). An empty array means
+ *   the strip was present and inside the viewport.
  * tapMisses: { tag, w, h, text } under 44×44 at phone widths.
  * textMisses: { kind: "secondary"|"input", px, text }.
  * clips: { kind: "money"|"status"|"header"|"title"|"secondary"|"text", text, reachable, ellipsis }.
@@ -158,8 +160,13 @@ export function evaluatePhoneUx(row) {
     }
   }
   // 5.0.4-0 clause 2. Same widths as clause 1. A missing field is the crawl not recording it.
+  // { missing: true } is the strip required and absent. An empty array is a strip inside the viewport.
   if (PHONE_OVERFLOW_WIDTHS.includes(width) && Array.isArray(row.stripPastRight)) {
     for (const hit of row.stripPastRight) {
+      if (hit?.missing === true) {
+        f.push(`${where}: job-strip missing`);
+        continue;
+      }
       f.push(`${where}: job-strip element "${clipLabel(hit.text)}" right ${px(hit.right)} > clientWidth ${px(hit.clientWidth)}`);
     }
   }

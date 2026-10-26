@@ -26,7 +26,8 @@ const { chromium } = require("@playwright/test");
 const SLOW_MS = 1050;
 // Good pages have to satisfy the phone checks: 16px text, 44px controls, no clipped money/status/header.
 const PHONE_OK_CSS = `<style>html,body{margin:0;font-size:16px}a,button,input,select,textarea,summary{font-size:16px;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;box-sizing:border-box}</style>`;
-const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}${extra}</head><body><main>${body}</main></body></html>`;
+const JOB_STRIP = `<nav data-testid="job-strip"><a href="/app/jobs/good">25-031</a></nav>`;
+const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}${extra}</head><body>${JOB_STRIP}<main>${body}</main></body></html>`;
 // Bad phone fixtures opt out of the 44px floor so a 20px control stays 20px.
 const bare = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-size:16px}</style></head><body><main>${body}</main></body></html>`;
 const stripPill = (label, extra = "") => `<a href="/app/jobs/24-077" style="flex:0 0 auto;min-width:44px;min-height:44px;display:inline-flex;align-items:center;font-size:16px;line-height:20px;white-space:nowrap;padding:0 8px;box-sizing:border-box;${extra}">${label}</a>`;
@@ -150,6 +151,8 @@ const PAGES = {
   "/app/jobs/77-empty/schedule": () => shell("<h1>Schedule</h1><p>Add activities after the estimate is approved.</p>"),
   "/app/jobs/77-d500/schedule": () => [500, schedulePage()],
   "/app/jobs/77-clip/schedule": () => bare(`<h1>Schedule</h1>${GANTT}${clip("max-width:36px", "$1,234.56", 'data-cents="123456"')}`),
+  // Phone checks on: /app/jobs/* with the strip removed must fail closed. bare() has no job-strip.
+  "/app/jobs/no-strip": () => bare(`<h1 style="font-size:16px">Job</h1><div data-testid="cost-tree-row">03-210 Footing concrete</div><p>Cedar Creek notes.</p>`),
 };
 const CANARY_TOKEN = "canary-verify-token-1111-not-real";
 const CANARY_COOKIE = "canarycookie1111notreal";
@@ -261,6 +264,8 @@ let buriedRows;
 let missingRows;
 let stripRows;
 let stripGatedRows;
+let noStripRows;
+let noStripOffRows;
 let scheduleRows;
 let scheduleDenyRows;
 let scheduleExcludedRows;
@@ -308,6 +313,8 @@ try {
   await fetch(`${base}/__landing?mode=good`);
   stripRows = await crawl(browser, base, { pages: ["/phone/strip-pre", "/phone/strip-post"], roles: ["pm"], widths: [320, 390], phoneChecks: true });
   stripGatedRows = await crawl(browser, base, { pages: ["/phone/strip-pre"], roles: ["pm"], widths: [320] });
+  noStripRows = await crawl(browser, base, { pages: ["/app/jobs/no-strip"], roles: ["pm"], widths: [320, 390], phoneChecks: true });
+  noStripOffRows = await crawl(browser, base, { pages: ["/app/jobs/no-strip"], roles: ["pm"], widths: [320] });
   const scheduleWidthsAll = scheduleWidths();
   scheduleRows = await crawl(browser, base, {
     pages: ["/app/jobs/77-031", "/app/jobs/77-nolink", "/app/jobs/77-031/schedule", "/app/jobs/77-500/schedule", "/app/jobs/77-slow/schedule", "/app/jobs/77-soon/schedule", "/app/jobs/77-empty/schedule"],
@@ -484,6 +491,17 @@ for (const width of [390, 1280]) {
   assert.ok(gated && !("stripPastRight" in gated), `phone checks off must omit stripPastRight; keys ${Object.keys(gated ?? {}).join(",")}`);
   assert.deepEqual(evaluateCrawlRow(gated), [], `default crawl of the scrolling strip must not apply clause 2; got ${JSON.stringify(evaluateCrawlRow(gated))}`);
   lines.push("passes: /phone/strip-pre@320 with phone checks off (clause 2 not recorded)");
+  for (const width of [320, 390]) {
+    const row = noStripRows.find((r) => r.path === "/app/jobs/no-strip" && r.width === width);
+    assert.deepEqual(row.stripPastRight, [{ missing: true }], `missing strip @${width} must record { missing: true }; got ${JSON.stringify(row.stripPastRight)}`);
+    const f = evaluateCrawlRow(row, { phoneChecks: true });
+    assert.ok(f.some((x) => /job-strip missing/.test(x)), `/app/jobs/no-strip@${width} must fail job-strip missing; got ${JSON.stringify(f)}`);
+    lines.push(`FAILS as expected: /app/jobs/no-strip@${width} → ${f.find((x) => /job-strip missing/.test(x))}`);
+  }
+  const noStripOff = noStripOffRows.find((r) => r.path === "/app/jobs/no-strip");
+  assert.ok(noStripOff && !("stripPastRight" in noStripOff), `phone checks off must omit stripPastRight; keys ${Object.keys(noStripOff ?? {}).join(",")}`);
+  assert.deepEqual(evaluateCrawlRow(noStripOff), [], `missing strip with phone checks off must pass; got ${JSON.stringify(evaluateCrawlRow(noStripOff))}`);
+  lines.push("passes: /app/jobs/no-strip@320 with phone checks off");
 }
 {
   for (const width of [390, 1280]) {

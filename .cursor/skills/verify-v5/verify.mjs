@@ -312,13 +312,21 @@ try {
   );
   check("/status ci-gate is pass", ciGateIsPass(status.ciGate), status.ciGate);
   {
-    // Journal at the expected commit. `when` must rise in entry order, and every tag must be on
+    // Journal at the expected commit. idx and `when` must rise in entry order, and every tag must be on
     // /status and /health with nothing applied that the journal does not have. Not only an RC run.
+    // An empty or missing entries array fails closed.
     let journal = null;
     let readError = null;
     try {
       const raw = execFileSync("git", ["show", `${expectedFull}:v5/drizzle/meta/_journal.json`], { cwd: repo, encoding: "utf8" });
-      journal = JSON.parse(raw).entries ?? [];
+      const entries = JSON.parse(raw)?.entries;
+      // An empty or missing entries array is not a journal that applied cleanly. Fail closed.
+      if (!Array.isArray(entries) || entries.length === 0) {
+        readError = `journal at ${expectedFull} is missing or empty`;
+        journal = [];
+      } else {
+        journal = entries;
+      }
     } catch (error) {
       const text = `${error?.stderr ?? ""}\n${error?.message ?? error}`;
       readError = `journal at ${expectedFull} could not be read: ${text.split("\n").map((s) => s.trim()).find(Boolean) ?? "git show failed"}`;

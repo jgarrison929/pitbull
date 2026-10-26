@@ -198,13 +198,24 @@ export function watch(page, sink) {
 }
 
 /**
- * DOM scan passed to page.evaluate. classifyClip, secondaryReachable and textHasMoney are arguments
- * so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
+ * Job-strip clause at 320 and 390. A missing strip on /app or /app/jobs/* fails closed
+ * ({ missing: true }). Other paths keep an empty hit list when the strip is absent.
+ * The page runs this same function: measureDom injects it next to classifyClip.
+ */
+export function jobStripHits(path, hasStrip, hits) {
+  const onSurface = path === "/app" || (typeof path === "string" && path.startsWith("/app/jobs/"));
+  if (!hasStrip) return onSurface ? [{ missing: true }] : [];
+  return Array.isArray(hits) ? hits : [];
+}
+
+/**
+ * DOM scan passed to page.evaluate. classifyClip, secondaryReachable, textHasMoney and jobStripHits
+ * are arguments so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
  * Phone observations are recorded only when phoneChecks is true. Otherwise those fields are omitted,
  * and evaluateCrawlRow's default (phoneChecks false) does not read them.
  */
-function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
-  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks, phoneOverflowWidths } = arg;
+function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits) {
+  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks, phoneOverflowWidths, path } = arg;
   const doc = document.documentElement;
   const vw = Math.min(intendedW, window.visualViewport?.width ?? intendedW);
   const sw = Math.max(doc.scrollWidth, document.body?.scrollWidth ?? 0);
@@ -401,7 +412,8 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
         }
       }
     }
-    out.stripPastRight = stripPastRight;
+    // if (strip) alone would record [] when the element is absent and the row would pass.
+    out.stripPastRight = jobStripHits(path, !!strip, stripPastRight);
   }
   return out;
 }
@@ -412,7 +424,8 @@ const measureDom = new Function(
   "const classifyClip = (" + classifyClip.toString() + ");\n" +
     "const secondaryReachable = (" + secondaryReachable.toString() + ");\n" +
     "const textHasMoney = (" + textHasMoney.toString() + ");\n" +
-    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney);",
+    "const jobStripHits = (" + jobStripHits.toString() + ");\n" +
+    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits);",
 );
 
 /** Full navigation to base+p; time is wall clock from goto until network idle (includes Playwright's 500 ms idle window). */
@@ -435,6 +448,7 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
     minInput: MIN_INPUT_FONT_PX,
     phoneChecks: phoneChecks === true,
     phoneOverflowWidths: PHONE_OVERFLOW_WIDTHS,
+    path: p,
   });
   if (shotDir) {
     await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });

@@ -39,7 +39,7 @@ import { capRawText, captureFailure, RAW_TEXT_CAP, redactHeaders, redactText, re
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
 import { execFileSync } from "node:child_process";
 import { PORTFOLIO_ROWS_TIMEOUT_MS, PORTFOLIO_SETTLE_MS, PORTFOLIO_STEP, portfolioOk, runPortfolioStep, waitForRowCount } from "./portfolio.mjs";
-import { CRAWL_ROLES, CRAWL_WIDTHS, changesPath, expectedNavLoads, navCrawlPages, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_PATH, SCHEDULE_ROLE_ACCESS, SCHEDULE_ROUTE_FILE, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, schedulePath, scheduleRouteAtCommit, scheduleWidths } from "./crawl.mjs";
+import { CRAWL_ROLES, CRAWL_WIDTHS, changesPath, expectedNavLoads, jobStripHits, navCrawlPages, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_PATH, SCHEDULE_ROLE_ACCESS, SCHEDULE_ROUTE_FILE, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, schedulePath, scheduleRouteAtCommit, scheduleWidths } from "./crawl.mjs";
 import { csvLeafCodes, drillCoverageFailures, drillDiscoveryFailures, drillItemCount, drillItemList, drillLoadPlan, drillPath, expectedDrillLoads, partCFailures, partCItemFor, seedChildEnv, leakedSeedEnvKeys, SEED_CHILD_ENV_ALLOW, seedDrillItems } from "./drill.mjs";
 import {
   acceptanceItems,
@@ -57,6 +57,7 @@ import {
   journalAppliesCleanly,
   journalSkipFailures,
   migrationsAdded,
+  RESERVED_GAPS,
   parseRcMerges,
   phoneChecksEnabled,
   readRcHistory,
@@ -206,6 +207,29 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
   mustPass("job-strip wrapped inside clientWidth", evaluatePhoneUx({ ...phone, stripPastRight: [] }));
   mustPass("job-strip observation missing is skipped", evaluatePhoneUx(phone));
   mustPass("job-strip past the edge at 1280 is outside the clause", evaluatePhoneUx({ ...phone, width: 1280, docScrollWidth: 1280, viewportWidth: 1280, stripPastRight: [{ text: "I-5 Culvert 24-077", right: 1400, clientWidth: 1280 }] }));
+  assert.match(crawlSrc, /out\.stripPastRight = jobStripHits\(/, "scanPage must record a missing job strip");
+  assert.deepEqual(jobStripHits("/status", false, []), [], "pages outside /app and /app/jobs do not require the strip");
+  assert.deepEqual(jobStripHits("/phone/overflow", false, []), []);
+  const stripGone = (path, width) => evaluateCrawlRow({
+    ...good,
+    path,
+    final: path,
+    width,
+    seededCounts: path === "/app" ? { portfolioRows: 4, costRows: 0 } : good.seededCounts,
+    docScrollWidth: width,
+    viewportWidth: width,
+    tapMisses: [],
+    textMisses: [],
+    clips: [],
+    stripPastRight: jobStripHits(path, false, []),
+  }, { phoneChecks: true }).filter((f) => /job-strip missing/.test(f));
+  const gone320 = stripGone("/app", 320);
+  mustFail("job strip removed at 320 with phone checks on", gone320);
+  assert.match(gone320[0], /job-strip missing/);
+  const gone390 = stripGone("/app/jobs/25-031", 390);
+  mustFail("job strip removed at 390 with phone checks on", gone390);
+  assert.match(gone390[0], /job-strip missing/);
+  mustPass("job strip missing ignored with phone checks off", evaluateCrawlRow({ ...good, stripPastRight: [{ missing: true }] }));
   mustFail("document scrollWidth 422px at viewport 320", evaluatePhoneUx({ ...phone, docScrollWidth: 422 }));
   mustFail("document scrollWidth 400px at viewport 390", evaluatePhoneUx({ ...phone, width: 390, docScrollWidth: 400, viewportWidth: 390 }));
   mustPass("422px document inside a 1280 viewport", evaluatePhoneUx({ ...phone, width: 1280, docScrollWidth: 422, viewportWidth: 1280 }));
@@ -1757,7 +1781,7 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.deepEqual(parsed.map((m) => m.number), [24, 18]);
 
   const added = [{ tag: "0016_rc", when: 16 }];
-  const clean = [{ tag: "0015", when: 15 }, { tag: "0016_rc", when: 16 }];
+  const clean = [{ idx: 15, tag: "0015", when: 15 }, { idx: 16, tag: "0016_rc", when: 16 }];
   assert.equal(journalAppliesCleanly(clean), true);
   assert.equal(journalAppliesCleanly([{ when: 20 }, { when: 10 }]), false);
   const outOfOrder = [
@@ -1766,13 +1790,49 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     { idx: 21, tag: "0021_skipped", when: 1793040000000 },
   ];
   const skipped = journalSkipFailures(outOfOrder);
-  assert.deepEqual(skipped, ["0021 would be skipped"]);
-  mustFail("journal ordered 0020, 0023, 0021", skipped);
+  assert.ok(skipped.includes("0021 would be skipped"), JSON.stringify(skipped));
+  mustFail("journal ordered 0020, 0023, 0021", skipped.filter((f) => f === "0021 would be skipped"));
+  assert.deepEqual(RESERVED_GAPS, ["0022"]);
   const gap = [
     { idx: 20, tag: "0020_schedule_activities", when: 1793030000000 },
     { idx: 23, tag: "0023_later", when: 1793060000000 },
   ];
-  assert.deepEqual(journalSkipFailures(gap), [], "a reserved gap with increasing when is allowed");
+  const unreserved = journalSkipFailures(gap);
+  mustFail("unreserved journal gap", unreserved);
+  assert.deepEqual(unreserved, ["0021 is an unreserved gap"]);
+  const reservedGap = [
+    { idx: 21, tag: "0021_before_gap", when: 1 },
+    { idx: 23, tag: "0023_after_gap", when: 2 },
+  ];
+  mustPass("reserved journal gap 0022", journalSkipFailures(reservedGap));
+  const equalWhen = [
+    { idx: 4, tag: "0004_a", when: 100 },
+    { idx: 5, tag: "0005_b", when: 100 },
+  ];
+  const equalWhenFails = journalSkipFailures(equalWhen);
+  mustFail("equal journal when would be skipped", equalWhenFails);
+  assert.deepEqual(equalWhenFails, ["0005 would be skipped"]);
+  const fallingIdx = [
+    { idx: 21, tag: "0021_later", when: 1 },
+    { idx: 20, tag: "0020_earlier", when: 2 },
+  ];
+  const falling = journalSkipFailures(fallingIdx);
+  mustFail("journal idx is not strictly rising", falling);
+  assert.deepEqual(falling, ["0020 idx is not strictly rising"]);
+  const dupTag = [
+    { idx: 7, tag: "0007_same", when: 1 },
+    { idx: 7, tag: "0007_same", when: 2 },
+  ];
+  mustFail("duplicate journal tag", journalSkipFailures(dupTag).filter((f) => /duplicate tag /.test(f)));
+  const dupIdx = [
+    { idx: 8, tag: "0008_one", when: 1 },
+    { idx: 8, tag: "0008_two", when: 2 },
+  ];
+  mustFail("duplicate journal idx", journalSkipFailures(dupIdx).filter((f) => /duplicate idx /.test(f)));
+  const prefixMiss = [{ idx: 9, tag: "0010_wrong", when: 1 }];
+  const prefixFails = journalSkipFailures(prefixMiss);
+  mustFail("journal tag prefix does not match idx", prefixFails);
+  assert.deepEqual(prefixFails, ["0010 tag prefix 0010 does not match idx 0009"]);
   const appliedAll = outOfOrder.map((e) => e.tag);
   const orderFails = evaluateAppliedJournal({ journal: outOfOrder, statusLabel: appliedAll.join(", "), healthMigrations: appliedAll });
   assert.ok(orderFails.some((f) => f === "0021 would be skipped"), JSON.stringify(orderFails));
@@ -1802,7 +1862,21 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     healthMigrations: [],
   });
   assert.ok(healthMiss.some((f) => /0020_schedule_activities is not applied on \/health/.test(f)), JSON.stringify(healthMiss));
-  assert.deepEqual(evaluateAppliedJournal({ journal: gap, statusLabel: gap.map((e) => e.tag).join(", "), healthMigrations: gap.map((e) => e.tag) }), []);
+  assert.deepEqual(evaluateAppliedJournal({ journal: gap, statusLabel: gap.map((e) => e.tag).join(", "), healthMigrations: gap.map((e) => e.tag) }), ["0021 is an unreserved gap"]);
+  assert.deepEqual(evaluateAppliedJournal({ journal: reservedGap, statusLabel: reservedGap.map((e) => e.tag).join(", "), healthMigrations: reservedGap.map((e) => e.tag) }), []);
+  const one = [{ idx: 0, tag: "0000_init", when: 1 }];
+  const unread = evaluateAppliedJournal({ readError: "journal at abc could not be read: git show failed", journal: one, statusLabel: "0000_init", healthMigrations: ["0000_init"] });
+  mustFail("unreadable journal", unread);
+  assert.deepEqual(unread, ["journal at abc could not be read: git show failed"]);
+  const noStatus = evaluateAppliedJournal({ journal: one, statusLabel: null, healthMigrations: ["0000_init"] });
+  mustFail("missing /status migrations label", noStatus.filter((f) => f === "/status applied migrations are missing"));
+  assert.deepEqual(noStatus, ["/status applied migrations are missing"]);
+  const noHealth = evaluateAppliedJournal({ journal: one, statusLabel: "0000_init" });
+  mustFail("/health without migrations", noHealth.filter((f) => f === "/health applied migrations are missing"));
+  assert.deepEqual(noHealth, ["/health applied migrations are missing"]);
+  const unavail = evaluateAppliedJournal({ journal: one, statusLabel: "unavailable", healthMigrations: "unavailable" });
+  mustFail("applied migrations unavailable", unavail.filter((f) => /applied migrations are unavailable/.test(f)));
+  assert.deepEqual(unavail, ["/status applied migrations are unavailable", "/health applied migrations are unavailable"]);
   const headJournal = JSON.parse(execFileSync("git", ["show", "HEAD:v5/drizzle/meta/_journal.json"], { cwd: path.resolve(here, "../../.."), encoding: "utf8" }));
   assert.deepEqual(journalSkipFailures(headJournal.entries), []);
   const headTags = headJournal.entries.map((e) => e.tag);
@@ -1816,10 +1890,13 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.equal(twentyTwo.length, 22);
   assert.deepEqual(journalSkipFailures(twentyTwo), []);
   mustPass("22-entry journal with no gaps", evaluateAppliedJournal({ journal: twentyTwo, statusLabel: tags22.join(", "), healthMigrations: tags22 }));
-  results.push("passes: HEAD journal applies with no skipped entries when every tag is applied; entry count and last tag are not pinned; a gap is allowed; 0021 out of order would be skipped; a /status list missing 0020 is not applied");
+  results.push("passes: HEAD journal applies with no skipped entries when every tag is applied; entry count and last tag are not pinned; reserved gap 0022 is allowed; an unreserved gap fails; 0021 out of order would be skipped; a /status list missing 0020 is not applied");
   const verifyJournal = readFileSync(path.join(here, "verify.mjs"), "utf8");
   assert.match(verifyJournal, /evaluateAppliedJournal\(\{/);
   assert.match(verifyJournal, /journal migrations applied in order/);
+  assert.match(verifyJournal, /!Array\.isArray\(entries\) \|\| entries\.length === 0/, "empty or missing journal must fail closed");
+  assert.match(verifyJournal, /journal at \$\{expectedFull\} is missing or empty/);
+  assert.doesNotMatch(verifyJournal, /\.entries \?\? \[\]/);
   assert.doesNotMatch(verifyJournal, /if \(rc\) \{[^}]*status-migrations/s, "status-migrations is read on every run, not only --rc");
   assert.deepEqual(migrationsAdded([{ tag: "0015" }], clean).map((m) => m.tag), ["0016_rc"]);
   const notApplied = evaluateRcMigrations({ added, journal: clean, appliedLabel: "0015", healthOk: true });
@@ -1875,6 +1952,12 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.equal(stripItem.ok, false);
   assert.match(stripItem.detail, /job-strip element "I-5 Culvert 24-077" right 373 > clientWidth 320/);
   mustFail("acceptance 5.0.4-0 fails when a job-strip element is past clientWidth", [stripItem.detail]);
+  const missingStrip = "pm@320 /app: job-strip missing";
+  const missRc = buildRcChecks({ history: { ...history, added: [] }, crawlRan: true, crawlFailures: [missingStrip], migrationsLabel: "(none)", healthOk: true });
+  const missItem = missRc.find((c) => c.name === "acceptance 5.0.4-0");
+  assert.equal(missItem.ok, false);
+  assert.match(missItem.detail, /job-strip missing/);
+  mustFail("acceptance 5.0.4-0 fails when the job strip is missing", [missItem.detail]);
   const cleanCrawl = buildRcChecks({ history: { ...history, added: [] }, crawlRan: true, crawlFailures: [clip1280], migrationsLabel: "(none)", healthOk: true });
   assert.equal(cleanCrawl.find((c) => c.name === "acceptance 5.0.4-0").ok, true);
   assert.equal(cleanCrawl.find((c) => c.name === "ellipsis/clipping at ≤480").ok, true);
