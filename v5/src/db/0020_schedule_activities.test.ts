@@ -21,8 +21,8 @@ const snapshot0020 = JSON.parse(
     { indexes?: Record<string, { name: string; isUnique: boolean }> }
   >;
 };
-const snapshot0017 = JSON.parse(
-  readFileSync(join(drizzleDir, "meta/0017_snapshot.json"), "utf8"),
+const snapshot0019 = JSON.parse(
+  readFileSync(join(drizzleDir, "meta/0019_snapshot.json"), "utf8"),
 ) as { id: string };
 
 /** True when SQL creates activities_job_code_uidx as a UNIQUE index. */
@@ -31,8 +31,7 @@ export function activitiesJobCodeIndexIsUnique(sql: string): boolean {
 }
 
 /**
- * Journal + snapshot claim for 0020 on this branch (predecessor = 0017).
- * After #10 merges we will re-point prevId at 0019 — not yet.
+ * Journal + snapshot claim for 0020 (predecessor = 0019 after #10).
  */
 export function schedule0020JournalClaim(args: {
   entries: readonly JournalEntry[];
@@ -43,13 +42,13 @@ export function schedule0020JournalClaim(args: {
   const tags = entries.map((e) => e.tag);
   const scheduleIdx = tags.indexOf("0020_schedule_activities");
   if (scheduleIdx < 0) return false;
-  // Position: last journal entry (not buried / not swapped with 0017).
+  // Position: last journal entry (not buried / not swapped with 0019).
   if (scheduleIdx !== entries.length - 1) return false;
   const schedule = entries[scheduleIdx]!;
   if (schedule.idx !== 20) return false;
   if (schedule.when !== 1793030000000) return false;
   if (schedule.when <= 1793020000000) return false;
-  // Snapshot must chain from this branch's predecessor (0017 today).
+  // Snapshot must chain from 0019.
   if (prevId !== predecessorSnapshotId) return false;
   return true;
 }
@@ -91,19 +90,19 @@ describe("migration 0020_schedule_activities", () => {
     expect(activitiesJobCodeIndexIsUnique(broken)).toBe(false);
   });
 
-  it("N9: journal position + idx 20 + prevId chain from 0017 on this branch", () => {
+  it("N9: journal position + idx 20 + prevId chain from 0019", () => {
     const entries = loadMigrationJournal();
     const tags = entries.map((e) => e.tag);
-    expect(tags).toContain("0017_average_performance");
+    expect(tags).toContain("0018_daily_plan_events");
+    expect(tags).toContain("0019_crews_contract");
     expect(tags).toContain("0020_schedule_activities");
     expect(tags.at(-1)).toBe("0020_schedule_activities");
     expect(tags.indexOf("0020_schedule_activities")).toBeGreaterThan(
-      tags.indexOf("0017_average_performance"),
+      tags.indexOf("0019_crews_contract"),
     );
 
     const schedule = entries.find((e) => e.tag === "0020_schedule_activities")!;
-    // Stamp above #10's 0019_crews_contract @ 1793020000000; idx 20 leaves
-    // room for 0018 then 0019 on the expected ladder.
+    // Stamp above #10's 0019_crews_contract @ 1793020000000; idx 20.
     expect(schedule.when).toBe(1793030000000);
     expect(schedule.when).toBeGreaterThan(1793020000000);
     expect(schedule.idx).toBe(20);
@@ -111,12 +110,12 @@ describe("migration 0020_schedule_activities", () => {
     expect(schedule.tag.startsWith("0019_")).toBe(false);
 
     // Position + prevId (not when alone).
-    expect(snapshot0020.prevId).toBe(snapshot0017.id);
+    expect(snapshot0020.prevId).toBe(snapshot0019.id);
     expect(
       schedule0020JournalClaim({
         entries,
         prevId: snapshot0020.prevId,
-        predecessorSnapshotId: snapshot0017.id,
+        predecessorSnapshotId: snapshot0019.id,
       }),
     ).toBe(true);
   });
@@ -131,7 +130,7 @@ describe("migration 0020_schedule_activities", () => {
       schedule0020JournalClaim({
         entries,
         prevId: snapshot0020.prevId,
-        predecessorSnapshotId: snapshot0017.id,
+        predecessorSnapshotId: snapshot0019.id,
       }),
     ).toBe(false);
   });
@@ -142,7 +141,7 @@ describe("migration 0020_schedule_activities", () => {
       schedule0020JournalClaim({
         entries,
         prevId: "00000000-0000-0000-0000-000000000000",
-        predecessorSnapshotId: snapshot0017.id,
+        predecessorSnapshotId: snapshot0019.id,
       }),
     ).toBe(false);
   });
