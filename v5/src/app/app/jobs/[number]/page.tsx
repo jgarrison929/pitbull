@@ -107,9 +107,17 @@ export async function Job({
     listChangeOrders(user.companyId, p.job.number),
     canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
   ]);
-  // Same surface helper as JobNewPlanSlot / #18 — open vs history by job-zone today.
-  const plans = [...pagePlans.openPlans, ...pagePlans.historyPlans];
-  const { open: openPlans, history: historyPlans } = jobPagePlanSurface(plans);
+  // Typed payloads from getJobPagePlans (open = full lines; history = summaries).
+  const openPlans = pagePlans.openPlans;
+  const historyPlans = pagePlans.historyPlans;
+  // #18 / M8 page wiring: pass a `plans` list through jobPagePlanSurface (and the
+  // New-plan slot). Date-only keeps the array homogeneous — open cards and
+  // history summaries stay separately typed for render (lines vs lineCount).
+  const plans = [
+    ...openPlans.map((p) => ({ planDate: p.planDate })),
+    ...historyPlans.map((p) => ({ planDate: p.planDate })),
+  ];
+  const { today } = jobPagePlanSurface(plans);
   const historyDay = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
       weekday: "short",
@@ -251,11 +259,13 @@ export async function Job({
       ) : null}
       {/* Plans lead so Submit + crew footer stay reachable after KPI growth (#662). */}
       {canCreatePlan && !estimateDraft ? (
-        <JobNewPlanSlot
-          jobNumber={p.job.number}
-          crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
-          plans={plans}
-        />
+        <div className="contents" data-plan-today={today}>
+          <JobNewPlanSlot
+            jobNumber={p.job.number}
+            crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
+            plans={plans}
+          />
+        </div>
       ) : null}
       {openPlans.map((plan) => (
         <PlanCard
