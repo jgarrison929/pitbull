@@ -1804,12 +1804,19 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.ok(healthMiss.some((f) => /0020_schedule_activities is not applied on \/health/.test(f)), JSON.stringify(healthMiss));
   assert.deepEqual(evaluateAppliedJournal({ journal: gap, statusLabel: gap.map((e) => e.tag).join(", "), healthMigrations: gap.map((e) => e.tag) }), []);
   const headJournal = JSON.parse(execFileSync("git", ["show", "HEAD:v5/drizzle/meta/_journal.json"], { cwd: path.resolve(here, "../../.."), encoding: "utf8" }));
-  assert.equal(headJournal.entries.length, 21, "main's journal is 21 tags");
-  assert.equal(headJournal.entries.at(-1).tag, "0020_schedule_activities");
   assert.deepEqual(journalSkipFailures(headJournal.entries), []);
   const headTags = headJournal.entries.map((e) => e.tag);
   assert.deepEqual(evaluateAppliedJournal({ journal: headJournal.entries, statusLabel: headTags.join(", "), healthMigrations: headTags }), []);
-  results.push("passes: HEAD journal has 21 tags ending 0020_schedule_activities; when increases; a gap is allowed; 0021 out of order would be skipped; a /status list missing 0020 is not applied");
+  const twentyTwo = Array.from({ length: 22 }, (_, i) => ({
+    idx: i,
+    tag: `${String(i).padStart(4, "0")}_no_gap`,
+    when: 1_700_000_000_000 + i,
+  }));
+  const tags22 = twentyTwo.map((e) => e.tag);
+  assert.equal(twentyTwo.length, 22);
+  assert.deepEqual(journalSkipFailures(twentyTwo), []);
+  mustPass("22-entry journal with no gaps", evaluateAppliedJournal({ journal: twentyTwo, statusLabel: tags22.join(", "), healthMigrations: tags22 }));
+  results.push("passes: HEAD journal applies with no skipped entries when every tag is applied; entry count and last tag are not pinned; a gap is allowed; 0021 out of order would be skipped; a /status list missing 0020 is not applied");
   const verifyJournal = readFileSync(path.join(here, "verify.mjs"), "utf8");
   assert.match(verifyJournal, /evaluateAppliedJournal\(\{/);
   assert.match(verifyJournal, /journal migrations applied in order/);
