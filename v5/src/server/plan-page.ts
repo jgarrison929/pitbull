@@ -29,8 +29,8 @@ export type PlanHistoryEvent = {
  * Invalid plan ids return null (page calls notFound) — never query Postgres
  * with a non-UUID (that throws and becomes a 500).
  *
- * After the job lookup, plan header (+ rate), lines, and history overlap —
- * same numbers as the prior serial chain, fewer RTTs on cold / burst paths.
+ * planId is known from the URL, so header (+ job + rate), lines, and history
+ * all start together — one RTT wave (three queries), not job-then-rest.
  */
 export async function getPlanPage(
   companyId: string,
@@ -40,16 +40,14 @@ export async function getPlanPage(
   if (!isUuid(planId)) return null;
 
   const db = requireDb();
-  const [job] = await db
-    .select()
-    .from(jobs)
-    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
-    .limit(1);
-  if (!job) return null;
 
   const [row, lineRows, history] = await Promise.all([
     db
       .select({
+        jobId: jobs.id,
+        jobNumber: jobs.number,
+        jobName: jobs.name,
+        jobShortName: jobs.shortName,
         plan: dailyPlans,
         foreman: users.name,
         crewName: crews.name,
@@ -57,13 +55,15 @@ export async function getPlanPage(
         rateCents: planLaborRateCentsSql,
       })
       .from(dailyPlans)
+      .innerJoin(jobs, eq(jobs.id, dailyPlans.jobId))
       .innerJoin(users, eq(users.id, dailyPlans.foremanId))
       .innerJoin(crews, eq(crews.id, dailyPlans.crewId))
       .where(
         and(
           eq(dailyPlans.companyId, companyId),
-          eq(dailyPlans.jobId, job.id),
           eq(dailyPlans.id, planId),
+          eq(jobs.companyId, companyId),
+          eq(jobs.number, jobNumber),
         ),
       )
       .limit(1)
@@ -100,10 +100,10 @@ export async function getPlanPage(
 
   return {
     job: {
-      id: job.id,
-      number: job.number,
-      name: job.name,
-      shortName: job.shortName,
+      id: row.jobId,
+      number: row.jobNumber,
+      name: row.jobName,
+      shortName: row.jobShortName,
     },
     plan: {
       id: plan.id,

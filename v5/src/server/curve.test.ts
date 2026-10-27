@@ -326,9 +326,9 @@ describe.skipIf(!hasDb)("5.0.5 S-curve", () => {
       expect(atLock1.earnedCents, `${variant} lock1`).toBe(HALF_CENT_EV);
       const mid = pointOn(curve!.points, "2026-10-15");
       expect(mid.earnedCents, `${variant} mid`).toBe(HALF_CENT_EV);
-      // Before the first lock: no EV yet.
+      // Before the first lock: EV is 0 (not null) so the step path draws to cutoff.
       const before = pointOn(curve!.points, "2026-10-05");
-      expect(before.earnedCents, `${variant} before`).toBeNull();
+      expect(before.earnedCents, `${variant} before`).toBe(0);
     }
   });
 
@@ -625,5 +625,21 @@ describe.skipIf(!hasDb)("5.0.5 S-curve", () => {
       expect(after.actualCents).toBeNull();
       expect(after.plannedCents).toBeGreaterThanOrEqual(at.plannedCents);
     }
+  });
+
+  it("pre-first-lock EV is 0 (not null) so the step path draws through cutoff", async () => {
+    const id = await jobId(companyId, "25-031");
+    const curve = await jobCurve(companyId, id);
+    expect(curve?.cutoffOn).toBeTruthy();
+    const cutoff = curve!.cutoffOn!;
+    const throughCutoff = curve!.points.filter((p) => p.on <= cutoff);
+    expect(throughCutoff.length).toBeGreaterThan(1);
+    for (const p of throughCutoff) {
+      // NULL here breaks stepPath into a lone M at the first finite day.
+      expect(p.earnedCents, `${p.on} EV`).not.toBeNull();
+      expect(p.actualCents, `${p.on} AC`).not.toBeNull();
+    }
+    expect(throughCutoff[0]!.earnedCents).toBe(0);
+    expect(throughCutoff.some((p) => (p.earnedCents ?? 0) > 0)).toBe(true);
   });
 });

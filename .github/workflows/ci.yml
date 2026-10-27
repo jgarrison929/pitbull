@@ -45,7 +45,8 @@ jobs:
           echo "$files"
           if grep -qE '^v5/|^\.github/workflows/ci\.yml$' <<<"$files"; then v5=true; else v5=false; fi
           # v5-only PRs must run the browser skill smoke (not only skill/CI path changes).
-          if grep -qE '^v5/|^\.cursor/skills/verify-v5/|^\.github/workflows/ci\.yml$' <<<"$files"; then verify_v5=true; else verify_v5=false; fi
+          # checks.test.mjs reads docs/v5/specs, so a spec-only PR must run the skill smoke too.
+          if grep -qE '^v5/|^\.cursor/skills/verify-v5/|^docs/v5/specs/|^\.github/workflows/ci\.yml$' <<<"$files"; then verify_v5=true; else verify_v5=false; fi
           echo "v5=$v5" >> "$GITHUB_OUTPUT"
           echo "verify_v5=$verify_v5" >> "$GITHUB_OUTPUT"
           echo "v5 changed: **$v5** (false = v5 job skipped)" >> "$GITHUB_STEP_SUMMARY"
@@ -239,6 +240,13 @@ jobs:
         run: npm run db:prepare
 
       - name: Unit tests
+        env:
+          TZ: UTC
+        run: npm test
+
+      - name: Unit tests (America/Los_Angeles)
+        env:
+          TZ: America/Los_Angeles
         run: npm test
 
       - name: Build

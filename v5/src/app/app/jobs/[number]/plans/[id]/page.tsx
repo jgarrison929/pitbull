@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LocalTime } from "@/components/app/local-time";
 import { PageHeader, Section } from "@/components/app/page-shell";
@@ -69,13 +68,19 @@ async function Plan({
         title={`${data.plan.crew} · ${utcDay(data.plan.planDate)}`}
         meta={
           <>
-            <Link
+            {/*
+              Plain <a>, not next/link: Link still fires ?_rsc= after paint
+              (even with prefetch={false}), and each plan line cost-code link
+              would hold verify networkidle on this page the same way shell
+              Links held cost-item drills (#29).
+            */}
+            <a
               href={`/app/jobs/${data.job.number}`}
               className="underline hover:no-underline"
               data-testid="plan-detail-back"
             >
               {data.job.number} · {data.job.name}
-            </Link>
+            </a>
             {" · Foreman "}
             {data.plan.foreman}
             {" · "}
@@ -110,12 +115,12 @@ async function Plan({
               {data.lines.map((l) => (
                 <tr key={l.id} data-testid="plan-detail-line">
                   <td className="px-4 py-2 font-mono text-xs">
-                    <Link
+                    <a
                       href={`/app/jobs/${data.job.number}/cost-items/${encodeURIComponent(l.code)}`}
                       className="underline hover:no-underline"
                     >
                       {l.code}
-                    </Link>
+                    </a>
                   </td>
                   <td className="px-4 py-2">{l.activity}</td>
                   <td className="px-4 py-2 text-right tabular-nums">

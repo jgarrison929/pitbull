@@ -1,7 +1,7 @@
 // Browser half of the nav crawl: signs in by role card and measures each page. Evaluation lives in
 // checks.mjs (evaluateCrawlRow) so the must-fail tests can drive the same code against a fake server.
 import path from "node:path";
-import { classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, secondaryReachable, textHasMoney } from "./checks.mjs";
+import { classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, PHONE_OVERFLOW_WIDTHS, secondaryReachable, textHasMoney } from "./checks.mjs";
 import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillDiscoveryFailures, drillPath, partCItemFor } from "./drill.mjs";
 import { captureFailure, secretValues, startFailureRecorder } from "./evidence.mjs";
 
@@ -9,6 +9,11 @@ export const CRAWL_ROLES = ["executive", "pm", "superintendent", "foreman"];
 export const CRAWL_WIDTHS = [320, 390, 768, 1280];
 /** Extra widths /roadmap is also crawled at (5.0.1 acceptance check 12 used 375 and 1440). */
 export const ROADMAP_EXTRA_WIDTHS = [375, 1440];
+
+/** `/app/jobs/<job>/changes` — the job's full changes list. */
+export function changesPath(job) {
+  return `/app/jobs/${job}/changes`;
+}
 
 /** 5.1.0-c schedule page. Presence of this file at the verified commit turns the schedule crawl on. */
 export const SCHEDULE_ROUTE_FILE = "v5/src/app/app/jobs/[number]/schedule/page.tsx";
@@ -63,13 +68,14 @@ export function scheduleRouteAtCommit(sha, git) {
 }
 
 /**
- * Main nav-crawl pages: /app, every seeded job page, assistant, changelog, status and /roadmap.
+ * Main nav-crawl pages: /app, every seeded job page, that job's /changes, assistant, changelog, status and /roadmap.
+ * /changes is every seeded job, every role, every crawl width. It is not gated on a version.
  * `scheduleJobNumbers` (active / approved jobs) add `/app/jobs/<job>/schedule` only when the route exists.
  */
 export function navCrawlPages(seedJobNumbers, scheduleJobNumbers = []) {
   return [
     "/app",
-    ...seedJobNumbers.map((j) => `/app/jobs/${j}`),
+    ...seedJobNumbers.flatMap((j) => [`/app/jobs/${j}`, changesPath(j)]),
     ...scheduleJobNumbers.map((j) => schedulePath(j)),
     "/app/assistant",
     "/changelog",
@@ -192,13 +198,24 @@ export function watch(page, sink) {
 }
 
 /**
- * DOM scan passed to page.evaluate. classifyClip, secondaryReachable and textHasMoney are arguments
- * so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
+ * Job-strip clause at 320 and 390. A missing strip on /app or /app/jobs/* fails closed
+ * ({ missing: true }). Other paths keep an empty hit list when the strip is absent.
+ * The page runs this same function: measureDom injects it next to classifyClip.
+ */
+export function jobStripHits(path, hasStrip, hits) {
+  const onSurface = path === "/app" || (typeof path === "string" && path.startsWith("/app/jobs/"));
+  if (!hasStrip) return onSurface ? [{ missing: true }] : [];
+  return Array.isArray(hits) ? hits : [];
+}
+
+/**
+ * DOM scan passed to page.evaluate. classifyClip, secondaryReachable, textHasMoney and jobStripHits
+ * are arguments so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
  * Phone observations are recorded only when phoneChecks is true. Otherwise those fields are omitted,
  * and evaluateCrawlRow's default (phoneChecks false) does not read them.
  */
-function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
-  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks } = arg;
+function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits) {
+  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks, phoneOverflowWidths, path } = arg;
   const doc = document.documentElement;
   const vw = Math.min(intendedW, window.visualViewport?.width ?? intendedW);
   const sw = Math.max(doc.scrollWidth, document.body?.scrollWidth ?? 0);
@@ -235,6 +252,7 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
       portfolioRows: document.querySelectorAll('[data-testid="job-link"]').length,
       costItemTiles: document.querySelectorAll('[data-testid="cost-item-cb"]').length,
       planStatus: document.querySelectorAll('[data-testid="plan-detail-status"]').length,
+      changeItems: document.querySelectorAll('[data-testid="job-changes-full"] li').length,
       activityRows: document.querySelectorAll('[data-testid="gantt-activity"]').length,
     },
     scheduleLinks: [...document.querySelectorAll("a[href]")]
@@ -374,6 +392,29 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney) {
   out.clips = clips;
   out.clipCount = clips.length;
   out.primaryActions = primaryActions;
+  // 5.0.4-0 clause 2, same gate as the other phone observations: 320 and 390 only.
+  // A strip with overflow-x:auto can keep document scrollWidth inside the viewport while a
+  // flex-shrink:0 pill's box still ends past clientWidth. Clause 1 does not see that.
+  if (Array.isArray(phoneOverflowWidths) && phoneOverflowWidths.includes(intendedW)) {
+    const clientWidth = doc.clientWidth;
+    const strip = document.querySelector("[data-testid='job-strip']");
+    const stripPastRight = [];
+    if (strip) {
+      for (const el of strip.querySelectorAll("*")) {
+        if (!shown(el)) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.right > clientWidth) {
+          stripPastRight.push({
+            text: oneLine(el.innerText || el.getAttribute("aria-label") || el.textContent).slice(0, 80),
+            right: rect.right,
+            clientWidth,
+          });
+        }
+      }
+    }
+    // if (strip) alone would record [] when the element is absent and the row would pass.
+    out.stripPastRight = jobStripHits(path, !!strip, stripPastRight);
+  }
   return out;
 }
 
@@ -383,7 +424,8 @@ const measureDom = new Function(
   "const classifyClip = (" + classifyClip.toString() + ");\n" +
     "const secondaryReachable = (" + secondaryReachable.toString() + ");\n" +
     "const textHasMoney = (" + textHasMoney.toString() + ");\n" +
-    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney);",
+    "const jobStripHits = (" + jobStripHits.toString() + ");\n" +
+    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits);",
 );
 
 /** Full navigation to base+p; time is wall clock from goto until network idle (includes Playwright's 500 ms idle window). */
@@ -405,6 +447,8 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
     minSecondary: MIN_SECONDARY_FONT_PX,
     minInput: MIN_INPUT_FONT_PX,
     phoneChecks: phoneChecks === true,
+    phoneOverflowWidths: PHONE_OVERFLOW_WIDTHS,
+    path: p,
   });
   if (shotDir) {
     await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });

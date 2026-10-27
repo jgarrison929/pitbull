@@ -14,12 +14,20 @@
 import { createHash, randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import postgres from "postgres";
+import { parsePostgresUrl } from "../src/db/database-url.ts";
+import { redactDbEnsureError } from "./db-ensure.mjs";
 
-const url = process.env.DATABASE_URL;
-if (!url) {
+const rawUrl = process.env.DATABASE_URL;
+if (!rawUrl) {
   console.error("DATABASE_URL is required");
   process.exit(1);
 }
+const parsedUrl = parsePostgresUrl(rawUrl);
+if (!parsedUrl) {
+  console.error("DATABASE_URL is not a usable Postgres URL");
+  process.exit(1);
+}
+const url = parsedUrl.connectionString;
 
 const LEAF_COUNT = 10_000;
 const STRESS_JOB_NUMBER = "99-010";
@@ -369,6 +377,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(`perf:cost-codes failed: ${redactDbEnsureError(err)}`);
   process.exit(1);
 });

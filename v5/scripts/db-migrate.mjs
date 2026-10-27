@@ -10,29 +10,47 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readMigrationFiles } from "drizzle-orm/migrator";
 import postgres from "postgres";
+import { parsePostgresUrl } from "../src/db/database-url.ts";
 import { backfillCrewLaborRates } from "./backfill-crew-labor-rates.mjs";
+import { redactDbEnsureError } from "./db-ensure.mjs";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   console.log("db:migrate skipped, DATABASE_URL is not set");
 } else {
-  const client = postgres(databaseUrl, { max: 1, onnotice: () => {} });
   try {
-    const folder = path.join(
-      path.dirname(fileURLToPath(import.meta.url)),
-      "..",
-      "drizzle",
-    );
-    await migrateWithAddValueOutside(client, folder);
-    const backfill = await backfillCrewLaborRates(client);
-    console.log(
-      backfill.applied
-        ? `db:migrate backfill-crew-labor-rates ok (${backfill.statements} statements)`
-        : `db:migrate backfill-crew-labor-rates skipped (${backfill.reason})`,
-    );
-    console.log("db:migrate up to date");
-  } finally {
-    await client.end();
+    // Same encode-userinfo path as db:ensure / app client — never pass the raw
+    // env URL to postgres() (unencoded `/` `?` `#` `@` → ERR_INVALID_URL and
+    // Node dumps `input` with the password).
+    const parsed = parsePostgresUrl(databaseUrl);
+    if (!parsed) {
+      throw new Error("DATABASE_URL is not a usable Postgres URL");
+    }
+    const client = postgres(parsed.connectionString, {
+      max: 1,
+      onnotice: () => {},
+    });
+    try {
+      const folder = path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "..",
+        "drizzle",
+      );
+      await migrateWithAddValueOutside(client, folder);
+      const backfill = await backfillCrewLaborRates(client);
+      console.log(
+        backfill.applied
+          ? `db:migrate backfill-crew-labor-rates ok (${backfill.statements} statements)`
+          : `db:migrate backfill-crew-labor-rates skipped (${backfill.reason})`,
+      );
+      console.log("db:migrate up to date");
+    } finally {
+      await client.end();
+    }
+  } catch (err) {
+    // Never log DATABASE_URL / password — Node's ERR_INVALID_URL embeds them in `input`.
+    console.error(`db:migrate failed: ${redactDbEnsureError(err)}`);
+    process.exitCode = 1;
   }
 }
 

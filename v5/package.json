@@ -13,11 +13,11 @@
     "e2e:visual": "playwright test tests/e2e/visual.spec.ts",
     "e2e:visual:docker": "bash scripts/visual-in-playwright-docker.sh",
     "e2e:visual:docker:update": "bash scripts/visual-in-playwright-docker.sh --update",
-    "db:ensure": "node scripts/db-ensure.mjs",
-    "db:migrate": "node scripts/db-migrate.mjs",
+    "db:ensure": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/db-ensure.mjs",
+    "db:migrate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/db-migrate.mjs",
     "db:prepare": "npm run db:ensure && npm run db:migrate",
     "drizzle:check": "node scripts/drizzle-check.mjs",
-    "perf:cost-codes": "node scripts/perf-cost-codes.mjs"
+    "perf:cost-codes": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/perf-cost-codes.mjs"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.22",
@@ -25,7 +25,7 @@
     "cn": "^0.5.0",
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.61.0",
-    "next": "16.4.2",
+    "next": "16.4.3",
     "postgres": "^3.4.9",
     "posthog-js": "^1.438.21",
     "radix-ui": "^1.8.1",
@@ -42,7 +42,7 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "16.4.3",
     "shadcn": "^4.22.1",
     "tailwindcss": "^4",
     "typescript": "^6",

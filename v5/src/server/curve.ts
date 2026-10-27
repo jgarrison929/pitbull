@@ -171,12 +171,15 @@ export async function jobCurve(
           when d.on > (select cutoff_on from lock) then null
           when d.on = (select cutoff_on from lock)
             then (select earned_cents from tile_ev)
-          else (
-            select le.earned_cents
-            from lock_ev le
-            where le.locked_on <= d.on
-            order by le.locked_on desc
-            limit 1
+          else coalesce(
+            (
+              select le.earned_cents
+              from lock_ev le
+              where le.locked_on <= d.on
+              order by le.locked_on desc
+              limit 1
+            ),
+            0
           )
         end as earned_cents,
         case
@@ -372,12 +375,15 @@ export async function portfolioCurve(
           when jc.cutoff_on is null then null::bigint
           when d.on > jc.cutoff_on then te.earned_cents
           when d.on = jc.cutoff_on then te.earned_cents
-          else (
-            select le.earned_cents
-            from lock_ev le
-            where le.job_id = aj.job_id and le.locked_on <= d.on
-            order by le.locked_on desc
-            limit 1
+          else coalesce(
+            (
+              select le.earned_cents
+              from lock_ev le
+              where le.job_id = aj.job_id and le.locked_on <= d.on
+              order by le.locked_on desc
+              limit 1
+            ),
+            0
           )
         end as earned_cents
       from days d

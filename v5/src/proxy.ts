@@ -3,10 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import postgres from "postgres";
 import { databaseConnectionString } from "@/db/database-url";
 import { PROXY_DB_POOL_MAX } from "@/db/pool-config";
+import { isErrorProbeAllowed } from "@/lib/error-probe";
 import { parseJobDrillPath } from "@/lib/job-drill-path";
 import { isUuid } from "@/lib/uuid";
 
 const SESSION_COOKIE = "pcs_session";
+const ERROR_PROBE_PATH = "/app/error-probe";
 
 /**
  * Shared pool for drill-down 404 checks. Opening+closing a connection on every
@@ -48,12 +50,26 @@ function proxySql(rawDatabaseUrl: string) {
   return sql;
 }
 
+function withServerTiming(res: NextResponse, proxyMs: number) {
+  // Append — never overwrite other Server-Timing metrics from the app.
+  // Job/cost/plan drills: only emit v5proxy;dur=… (no other metric names).
+  const prior = res.headers.get("Server-Timing");
+  const metric = `v5proxy;dur=${Math.round(proxyMs * 100) / 100}`;
+  res.headers.set(
+    "Server-Timing",
+    prior ? `${prior}, ${metric}` : metric,
+  );
+  res.headers.set("x-v5-proxy-ms", String(Math.round(proxyMs)));
+  return res;
+}
+
 /**
- * Unknown / invalid drill-down paths must be HTTP 404. Under Cache Components the
- * app shell Suspense boundaries commit 200 before page-level notFound() can run,
- * so the check happens here before the page streams.
+ * Paths that must be HTTP 404 before the app shell streams. Under Cache
+ * Components, Suspense boundaries commit 200 before page-level notFound() can
+ * run, so the check happens here.
  *
  * Covers:
+ * - /app/error-probe when V5_ERROR_PROBE is unset (e2e-only probe)
  * - /app/jobs/:number
  * - /app/jobs/:number/changes
  * - /app/jobs/:number/cost-items/:code  (not …/search)
@@ -61,6 +77,13 @@ function proxySql(rawDatabaseUrl: string) {
  */
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
+
+  // Dev/e2e probe — unreachable in production builds (flag off → real 404).
+  if (path === ERROR_PROBE_PATH) {
+    if (!isErrorProbeAllowed()) return notFoundResponse();
+    return NextResponse.next();
+  }
+
   const parsed = parseJobDrillPath(path);
   if (!parsed) return NextResponse.next();
 
@@ -76,7 +99,39 @@ export async function proxy(request: NextRequest) {
 
   const sessionId = createHash("sha256").update(token).digest("hex");
   const db = proxySql(databaseUrl);
+  const t0 = performance.now();
   try {
+    if (parsed.kind === "plan") {
+      // One round-trip for plan drills: session + job + plan (was session⋈job
+      // then a second plan select — two serial RTTs on every plan navigation).
+      const rows = await db<{ job_id: string; plan_id: string | null }[]>`
+        select j.id as job_id, p.id as plan_id
+        from sessions s
+        inner join jobs j on j.company_id = s.company_id
+        left join daily_plans p
+          on p.job_id = j.id
+         and p.id = ${parsed.planId}::uuid
+        where s.id = ${sessionId}
+          and s.expires_at > now()
+          and j.number = ${parsed.number}
+        limit 1`;
+      const row = rows[0];
+      if (!row) {
+        const sessions = await db<{ company_id: string }[]>`
+          select company_id from sessions
+          where id = ${sessionId} and expires_at > now()
+          limit 1`;
+        if (!sessions[0]) {
+          return withServerTiming(NextResponse.next(), performance.now() - t0);
+        }
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      if (!row.plan_id) {
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
+    }
+
     // One round-trip: session + job (was two serial queries after a fresh connect).
     const rows = await db<{ job_id: string }[]>`
       select j.id as job_id
@@ -93,12 +148,14 @@ export async function proxy(request: NextRequest) {
         select company_id from sessions
         where id = ${sessionId} and expires_at > now()
         limit 1`;
-      if (!sessions[0]) return NextResponse.next();
-      return notFoundResponse();
+      if (!sessions[0]) {
+        return withServerTiming(NextResponse.next(), performance.now() - t0);
+      }
+      return withServerTiming(notFoundResponse(), performance.now() - t0);
     }
 
     if (parsed.kind === "job" || parsed.kind === "changes") {
-      return NextResponse.next();
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
     }
 
     if (parsed.kind === "cost-item") {
@@ -108,25 +165,21 @@ export async function proxy(request: NextRequest) {
           and code = ${parsed.code}
           and is_leaf = true
         limit 1`;
-      if (items.length === 0) return notFoundResponse();
-      return NextResponse.next();
+      if (items.length === 0) {
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
     }
 
-    // plan
-    const plans = await db<{ id: string }[]>`
-      select id from daily_plans
-      where job_id = ${jobId}
-        and id = ${parsed.planId}::uuid
-      limit 1`;
-    if (plans.length === 0) return notFoundResponse();
-    return NextResponse.next();
+    return withServerTiming(NextResponse.next(), performance.now() - t0);
   } catch {
-    return NextResponse.next();
+    return withServerTiming(NextResponse.next(), performance.now() - t0);
   }
 }
 
 export const config = {
   matcher: [
+    "/app/error-probe",
     "/app/jobs/:number",
     "/app/jobs/:number/changes",
     "/app/jobs/:number/cost-items/:code",

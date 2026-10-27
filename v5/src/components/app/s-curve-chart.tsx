@@ -25,7 +25,10 @@ const SERIES = [
 
 const W = 720;
 const H = 280;
-const PAD = { top: 16, right: 16, bottom: 36, left: 56 };
+/** Left pad fits usdShort labels at TICK_FONT (readable ~11px at 390-wide SVG). */
+const PAD = { top: 16, right: 16, bottom: 40, left: 64 };
+/** User units: ~11px at 390 CSS px width, ~20px when the SVG paints near viewBox width. */
+const TICK_FONT = 20;
 
 function dayLabel(iso: string) {
   return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", {
@@ -173,10 +176,10 @@ export function SCurveChart({
               />
               <text
                 x={PAD.left - 8}
-                y={y + 3}
+                y={y + 4}
                 textAnchor="end"
                 className="fill-muted-foreground"
-                style={{ fontSize: 10 }}
+                style={{ fontSize: TICK_FONT }}
               >
                 {usdShort(cents)}
               </text>
@@ -191,10 +194,10 @@ export function SCurveChart({
             <text
               key={p.on}
               x={xAt(i, points.length)}
-              y={H - 10}
+              y={H - 12}
               textAnchor="middle"
               className="fill-muted-foreground"
-              style={{ fontSize: 10 }}
+              style={{ fontSize: TICK_FONT }}
             >
               {dayLabel(p.on)}
             </text>

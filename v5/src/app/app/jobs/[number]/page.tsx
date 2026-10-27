@@ -16,19 +16,9 @@ import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { mh, pct, usdShort } from "@/lib/ev";
 import { SCurveChart } from "@/components/app/s-curve-chart";
-import { getJob, getJobEvControls, getJobPagePlans } from "@/server/data";
-import { jobCurve } from "@/server/curve";
-import { jobPagePlanSurface } from "@/server/job-page-plans";
-import {
-  draftClaimForJob,
-  getApprovalPendingByCostItem,
-  getReportedActualsForPlans,
-} from "@/server/progress";
-import { listChangeOrders } from "@/server/change-orders";
-import { listCrews } from "@/server/plans";
+import { timedLoadJobPage } from "@/server/job-page";
 import { requireUser, type CurrentUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
-import { actions, jobChanges } from "@/server/assistant/actions";
 import { LocalTime } from "@/components/app/local-time";
 
 export default function JobPage({ params }: PageProps<"/app/jobs/[number]">) {
@@ -59,64 +49,43 @@ export async function Job({
 }) {
   const { number } = await params;
   const user = userOverride ?? (await requireUser());
-  const p = await getJob(user.companyId, number);
-  // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
-  if (!p) notFound();
-  // Role gates before the parallel fetch so foreman (and other capture roles)
-  // skip lock / EV-control / crew-picker queries they never render.
-  const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
-  const canCreatePlan =
-    actions["dailyPlan.create"].roles?.includes(user.role) ?? false;
-  const canAddRemove =
-    (actions["dailyPlan.addLine"].roles?.includes(user.role) ?? false) &&
-    (actions["dailyPlan.removeLine"].roles?.includes(user.role) ?? false);
-  const canReport = actions["dailyReport.post"].roles?.includes(user.role);
-  const canApproveReport = actions["dailyPlan.approve"].roles?.includes(
+  const { data, timing: timingPayload } = await timedLoadJobPage(
+    user.companyId,
+    number,
     user.role,
   );
-  const canReturn = actions["dailyPlan.return"].roles?.includes(user.role);
-  const canLock = actions["progressClaim.lock"].roles?.includes(user.role);
-  const canApprove = actions["estimate.approve"].roles?.includes(user.role);
-  const coCan = {
-    create: actions["changeOrder.create"].roles?.includes(user.role) ?? false,
-    price: actions["changeOrder.price"].roles?.includes(user.role) ?? false,
-    approve: actions["changeOrder.approve"].roles?.includes(user.role) ?? false,
-    reject: actions["changeOrder.reject"].roles?.includes(user.role) ?? false,
-    void: actions["changeOrder.void"].roles?.includes(user.role) ?? false,
-  };
-  const canImport = actions["estimate.importCsv"].roles?.includes(user.role);
-  const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
-  const estimateDraft = p.job.estimateStatus === "draft";
-  const [
-    pagePlans,
+  // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
+  if (!data) notFound();
+  const {
+    p,
+    caps,
+    plans,
+    openPlans,
+    today,
+    historyPlans,
     changes,
     draftClaim,
     evControls,
     approvalPending,
     coData,
     crewRows,
+    reportedByPlan,
     curve,
-  ] = await Promise.all([
-    // Open cards keep full lines; 30-day history is summary-only (page budget).
-    // todayLA defaults inside getJobPagePlans via seedNow + job TZ (never UTC).
-    getJobPagePlans(user.companyId, p.job.id),
-    jobChanges(user.companyId, p.job.number),
-    canLock
-      ? draftClaimForJob(user.companyId, p.job.id)
-      : Promise.resolve(null),
-    canEvEdit
-      ? getJobEvControls(user.companyId, p.job.id)
-      : Promise.resolve({ milestones: [], pmItems: [] }),
-    getApprovalPendingByCostItem(user.companyId, p.job.id),
-    listChangeOrders(user.companyId, p.job.number),
-    canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
-    estimateDraft ? Promise.resolve(null) : jobCurve(user.companyId, p.job.id),
-  ]);
-  // #18 page wiring: surface owns open split / New-plan today (M8).
-  // History summaries stay from getJobPagePlans (budget — no full line arrays).
-  const plans = pagePlans.openPlans;
-  const { open: openPlans, today } = jobPagePlanSurface(plans);
-  const historyPlans = pagePlans.historyPlans;
+  } = data;
+  const {
+    canEdit,
+    canCreatePlan,
+    canAddRemove,
+    canReport,
+    canSubmit,
+    canApproveReport,
+    canReturn,
+    canLock,
+    canApprove,
+    canImport,
+    canEvEdit,
+    coCan,
+  } = caps;
   const historyDay = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
       weekday: "short",
@@ -124,13 +93,7 @@ export async function Job({
       day: "numeric",
       timeZone: "UTC",
     });
-  const reportable = openPlans.filter(
-    (pl) => pl.status === "issued" || pl.status === "reported",
-  );
-  const reportedByPlan = await getReportedActualsForPlans(
-    user.companyId,
-    reportable.map((pl) => pl.id),
-  );
+  const estimateDraft = p.job.estimateStatus === "draft";
   const jobMoney = p.money.job;
   // Initial combobox options: first leaves only. Large WBS uses server search.
   const costItems = p.lines.slice(0, 40).map((l) => ({
@@ -165,6 +128,13 @@ export async function Job({
   }));
   return (
     <>
+      <div
+        hidden
+        data-testid="v5-timing"
+        data-db-ms={timingPayload.dbMs}
+        data-queries={timingPayload.queries}
+        data-total-ms={timingPayload.totalMs}
+      />
       <PageHeader
         title={p.job.name}
         meta={
@@ -279,8 +249,7 @@ export async function Job({
           }
           actions={
             <div className="flex flex-wrap gap-2">
-              {plan.status === "draft" &&
-              actions["dailyPlan.submit"].roles?.includes(user.role) ? (
+              {plan.status === "draft" && canSubmit ? (
                 <form action={runAction}>
                   <input type="hidden" name="action" value="dailyPlan.submit" />
                   <input type="hidden" name="job" value={p.job.number} />

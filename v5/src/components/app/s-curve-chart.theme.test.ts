@@ -25,6 +25,15 @@ describe("S-curve chart theme tokens", () => {
     expect(pkg.dependencies?.recharts).toBeUndefined();
   });
 
+  it("must-fail: tick fontSize stays phone-readable inside the scaled viewBox", () => {
+    const src = readFileSync(join(here, "s-curve-chart.tsx"), "utf8");
+    // fontSize: 10 → ~5px at 390-wide SVG; keep TICK_FONT large enough in user units.
+    const m = src.match(/\bTICK_FONT\s*=\s*(\d+)/);
+    expect(m?.[1], "TICK_FONT").toBeTruthy();
+    expect(Number(m![1])).toBeGreaterThanOrEqual(18);
+    expect(src).not.toMatch(/fontSize:\s*10\b/);
+  });
+
   it("must-fail: light and dark --chart-1/2/3 stay theme-token pairs (readable on each bg)", () => {
     const css = readFileSync(join(here, "../../app/globals.css"), "utf8");
     const root = css.match(/:root\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";

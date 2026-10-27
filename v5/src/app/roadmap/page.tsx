@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { next, nextLabel, shipped } from "@/content/roadmap";
 
 export const metadata: Metadata = { title: "Roadmap · Pitbull" };
@@ -8,25 +7,25 @@ export default function RoadmapPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 py-12">
       <div>
-        <Link
+        <a
           href="/app"
           className="text-sm text-muted-foreground hover:underline"
         >
           ← Back to Pitbull
-        </Link>
+        </a>
         <h1 className="mt-2 text-xl font-semibold">Roadmap</h1>
         <p className="text-sm text-muted-foreground">
           What shipped and what comes next, in order. Dates appear only after a
           release passes the gate.
         </p>
         <p className="mt-2 text-sm">
-          <Link href="/changelog" className="underline hover:no-underline">
+          <a href="/changelog" className="underline hover:no-underline">
             Changelog
-          </Link>
+          </a>
           {" · "}
-          <Link href="/status" className="underline hover:no-underline">
+          <a href="/status" className="underline hover:no-underline">
             Status
-          </Link>
+          </a>
         </p>
       </div>
 
@@ -38,12 +37,12 @@ export default function RoadmapPage() {
           {shipped.map((r) => (
             <li key={r.version} className="flex flex-col gap-1">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <Link
+                <a
                   href={`/changelog#${r.version}`}
                   className="font-mono text-sm font-semibold underline hover:no-underline"
                 >
                   {r.version}
-                </Link>
+                </a>
                 <time
                   className="text-xs text-muted-foreground"
                   dateTime={r.date}
