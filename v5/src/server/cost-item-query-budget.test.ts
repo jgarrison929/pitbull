@@ -2,6 +2,8 @@
  * Cost-item drill-down query budget (Part C pages).
  * Bounds getCostItemPage so serial N+1 / duplicate lock lookups go red.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import {
@@ -61,8 +63,6 @@ describe.skipIf(!db)("cost item page query budget", () => {
   });
 
   it("must-fail: cost-item-page must not call pathRollupSql / laborMhMilliByLock", () => {
-    const { readFileSync } = require("node:fs") as typeof import("node:fs");
-    const { join } = require("node:path") as typeof import("node:path");
     const src = readFileSync(
       join(process.cwd(), "src/server/cost-item-page.ts"),
       "utf8",
