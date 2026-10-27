@@ -1,5 +1,6 @@
+import { ExactMoney } from "@/components/app/exact-money";
 import { cn } from "@/lib/utils";
-import { idx, usdCents, usdShort } from "@/lib/ev";
+import { idx, usdShort } from "@/lib/ev";
 import { varianceStatus, type Status } from "@/lib/status";
 
 const statusStyle: Record<
@@ -122,9 +123,9 @@ export function StatusIndex({
 }
 
 /**
- * Money display. `exact` shows dollars+cents at md+; on phone it shows $K/$M
- * (or whole dollars) with the exact figure one tap away — never ellipsis, and
- * never title-only (strict own-text scan ignores hover titles).
+ * Money display. Compact `$K`/`$M` by default. `exact` uses ExactMoney: phone
+ * shows one compact figure with exact one tap away (swap, never dual-mount);
+ * tablet/desktop shows dollars+cents. No ellipsis; no title-only reachability.
  */
 export function Money({
   cents,
@@ -143,36 +144,14 @@ export function Money({
         ? "text-positive"
         : ""
     : "";
-  const exactText = usdCents(cents);
-  const shortText = usdShort(cents);
   const sign = signed && cents > 0 ? "+" : "";
-  if (!exact) {
-    return (
-      <span className={cn("tabular-nums", tone)} data-cents={cents}>
-        {sign}
-        {shortText}
-      </span>
-    );
+  if (exact) {
+    return <ExactMoney cents={cents} signed={signed} className={tone} />;
   }
   return (
     <span className={cn("tabular-nums", tone)} data-cents={cents}>
-      <details className="inline-block max-w-full md:hidden">
-        <summary
-          data-text="label"
-          className="tap-target cursor-pointer list-none font-medium tabular-nums text-foreground [&::-webkit-details-marker]:hidden"
-        >
-          {sign}
-          {shortText}
-        </summary>
-        <span className="mt-0.5 block text-label tabular-nums text-muted-foreground">
-          {sign}
-          {exactText}
-        </span>
-      </details>
-      <span className="hidden whitespace-nowrap md:inline">
-        {sign}
-        {exactText}
-      </span>
+      {sign}
+      {usdShort(cents)}
     </span>
   );
 }
