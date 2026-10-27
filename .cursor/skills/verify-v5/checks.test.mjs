@@ -34,6 +34,7 @@ import {
   textHasMoney,
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
+import { CONFIRM_DIALOG_CANCEL, CONFIRM_DIALOG_CONFIRM, CONFIRM_DIALOG_ROLE, CONFIRM_GRACE_MS, confirmDecision, confirmIfDialog, watchForDialog } from "./confirm-dialog.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
 import { capRawText, captureFailure, RAW_TEXT_CAP, redactHeaders, redactText, redactUrl, safeJson, secretValues, startFailureRecorder } from "./evidence.mjs";
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
@@ -2047,6 +2048,132 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   refuse(["--self-check", "--rc", rcSha, "--commit", other], /disagrees/);
   refuse(["--self-check", "--rc", rcSha, "--url", "https://demo.pcserp.app"], /production keeps the release-tag/);
   results.push("passes: verify.mjs --rc refuses 5.0.2, 5.0.3, a short SHA, a disagreeing --commit, and production");
+}
+
+// ---- ConfirmDialog (PR #65): confirm only when present; a dialog that cannot be confirmed throws ----
+{
+  assert.equal(CONFIRM_DIALOG_ROLE, "alertdialog");
+  assert.equal(CONFIRM_DIALOG_CONFIRM, "confirm-dialog-confirm");
+  assert.equal(CONFIRM_DIALOG_CANCEL, "confirm-dialog-cancel");
+  const D = (o) => confirmDecision({ dialogVisible: false, settledVisible: false, elapsedMs: 0, budgetMs: 1000, hasSettled: true, ...o });
+  assert.equal(D({ dialogVisible: true }), "confirm");
+  assert.equal(D({ dialogVisible: true, settledVisible: true }), "confirm", "dialog wins over settled");
+  assert.equal(D({ dialogVisible: true, elapsedMs: 5000 }), "confirm");
+  assert.equal(D({ settledVisible: true }), "settled");
+  assert.equal(D({ settledVisible: true, hasSettled: false }), "wait", "no settled locator: settled is ignored");
+  assert.equal(D({ elapsedMs: 999 }), "wait");
+  assert.equal(D({ elapsedMs: 1000 }), "timeout");
+  assert.equal(D({ elapsedMs: 1000, hasSettled: false }), "absent");
+
+  // Fake page on a fake clock. dialogAt / settledAt: ms after the click when each becomes visible.
+  const fake = ({ dialogAt = null, settledAt = null, confirm = "ok", hides = true, visibleThrows = [] } = {}) => {
+    let t = 0;
+    let closed = false;
+    let polls = 0;
+    const calls = { confirm: 0, cancel: 0, waitHidden: 0 };
+    const dialog = {
+      isVisible: async () => {
+        const err = visibleThrows[polls++];
+        if (err) throw new Error(err);
+        return dialogAt !== null && t >= dialogAt && !closed;
+      },
+      getByTestId: (id) => ({
+        click: async () => {
+          if (id === CONFIRM_DIALOG_CANCEL) calls.cancel++;
+          if (id !== CONFIRM_DIALOG_CONFIRM) return;
+          calls.confirm++;
+          if (confirm === "throw") throw new Error("locator.click: Timeout 30000ms exceeded.\n  waiting for getByTestId('confirm-dialog-confirm')");
+          if (hides) closed = true;
+        },
+      }),
+      waitFor: async ({ state }) => {
+        calls.waitHidden++;
+        if (state === "hidden" && (closed || dialogAt === null)) return;
+        throw new Error("locator.waitFor: Timeout 30000ms exceeded.");
+      },
+    };
+    const page = {
+      getByRole: (role) => {
+        assert.equal(role, "alertdialog");
+        return dialog;
+      },
+    };
+    const settled = { isVisible: async () => settledAt !== null && t >= settledAt };
+    return { page, settled, calls, clock: { now: () => t, sleep: async (ms) => { t += ms; } }, at: () => t };
+  };
+  const opts = (f, o = {}) => ({ timeout: 30000, ...f.clock, ...o });
+
+  // Main before #65: the click posts, the approved card shows, the confirm button is never clicked.
+  let f = fake({ settledAt: 400 });
+  let r = await confirmIfDialog(f.page, opts(f, { settled: f.settled }));
+  assert.deepEqual([r.dialog, r.outcome, f.calls.confirm, f.calls.waitHidden], [false, "settled", 0, 0]);
+  assert.equal(r.waitedMs, 400);
+
+  // #65: the dialog opens, confirm is clicked exactly once, then the dialog must hide.
+  f = fake({ dialogAt: 200 });
+  r = await confirmIfDialog(f.page, opts(f, { settled: f.settled }));
+  assert.deepEqual([r.dialog, f.calls.confirm, f.calls.cancel, f.calls.waitHidden], [true, 1, 0, 1]);
+
+  // Both visible on the same poll (dialog over an already-updated card): still confirm.
+  f = fake({ dialogAt: 100, settledAt: 100 });
+  r = await confirmIfDialog(f.page, opts(f, { settled: f.settled }));
+  assert.deepEqual([r.dialog, f.calls.confirm], [true, 1]);
+
+  // A dialog that appears but whose confirm click fails must throw, never fall through.
+  f = fake({ dialogAt: 100, confirm: "throw" });
+  await assert.rejects(confirmIfDialog(f.page, opts(f, { settled: f.settled })), /ConfirmDialog appeared but its confirm click failed: locator\.click: Timeout/);
+  assert.equal(f.calls.confirm, 1);
+
+  // Confirm clicked but the dialog stays open: throw.
+  f = fake({ dialogAt: 100, hides: false });
+  await assert.rejects(confirmIfDialog(f.page, opts(f, { settled: f.settled })), /confirm was clicked, but the dialog did not hide/);
+
+  // Settled given, neither the dialog nor the post within the timeout: throw (the #65 30 s timeout, named).
+  f = fake();
+  await assert.rejects(confirmIfDialog(f.page, opts(f, { settled: f.settled, timeout: 1500 })), /neither the dialog nor the posted state appeared within 1500 ms/);
+  assert.equal(f.calls.confirm, 0);
+
+  // No settled locator: a bounded grace wait, then absent (the caller's own wait proves the post).
+  f = fake();
+  r = await confirmIfDialog(f.page, opts(f));
+  assert.deepEqual([r.dialog, r.outcome], [false, "absent"]);
+  assert.ok(r.waitedMs >= CONFIRM_GRACE_MS && r.waitedMs < CONFIRM_GRACE_MS + 200, `grace wait ${r.waitedMs} ms`);
+  f = fake({ dialogAt: 1500 });
+  r = await confirmIfDialog(f.page, opts(f));
+  assert.deepEqual([r.dialog, f.calls.confirm], [true, 1], "a dialog inside the grace window is confirmed");
+
+  // A read that throws mid-navigation is one not-visible poll; a strict-mode violation is rethrown.
+  f = fake({ dialogAt: 0, visibleThrows: ["Execution context was destroyed"] });
+  r = await confirmIfDialog(f.page, opts(f, { settled: f.settled }));
+  assert.deepEqual([r.dialog, f.calls.confirm], [true, 1]);
+  f = fake({ dialogAt: 0, visibleThrows: ["strict mode violation: getByRole('alertdialog') resolved to 2 elements"] });
+  await assert.rejects(confirmIfDialog(f.page, opts(f, { settled: f.settled })), /strict mode violation/);
+
+  // watchForDialog alone never clicks anything (the must-fail probes use it to leave the dialog open).
+  f = fake({ dialogAt: 300 });
+  const w = await watchForDialog(f.page, opts(f, { settled: f.settled }));
+  assert.deepEqual([w.outcome, w.waitedMs, f.calls.confirm, f.calls.cancel], ["dialog", 300, 0, 0]);
+
+  // Every skill drive that clicks a confirmed action calls confirmIfDialog right after the click.
+  const TRIGGER = /co-(approve|reject|void)\b|remove-plan-line|approve-report|return-report|name: \/\^(Approve|Reject|Void|Remove)\$\/|name: "(Approve report|Return to foreman|Remove|Reject|Void)"/;
+  const drives = readdirSync(here).filter((n) => n.endsWith(".mjs") && !n.endsWith(".test.mjs") && n !== "confirm-dialog.mustfail.mjs" && n !== "confirm-dialog.mjs");
+  let triggers = 0;
+  for (const name of drives) {
+    const lines = readFileSync(path.join(here, name), "utf8").split("\n");
+    lines.forEach((line, i) => {
+      if (!TRIGGER.test(line) || !line.includes(".click(")) return;
+      triggers++;
+      const next = lines.slice(i + 1, i + 4).join("\n");
+      assert.match(next, /await confirmIfDialog\(page,/, `${name}:${i + 1} clicks a confirmed action without confirmIfDialog`);
+    });
+  }
+  assert.ok(triggers >= 1, "the CO-001 approve drive in numbers.mjs is found by the trigger scan");
+  const numbersSrc = readFileSync(path.join(here, "numbers.mjs"), "utf8");
+  assert.match(
+    numbersSrc,
+    /await card\.getByRole\("button", \{ name: \/\^Approve\$\/ \}\)\.click\(\);\n.*\n    await confirmIfDialog\(page, \{ settled: byLabel\(page\.locator\('\[data-testid="co-card"\]\[data-status="approved"\]'\)\)\.first\(\), timeout: T \}\);\n    await byLabel\(page\.locator\('\[data-testid="co-card"\]\[data-status="approved"\]'\)\)\.first\(\)\.waitFor\(\{ timeout: T \}\);/,
+  );
+  results.push(`passes: confirmIfDialog confirms only a present ConfirmDialog, throws when confirm fails or the dialog stays, ${triggers} confirmed-action click(s) in the drives call it`);
 }
 
 // ---- every skill test is named in the Run-it block and in a ci.yml job ----
