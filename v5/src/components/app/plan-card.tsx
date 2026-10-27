@@ -3,7 +3,10 @@ import type { getPlansForJob } from "@/server/data";
 import { AddPlanLineForm } from "@/components/app/add-plan-line-form";
 import { Figure } from "@/components/app/format";
 import { PlanLineEditor } from "@/components/app/plan-line-editor";
+import { PlanScope } from "@/components/app/plan-scope";
+import { ConfirmForm } from "@/components/form/confirm-form";
 import { runAction } from "@/app/app/assistant/actions";
+import { removePlanLineCopy } from "@/lib/confirm-copy";
 import type { Option } from "@/components/form/form";
 import { utcDay } from "@/lib/dates";
 import { qty } from "@/lib/ev";
@@ -161,26 +164,15 @@ export function PlanCard({
                     </PlanLineEditor>
                   </div>
                   {canAddRemove ? (
-                    <form action={runAction}>
-                      <input
-                        type="hidden"
-                        name="action"
-                        value="dailyPlan.removeLine"
-                      />
-                      <input type="hidden" name="job" value={jobNumber} />
-                      <input type="hidden" name="planId" value={plan.id} />
-                      <input type="hidden" name="lineId" value={l.id} />
-                      <input type="hidden" name="label" value="Remove line" />
-                      <button
-                        type="submit"
-                        className="tap-target rounded-md border px-3 py-2 text-label font-medium text-muted-foreground hover:text-foreground"
-                        data-testid="remove-plan-line"
-                        data-text="label"
-                        aria-label={`Remove ${l.code}`}
-                      >
-                        Remove
-                      </button>
-                    </form>
+                    <RemovePlanLineForm
+                      jobNumber={jobNumber}
+                      planId={plan.id}
+                      lineId={l.id}
+                      code={l.code}
+                      activity={l.activity}
+                      crew={plan.crew}
+                      planDate={plan.planDate}
+                    />
                   ) : null}
                 </div>
               ) : (
@@ -200,17 +192,69 @@ export function PlanCard({
       ) : null}
       <Footer plan={plan} />
       {report ? (
-        <div className="border-t px-4 py-3" data-testid="report-panel">
-          <h3
-            className="mb-3 text-label font-semibold text-muted-foreground"
-            data-text="label"
-          >
-            Report day&apos;s work — pending until superintendent approves
-          </h3>
-          {report}
-        </div>
+        <PlanScope
+          jobNumber={jobNumber}
+          crew={plan.crew}
+          planDate={plan.planDate}
+        >
+          <div className="border-t px-4 py-3" data-testid="report-panel">
+            <h3
+              className="mb-3 text-label font-semibold text-muted-foreground"
+              data-text="label"
+            >
+              Report day&apos;s work — pending until superintendent approves
+            </h3>
+            {report}
+          </div>
+        </PlanScope>
       ) : null}
     </section>
+  );
+}
+
+function RemovePlanLineForm({
+  jobNumber,
+  planId,
+  lineId,
+  code,
+  activity,
+  crew,
+  planDate,
+}: {
+  jobNumber: string;
+  planId: string;
+  lineId: string;
+  code: string;
+  activity: string;
+  crew: string;
+  planDate: string;
+}) {
+  const copy = removePlanLineCopy({
+    jobNumber,
+    crew,
+    planDate,
+    code,
+    activity,
+  });
+  return (
+    <ConfirmForm
+      action={runAction}
+      triggerLabel="Remove"
+      triggerClassName="tap-target rounded-md border px-3 py-2 text-label font-medium text-muted-foreground hover:text-foreground"
+      triggerTestId="remove-plan-line"
+      triggerAriaLabel={`Remove ${code}`}
+      triggerDataText="label"
+      title={copy.title}
+      description={copy.description}
+      confirmLabel={copy.confirmLabel}
+      destructive={copy.destructive}
+    >
+      <input type="hidden" name="action" value="dailyPlan.removeLine" />
+      <input type="hidden" name="job" value={jobNumber} />
+      <input type="hidden" name="planId" value={planId} />
+      <input type="hidden" name="lineId" value={lineId} />
+      <input type="hidden" name="label" value="Remove line" />
+    </ConfirmForm>
   );
 }
 

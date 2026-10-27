@@ -113,6 +113,8 @@ Dark tokens are unchanged.
 
 `PageHeader`, `KpiStrip` / `Kpi`, `Section`, `Th` / `Td`, and `EmptyState` are the page anatomy. A screen is a header, then the numbers, then one section per list. Layout components live in `v5/src/components/app/page.tsx`. Do not hard-code palette colors in product UI. Use the token utilities (`bg-card`, `text-muted-foreground`, `bg-primary`, `border`, and the status tokens).
 
+`v5/src/components/ui/button.tsx`, `badge.tsx`, and `card.tsx` are the shadcn primitives on Radix, themed with the tokens above. `/status` uses them. Most job screens still draw their own buttons with the same tokens.
+
 ### EmptyState
 
 `EmptyState` is the designed empty list. Use it whenever a list or table on a screen can render no rows. A grey sentence, a header with no body, and a table of column titles over zero rows are not empty states.
@@ -143,3 +145,34 @@ Two different empties:
 The helpers in `v5/src/components/app/list-empty.tsx` are the copies for cost entries, plan lines, plan history, the change-order list, change-order lines, and the job change log. Add a new list there rather than writing a one-off grey line in the page.
 
 Copy is plain and specific. No lorem, no placeholder sentences, and no "coming soon". A list that is empty on seeded data still gets this treatment. The verify crawl treats a leaf that starts "No … yet" as an undesigned empty state, except the change-order line title `No lines yet` on the two seeded cards that have no price. New titles name the job or cost code and do not use that opener.
+
+### ConfirmDialog
+
+`v5/src/components/ui/confirm-dialog.tsx`, opened from forms through `v5/src/components/form/confirm-form.tsx`.
+
+Built on Radix Alert Dialog:
+
+- Modal. Focus stays inside the dialog.
+- The title is the accessible name. The body is the description.
+- Esc and Cancel close the dialog and return focus to the control that opened it. They do not run the action.
+- Clicking the scrim does not close it and does not run the action.
+- The primary button is the verb (`Void change order`, `Remove plan line`), not a generic Confirm.
+- Void, reject, and remove use the destructive button variant. Approve and return use the primary button.
+- Cancel and the verb button are 44px tall (`h-11`) and full width on a phone.
+- Light and dark use `bg-popover`, `text-popover-foreground`, `bg-chrome/70`, and the button variants. No one-off colors.
+
+Copy names the object and the consequence. Example: title `Void change order CO-014 on 24-077?`, body `This removes $48,200.00 from pending changes and cannot be undone.` Builders in `v5/src/lib/confirm-copy.ts` keep that wording next to the action.
+
+Wired today:
+
+| Action | Where |
+|---|---|
+| Change order approve, reject, void | `v5/src/components/app/change-orders.tsx` |
+| Remove a plan line | `v5/src/components/app/plan-card.tsx` |
+| Approve a daily report, return it to the foreman | `v5/src/components/app/approve-return-forms.tsx` |
+
+The same server actions run after confirm. Lock Period and Approve estimate on the job page are not on this dialog yet.
+
+### Fields
+
+`v5/src/components/form/form.tsx` and `combobox.tsx` for labelled inputs. A required reason (reject, void, return) stays on the form. The dialog opens only after that field validates. Confirm posts the reason with the action.

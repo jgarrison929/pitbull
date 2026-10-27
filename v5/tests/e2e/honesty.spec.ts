@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { confirmDialog } from "./confirm-dialog";
 import { SEED_ACTIVE_JOB_COUNT } from "../../src/seed";
 
 /** Seeded Cedar working plan (tomorrow under V5_SEED_NOW=2026-10-20). */
@@ -98,7 +99,7 @@ test("mixed-unit approve lists CY, DAY, and LB separately", async ({
 
   await signIn(page, "superintendent");
   await page.goto("/app/jobs/25-031");
-  await workingPlan(page).getByTestId("approve-report").click();
+  await confirmDialog(page, workingPlan(page).getByTestId("approve-report"));
   await expect(workingPlan(page)).toHaveAttribute("data-status", "approved");
   const run = page
     .getByTestId("assistant-rail")

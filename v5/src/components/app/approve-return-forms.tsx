@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { runActionState, type ActionState } from "@/app/app/assistant/actions";
+import { usePlanScope } from "@/components/app/plan-scope";
+import { ConfirmForm } from "@/components/form/confirm-form";
+import { approveReportCopy, returnReportCopy } from "@/lib/confirm-copy";
 
 /** Superintendent approve — posts pending hours/qty once, dated by plan date. */
 export function ApproveReportForm({
@@ -11,38 +14,46 @@ export function ApproveReportForm({
   jobNumber: string;
   planId: string;
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(
+  const [state, action] = useActionState<ActionState, FormData>(
     runActionState,
     {},
   );
+  const scope = usePlanScope();
+  const copy = approveReportCopy({
+    jobNumber,
+    crew: scope?.crew ?? null,
+    planDate: scope?.planDate ?? null,
+  });
   return (
-    <form
+    <ConfirmForm
       action={action}
       className="flex w-full flex-col gap-2"
-      data-testid="approve-form"
+      testId="approve-form"
+      triggerLabel="Approve report"
+      pendingLabel="Approving…"
+      triggerClassName="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-60 sm:w-auto"
+      triggerTestId="approve-report"
+      title={copy.title}
+      description={copy.description}
+      confirmLabel={copy.confirmLabel}
+      destructive={copy.destructive}
+      footer={
+        state.summary ? (
+          <p
+            className="text-label text-muted-foreground"
+            data-testid="approve-summary"
+            data-text="label"
+          >
+            {state.summary}
+          </p>
+        ) : null
+      }
     >
       <input type="hidden" name="action" value="dailyPlan.approve" />
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="planId" value={planId} />
       <input type="hidden" name="label" value="Approve daily report" />
-      <button
-        type="submit"
-        disabled={pending}
-        className="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-60 sm:w-auto"
-        data-testid="approve-report"
-      >
-        {pending ? "Approving…" : "Approve report"}
-      </button>
-      {state.summary ? (
-        <p
-          className="text-label text-muted-foreground"
-          data-testid="approve-summary"
-          data-text="label"
-        >
-          {state.summary}
-        </p>
-      ) : null}
-    </form>
+    </ConfirmForm>
   );
 }
 
@@ -54,15 +65,40 @@ export function ReturnReportForm({
   jobNumber: string;
   planId: string;
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(
+  const [state, action] = useActionState<ActionState, FormData>(
     runActionState,
     {},
   );
+  const scope = usePlanScope();
+  const copy = returnReportCopy({
+    jobNumber,
+    crew: scope?.crew ?? null,
+    planDate: scope?.planDate ?? null,
+  });
   return (
-    <form
+    <ConfirmForm
       action={action}
       className="flex w-full flex-col gap-2"
-      data-testid="return-form"
+      testId="return-form"
+      triggerLabel="Return to foreman"
+      pendingLabel="Returning…"
+      triggerClassName="tap-target w-full rounded-md border px-3 py-2 text-body font-medium disabled:opacity-60 sm:w-auto"
+      triggerTestId="return-report"
+      title={copy.title}
+      description={copy.description}
+      confirmLabel={copy.confirmLabel}
+      destructive={copy.destructive}
+      footer={
+        state.summary ? (
+          <p
+            className="text-label text-muted-foreground"
+            data-testid="return-summary"
+            data-text="label"
+          >
+            {state.summary}
+          </p>
+        ) : null
+      }
     >
       <input type="hidden" name="action" value="dailyPlan.return" />
       <input type="hidden" name="job" value={jobNumber} />
@@ -81,23 +117,6 @@ export function ReturnReportForm({
           data-testid="return-reason"
         />
       </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="tap-target w-full rounded-md border px-3 py-2 text-body font-medium disabled:opacity-60 sm:w-auto"
-        data-testid="return-report"
-      >
-        {pending ? "Returning…" : "Return to foreman"}
-      </button>
-      {state.summary ? (
-        <p
-          className="text-label text-muted-foreground"
-          data-testid="return-summary"
-          data-text="label"
-        >
-          {state.summary}
-        </p>
-      ) : null}
-    </form>
+    </ConfirmForm>
   );
 }
