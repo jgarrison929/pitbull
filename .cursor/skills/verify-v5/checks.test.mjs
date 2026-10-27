@@ -2213,3 +2213,184 @@ console.log(`ok: checks.test.mjs (${results.length} cases)`);
   assert.match(docker, /faketime/);
   console.log(`ok: Dockerfile pins playwright v${pw} by digest with fonts-dejavu-core + faketime`);
 }
+
+// ---- Before/After gate (before-after.mjs; Joshua's rule, 2026-10-27) ----
+// No network: images come from a fake fetch, the PR from a fake gh.
+{
+  const { evaluateBeforeAfter, runBeforeAfterGate, parseBeforeAfter, imageSize, isUiPath, visualDiffFromReport } = await import("./before-after.mjs");
+  const png = (w, h) => {
+    const b = Buffer.alloc(33);
+    b.writeUInt32BE(0x89504e47, 0);
+    b.writeUInt32BE(0x0d0a1a0a, 4);
+    b.writeUInt32BE(13, 8);
+    b.write("IHDR", 12, "ascii");
+    b.writeUInt32BE(w, 16);
+    b.writeUInt32BE(h, 20);
+    return b;
+  };
+  const IMG = {
+    "https://img.test/app-before.png": png(390, 844),
+    "https://img.test/app-after.png": png(390, 844),
+    "https://img.test/app-after-tall.png": png(390, 900),
+    "https://img.test/job-before.png": png(1280, 800),
+    "https://img.test/job-after.png": png(1280, 800),
+  };
+  const fakeFetch = async (url) => {
+    const bytes = IMG[url];
+    return bytes
+      ? { ok: true, status: 200, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) }
+      : { ok: false, status: 404, arrayBuffer: async () => new ArrayBuffer(0) };
+  };
+  const gate = (body, files = ["v5/src/app/app/page.tsx"], visual = null) =>
+    runBeforeAfterGate({ pr: 1, visual, fetchImpl: fakeFetch, gh: () => JSON.stringify({ body, files: files.map((path) => ({ path })) }) });
+  const pair = (label, b, a) => `![Before: ${label}](https://img.test/${b})\n![After: ${label}](https://img.test/${a})`;
+  const head = "## Summary\nChange.\n\n## Before / After\n";
+  const tail = "\n\n## Test plan\n- ran it\n";
+
+  const mustFail = {
+    "no section": [`## Summary\nChange.${tail}`, /no `## Before \/ After` section/],
+    "empty section": [`${head}\n<!-- add shots -->\n${tail}`, /section is empty/],
+    "before with no after": [`${head}![Before: /app · pm · 390×844 · light](https://img.test/app-before.png)${tail}`, /before "\/app · pm · 390×844 · light" has no after/],
+    "mismatched sizes": [`${head}${pair("/app · pm · 390×844 · light", "app-before.png", "app-after-tall.png")}${tail}`, /sizes differ: before 390×844, after 390×900/],
+    "labels mismatch in a pair": [
+      `${head}![Before: /app · pm · 390×844 · light](https://img.test/app-before.png)\n![After: /app · pm · 390×844 · dark](https://img.test/app-after.png)${tail}`,
+      /labels differ in theme/,
+    ],
+    "label without theme": [`${head}${pair("/app · pm · 390×844", "app-before.png", "app-after.png")}${tail}`, /does not state the theme/],
+    "unfetchable image": [`${head}${pair("/app · pm · 390×844 · light", "app-before.png", "gone.png")}${tail}`, /can't be fetched: HTTP 404/],
+    "no visual change without a reason": [`${head}No visual change${tail}`, /has no reason on its line or the lines after it/],
+  };
+  for (const [name, [body, re]] of Object.entries(mustFail)) {
+    const r = await gate(body);
+    assert.equal(r.pass, false, `before/after must-fail "${name}" passed`);
+    assert.ok(r.failures.some((x) => re.test(x)), `before/after "${name}": ${JSON.stringify(r.failures)}`);
+    console.log(`ok: before/after must-fail ${name}`);
+  }
+  // A false "No visual change" on a UI diff: the 0 px visual run shows a diff -> FAIL, verdict contradicted.
+  {
+    const body = `${head}No visual change: refactor only.${tail}`;
+    const report = { suites: [{ file: "visual.spec.ts", specs: [{ title: "app phone light", file: "visual.spec.ts", tests: [{ status: "unexpected" }] }] }] };
+    const r = await gate(body, ["v5/src/components/job-strip.tsx"], visualDiffFromReport(report));
+    assert.equal(r.pass, false);
+    assert.equal(r.verdict, "contradicted");
+    assert.ok(r.failures.some((x) => /CONTRADICTED.*1 snapshot\(s\) differ: app phone light/.test(x)), JSON.stringify(r.failures));
+    const r2 = await gate(body, ["v5/src/app/globals.css"], { ran: true, diffPixels: 12, diff: true });
+    assert.equal(r2.verdict, "contradicted");
+    const r4 = await gate(`${head}No visual change: refactor only.\n\`\`\`\ntests ok\n\`\`\`${tail}`, ["v5/src/app/app/page.tsx"], { ran: true, diffPixels: 3, diff: true });
+    assert.equal(r4.verdict, "contradicted", "a code block next to the claim must not hide the contradiction");
+    const r3 = await gate(body, ["v5/src/app/app/page.tsx"], null);
+    assert.equal(r3.pass, false, "UI-touching No visual change with no visual run must not pass");
+    console.log("ok: before/after must-fail false No visual change on a UI diff (contradicted)");
+  }
+  // Valid fixtures that must PASS.
+  {
+    const r = await gate(`${head}${pair("/app · pm · 390×844 · light", "app-before.png", "app-after.png")}\n\n${pair("/app/jobs/25-031 · superintendent · 1280x800 · dark", "job-before.png", "job-after.png")}${tail}`);
+    assert.deepEqual(r.failures, []);
+    assert.equal(r.verdict, "pass");
+    console.log("ok: before/after valid labeled image pairs pass");
+    const r2 = await gate(`${head}Non-UI change. checks.test before:\n\`\`\`\nnot ok\n\`\`\`\nafter:\n\`\`\`\nok\n\`\`\`${tail}`, [".cursor/skills/verify-v5/checks.mjs"]);
+    assert.deepEqual(r2.failures, []);
+    console.log("ok: before/after valid non-UI evidence passes");
+    const r3 = await gate(`${head}No visual change\nReason: server-only query change.${tail}`, ["v5/src/app/app/page.tsx"], { ran: true, diffPixels: 0, diff: false });
+    assert.deepEqual(r3.failures, []);
+    console.log("ok: before/after No visual change with a reason and a clean 0 px run passes");
+  }
+  // Lead re-review (2026-10-27 09:18): role in the label and the pair key; UI diffs need pairs or a confirmed claim;
+  // placeholders; reason only from the claim's line or after; fenced `# run` doesn't cut the section.
+  {
+    const UI = ["v5/src/app/app/page.tsx"];
+    const NONUI = [".cursor/skills/verify-v5/checks.mjs"];
+    const CLEAN = { ran: true, diffPixels: 0, diff: false };
+    const mf = async (name, body, files, visual, re) => {
+      const r = await gate(body, files, visual);
+      assert.equal(r.pass, false, `before/after must-fail "${name}" passed: ${JSON.stringify(r)}`);
+      const hit = r.failures.find((x) => re.test(x));
+      assert.ok(hit, `before/after "${name}" must fail with ${re}; got ${JSON.stringify(r.failures)}`);
+      console.log(`ok: before/after must-fail ${name} → ${hit}`);
+    };
+    const ok = async (name, body, files, visual) => {
+      const r = await gate(body, files, visual);
+      assert.deepEqual(r.failures, [], `before/after "${name}" must pass; got ${JSON.stringify(r.failures)}`);
+      console.log(`ok: before/after passes: ${name}`);
+    };
+    const ev = "Before:\n```\nnot ok 3 - money clip\n```\nAfter:\n```\nok 3 - money clip\n```";
+    // 1. UI diff: only labeled pairs or a 0 px-confirmed claim.
+    await mf("UI diff with only a code block", `${head}${ev}${tail}`, UI, null, /touches UI .* but gives only code blocks or links/);
+    await mf("UI diff with only a plain link", `${head}Before and After: https://github.com/jgarrison929/pitbull/actions/runs/1${tail}`, UI, null, /touches UI .* but gives only code blocks or links/);
+    await mf("UI diff with an unlabeled [shot](png) link", `${head}Before / After: [shot](https://img.test/app-after.png)${tail}`, UI, null, /touches UI .* but gives only code blocks or links/);
+    await mf("UI diff with a code block, even with a clean 0 px run", `${head}${ev}${tail}`, UI, CLEAN, /touches UI .* but gives only code blocks or links/);
+    await ok("UI diff with labeled pairs (role included)", `${head}${pair("/app · foreman · 390×844 · light", "app-before.png", "app-after.png")}${tail}`, UI, null);
+    await ok("UI diff with No visual change + reason + clean 0 px run", `${head}No visual change: server-only query.${tail}`, UI, CLEAN);
+    // 2. Role required and part of the pair key.
+    await mf("label without a role", `${head}${pair("/app · 390×844 · light", "app-before.png", "app-after.png")}${tail}`, UI, null, /label does not state the role/);
+    await mf("pair whose roles differ", `${head}![Before: /app · pm · 390×844 · light](https://img.test/app-before.png)\n![After: /app · foreman · 390×844 · light](https://img.test/app-after.png)${tail}`, UI, null, /labels differ in role/);
+    await mf("role only inside the page path (/app/pm) is not a role", `${head}${pair("/app/pm · 390×844 · light", "app-before.png", "app-after.png")}${tail}`, UI, null, /label does not state the role/);
+    await ok("two pairs, same page/viewport/theme, different roles, interleaved", `${head}![Before: /app · pm · 390×844 · light](https://img.test/app-before.png)\n![Before: /app · executive · 390×844 · light](https://img.test/app-before.png)\n![After: /app · executive · 390×844 · light](https://img.test/app-after.png)\n![After: /app · pm · 390×844 · light](https://img.test/app-after.png)${tail}`, UI, null);
+    // 3. Placeholders.
+    await mf("empty code block", `${head}Before:\n\`\`\`\n\`\`\`\nAfter:\n\`\`\`\nok 3\n\`\`\`${tail}`, NONUI, null, /code block 1 is a placeholder \(empty\)/);
+    await mf("code block with only TODO", `${head}Before:\n\`\`\`\nnot ok 3\n\`\`\`\nAfter:\n\`\`\`\nTODO\n\`\`\`${tail}`, NONUI, null, /code block 2 is a placeholder \("TODO"\)/);
+    await mf("bare example.com link", `${head}Before and After: https://example.com${tail}`, NONUI, null, /link https:\/\/example\.com is a placeholder/);
+    await mf("evidence that doesn't name Before and After", `${head}Test output:\n\`\`\`\nok 3\n\`\`\`${tail}`, NONUI, null, /evidence does not name Before or After/);
+    await mf("No visual change: TBD", `${head}No visual change: TBD${tail}`, NONUI, null, /reason "TBD" is a placeholder/);
+    await mf("No visual change + Reason: TODO on the next line", `${head}No visual change\nReason: TODO${tail}`, NONUI, null, /reason "Reason: TODO" is a placeholder/);
+    await mf("No visual change reason borrowed from the line above", `${head}Server-only query change.\nNo visual change${tail}`, NONUI, null, /has no reason on its line or the lines after it/);
+    await ok("non-UI evidence naming Before and After with real output", `${head}${ev}${tail}`, NONUI, null);
+    await ok("non-UI evidence: a real CI link naming Before and After", `${head}Before: fails on main. After: https://github.com/jgarrison929/pitbull/actions/runs/1 passes.${tail}`, NONUI, null);
+    await ok("No visual change with the reason on the next line", `${head}No visual change\nReason: server-only query change.${tail}`, NONUI, null);
+    // 4. A `# run` comment inside a bash fence doesn't end the section.
+    const fenced = (afterBlock) => `${head}Before: https://github.com/jgarrison929/pitbull/actions/runs/1\n\`\`\`bash\n# run\nnode checks.test.mjs\n\`\`\`\nAfter:\n\`\`\`\n${afterBlock}\n\`\`\`${tail}`;
+    await mf("TODO block after a '# run' fence (section not cut)", fenced("TODO"), NONUI, null, /code block 2 is a placeholder \("TODO"\)/);
+    await ok("'# run' inside a bash fence keeps the After below it", fenced("ok 277"), NONUI, null);
+    assert.match(parseBeforeAfter(fenced("ok")).kind, /evidence/);
+    console.log("ok: before/after section skips headings inside fenced code");
+  }
+  // Cursor cloud-agent footer (#70, #82, #83 real bodies): the section ends at the body-end marker and only the two
+  // cursor.com "Open in" badges are dropped.
+  const FOOTER = '<!-- CURSOR_AGENT_PR_BODY_END -->\n\n<div><a href="https://cursor.com/agents/bc-1?cursor_ref=pr_footer&cursor_cta=open_in_web"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cursor.com/assets/images/open-in-web-dark.png"><source media="(prefers-color-scheme: light)" srcset="https://cursor.com/assets/images/open-in-web-light.png"><img alt="Open in Web" width="114" height="28" src="https://cursor.com/assets/images/open-in-web-dark.png"></picture></a>&nbsp;<a href="https://cursor.com/background-agent?bcId=bc-1&cursor_ref=pr_footer&cursor_cta=open_in_cursor"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cursor.com/assets/images/open-in-cursor-dark.png"><source media="(prefers-color-scheme: light)" srcset="https://cursor.com/assets/images/open-in-cursor-light.png"><img alt="Open in Cursor" width="131" height="28" src="https://cursor.com/assets/images/open-in-cursor-dark.png"></picture></a>&nbsp;</div>\n\n';
+  const body70 = `## Summary\nJob page TTFB.\n\n## Before / After\n\nNo visual change — server query/pool and job-page load timing only. No new screens.\n\n### Burst metrics\n\n| | TTFB p50 / p95 / max |\n|--|--:|\n| Before (main \`1381687\`) | 33 / **55** / 75 |\n| After (this head) | 32 / **63** / 91 |\n${FOOTER}`;
+  {
+    const r = await gate(body70, ["v5/src/app/app/jobs/[number]/page.tsx", "v5/src/components/app/cost-table.tsx"], { ran: true, diffPixels: 0, diff: false });
+    assert.deepEqual(r.failures, [], `a #70-shaped body with the Cursor footer and a clean 0 px run must pass; got ${JSON.stringify(r.failures)}`);
+    const r2 = await gate(body70, ["v5/src/server/jobs.ts"]);
+    assert.deepEqual(r2.failures, [], "the same body on a non-UI change passes");
+    const r3 = await gate(body70, ["v5/src/app/app/jobs/[number]/page.tsx"], null);
+    assert.ok(r3.failures.some((x) => /no visual run/.test(x)), "the footer fix does not loosen the strict No visual change rule");
+    console.log("ok: before/after #70-shaped body with the Cursor footer passes (clean 0 px run / non-UI); strict rule still applies");
+    const shot = `${head}Non-UI change, logs below.\n\`\`\`\nok\n\`\`\`\n![screenshot](https://img.test/app-after.png)\n${FOOTER}`;
+    const r4 = await gate(shot, [".cursor/skills/verify-v5/checks.mjs"]);
+    assert.ok(r4.failures.some((x) => /image "screenshot" is not labeled/.test(x)), `an unlabeled screenshot beside the footer must FAIL; got ${JSON.stringify(r4.failures)}`);
+    assert.ok(!r4.failures.some((x) => /Open in/.test(x)), "the Cursor badges are not reported");
+    console.log("ok: before/after must-fail unlabeled screenshot next to the Cursor footer");
+    const lookalike = `${head}No visual change: docs only.\n<div><a href="https://shields.io/x"><img alt="Open in Web" src="https://img.shields.io/badge/open-web.png"></a></div>${tail}`;
+    const r5 = await gate(lookalike, ["docs/x.md"]);
+    assert.ok(r5.failures.some((x) => /image "Open in Web" is not labeled/.test(x)), `a lookalike badge from another host is not exempt; got ${JSON.stringify(r5.failures)}`);
+    const inside = `${head}![Open in Cursor](https://cursor.com/assets/images/open-in-cursor-dark.png)\n${tail}`;
+    assert.ok((await gate(inside, ["docs/x.md"])).failures.some((x) => /"Open in Cursor" is not labeled/.test(x)), "a bare markdown image of the badge is not the footer");
+    console.log("ok: before/after must-fail lookalike badges (other host, bare markdown image) are not exempt");
+  }
+  // CLI exit codes: FAIL and CONTRADICTED exit 1, PASS exits 0 (--pr-json reads a saved gh pr view).
+  {
+    const { spawnSync } = await import("node:child_process");
+    const dir = mkdtempSync(path.join(os.tmpdir(), "ba-cli-"));
+    const run = (body, files, extra = []) => {
+      const f = path.join(dir, `pr-${Math.random().toString(36).slice(2)}.json`);
+      writeFileSync(f, JSON.stringify({ body, files: files.map((p) => ({ path: p })) }));
+      return spawnSync(process.execPath, [path.join(here, "before-after.mjs"), "--pr-json", f, ...extra], { encoding: "utf8" });
+    };
+    const fail = run(`## Summary${tail}`, ["docs/x.md"]);
+    assert.equal(fail.status, 1, `CLI must exit 1 on FAIL; got ${fail.status} ${fail.stdout}`);
+    assert.match(fail.stdout, /Before\/After gate: FAIL/);
+    const contra = run(`${head}No visual change: refactor.${tail}`, ["v5/src/app/app/page.tsx"], ["--visual-diff-pixels", "5"]);
+    assert.equal(contra.status, 1);
+    assert.match(contra.stdout, /Before\/After gate: CONTRADICTED/);
+    const pass = run(body70, ["v5/src/server/jobs.ts"]);
+    assert.equal(pass.status, 0, `CLI must exit 0 on PASS; got ${pass.status} ${pass.stdout}`);
+    rmSync(dir, { recursive: true, force: true });
+    console.log("ok: before/after CLI exits 1 on FAIL and CONTRADICTED, 0 on PASS");
+  }
+  assert.equal(parseBeforeAfter("## Before / After\n").kind, "empty");
+  assert.deepEqual(imageSize(png(3, 4)), { width: 3, height: 4 });
+  assert.ok(isUiPath("v5/src/app/x.tsx") && isUiPath("v5/src/components/a.tsx") && isUiPath("v5/x.css") && isUiPath("v5/tests/e2e/visual.spec.ts-snapshots/a.png"));
+  assert.ok(!isUiPath("v5/src/server/x.ts") && !isUiPath(".cursor/skills/verify-v5/checks.mjs"));
+  assert.ok(evaluateBeforeAfter({ body: "x" }).failures.length === 1);
+}
