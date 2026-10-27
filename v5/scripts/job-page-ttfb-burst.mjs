@@ -187,15 +187,20 @@ const proxyDurs = [];
 const dbMsSamples = [];
 const byJob = Object.fromEntries(JOBS.map((j) => [j, []]));
 const byTheme = Object.fromEntries(THEMES.map((t) => [t, []]));
+const byWidthTtfb = Object.fromEntries(WIDTHS.map((w) => [w, []]));
+const byWidthLoad = Object.fromEntries(WIDTHS.map((w) => [w, []]));
 /** @type {object[]} */
 const slowest = [];
 let extraTimingLeaks = 0;
 
 async function record(sample, meta) {
+  const loadMs = sample.loadMs ?? sample.totalMs ?? sample.ttfbMs;
   ttfbSamples.push(sample.ttfbMs);
-  loadSamples.push(sample.loadMs ?? sample.totalMs ?? sample.ttfbMs);
+  loadSamples.push(loadMs);
   byJob[meta.job].push(sample.ttfbMs);
   byTheme[meta.theme].push(sample.ttfbMs);
+  byWidthTtfb[meta.width].push(sample.ttfbMs);
+  byWidthLoad[meta.width].push(loadMs);
   if (typeof sample.serverTiming?.v5proxy === "number") {
     proxyDurs.push(sample.serverTiming.v5proxy);
   }
@@ -205,7 +210,7 @@ async function record(sample, meta) {
     ...meta,
     path: sample.path,
     ttfbMs: sample.ttfbMs,
-    loadMs: sample.loadMs ?? sample.totalMs,
+    loadMs,
     proxy: sample.serverTiming?.v5proxy ?? null,
     dataDb: sample.pageMeta?.db ?? null,
   });
@@ -323,6 +328,12 @@ const report = {
   load,
   byJob: Object.fromEntries(JOBS.map((j) => [j, summarize(byJob[j])])),
   byTheme: Object.fromEntries(THEMES.map((t) => [t, summarize(byTheme[t])])),
+  byWidth: Object.fromEntries(
+    WIDTHS.map((w) => [
+      w,
+      { ttfb: summarize(byWidthTtfb[w]), load: summarize(byWidthLoad[w]) },
+    ]),
+  ),
   proxyDurMs: proxy,
   dataDbMs: dbMs,
   extraTimingLeaks,
