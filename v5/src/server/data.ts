@@ -234,19 +234,29 @@ export async function getJob(
   const db = requireDb();
   // Job+last-lock in one round-trip (scalar subquery) overlapped with WBS —
   // peak pool checkout is 2 instead of 3 under Suspense×crawl concurrency.
+  // Scalar lock must correlate on the outer jobs.id column. Drizzle turns
+  // `${jobs.id}` inside sql`` into a bound param (often NULL), so EV cutoff
+  // silently fell back to asOf and job-page KPIs/layout drifted (~16px).
+  // sql.raw keeps the column ref; mapWith coerces timestamptz strings to Date.
+  const lockAtExpr = sql`(
+    select pc.locked_at
+    from progress_claims as pc
+    where pc.company_id = ${companyId}
+      and pc.job_id = ${sql.raw('"jobs"."id"')}
+      and pc.status = 'locked'
+    order by pc.locked_at desc
+    limit 1
+  )`.mapWith((v: unknown): Date | null => {
+    if (v == null) return null;
+    if (v instanceof Date) return v;
+    const d = new Date(String(v));
+    return Number.isNaN(d.getTime()) ? null : d;
+  });
   const [jobRows, itemRows] = await Promise.all([
     db
       .select({
         job: jobs,
-        lockedAt: sql<Date | null>`(
-          select ${progressClaims.lockedAt}
-          from ${progressClaims}
-          where ${progressClaims.companyId} = ${companyId}
-            and ${progressClaims.jobId} = ${jobs.id}
-            and ${progressClaims.status} = 'locked'
-          order by ${progressClaims.lockedAt} desc
-          limit 1
-        )`,
+        lockedAt: lockAtExpr,
       })
       .from(jobs)
       .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
