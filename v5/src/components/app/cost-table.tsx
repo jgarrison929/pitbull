@@ -39,6 +39,14 @@ const VALUE_SETS: Record<ValueSet, { label: string; title: string }> = {
 
 const centsOf = (m: WbsMoney, set: ValueSet) => m[`${set}Cents`];
 
+function branchDomId(variant: "desktop" | "phone", id: string) {
+  return `cost-tree-${variant}-${id}`;
+}
+
+function treeToggleName(n: WbsNode, expanded: boolean) {
+  return `${expanded ? "Collapse" : "Expand"} ${n.code} ${n.description}`;
+}
+
 function rowData(n: WbsNode) {
   return {
     "data-id": n.id,
@@ -261,7 +269,7 @@ export function CostTable({
         is gone; scroll the tree inside the card so the page does not grow. (#671)
       */}
       <div className="hidden min-w-0 md:block">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0}>
           <VirtualTreeDesktop
             rows={visible}
             onToggle={toggle}
@@ -322,7 +330,11 @@ export function CostTable({
               estimateDraft ? (
                 <MetricDash />
               ) : (
-                <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+                <StatusIndex
+                  index={t.cpi}
+                  varianceCents={t.costVarianceCents}
+                  statusWord
+                />
               )
             ) : null}
           </span>
@@ -366,6 +378,7 @@ export function CostTable({
                   <StatusIndex
                     index={t.cpi}
                     varianceCents={t.costVarianceCents}
+                    statusWord
                   />
                 )}
               </Figure>
@@ -460,6 +473,7 @@ function VirtualTreeDesktop({
       <div
         ref={parentRef}
         className="h-[min(32rem,70vh)] overflow-y-auto overflow-x-hidden"
+        tabIndex={0}
         data-testid="cost-tree-scroll"
       >
         <div
@@ -491,6 +505,7 @@ function VirtualTreeDesktop({
                 }}
                 data-testid="cost-tree-row"
                 {...rowData(n)}
+                id={n.isLeaf ? undefined : branchDomId("desktop", n.id)}
               >
                 <div
                   className="min-w-0"
@@ -499,9 +514,11 @@ function VirtualTreeDesktop({
                   {!n.isLeaf ? (
                     <button
                       type="button"
-                      className="mr-1 inline-flex items-center text-xs text-muted-foreground"
+                      className="mr-1 inline-flex size-6 items-center justify-center text-label text-muted-foreground"
                       onClick={() => onToggle(n.id)}
                       aria-expanded={!collapsed.has(n.id)}
+                      aria-controls={branchDomId("desktop", n.id)}
+                      aria-label={treeToggleName(n, !collapsed.has(n.id))}
                     >
                       <TreeToggleIcon expanded={!collapsed.has(n.id)} />
                     </button>
@@ -578,13 +595,14 @@ function VirtualTreeDesktop({
                       )}
                     </div>
                     {showCostIndexes ? (
-                      <div className="text-right md:whitespace-nowrap">
+                      <div className="text-right">
                         {estimateDraft ? (
                           <MetricDash />
                         ) : (
                           <StatusIndex
                             index={l.cpi}
                             varianceCents={l.varianceCents}
+                            statusWord
                           />
                         )}
                       </div>
@@ -643,6 +661,7 @@ function VirtualTreeMobile({
     <div
       ref={parentRef}
       className="h-[min(28rem,65vh)] overflow-auto"
+      tabIndex={0}
       data-testid="cost-tree-scroll-mobile"
     >
       <div
@@ -675,6 +694,7 @@ function VirtualTreeMobile({
               }}
               data-testid="cost-tree-row"
               {...rowData(n)}
+              id={n.isLeaf ? undefined : branchDomId("phone", n.id)}
             >
               <div className="flex min-w-0 items-start gap-2 pr-1">
                 {!n.isLeaf ? (
@@ -683,9 +703,8 @@ function VirtualTreeMobile({
                     className="tap-target inline-flex shrink-0 items-center justify-center text-label text-muted-foreground"
                     onClick={() => onToggle(n.id)}
                     aria-expanded={!collapsed.has(n.id)}
-                    aria-label={
-                      collapsed.has(n.id) ? "Expand" : "Collapse"
-                    }
+                    aria-controls={branchDomId("phone", n.id)}
+                    aria-label={treeToggleName(n, !collapsed.has(n.id))}
                   >
                     <TreeToggleIcon expanded={!collapsed.has(n.id)} />
                   </button>
@@ -730,6 +749,7 @@ function VirtualTreeMobile({
                               <StatusIndex
                                 index={l.cpi}
                                 varianceCents={l.varianceCents}
+                                statusWord
                               />
                             )}
                           </Figure>

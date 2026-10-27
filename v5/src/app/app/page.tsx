@@ -5,8 +5,8 @@ import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { Money, StatusIndex } from "@/components/app/format";
 import { NextSteps } from "@/components/app/next-steps";
 import { PortfolioTable } from "@/components/app/portfolio-table";
-import { usdShort } from "@/lib/ev";
-import { atRiskSummaryLine, showsCostIndexes } from "@/lib/role-fit";
+import { usdCents, usdShort } from "@/lib/ev";
+import { atRiskSummaryParts, showsCostIndexes } from "@/lib/role-fit";
 import { getPortfolio } from "@/server/data";
 import { getNextSteps } from "@/server/next-steps";
 import { requireUser } from "@/server/session";
@@ -36,19 +36,22 @@ async function Portfolio() {
     user.role === "executive"
       ? jobs
           .filter((p) => !p.estimateDraft)
-          .map((p) => ({
-            href: `/app/jobs/${p.job.number}`,
-            text: atRiskSummaryLine({
+          .map((p) => {
+            const parts = atRiskSummaryParts({
               shortName: p.job.shortName,
               number: p.job.number,
               cpi: p.cpi,
               spi: p.spi,
               costVarianceCents: p.costVarianceCents,
               scheduleVarianceCents: p.scheduleVarianceCents,
-            }),
-          }))
+            });
+            return parts
+              ? { href: `/app/jobs/${p.job.number}`, ...parts }
+              : null;
+          })
           .filter(
-            (row): row is { href: string; text: string } => row.text != null,
+            (row): row is { href: string; text: string; cents: number } =>
+              row != null,
           )
       : [];
 
@@ -88,16 +91,16 @@ async function Portfolio() {
       {next}
       {atRiskLines.length > 0 ? (
         <ul
-          className="flex flex-col gap-2 text-sm"
+          className="flex flex-col gap-2 text-body"
           data-testid="at-risk-summary"
         >
           {atRiskLines.map((row) => (
             <li key={row.href}>
               <Link
                 href={row.href}
-                className="underline-offset-2 hover:underline"
+                className="inline-flex min-h-11 items-center underline-offset-2 hover:underline"
               >
-                {row.text}
+                <AtRiskAmount text={row.text} cents={row.cents} />
               </Link>
             </li>
           ))}
@@ -154,6 +157,21 @@ async function Portfolio() {
       >
         <PortfolioTable jobs={jobs} role={user.role} />
       </Section>
+    </>
+  );
+}
+
+function AtRiskAmount({ text, cents }: { text: string; cents: number }) {
+  const short = usdShort(Math.abs(cents));
+  const at = text.indexOf(short);
+  if (at < 0) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span className="tabular-nums" title={usdCents(cents)} data-cents={cents}>
+        {short}
+      </span>
+      {text.slice(at + short.length)}
     </>
   );
 }

@@ -55,7 +55,9 @@ type AtRiskJob = {
  * One plain-language line for an at-risk job (executive /app summary).
  * Returns null when the job is not at risk.
  */
-export function atRiskSummaryLine(job: AtRiskJob): string | null {
+export function atRiskSummaryParts(
+  job: AtRiskJob,
+): { text: string; cents: number } | null {
   const roll = {
     cpi: job.cpi,
     spi: job.spi,
@@ -73,10 +75,20 @@ export function atRiskSummaryLine(job: AtRiskJob): string | null {
   const name = `${job.shortName} (${job.number})`;
   if (overCost) {
     const spent = usdShort(Math.abs(job.costVarianceCents));
-    return `${name} is over cost: it has spent ${spent} more than the work it has done is worth`;
+    return {
+      text: `${name} is over cost: it has spent ${spent} more than the work it has done is worth`,
+      cents: job.costVarianceCents,
+    };
   }
   const behind = usdShort(Math.abs(job.scheduleVarianceCents));
-  return `${name} is behind schedule: earned value is ${behind} behind what was planned`;
+  return {
+    text: `${name} is behind schedule: earned value is ${behind} behind what was planned`,
+    cents: job.scheduleVarianceCents,
+  };
+}
+
+export function atRiskSummaryLine(job: AtRiskJob): string | null {
+  return atRiskSummaryParts(job)?.text ?? null;
 }
 
 const statusRank = (s: Status | null): number => {

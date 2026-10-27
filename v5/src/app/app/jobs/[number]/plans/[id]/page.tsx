@@ -235,12 +235,17 @@ async function Plan({
                 </div>
                 <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                   <Figure variant="secondary">
-                    Planned {qty(l.qtyMilli)} {l.unit}
+                    Planned {qty(l.qtyMilli)} {l.unit} · {formatMh(l.manHours)}{" "}
+                    MH
                   </Figure>
                   <Figure variant="secondary">
                     {l.reportedQtyMilli == null
                       ? "Reported —"
                       : `Reported ${qty(l.reportedQtyMilli)} ${l.unit}`}
+                    {" · "}
+                    {l.reportedManHours == null
+                      ? "— MH"
+                      : `${formatMh(l.reportedManHours)} MH`}
                   </Figure>
                 </div>
                 <details className="mt-2">

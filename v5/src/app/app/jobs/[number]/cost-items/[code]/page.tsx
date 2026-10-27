@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ForecastMethodControl } from "@/components/app/forecast-method-control";
 import { CostEntriesEmpty, type AppRole } from "@/components/app/list-empty";
-import { Figure, Money } from "@/components/app/format";
+import { Figure, Money, SHORT_MONEY_CENTS } from "@/components/app/format";
 import {
   Kpi,
   KpiStrip,
@@ -314,23 +314,43 @@ async function CostItem({
       <KpiStrip>
         <MetricCard
           label="Estimate at completion (EAC)"
-          value={<Money cents={data.forecast.eacCents} exact />}
+          value={
+            <Money
+              cents={data.forecast.eacCents}
+              shortAboveCents={SHORT_MONEY_CENTS}
+            />
+          }
           secondary={[data.forecast.forecastDerivation]}
           testId="cost-item-eac"
         />
         <Kpi
           label="Current budget"
-          value={<Money cents={data.rollup.budgetCents} exact />}
+          value={
+            <Money
+              cents={data.rollup.budgetCents}
+              shortAboveCents={SHORT_MONEY_CENTS}
+            />
+          }
           testId="cost-item-cb"
         />
         <Kpi
           label="Earned value (EV)"
-          value={<Money cents={data.rollup.earnedCents} exact />}
+          value={
+            <Money
+              cents={data.rollup.earnedCents}
+              shortAboveCents={SHORT_MONEY_CENTS}
+            />
+          }
           testId="cost-item-ev"
         />
         <Kpi
           label="Actual cost (AC)"
-          value={<Money cents={data.rollup.actualCents} exact />}
+          value={
+            <Money
+              cents={data.rollup.actualCents}
+              shortAboveCents={SHORT_MONEY_CENTS}
+            />
+          }
           sub={
             data.sinceLockCents > 0
               ? `${usdCents(data.sinceLockCents)} pending lock`

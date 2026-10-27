@@ -175,12 +175,12 @@ export function AssistantPanel({
           </li>
         )}
         {visibleRuns.map((r) => (
-          <li
-            key={r.id}
-            className="flex flex-col gap-1.5"
-            data-testid="action-run"
-            data-action={r.action}
-          >
+          <li key={r.id} data-testid="assistant-message">
+            <div
+              className="flex flex-col gap-1.5"
+              data-testid="action-run"
+              data-action={r.action}
+            >
             <div
               className={cn(
                 "ml-6 self-end rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground",
@@ -235,6 +235,7 @@ export function AssistantPanel({
                 )}
               </div>
             </div>
+            </div>
           </li>
         ))}
         {pending && (
@@ -261,7 +262,10 @@ export function AssistantPanel({
           </li>
         )}
       </ol>
-      <div className="flex gap-1.5 overflow-x-auto px-4 pb-2">
+      <div
+        className="flex w-full min-w-0 flex-wrap gap-1.5 px-4 pb-2"
+        data-testid="assistant-chips"
+      >
         {examples.map((e) => (
           <button
             key={e}
@@ -270,8 +274,8 @@ export function AssistantPanel({
             disabled={pending}
             data-text="label"
             className={cn(
-              "shrink-0 rounded-full border text-muted-foreground hover:bg-muted",
-              phone ? "px-3 py-2 text-label" : "px-2.5 py-1 text-xs",
+              "max-w-full min-w-11 whitespace-normal break-words rounded-full border text-left text-muted-foreground hover:bg-muted",
+              phone ? "min-h-11 px-3 py-2 text-label" : "px-2.5 py-1 text-xs",
             )}
           >
             {e}
@@ -306,14 +310,15 @@ export function AssistantPanel({
           data-testid="assistant-input"
           data-ph-unmask=""
         />
-        {canSpeak && (
+        {(phone || canSpeak) && (
           <button
             type="button"
             onClick={listen}
             aria-label="Speak"
             aria-pressed={listening}
+            disabled={!canSpeak}
             className={cn(
-              "grid place-items-center rounded-full border",
+              "grid place-items-center rounded-full border disabled:opacity-50",
               phone ? "size-11" : "size-9",
               listening && "bg-negative text-chrome-emphasis",
             )}

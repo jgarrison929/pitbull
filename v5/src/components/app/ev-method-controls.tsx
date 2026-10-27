@@ -34,22 +34,24 @@ export function EvMethodControls({
     <div className="flex flex-col gap-4" data-testid="ev-method-controls">
       {pmItems.length > 0 && (
         <section className="rounded-xl border p-4">
-          <h3 className="text-sm font-semibold">PM percent complete</h3>
-          <p className="mb-3 text-xs text-muted-foreground">
+          <h3 className="text-section font-semibold">PM percent complete</h3>
+          <p className="mb-3 text-label text-muted-foreground" data-text="label">
             Log a percent with a reason. The latest entry is what a claim lock
             freezes.
           </p>
-          <ul className="flex flex-col gap-3">
+          <ul className="flex list-none flex-col gap-3">
             {pmItems.map((p) => (
-              <PmPercentForm key={p.costItemId} jobNumber={jobNumber} item={p} />
+              <li key={p.costItemId}>
+                <PmPercentForm jobNumber={jobNumber} item={p} />
+              </li>
             ))}
           </ul>
         </section>
       )}
       {milestones.length > 0 && (
         <section className="rounded-xl border p-4">
-          <h3 className="text-sm font-semibold">Milestones</h3>
-          <p className="mb-3 text-xs text-muted-foreground">
+          <h3 className="text-section font-semibold">Milestones</h3>
+          <p className="mb-3 text-label text-muted-foreground" data-text="label">
             Mark weighted milestones complete. Who/why is stored on the
             milestone log (not the PM percent log).
           </p>
@@ -94,17 +96,20 @@ function PmPercentForm({
         value={`Log PM % on ${item.code}`}
       />
       <div>
-        <div className="text-sm font-medium">
-          <span className="mr-1 font-mono text-xs text-muted-foreground">
+        <div className="text-body font-medium">
+          <span
+            className="mr-1 font-mono text-label text-muted-foreground"
+            data-text="label"
+          >
             {item.code}
           </span>
           {item.description}
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-label text-muted-foreground" data-text="label">
           Current log {item.percentMilli / 10}%
         </div>
       </div>
-      <label className="flex flex-col gap-1 text-xs">
+      <label className="flex flex-col gap-1 text-label" data-text="label">
         Percent
         <input
           name="percent"
@@ -114,28 +119,31 @@ function PmPercentForm({
           step={0.1}
           defaultValue={item.percentMilli / 10}
           required
-          className="rounded-md border bg-background px-2 py-1.5 text-sm"
+          className="rounded-md border bg-background px-2 py-1.5 text-body"
         />
       </label>
-      <label className="flex flex-col gap-1 text-xs">
+      <label className="flex flex-col gap-1 text-label" data-text="label">
         Reason
         <input
           name="reason"
           type="text"
           required
           placeholder="Field walk / why"
-          className="rounded-md border bg-background px-2 py-1.5 text-sm"
+          className="rounded-md border bg-background px-2 py-1.5 text-body"
         />
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-60"
+        className="min-h-11 min-w-11 rounded-md border px-3 py-1.5 text-body font-medium hover:bg-muted disabled:opacity-60"
       >
         {pending ? "Saving…" : "Log"}
       </button>
       {state.summary && (
-        <p className="sm:col-span-4 text-xs text-muted-foreground">
+        <p
+          className="text-label text-muted-foreground sm:col-span-4"
+          data-text="label"
+        >
           {state.summary}
         </p>
       )}
@@ -155,7 +163,7 @@ function MilestoneRowForm({
     {},
   );
   return (
-    <li className="flex flex-wrap items-center gap-2 py-2 text-sm">
+    <li className="flex flex-wrap items-center gap-2 py-2 text-body">
       <form action={action} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="action" value="costItem.setMilestone" />
         <input type="hidden" name="job" value={jobNumber} />
@@ -170,17 +178,19 @@ function MilestoneRowForm({
           name="label"
           value={`${milestone.complete ? "Reopen" : "Complete"} ${milestone.name}`}
         />
-        <span className="font-mono text-xs text-muted-foreground">
+        <span
+          className="font-mono text-label text-muted-foreground"
+          data-text="label"
+        >
           {milestone.code}
         </span>
         <span className="font-medium">{milestone.name}</span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-label text-muted-foreground" data-text="label">
           {milestone.weightMilli / 10}%
         </span>
         <span
-          className={
-            milestone.complete ? "text-xs text-positive" : "text-xs text-muted-foreground"
-          }
+          data-text="label"
+          className="text-label text-foreground"
           data-testid={`milestone-${milestone.id}`}
         >
           {milestone.complete ? "Complete" : "Open"}
@@ -189,12 +199,12 @@ function MilestoneRowForm({
           name="reason"
           type="text"
           placeholder="Who/why (optional)"
-          className="rounded-md border bg-background px-2 py-1 text-xs"
+          className="rounded-md border bg-background px-2 py-1 text-body"
         />
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60"
+          className="min-h-11 min-w-11 rounded-md border px-2 py-1 text-body font-medium hover:bg-muted disabled:opacity-60"
         >
           {pending
             ? "…"
@@ -204,7 +214,10 @@ function MilestoneRowForm({
         </button>
       </form>
       {state.summary && (
-        <span className="w-full text-xs text-muted-foreground">
+        <span
+          className="w-full text-label text-muted-foreground"
+          data-text="label"
+        >
           {state.summary}
         </span>
       )}

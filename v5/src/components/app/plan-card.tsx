@@ -120,7 +120,7 @@ export function PlanCard({
             className={cn(
               "flex w-full flex-wrap gap-2 sm:w-auto",
               // Primary card action (Submit plan): full-width brand on phones.
-              "max-sm:[&_button]:tap-target max-sm:[&_button]:w-full max-sm:[&_button]:border-0 max-sm:[&_button]:bg-brand max-sm:[&_button]:text-body max-sm:[&_button]:font-medium max-sm:[&_button]:text-brand-foreground",
+              "max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] max-sm:[&>div]:w-full max-sm:[&_form]:w-full max-sm:[&_button]:tap-target max-sm:[&_button]:w-full max-sm:[&_button]:border-0 max-sm:[&_button]:bg-brand max-sm:[&_button]:text-body max-sm:[&_button]:font-medium max-sm:[&_button]:text-brand-foreground",
               "sm:ml-auto",
             )}
           >
@@ -278,9 +278,9 @@ function statusBadgeClass(status: Plan["status"]) {
     case "draft":
       return "bg-brand/30";
     case "issued":
-      return "bg-positive-soft text-positive";
+      return "bg-positive-soft text-foreground";
     case "reported":
-      return "bg-caution-soft text-caution";
+      return "bg-caution-soft text-foreground";
     case "approved":
       return "bg-muted text-muted-foreground";
     default:
@@ -332,14 +332,7 @@ function LineView({ l }: { l: Plan["lines"][number] }) {
             <span data-testid="line-mh">{l.manHours}</span> MH
           </span>
         </span>
-        <span
-          className={cn(
-            "hidden sm:inline",
-            l.withinRate ? "text-positive" : "text-negative",
-          )}
-        >
-          {rateText}
-        </span>
+        <span className="hidden sm:inline">{rateText}</span>
       </div>
       {/* Phone: read-only extras behind a tap — never required report fields. */}
       <details className="col-span-2 sm:hidden">
@@ -351,9 +344,7 @@ function LineView({ l }: { l: Plan["lines"][number] }) {
         </summary>
         <div className="space-y-1 pt-2 text-label text-pretty break-words whitespace-normal text-muted-foreground">
           <p>{placeDesc}</p>
-          <p className={l.withinRate ? "text-positive" : "text-negative"}>
-            {rateText}
-          </p>
+          <p>{rateText}</p>
         </div>
       </details>
       {l.notes ? (
