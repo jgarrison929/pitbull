@@ -102,3 +102,121 @@ export function jobPagePlans<T extends { planDate: string }>(
 ): { today: string; open: T[]; history: T[] } {
   return splitPlansByPlanToday(plans, now, timeZoneForJob());
 }
+
+/** Numeric wall-clock parts of `instant` in `timeZone`. */
+function localParts(
+  instant: Date,
+  timeZone: string,
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant);
+  const n = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  return {
+    year: n("year"),
+    month: n("month"),
+    day: n("day"),
+    hour: n("hour"),
+    minute: n("minute"),
+    second: n("second"),
+  };
+}
+
+/**
+ * UTC instant for wall-clock `hour:minute:second` on calendar `day`
+ * (YYYY-MM-DD) in `timeZone` (default job zone = America/Los_Angeles).
+ *
+ * Seed audit / plan-event stamps use this so LocalTime in PT shows a real
+ * workday, not a pile of identical `seedNow` milliseconds.
+ */
+export function instantAtLocal(
+  day: string,
+  hour: number,
+  minute = 0,
+  second = 0,
+  timeZone: string = JOB_TIME_ZONE,
+): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    throw new Error(`instantAtLocal: bad day ${day}`);
+  }
+  const y = Number(day.slice(0, 4));
+  const m = Number(day.slice(5, 7));
+  const d = Number(day.slice(8, 10));
+  // Guess as if the wall clock were UTC, then correct by the zone offset.
+  let utcMs = Date.UTC(y, m - 1, d, hour, minute, second);
+  for (let i = 0; i < 3; i++) {
+    const p = localParts(new Date(utcMs), timeZone);
+    const asUtc = Date.UTC(
+      p.year,
+      p.month - 1,
+      p.day,
+      p.hour,
+      p.minute,
+      p.second,
+    );
+    const desired = Date.UTC(y, m - 1, d, hour, minute, second);
+    utcMs += desired - asUtc;
+  }
+  return new Date(utcMs);
+}
+
+/**
+ * `count` instants through a Pacific workday on the job-zone calendar of
+ * `now`, oldest first, every stamp ≤ `now`. Gaps are ≥ 1 minute so LocalTime
+ * labels never collapse to the same clock reading (the old `now + i` ms bug).
+ *
+ * When the wall-clock window cannot fit (early morning / clock before 07:05),
+ * falls back to packing stamps ending at `now` fifteen minutes apart — still
+ * distinct when formatted in America/Los_Angeles or UTC.
+ */
+export function seedAuditSpread(now: Date, count: number): Date[] {
+  if (count <= 0) return [];
+  const tz = JOB_TIME_ZONE;
+  const day = planDateToday(now, tz);
+  const local = localParts(now, tz);
+  const endMin = Math.min(local.hour * 60 + local.minute, 18 * 60 + 55);
+  const startMin = Math.max(7 * 60 + 5, endMin - Math.max(6 * 60, count - 1));
+  const span = Math.max(endMin - startMin, count - 1);
+  const candidates: Date[] = [];
+  for (let i = 0; i < count; i++) {
+    const minuteOfDay =
+      count === 1
+        ? endMin
+        : startMin + Math.round((span * i) / (count - 1));
+    candidates.push(
+      instantAtLocal(
+        day,
+        Math.floor(minuteOfDay / 60),
+        minuteOfDay % 60,
+        0,
+        tz,
+      ),
+    );
+  }
+  const ok =
+    candidates.every((t) => t.getTime() <= now.getTime()) &&
+    candidates.every(
+      (t, i) => i === 0 || t.getTime() > candidates[i - 1]!.getTime(),
+    );
+  if (ok) return candidates;
+  const step = 15 * 60_000;
+  return Array.from(
+    { length: count },
+    (_, i) => new Date(now.getTime() - (count - 1 - i) * step),
+  );
+}
