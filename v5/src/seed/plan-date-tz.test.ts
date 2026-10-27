@@ -136,17 +136,21 @@ describe("seed plan dates use job time zone", () => {
     }
   });
 
-  it("M1b: Cedar createdAt is on LA-tomorrow, not UTC-tomorrow", () => {
+  it("M1b: Cedar createdAt is before seed now (not tomorrow@06:00Z)", () => {
+    // Evening PT: tomorrow@06:00Z is still in the future and sorted after live Approves.
     const now = new Date("2026-10-27T00:30:00.000Z");
     const rows = seed(company, now);
     const cedar = rows.dailyPlans.find(
       (p) => p.id === seedId(company, "plan:cedar:tomorrow"),
     )!;
-    expect(cedar.createdAt!.toISOString().slice(0, 10)).toBe(
-      assistantTomorrow(now),
-    );
-    expect(cedar.createdAt!.toISOString().slice(0, 10)).not.toBe(
-      utcTomorrow(now),
+    const createdEvt = rows.dailyPlanEvents.find(
+      (e) => e.planId === cedar.id && e.kind === "created",
+    )!;
+    expect(cedar.planDate).toBe(assistantTomorrow(now));
+    expect(cedar.createdAt!.getTime()).toBeLessThan(now.getTime());
+    expect(createdEvt.at!.getTime()).toBe(cedar.createdAt!.getTime());
+    expect(cedar.createdAt!.getTime()).not.toBe(
+      new Date(`${assistantTomorrow(now)}T06:00:00.000Z`).getTime(),
     );
   });
 

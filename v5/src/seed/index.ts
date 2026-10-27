@@ -931,11 +931,16 @@ export function seed(companyId: string, today: Date): SeedRows {
 
   const planId = id("plan:cedar:tomorrow");
   const cost = (code: string) => id(`cost:cedar:${code}`);
-  const cedarTomorrow = addCalendarDays(
-    planDateToday(today, timeZoneForJob()),
-    1,
-  );
-  const tomorrowCreatedAt = new Date(`${cedarTomorrow}T06:00:00.000Z`);
+  const cedarToday = planDateToday(today, timeZoneForJob());
+  const cedarTomorrow = addCalendarDays(cedarToday, 1);
+  // Authoring stamp on LA-today @ 06:00Z — not tomorrow@06:00Z.
+  // tomorrow@06:00Z is 11 PM PT the prior evening; daytime PT demos stamp
+  // live Approves earlier, so Created listed after Approved in history.
+  const authoredAt = new Date(`${cedarToday}T06:00:00.000Z`);
+  const tomorrowCreatedAt =
+    authoredAt.getTime() < today.getTime()
+      ? authoredAt
+      : new Date(today.getTime() - 60_000);
   out.dailyPlans.push({
     id: planId,
     companyId,
@@ -943,7 +948,7 @@ export function seed(companyId: string, today: Date): SeedRows {
     crewId: bridgeCrewId,
     foremanId,
     // Job-zone calendar — never UTC day (breaks after 00:00Z for US demos).
-    planDate: addCalendarDays(planDateToday(today, timeZoneForJob()), 1),
+    planDate: cedarTomorrow,
     status: "draft",
     weather: "Overcast, 54°F, 10% rain",
     equipment: [
