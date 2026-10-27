@@ -169,12 +169,24 @@ describe("ensureDatabase special-char password security", () => {
 });
 
 describe("db:migrate and db:prepare special-char password security", () => {
+  /**
+   * D2 must-fail: `postgres(databaseUrl)` instead of
+   * `postgres(parsed.connectionString)` throws Invalid URL before connect.
+   * Fixed path parses first, then fails with ECONNREFUSED on this closed port.
+   * Asserting the connection error (not Invalid URL) locks the parse.
+   */
+  function assertMigrateUsedParsedConnectionString(out: string) {
+    expect(out).toMatch(/db:migrate failed:/);
+    expect(out).toMatch(/ECONNREFUSED/);
+    expect(out).not.toMatch(/Invalid URL/);
+  }
+
   it("db-migrate CLI stdout/stderr never contain the special password", () => {
     const proc = spawnScript("db-migrate.mjs", SPECIAL_URL_CLOSED);
     const out = `${proc.stdout ?? ""}\n${proc.stderr ?? ""}`;
     assertNoPasswordLeak(out, SPECIAL_URL_CLOSED);
     expect(proc.status).not.toBe(0);
-    expect(out).toMatch(/db:migrate failed:/);
+    assertMigrateUsedParsedConnectionString(out);
   });
 
   it("npm run db:prepare never prints the special password (ensure + migrate)", () => {
@@ -206,6 +218,17 @@ describe("db:migrate and db:prepare special-char password security", () => {
     expect(migrate.status).not.toBe(0);
     expect(prepare.status).not.toBe(0);
     expect(combined).toMatch(/db:ensure failed:/);
-    expect(combined).toMatch(/db:migrate failed:/);
+    assertMigrateUsedParsedConnectionString(
+      `${migrate.stdout ?? ""}\n${migrate.stderr ?? ""}`,
+    );
+  });
+
+  // D2 must-fail lock (dedicated): raw env URL into postgres() → Invalid URL.
+  it("db-migrate connects via parsePostgresUrl.connectionString (not raw env)", () => {
+    const proc = spawnScript("db-migrate.mjs", SPECIAL_URL_CLOSED);
+    const out = `${proc.stdout ?? ""}\n${proc.stderr ?? ""}`;
+    expect(proc.status).not.toBe(0);
+    assertNoPasswordLeak(out, SPECIAL_URL_CLOSED);
+    assertMigrateUsedParsedConnectionString(out);
   });
 });
