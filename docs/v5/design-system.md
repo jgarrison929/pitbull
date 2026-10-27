@@ -157,7 +157,7 @@ Built on Radix Alert Dialog:
 - Esc and Cancel close the dialog and return focus to the control that opened it. They do not run the action.
 - Clicking the scrim does not close it and does not run the action.
 - The primary button is the verb (`Void change order`, `Remove plan line`), not a generic Confirm.
-- Void, reject, and remove use the destructive button variant. Approve and return use the primary button.
+- Void, reject, and remove use the destructive button variant. Approve, return, lock period, and approve estimate use the primary button.
 - Cancel and the verb button are 44px tall (`h-11`) and full width on a phone.
 - Light and dark use `bg-popover`, `text-popover-foreground`, `bg-chrome/70`, and the button variants. No one-off colors.
 
@@ -170,8 +170,10 @@ Wired today:
 | Change order approve, reject, void | `v5/src/components/app/change-orders.tsx` |
 | Remove a plan line | `v5/src/components/app/plan-card.tsx` |
 | Approve a daily report, return it to the foreman | `v5/src/components/app/approve-return-forms.tsx` |
+| Lock a progress period | `v5/src/app/app/jobs/[number]/page.tsx` |
+| Approve an estimate | `v5/src/app/app/jobs/[number]/page.tsx` |
 
-The same server actions run after confirm. Lock Period and Approve estimate on the job page are not on this dialog yet.
+The same server actions run after confirm. Lock period and Approve estimate use the primary button. The dialog names the period, or the Current Estimate amount that becomes Current Budget.
 
 ### Phone fit
 

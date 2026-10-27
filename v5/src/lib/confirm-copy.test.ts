@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   approveChangeOrderCopy,
+  approveEstimateCopy,
   approveReportCopy,
+  lockPeriodCopy,
   rejectChangeOrderCopy,
   removePlanLineCopy,
   returnReportCopy,
@@ -106,6 +108,36 @@ describe("confirm copy", () => {
     expect(copy.description).toContain("The line leaves this draft.");
     expect(copy.confirmLabel).toBe("Remove plan line");
     expect(copy.destructive).toBe(true);
+  });
+
+  it("names the period and the freeze on lock", () => {
+    const copy = lockPeriodCopy({
+      jobNumber: "25-031",
+      periodLabel: "Period 2",
+    });
+    expect(copy).toEqual({
+      title: "Lock Period 2 on 25-031?",
+      description:
+        "Cost entries and installed quantities in Period 2 are frozen by this lock and can no longer be edited. This cannot be undone.",
+      confirmLabel: "Lock period",
+      destructive: false,
+    });
+    expect(copy.description).not.toMatch(/—/);
+  });
+
+  it("names the Current Estimate that becomes Current Budget", () => {
+    const copy = approveEstimateCopy({
+      jobNumber: "26-010",
+      currentEstimateCents: 8_675_000,
+    });
+    expect(copy).toEqual({
+      title: "Approve estimate on 26-010?",
+      description:
+        "Current Estimate $86,750.00 becomes Current Budget, and Original Budget freezes at that amount. This cannot be undone.",
+      confirmLabel: "Approve estimate",
+      destructive: false,
+    });
+    expect(copy.description).not.toMatch(/—/);
   });
 
   it("names the crew report on approve and return", () => {

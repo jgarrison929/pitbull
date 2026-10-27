@@ -1,5 +1,6 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { confirmDialog } from "./confirm-dialog";
 
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
@@ -252,7 +253,7 @@ test("PM import rewrites Current Estimate, then Approve freezes Original and Cur
     "2020000",
   );
 
-  await page.getByTestId("approve-estimate").click();
+  await confirmDialog(page, page.getByTestId("approve-estimate"));
 
   await expect(page.getByTestId("estimate-status")).toHaveAttribute(
     "data-status",
