@@ -193,6 +193,7 @@ jobs:
           node .cursor/skills/verify-v5/field504-eval.test.mjs
           node .cursor/skills/verify-v5/confirm504-mustfail.test.mjs
           node .cursor/skills/verify-v5/spec504-probes-mustfail.test.mjs
+          node .cursor/skills/verify-v5/harness-gaps.mustfail.test.mjs
 
   v5:
     name: v5 (lint, typecheck, test, build, e2e)

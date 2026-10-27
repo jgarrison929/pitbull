@@ -73,15 +73,69 @@ export async function confirmIfDialog(page, { settled = null, timeout = 30000, g
   const dialog = page.getByRole(CONFIRM_DIALOG_ROLE);
   // The dialog's words, for evidence only (never part of a pass rule).
   const text = typeof dialog.innerText === "function" ? await dialog.innerText().then((t) => t.replace(/\s+/g, " ").trim(), () => null) : null;
+  // S10: the write the confirm click starts is watched from the click on, so the caller never navigates away (and
+  // aborts it, status -1) before it finishes.
+  const writes = watchWrites(page);
   try {
-    await dialog.getByTestId(CONFIRM_DIALOG_CONFIRM).click({ timeout });
-  } catch (e) {
-    throw new Error(`ConfirmDialog appeared but its confirm click failed: ${firstLine(e)}`);
+    try {
+      await dialog.getByTestId(CONFIRM_DIALOG_CONFIRM).click({ timeout });
+    } catch (e) {
+      throw new Error(`ConfirmDialog appeared but its confirm click failed: ${firstLine(e)}`);
+    }
+    try {
+      await dialog.waitFor({ state: "hidden", timeout });
+    } catch (e) {
+      throw new Error(`ConfirmDialog appeared and confirm was clicked, but the dialog did not hide: ${firstLine(e)}`);
+    }
+    const saved = await writes.settle(timeout);
+    // S10: then the posted state. A save that "finished" but never shows its result is not a save.
+    if (settled) {
+      const t0 = now();
+      while (!(await shown(settled))) {
+        if (now() - t0 >= timeout) throw new Error(`ConfirmDialog confirmed${saved.length ? ` and the save finished (${saved.map((x) => `HTTP ${x.status}`).join(", ")})` : ""}, but the posted state did not appear within ${timeout} ms`);
+        await sleep(pollMs);
+      }
+    }
+    return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE, writes: saved };
+  } finally {
+    writes.stop();
   }
-  try {
-    await dialog.waitFor({ state: "hidden", timeout });
-  } catch (e) {
-    throw new Error(`ConfirmDialog appeared and confirm was clicked, but the dialog did not hide: ${firstLine(e)}`);
-  }
-  return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE };
+}
+
+/**
+ * S10: the app's writes (POST with a Next-Action header) from now on. settle(timeout) stops watching and waits for each
+ * to finish; a write that failed (aborted, status -1), answered 4xx/5xx, or did not finish in time throws. A page
+ * without request events (the unit-test fakes) has nothing to watch.
+ */
+export function watchWrites(page) {
+  const pending = [];
+  const on = (r) => { if (r.method() === "POST" && r.headers()["next-action"]) pending.push(r); };
+  const live = typeof page?.on === "function";
+  if (live) page.on("request", on);
+  let stopped = !live;
+  const stop = () => { if (!stopped) { page.off("request", on); stopped = true; } };
+  return {
+    stop,
+    async settle(timeout = 30000) {
+      stop();
+      const out = [];
+      for (const r of pending) {
+        const url = r.url().replace(/^https?:\/\/[^/]+/, "");
+        let timer;
+        const late = new Promise((resolve) => { timer = setTimeout(() => resolve("timeout"), timeout); });
+        const done = (async () => {
+          const res = await r.response();
+          if (!res) return { failure: r.failure()?.errorText ?? "no response" };
+          const err = await res.finished();
+          return { status: res.status(), failure: err ? String(err?.message ?? err) : r.failure()?.errorText ?? null };
+        })();
+        const got = await Promise.race([done, late]).finally(() => clearTimeout(timer));
+        if (got === "timeout") throw new Error(`the save ${url} did not finish within ${timeout} ms`);
+        if (got.failure) throw new Error(`the save ${url} failed: ${got.failure}`);
+        if (got.status >= 400) throw new Error(`the save ${url} answered HTTP ${got.status}`);
+        out.push({ url, status: got.status });
+      }
+      return out;
+    },
+  };
 }

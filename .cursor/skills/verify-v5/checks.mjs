@@ -480,6 +480,9 @@ function clipLabel(text) {
 export function evaluateCrawlRow(row, { budgetMs = PAGE_BUDGET_MS, phoneChecks = false } = {}) {
   const f = [];
   const where = `${row.role}@${row.width} ${row.path}`;
+  // S1: a load that threw is a FAIL row with its error, never a silent pass. Nothing else on it was measured.
+  if (row.loadFailed) return [`${where}: ${row.error ?? "load failed"}`];
+  if (row.error) f.push(`${where}: ${row.error}`);
   if (row.status !== 200) f.push(`${where}: navigation HTTP ${row.status}`);
   if (row.final && row.final.split(/[?#]/)[0] !== row.path) f.push(`${where}: landed on ${row.final}`);
   for (const r of row.responses4xx5xx ?? []) f.push(`${where}: HTTP ${r.status} ${r.url}`);
@@ -659,6 +662,47 @@ export async function runStep(check, name, fn) {
   } catch (error) {
     check(name, false, String(error?.message ?? error).split("\n")[0]);
   }
+}
+
+/**
+ * S2: checks recorded only inside a step that can die. Every name in `names` that `checks` does not hold yet becomes
+ * a FAIL marked NOT EXECUTED, so a crashed step can never shrink the result list and leave the run verified.
+ */
+export function notExecutedChecks(checks, names, reason) {
+  const have = new Set((checks ?? []).map((c) => c.name));
+  return (names ?? []).filter((n) => !have.has(n)).map((n) => ({ name: n, ok: false, notExecuted: true, detail: `NOT EXECUTED: ${reason}` }));
+}
+
+/**
+ * S3: the banned-strings check names exactly the pages it scanned. `scanned` are the labels scanBannedVisible read,
+ * `hits` its hits. `navRows` are the nav-crawl rows (null when the crawl never returned rows): their visible text is
+ * scanned here too, and a row with no text (a load that threw) is listed as not scanned. Nothing unscanned is called
+ * clean: an unscanned nav crawl, or any unscanned row, fails the check.
+ */
+export function bannedStringsCheck({ scanned = [], hits = [], navRows = null }) {
+  const all = [...hits];
+  const notScanned = [];
+  let navScanned = 0;
+  if (navRows) {
+    for (const r of navRows) {
+      if (r.loadFailed || typeof r.text !== "string") { notScanned.push(`${r.role}@${r.width} ${r.path}`); continue; }
+      navScanned += 1;
+      for (const h of bannedHits(r.text)) all.push(`nav ${r.role}@${r.width} ${r.path}: "${h.match}" (${h.id})`);
+    }
+  }
+  const pages = `${scanned.length} page(s) scanned (${scanned.join(", ") || "none"})`;
+  const nav = navRows ? `${navScanned} nav-crawl load(s) scanned` : "nav-crawl pages NOT scanned (the nav crawl returned no rows)";
+  const gaps = notScanned.length ? `; ${notScanned.length} nav-crawl load(s) NOT scanned (load threw): ${notScanned.slice(0, 6).join(", ")}` : "";
+  const ok = all.length === 0 && navRows != null && notScanned.length === 0;
+  const head = all.length ? `${all.length} hit(s): ${all.slice(0, 8).join("; ")}` : ok ? "clean" : "no hits on the scanned pages only";
+  return { name: "no banned visible strings on crawled pages", ok, detail: `${head} — ${pages}; ${nav}${gaps}` };
+}
+
+/** S12: the run's target line. A loopback --url is a local run whatever the staging/production rule resolved to. */
+export function targetLabel({ baseUrl, isLocal, target, production, rc }) {
+  const what = isLocal ? `local loopback ${baseUrl}` : `${target} ${baseUrl}`;
+  if (rc) return `target ${what} (RC ${rc.branch} head ${rc.sha})`;
+  return `target ${what} (${production ? "expects the newest v5 release tag" : isLocal ? "expects the commit from --commit or the last origin/main commit that touches v5/" : "expects the last green main commit"})`;
 }
 
 // ---- Production: the deployed commit must be the newest v5 release tag ----

@@ -84,12 +84,28 @@ bad("e-5 CPI at 568", evaluateKpiFold(row({ width: 320, height: 568, data: { eac
 bad("e-5 hyphen money", evaluateKpiFold(row({ width: 320, height: 568, data: { eacTop: 400, cpiTop: 500, hyphenMoney: 1 } })), /1 "-\$"/);
 
 // f-1
-const allFour = { figures: [{ label: "Planned MH", text: "12.0" }, { label: "Reported MH", text: "10.0" }, { label: "", text: "Planned 120 LF" }, { label: "", text: "Reported —" }] };
-const rcLine = { figures: [{ label: "Reported MH", text: "10.0" }, { label: "", text: "Planned 120 LF" }, { label: "", text: "Reported 100 LF" }] };
-ok("f-1 control", evaluatePlanCards(row({ data: { tables: 0, past: 0, scrollers: 0, lines: [allFour] } })));
-bad("f-1 rc layout (planned MH behind Line detail)", evaluatePlanCards(row({ data: { tables: 0, past: 0, scrollers: 0, lines: [rcLine] } })), /lacks visible planned MH/);
-ok("f-1 rc/5.0.4 combined figures (Reported 175 CY · 42.0 MH)", evaluatePlanCards(row({ data: { tables: 0, past: 0, scrollers: 0, lines: [{ figures: [{ label: "Planned MH", text: "40.0" }, { label: "", text: "Planned 180 CY · 40.0 MH" }, { label: "", text: "Reported 175 CY · 42.0 MH" }] }] } })));
-bad("f-1 reported quantity without its MH", evaluatePlanCards(row({ data: { tables: 0, past: 0, scrollers: 0, lines: [{ figures: [{ label: "Planned MH", text: "40.0" }, { label: "", text: "Planned 180 CY" }, { label: "", text: "Reported 175 CY" }] }] } })), /lacks visible reported MH/);
+// f-1 (Planner ruling 2026-10-27, #86): plan-detail-line-reported reads exactly "Not reported yet" before the first
+// report and "Reported <qty> <unit> · <MH> MH" after it; "Reported — · — MH" or any other placeholder fails.
+const planned = [{ label: "", text: "Planned 120 LF · 12.0 MH" }];
+const rep = (text, visible = true) => ({ figures: planned, reported: { visible, text } });
+const allFour = rep("Not reported yet");
+const rcLine = { figures: [{ label: "", text: "Planned 120 LF" }], reported: { visible: true, text: "Reported 100 LF · 10.0 MH" } };
+const PC = (l, o = {}) => evaluatePlanCards(row({ data: { tables: 0, past: 0, scrollers: 0, lines: [l] }, ...o }));
+ok("f-1 control (before the first report: \"Not reported yet\")", PC(allFour));
+ok("f-1 control (after it: Reported 175 CY · 42.0 MH)", PC(rep("Reported 175 CY · 42.0 MH")));
+ok("f-1 control (draft 25-031 plan: \"Not reported yet\")", PC(allFour, { path: "/app/jobs/25-031/plans/41" }));
+ok("f-1 control (planned figures under their own labels)", PC({ figures: [{ label: "Planned MH", text: "12.0" }, { label: "", text: "Planned 120 LF" }], reported: { visible: true, text: "Reported 1,200 LF · 112.5 MH" } }));
+bad("f-1 rc layout (planned MH behind Line detail)", PC(rcLine), /lacks visible planned MH/);
+bad("f-1 rc/5.0.4 placeholder \"Reported — · — MH\"", PC(rep("Reported — · — MH")), /reported figure "Reported — · — MH" \(want "Not reported yet" before the first report/);
+bad("f-1 placeholder \"Reported —\"", PC(rep("Reported —")), /reported figure "Reported —"/);
+bad("f-1 placeholder \"Reported 0 LF · — MH\"", PC(rep("Reported 0 LF · — MH")), /reported figure "Reported 0 LF · — MH"/);
+bad("f-1 reported quantity without its MH", PC(rep("Reported 175 CY")), /reported figure "Reported 175 CY"/);
+bad("f-1 placeholder on the draft plan before the first report", PC(rep("Reported — · — MH"), { path: "/app/jobs/25-031/plans/41" }), /on a draft plan \(want exactly "Not reported yet"\)/);
+bad("f-1 figures on a draft plan (status draft)", PC(rep("Reported 1 LF · 1.0 MH"), { data: { tables: 0, past: 0, scrollers: 0, planStatus: "Draft", lines: [rep("Reported 1 LF · 1.0 MH")] } }), /on a draft plan/);
+bad("f-1 wording variant \"Not yet reported\"", PC(rep("Not yet reported")), /reported figure "Not yet reported"/);
+bad("f-1 empty reported element", PC(rep("")), /reported figure ""/);
+bad("f-1 reported element hidden", PC(rep("Not reported yet", false)), /is not visible/);
+bad("f-1 no reported element", PC({ figures: planned }), /no \[data-testid="plan-detail-line-reported"\]/);
 bad("f-1 sideways scroll", evaluatePlanCards(row({ data: { tables: 0, past: 0, scrollers: 1, lines: [allFour] } })), /scroll sideways/);
 bad("f-1 table", evaluatePlanCards(row({ data: { tables: 1, past: 0, scrollers: 0, lines: [allFour] } })), /visible table/);
 assert.equal(pickPlanLink("/app/jobs/25-031", [{ status: "issued", href: "/a" }, { status: "draft", href: "/b" }]), "/b");

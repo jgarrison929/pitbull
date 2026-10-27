@@ -11,7 +11,13 @@ import { CRAWL_ROLES, contextFor, signInRole, THEME_COOKIE } from "./crawl.mjs";
 export const C8_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 /** i-3: "each tree toggle's accessible name matches `/^(Expand|Collapse) \S+ .+/`". */
 export const TOGGLE_NAME = /^(Expand|Collapse) \S+ .+/;
-export const TOGGLE_SELECTOR = '[data-testid="cost-tree-row"] button[aria-expanded]';
+/**
+ * S5: a tree toggle is a disclosure button in a cost-tree row. The phone money figures are also
+ * `button[aria-expanded]` ("Compact $X. Show exact.", exact-money.tsx `money-exact-toggle`), but they are figures:
+ * they carry `data-cents`. Those are excluded; every other aria-expanded button in a row is a toggle and is named,
+ * so an unnamed real toggle still fails.
+ */
+export const TOGGLE_SELECTOR = '[data-testid="cost-tree-row"] button[aria-expanded]:not([data-cents]):not([data-testid="money-exact-toggle"])';
 
 /**
  * The axe passes, each as written in the spec. `sizes` are { width, height }.
