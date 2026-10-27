@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Figure } from "@/components/app/format";
 import { LocalTime } from "@/components/app/local-time";
@@ -85,13 +84,19 @@ async function Plan({
         purpose="One daily plan: its lines, what was reported, and each step it went through."
         meta={
           <>
-            <Link
+            {/*
+              Plain <a>, not next/link: Link still fires ?_rsc= after paint
+              (even with prefetch={false}), and each plan line cost-code link
+              would hold verify networkidle on this page the same way shell
+              Links held cost-item drills (#29).
+            */}
+            <a
               href={`/app/jobs/${data.job.number}`}
               className="tap-target inline-flex items-center underline hover:no-underline"
               data-testid="plan-detail-back"
             >
               {data.job.number} · {data.job.name}
-            </Link>
+            </a>
             {" · Foreman "}
             {data.plan.foreman}
             {" · "}
@@ -150,13 +155,13 @@ async function Plan({
               {data.lines.map((l) => (
                 <tr key={l.id} data-testid="plan-detail-line">
                   <Td>
-                    <Link
+                    <a
                       href={`/app/jobs/${data.job.number}/cost-items/${encodeURIComponent(l.code)}`}
                       className="font-mono text-label underline hover:no-underline"
                       data-text="label"
                     >
                       {l.code}
-                    </Link>
+                    </a>
                   </Td>
                   <Td>{l.activity}</Td>
                   <Td right className="tabular-nums">
@@ -194,13 +199,13 @@ async function Plan({
               <li key={l.id} data-card data-testid="plan-detail-line" className="py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link
+                    <a
                       href={`/app/jobs/${data.job.number}/cost-items/${encodeURIComponent(l.code)}`}
                       className="tap-target inline-flex items-center font-mono text-label underline hover:no-underline"
                       data-text="label"
                     >
                       {l.code}
-                    </Link>
+                    </a>
                     <div className="text-body font-medium">{l.activity}</div>
                   </div>
                 </div>
