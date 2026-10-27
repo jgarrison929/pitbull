@@ -61,7 +61,7 @@ The 3.8.2 API and web were removed from this tree. Recover them from tag `legacy
 
 **Live (v5 / 5.0.x):** keep root **`VERSION`**, **`v5/package.json`**, and the newest entry in **`v5/src/content/changelog.ts`** aligned. Public versions are `5.<feature>.<increment>` — see [`docs/roadmap.md`](docs/roadmap.md) and [`AGENTS.md`](AGENTS.md).
 
-**Deploy model:** merges to `main` deploy to Railway **staging**. Production deploys when a `vX.Y.Z` tag is promoted onto the `production` branch by `.github/workflows/release.yml`. See `deploy/RAILWAY-SETUP.md` (v5 caveats at the top).
+**Deploy model:** merges to `main` deploy to Railway **staging**. Production deploys when a `vX.Y.Z` tag is promoted onto the `production` branch by `.github/workflows/release.yml`. See `deploy/RAILWAY-SETUP.md`.
 
 **Builders do not enable auto-merge**; Verify/Watch owns merge after `ci-gate` PASS.
 
@@ -168,22 +168,13 @@ test: add unit tests for project creation
 
 ## Architecture Overview
 
-### Modular Monolith
+### Live app
 
-Pitbull is a **modular monolith** -- a single deployable unit with clear internal module boundaries.
+The product on this branch is [`v5/`](v5/) (Next.js, Drizzle, PostgreSQL). Layout, demo roles, and version rules are in [`AGENTS.md`](AGENTS.md).
 
-```
-src/
-  Modules/
-    Pitbull.Core/         # Shared kernel: DbContext, CQRS, multi-tenancy, base entities
-    Pitbull.Projects/     # Project management domain
-    Pitbull.Bids/         # Bid/estimating domain
-  Pitbull.Api/            # ASP.NET Core host -- controllers, middleware, DI
-  Pitbull.Web/            # Next.js frontend (App Router)
-  Infrastructure/         # Cross-cutting infra (email, storage, etc.)
-```
+The 3.8.2 modular monolith was removed from the tree. Recover that source from tag `legacy-3.8.2-final`. Historical module notes stay in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-Each module owns its domain entities, features, EF configurations, and validators. The API project wires everything together but contains no business logic.
+The remaining headings in this section record how that 3.8.2 host was built. v5 work follows [`AGENTS.md`](AGENTS.md).
 
 ### CQRS (direct service injection, no MediatR in controllers)
 

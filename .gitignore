@@ -83,7 +83,6 @@ e2e/playwright-*.log
 
 # Test results with machine names/PII (tracked artifacts)
 tests/**/TestResults/
-tests/Pitbull.Tests.*/TestResults/
 TestResults/
 *.trx
 

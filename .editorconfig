@@ -14,7 +14,6 @@ insert_final_newline = true
 # C# files
 [*.cs]
 indent_size = 4
-dotnet_sort_system_directives_first = true
 
 # C# formatting
 csharp_new_line_before_open_brace = all
