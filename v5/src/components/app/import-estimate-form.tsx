@@ -141,7 +141,7 @@ function ImportPicker({
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => void choose(e.target.files?.[0])}
-            className="max-w-full text-xs file:mr-2 file:rounded-md file:border file:bg-background file:px-2 file:py-1 file:text-xs"
+            className="max-w-full text-xs file:mr-2 file:rounded-md file:border file:bg-background file:px-2 file:py-1 file:text-xs max-[640px]:min-h-11 max-[640px]:text-body max-[640px]:file:text-body"
             data-testid="import-estimate-file"
           />
         </label>

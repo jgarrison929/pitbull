@@ -102,7 +102,7 @@ export function ReportWorkForm({
       <button
         type="submit"
         disabled={pending}
-        className="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-60 sm:w-auto sm:self-end"
+        className="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-60 max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] sm:mx-0 sm:w-auto sm:self-end"
         data-testid="report-work"
       >
         {pending ? "Reporting…" : "Report day's work"}

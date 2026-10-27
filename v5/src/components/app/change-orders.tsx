@@ -165,6 +165,7 @@ function ChangeOrderCard({
       data-card
       className="rounded-md border"
       data-testid="co-card"
+      id={`co-${co.label}`}
       data-job-number={jobNumber}
       data-co-number={co.number}
       data-status={co.status}

@@ -24,6 +24,7 @@ import { ReportWorkForm } from "@/components/app/report-work-form";
 import { approveEstimateCopy, lockPeriodCopy } from "@/lib/confirm-copy";
 import { mh, pct, usdShort } from "@/lib/ev";
 import {
+  showsCostIndexes,
   showsJobPageCostIndexes,
   showsStatusRiskBadge,
 } from "@/lib/role-fit";
@@ -106,6 +107,9 @@ export async function Job({
     });
   const estimateDraft = p.job.estimateStatus === "draft";
   const costIndexes = showsJobPageCostIndexes(user.role);
+  // PM and executive: phone fold leads with EAC and CPI (5.0.4-e). Field roles
+  // keep plans first so Submit stays in the first screen.
+  const phoneKpiFirst = showsCostIndexes(user.role);
   const statusBadge = showsStatusRiskBadge(user.role);
   const jobMoney = p.money.job;
   const approveCopy = approveEstimateCopy({
@@ -163,7 +167,7 @@ export async function Job({
         data-queries={timingPayload.queries}
         data-total-ms={timingPayload.totalMs}
       />
-      <div id="estimate">
+      <div id="estimate" className={phoneKpiFirst ? "max-md:order-2" : undefined}>
         <PageHeader
           title={p.job.name}
           purpose="Plan field work, track cost against budget, and decide on changes for this job."
@@ -240,13 +244,14 @@ export async function Job({
                 <StatusPill
                   value={p.status!}
                   varianceCents={p.costVarianceCents}
+                  testId="job-status"
                 />
               ) : null}
             </div>
           }
         />
         <p
-          className="mb-3 text-xs text-muted-foreground"
+          className="mb-3 text-xs text-muted-foreground max-[640px]:text-body"
           data-testid="estimate-status"
           data-status={p.job.estimateStatus}
           data-source={p.job.estimateSource}
@@ -260,6 +265,12 @@ export async function Job({
           <ImportEstimateForm jobNumber={p.job.number} />
         ) : null}
       </div>
+      {/*
+        Phone (PM, executive) puts EAC and CPI above the title so both cards
+        sit above 568px. Desktop and field roles keep plans after the title
+        so Submit stays where it is (#662).
+      */}
+      <div className={phoneKpiFirst ? "flex max-md:order-3 flex-col gap-5" : "flex flex-col gap-5"}>
       {/* Plans lead so Submit + crew footer stay reachable after KPI growth (#662). */}
       {canCreatePlan && !estimateDraft ? (
         <div className="contents" data-plan-today={today}>
@@ -372,7 +383,7 @@ export async function Job({
                   {pl.lineCount === 1 ? "line" : "lines"} · {pl.manHours} MH
                 </span>
                 {pl.returnReason ? (
-                  <span className="text-xs text-caution">
+                  <span className="text-xs text-caution max-[640px]:text-label" data-text="label">
                     Returned: {pl.returnReason}
                   </span>
                 ) : null}
@@ -381,11 +392,13 @@ export async function Job({
           </ul>
         </details>
       ) : null}
+      </div>
       {/*
         5.0.4-e: phone fold shows EAC + CPI first (2-col grid) when the role
         sees cost indexes (5.0.4-b). EAC carries cost variance; CPI carries
         earned and actual as its two secondaries. Foreman omits both.
       */}
+      <div className={phoneKpiFirst ? "max-md:order-1" : undefined}>
       <KpiStrip>
         {costIndexes ? (
           <>
@@ -552,8 +565,10 @@ export async function Job({
           />
         ) : null}
       </KpiStrip>
+      </div>
+      <div className={phoneKpiFirst ? "flex max-md:order-4 flex-col gap-5" : "flex flex-col gap-5"}>
       <p
-        className="mt-2 text-xs text-muted-foreground"
+        className="mt-2 text-xs text-muted-foreground max-[640px]:text-body"
         data-testid="estimate-categories"
         data-source={p.job.estimateSource}
       >
@@ -633,7 +648,7 @@ export async function Job({
         actions={
           <Link
             href={`/app/jobs/${p.job.number}/changes`}
-            className="text-xs font-medium underline hover:no-underline"
+            className="text-xs font-medium underline hover:no-underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:items-center max-[640px]:text-body"
             data-testid="job-changes-full-link"
           >
             Full change list
@@ -641,15 +656,15 @@ export async function Job({
         }
       >
         {visibleChanges.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-muted-foreground">
+          <p className="px-4 py-3 text-sm text-muted-foreground max-[640px]:text-body">
             No changes yet.
           </p>
         ) : (
-          <ul className="divide-y px-4 text-sm" data-testid="job-changes">
+          <ul className="divide-y px-4 text-sm max-[640px]:text-body" data-testid="job-changes">
             {visibleChanges.map((c) => (
               <li key={c.id} className="py-2">
                 <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground max-[640px]:text-label" data-text="label">
                   <LocalTime iso={c.createdAt} />
                 </span>
               </li>
@@ -657,6 +672,7 @@ export async function Job({
           </ul>
         )}
       </Section>
+      </div>
     </>
   );
 }

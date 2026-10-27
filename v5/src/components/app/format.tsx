@@ -1,6 +1,6 @@
 import { ExactMoney } from "@/components/app/exact-money";
 import { cn } from "@/lib/utils";
-import { idx, usdShort } from "@/lib/ev";
+import { idx, usdCents, usdShort } from "@/lib/ev";
 import { varianceStatus, type Status } from "@/lib/status";
 
 const statusStyle: Record<
@@ -45,7 +45,7 @@ export function Figure({
     <span
       data-figure={variant}
       className={cn(
-        "tabular-nums",
+        "min-w-0 max-w-full whitespace-normal break-words tabular-nums",
         variant === "primary"
           ? "text-figure-primary font-semibold tracking-tight"
           : "text-label font-medium text-muted-foreground",
@@ -62,14 +62,17 @@ export function Figure({
 export function StatusPill({
   value,
   varianceCents,
+  testId,
 }: {
   value: Status;
   varianceCents?: number;
+  testId?: string;
 }) {
   const s = statusStyle[value];
   return (
     <span
       data-text="label"
+      data-testid={testId}
       className={cn(
         // Wrap on phone — nowrap + strip overflow was a hard status clip at 320.
         "inline-flex max-w-full shrink-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-full px-2 py-0.5 text-label font-medium",
@@ -97,12 +100,48 @@ export function StatusIndex({
   index,
   varianceCents,
   testId,
+  statusWord = false,
 }: {
   index: number | null;
   varianceCents: number;
   testId?: string;
+  /** Stack "On track", "Watch", or "At risk" under the index. */
+  statusWord?: boolean;
 }) {
   const s = varianceStatus(index, varianceCents);
+  const word = s ? statusStyle[s].label : null;
+  const figures = (
+    <>
+      <span data-testid={testId ? `${testId}-index` : undefined}>
+        {idx(index)}
+      </span>
+      <span data-text="label" className="text-label font-normal">
+        {signedUsd(varianceCents)}
+      </span>
+    </>
+  );
+  if (statusWord) {
+    return (
+      <span
+        className={cn(
+          "inline-flex max-w-full flex-col items-end gap-y-0 tabular-nums",
+          s ? statusStyle[s].text : "text-muted-foreground",
+        )}
+        data-status={s ?? "none"}
+        data-testid={testId}
+        data-variance-cents={varianceCents}
+      >
+        <span className="inline-flex max-w-full flex-wrap items-baseline justify-end gap-x-1.5">
+          {figures}
+        </span>
+        {word ? (
+          <span data-text="label" className="text-label font-normal">
+            {word}
+          </span>
+        ) : null}
+      </span>
+    );
+  }
   return (
     <span
       className={cn(
@@ -111,13 +150,14 @@ export function StatusIndex({
       )}
       data-status={s ?? "none"}
       data-testid={testId}
+      data-variance-cents={varianceCents}
     >
-      <span data-testid={testId ? `${testId}-index` : undefined}>
-        {idx(index)}
-      </span>
-      <span data-text="label" className="text-label font-normal">
-        {signedUsd(varianceCents)}
-      </span>
+      {figures}
+      {varianceCents === 0 && word ? (
+        <span data-text="label" className="text-label font-normal">
+          {word}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -127,15 +167,24 @@ export function StatusIndex({
  * shows one compact figure with exact one tap away (swap, never dual-mount);
  * tablet/desktop shows dollars+cents. No ellipsis; no title-only reachability.
  */
+/** KPI cards use the short form from this many cents ($10,000.00). */
+export const SHORT_MONEY_CENTS = 1_000_000;
+
 export function Money({
   cents,
   signed = false,
   /** Leaf budget lines: exact dollars and cents at tablet/desktop. */
   exact = false,
+  /**
+   * At or above this many cents, show `usdShort` with the exact value in
+   * `title` and `data-cents`. Below it, show static dollars and cents.
+   */
+  shortAboveCents,
 }: {
   cents: number;
   signed?: boolean;
   exact?: boolean;
+  shortAboveCents?: number;
 }) {
   const tone = signed
     ? cents < 0
@@ -145,13 +194,20 @@ export function Money({
         : ""
     : "";
   const sign = signed && cents > 0 ? "+" : "";
-  if (exact) {
+  const title = `${sign}${usdCents(cents)}`;
+  if (exact && shortAboveCents == null) {
     return <ExactMoney cents={cents} signed={signed} className={tone} />;
   }
+  const asShort =
+    shortAboveCents != null ? Math.abs(cents) >= shortAboveCents : true;
   return (
-    <span className={cn("tabular-nums", tone)} data-cents={cents}>
+    <span
+      className={cn("text-right tabular-nums", tone)}
+      data-cents={cents}
+      title={title}
+    >
       {sign}
-      {usdShort(cents)}
+      {asShort ? usdShort(cents) : usdCents(cents)}
     </span>
   );
 }

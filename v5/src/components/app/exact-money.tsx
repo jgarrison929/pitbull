@@ -56,7 +56,7 @@ export function ExactMoney({
   if (!phone) {
     return (
       <span
-        className={cn("whitespace-nowrap tabular-nums", tone, className)}
+        className={cn("whitespace-nowrap text-right tabular-nums", tone, className)}
         data-cents={cents}
       >
         {sign}
@@ -79,7 +79,7 @@ export function ExactMoney({
       }
       onClick={toggle}
       className={cn(
-        "tap-target inline max-w-full cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] tabular-nums text-inherit",
+        "tap-target inline max-w-full cursor-pointer border-0 bg-transparent p-0 text-right font-[inherit] tabular-nums text-inherit",
         tone,
         className,
       )}

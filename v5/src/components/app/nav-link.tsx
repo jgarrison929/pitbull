@@ -9,6 +9,8 @@ type Props = {
   label: string;
   children: React.ReactNode;
   exact?: boolean;
+  /** Icon-only control. Visible text controls set their name from their content. */
+  iconOnly?: boolean;
   className?: string;
   activeClassName?: string;
 };
@@ -21,11 +23,16 @@ type Props = {
  * for chrome; hover SPA prefetch is not required.
  */
 export function NavLink(props: Props) {
-  const { href, label, children, className } = props;
+  const { href, label, children, className, iconOnly } = props;
   return (
     <Suspense
       fallback={
-        <a href={href} aria-label={label} title={label} className={className}>
+        <a
+          href={href}
+          aria-label={iconOnly ? label : undefined}
+          title={iconOnly ? label : undefined}
+          className={className}
+        >
           {children}
         </a>
       }
@@ -40,6 +47,7 @@ function ActiveLink({
   label,
   children,
   exact = false,
+  iconOnly = false,
   className,
   activeClassName,
 }: Props) {
@@ -50,8 +58,8 @@ function ActiveLink({
   return (
     <a
       href={href}
-      aria-label={label}
-      title={label}
+      aria-label={iconOnly ? label : undefined}
+      title={iconOnly ? label : undefined}
       aria-current={active ? "page" : undefined}
       className={cn(className, active && activeClassName)}
     >

@@ -38,7 +38,7 @@ function Brand({ className }: { className?: string }) {
       href="/app"
       aria-label="Pitbull home"
       className={cn(
-        "grid size-8 place-items-center rounded-md bg-brand text-sm font-bold text-brand-foreground",
+        "grid size-8 shrink-0 place-items-center rounded-md bg-brand text-sm font-bold text-brand-foreground max-[640px]:size-[44px]",
         className,
       )}
     >
@@ -68,6 +68,7 @@ export function AppShell({
               href={href}
               label={label}
               exact={exact}
+              iconOnly
               className="grid size-9 place-items-center rounded-md text-chrome-foreground hover:bg-chrome-hover hover:text-chrome-emphasis"
               activeClassName="bg-chrome-active text-chrome-emphasis"
             >
@@ -138,6 +139,8 @@ async function CompanyBadge() {
     <div className="flex min-w-0 items-center gap-2 text-sm">
       <span
         data-testid="company-name"
+        role="group"
+        aria-label={user.companyName}
         className="min-w-0 font-medium text-pretty break-words whitespace-normal"
       >
         {user.companyName}
@@ -158,7 +161,7 @@ async function UserMenu() {
   return (
     <details className="group relative">
       <summary
-        className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted [&::-webkit-details-marker]:hidden"
+        className="flex shrink-0 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted max-[640px]:min-h-[44px] max-[640px]:min-w-[44px] [&::-webkit-details-marker]:hidden"
         data-testid="user-menu"
       >
         <span className="grid size-7 place-items-center rounded-full bg-muted text-xs font-medium">
@@ -230,6 +233,9 @@ async function JobStrip() {
       ? await getTodayPlanLabelsByJob(user.companyId)
       : null;
   const foremanPhoneHide = user.role === "foreman";
+  const spelledJobId = costIndexes
+    ? jobs.find((p) => !p.estimateDraft)?.job.id
+    : undefined;
   return (
     <nav
       aria-label="Jobs"
@@ -244,7 +250,9 @@ async function JobStrip() {
         const meta = p.estimateDraft
           ? "Estimate draft"
           : costIndexes
-            ? `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`
+            ? p.job.id === spelledJobId
+              ? `Cost performance (CPI) ${idx(p.cpi)} · Schedule performance (SPI) ${idx(p.spi)}`
+              : `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`
             : user.role === "foreman"
               ? foremanLabel
               : null;
