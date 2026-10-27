@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { JOURNEYS, runJourney } from "./journeys.mjs";
+import { isLocalUrl } from "./target-guard.mjs";
 
 for (const ev of ["uncaughtException", "unhandledRejection"]) {
   process.on(ev, (error) => {
@@ -24,6 +25,11 @@ const MODES = ["control", "extra-tap", "double-confirm"];
 const { values: args } = parseArgs({ options: { url: { type: "string" }, journey: { type: "string" }, mode: { type: "string" }, out: { type: "string" } } });
 if (!args.url || !JOURNEYS[args.journey] || !MODES.includes(args.mode)) {
   console.error(`usage: --url URL --journey ${Object.keys(JOURNEYS).join("|")} --mode ${MODES.join("|")} [--out file]`);
+  process.exit(2);
+}
+// Local only (target-guard.mjs): this tool never runs against staging or production.
+if (!isLocalUrl(args.url)) {
+  console.error(`refused: ${args.url} is not localhost; this tool runs only against a local app`);
   process.exit(2);
 }
 const here = path.dirname(fileURLToPath(import.meta.url));

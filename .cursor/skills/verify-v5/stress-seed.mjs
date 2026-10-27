@@ -17,6 +17,7 @@ import { evaluateStressSeed, STRESS_JOB_NUMBER } from "./checks.mjs";
 import { signInRole } from "./crawl.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
 import { redactText, safeJson, secretValues } from "./evidence.mjs";
+import { isLocalUrl, isLocalDbUrl } from "./target-guard.mjs";
 
 const SECRETS = secretValues(process.env);
 const safe = (x) => redactText(x, SECRETS);
@@ -30,6 +31,15 @@ for (const ev of ["uncaughtException", "unhandledRejection"]) {
 const { values: args } = parseArgs({ options: { url: { type: "string" }, out: { type: "string" } } });
 if (!args.url || !process.env.DATABASE_URL) {
   console.error("usage: DATABASE_URL=… node stress-seed.mjs --url http://localhost:<port> [--out file.json]");
+  process.exit(2);
+}
+// Local only (target-guard.mjs): this tool never runs against staging or production.
+if (!isLocalUrl(args.url)) {
+  console.error(`refused: ${args.url} is not localhost; this tool runs only against a local app`);
+  process.exit(2);
+}
+if (process.env.DATABASE_URL && !isLocalDbUrl(process.env.DATABASE_URL)) {
+  console.error("refused: DATABASE_URL is not a local database (host not shown); this tool runs only against a local DB");
   process.exit(2);
 }
 const db = parsePostgresUrl(process.env.DATABASE_URL);
