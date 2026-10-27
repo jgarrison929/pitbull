@@ -26,12 +26,11 @@ describe("db pool max (V5_DB_POOL_MAX)", () => {
     expect(dbPoolMaxFromEnv({ V5_DB_POOL_MAX: "4" })).toBe(4);
     expect(dbPoolMaxFromEnv({ V5_DB_POOL_MAX: "12.9" })).toBe(12);
     expect(dbPoolMaxFromEnv({ V5_DB_POOL_MAX: "999" })).toBe(DB_POOL_MAX_SOFT_CAP);
-    // Burst-safe band: enough for Suspense, well below #60 thrash (40+24).
-    expect(DEFAULT_DB_POOL_MAX).toBeGreaterThanOrEqual(10);
-    expect(DEFAULT_DB_POOL_MAX).toBeLessThanOrEqual(DB_POOL_MAX_SOFT_CAP);
-    expect(PROXY_DB_POOL_MAX).toBeGreaterThanOrEqual(2);
-    expect(PROXY_DB_POOL_MAX).toBeLessThanOrEqual(16);
-    expect(DEFAULT_DB_POOL_MAX + PROXY_DB_POOL_MAX).toBeLessThanOrEqual(48);
+    // Exact defaults — MPOOL (20→28) must fail. Band-only asserts stayed green.
+    expect(DEFAULT_DB_POOL_MAX).toBe(20);
+    expect(PROXY_DB_POOL_MAX).toBe(8);
+    expect(DEFAULT_DB_POOL_MAX + PROXY_DB_POOL_MAX).toBe(28);
+    expect(DB_POOL_MAX_SOFT_CAP).toBe(50);
   });
 
   it("must-fail: getDb must use dbPoolMaxFromEnv and log max without secrets", () => {

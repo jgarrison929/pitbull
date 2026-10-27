@@ -514,8 +514,9 @@ export async function listLeafCostOptions(
 /** Milestones + latest PM percent logs for on-screen EV method controls. */
 export async function getJobEvControls(companyId: string, jobId: string) {
   const db = requireDb();
-  // Three independent reads — overlap RTTs; scope logs to this job's leaves.
-  const [milestones, pmItems, logs] = await Promise.all([
+  // Milestones + pm_percent leaves first; skip the logs query when this job has
+  // no pm_percent items (saves a pool checkout under burst concurrency).
+  const [milestones, pmItems] = await Promise.all([
     db
       .select({
         id: costItemMilestones.id,
@@ -551,20 +552,23 @@ export async function getJobEvControls(companyId: string, jobId: string) {
         ),
       )
       .orderBy(asc(costItems.code)),
-    db
-      .select({
-        log: pmPercentLogs,
-      })
-      .from(pmPercentLogs)
-      .innerJoin(costItems, eq(costItems.id, pmPercentLogs.costItemId))
-      .where(
-        and(
-          eq(pmPercentLogs.companyId, companyId),
-          eq(costItems.jobId, jobId),
-        ),
-      )
-      .orderBy(desc(pmPercentLogs.at)),
   ]);
+
+  const logs = pmItems.length
+    ? await db
+        .select({
+          log: pmPercentLogs,
+        })
+        .from(pmPercentLogs)
+        .innerJoin(costItems, eq(costItems.id, pmPercentLogs.costItemId))
+        .where(
+          and(
+            eq(pmPercentLogs.companyId, companyId),
+            eq(costItems.jobId, jobId),
+          ),
+        )
+        .orderBy(desc(pmPercentLogs.at))
+    : [];
 
   return {
     milestones,
