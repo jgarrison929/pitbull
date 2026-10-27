@@ -287,13 +287,16 @@ export function AssistantPanel({
           phone && "sticky bottom-[4.25rem] rounded-b-xl md:bottom-0",
         )}
       >
-        <label htmlFor={`prompt-${variant}`} className="sr-only">
-          Ask the assistant
-        </label>
+        {/*
+          aria-label on the input — not a visually-hidden label. Tailwind
+          `sr-only` uses overflow:hidden + 1×1 clip, which the phone clip
+          scan counts as "Ask the assistant" (skill clipping @320).
+        */}
         <input
           ref={inputRef}
           id={`prompt-${variant}`}
           name="prompt"
+          aria-label="Ask the assistant"
           autoComplete="off"
           placeholder={listening ? "Listening…" : "Ask or tell me what to do"}
           className={cn(

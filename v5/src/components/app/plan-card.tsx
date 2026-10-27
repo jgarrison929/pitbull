@@ -63,22 +63,22 @@ export function PlanCard({
     >
       <header className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:py-2.5">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <h2 className="min-w-0 text-section font-semibold">
+          <h2 className="min-w-0 text-section font-semibold text-pretty break-words">
             <Link
               href={`/app/jobs/${jobNumber}/plans/${plan.id}`}
               className="hover:underline"
               data-testid="plan-detail-link"
             >
-              <span className="whitespace-nowrap">Daily plan</span>
+              Daily plan
               <span className="text-muted-foreground"> · </span>
-              <span className="whitespace-nowrap">{plan.crew}</span>
+              {plan.crew}
               <span className="text-muted-foreground"> · </span>
-              <span className="whitespace-nowrap">{utcDay(plan.planDate)}</span>
+              {utcDay(plan.planDate)}
             </Link>
           </h2>
           <span
             className={cn(
-              "shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-label font-medium",
+              "shrink-0 rounded-full px-2 py-0.5 text-label font-medium",
               statusBadgeClass(plan.status),
             )}
             data-testid="plan-status"
@@ -87,9 +87,9 @@ export function PlanCard({
             {statusLabel(plan.status)}
           </span>
           <span
-            className="max-[480px]:truncate text-label text-muted-foreground"
+            className="min-w-0 text-label text-pretty break-words whitespace-normal text-muted-foreground"
             data-text="label"
-            title={`Foreman ${plan.foreman}${plan.weather ? ` · ${plan.weather}` : ""}`}
+            data-testid="plan-foreman-weather"
           >
             Foreman {plan.foreman}
             {plan.weather ? ` · ${plan.weather}` : ""}
@@ -270,15 +270,12 @@ function LineView({ l }: { l: Plan["lines"][number] }) {
           </span>
           {activityLabel(l.activity)}
         </div>
-        <div
-          className="max-[480px]:truncate text-label text-muted-foreground sm:max-w-none"
-          title={placeDesc}
-        >
+        <div className="min-w-0 text-label text-pretty break-words whitespace-normal text-muted-foreground">
           <span className="sm:hidden">{l.location}</span>
           <span className="hidden sm:inline">{placeDesc}</span>
         </div>
       </div>
-      <div className="whitespace-nowrap text-right tabular-nums">
+      <div className="text-right tabular-nums">
         {qty(l.qtyMilli)} {l.unit}
       </div>
       <div className="col-span-2 flex flex-wrap items-baseline gap-x-3 text-label text-muted-foreground">
@@ -304,14 +301,12 @@ function LineView({ l }: { l: Plan["lines"][number] }) {
       <details className="col-span-2 sm:hidden">
         <summary
           data-text="label"
-          className="tap-target flex cursor-pointer list-none items-center text-label font-medium text-muted-foreground [&::-webkit-details-marker]:hidden"
+          className="tap-target flex cursor-pointer list-none items-center text-label font-medium text-pretty break-words whitespace-normal text-muted-foreground [&::-webkit-details-marker]:hidden"
         >
-          <span className="max-[480px]:truncate" title={detailSummary}>
-            {detailSummary}
-          </span>
+          {detailSummary}
         </summary>
-        <div className="space-y-1 pt-2 text-label text-muted-foreground">
-          <p title={placeDesc}>{placeDesc}</p>
+        <div className="space-y-1 pt-2 text-label text-pretty break-words whitespace-normal text-muted-foreground">
+          <p>{placeDesc}</p>
           <p className={l.withinRate ? "text-positive" : "text-negative"}>
             {rateText}
           </p>

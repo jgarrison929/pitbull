@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
-import { usdCents } from "@/lib/ev";
+import { usdCents, usdShort } from "@/lib/ev";
 
 /** Cedar Creek (25-031) plans Bridge Crew 2 — pending/approve use its seeded rate. */
 const BRIDGE_RATE_CENTS = CREW_LABOR_RATE_CENTS["Bridge Crew 2"];
@@ -79,7 +79,13 @@ test.describe("superintendent approve / return", () => {
     await expect(pending).toContainText("12");
     const pendingCents = 22 * BRIDGE_RATE_CENTS;
     await expect(pending).toHaveAttribute("data-cents", String(pendingCents));
-    await expect(pending).toContainText(usdCents(pendingCents));
+    // Phone Money(exact): $K/$M on the summary; full cents one tap away.
+    await expect(pending).toContainText(usdShort(pendingCents));
+    const moneySummary = pending.locator("summary").first();
+    if (await moneySummary.count()) {
+      await moneySummary.click();
+      await expect(pending).toContainText(usdCents(pendingCents));
+    }
 
     // Superintendent returns with a reason (form unmounts on success — assert banner).
     await signIn(page, "superintendent");

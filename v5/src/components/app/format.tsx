@@ -70,12 +70,13 @@ export function StatusPill({
     <span
       data-text="label"
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-label font-medium",
+        // Wrap on phone — nowrap + strip overflow was a hard status clip at 320.
+        "inline-flex max-w-full shrink-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-full px-2 py-0.5 text-label font-medium",
         s.tone,
       )}
       data-status={value}
     >
-      <span className={cn("size-1.5 rounded-full", s.dot)} />
+      <span className={cn("size-1.5 shrink-0 rounded-full", s.dot)} />
       {s.label}
       {varianceCents !== undefined && (
         <span className="tabular-nums">· {signedUsd(varianceCents)}</span>
@@ -104,7 +105,7 @@ export function StatusIndex({
   return (
     <span
       className={cn(
-        "inline-flex items-baseline gap-1.5 whitespace-nowrap tabular-nums",
+        "inline-flex max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0 tabular-nums",
         s ? statusStyle[s].text : "text-muted-foreground",
       )}
       data-status={s ?? "none"}
@@ -120,10 +121,15 @@ export function StatusIndex({
   );
 }
 
+/**
+ * Money display. `exact` shows dollars+cents at md+; on phone it shows $K/$M
+ * (or whole dollars) with the exact figure one tap away — never ellipsis, and
+ * never title-only (strict own-text scan ignores hover titles).
+ */
 export function Money({
   cents,
   signed = false,
-  /** Leaf budget lines: exact dollars and cents. Roll-ups stay compact. */
+  /** Leaf budget lines: exact dollars and cents at tablet/desktop. */
   exact = false,
 }: {
   cents: number;
@@ -138,15 +144,35 @@ export function Money({
         : ""
     : "";
   const exactText = usdCents(cents);
-  const text = exact ? exactText : usdShort(cents);
+  const shortText = usdShort(cents);
+  const sign = signed && cents > 0 ? "+" : "";
+  if (!exact) {
+    return (
+      <span className={cn("tabular-nums", tone)} data-cents={cents}>
+        {sign}
+        {shortText}
+      </span>
+    );
+  }
   return (
-    <span
-      className={cn("whitespace-nowrap tabular-nums", tone)}
-      data-cents={cents}
-      title={exact ? undefined : exactText}
-    >
-      {signed && cents > 0 ? "+" : ""}
-      {text}
+    <span className={cn("tabular-nums", tone)} data-cents={cents}>
+      <details className="inline-block max-w-full md:hidden">
+        <summary
+          data-text="label"
+          className="tap-target cursor-pointer list-none font-medium tabular-nums text-foreground [&::-webkit-details-marker]:hidden"
+        >
+          {sign}
+          {shortText}
+        </summary>
+        <span className="mt-0.5 block text-label tabular-nums text-muted-foreground">
+          {sign}
+          {exactText}
+        </span>
+      </details>
+      <span className="hidden whitespace-nowrap md:inline">
+        {sign}
+        {exactText}
+      </span>
     </span>
   );
 }
