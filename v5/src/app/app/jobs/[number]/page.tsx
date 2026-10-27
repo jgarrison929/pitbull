@@ -16,10 +16,12 @@ import {
   Section,
 } from "@/components/app/page";
 import { EvMethodControls } from "@/components/app/ev-method-controls";
+import { ConfirmForm } from "@/components/form/confirm-form";
 import { ImportEstimateForm } from "@/components/app/import-estimate-form";
 import { JobNewPlanSlot } from "@/components/app/job-new-plan-slot";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
+import { approveEstimateCopy, lockPeriodCopy } from "@/lib/confirm-copy";
 import { mh, pct, usdShort } from "@/lib/ev";
 import {
   showsJobPageCostIndexes,
@@ -106,6 +108,16 @@ export async function Job({
   const costIndexes = showsJobPageCostIndexes(user.role);
   const statusBadge = showsStatusRiskBadge(user.role);
   const jobMoney = p.money.job;
+  const approveCopy = approveEstimateCopy({
+    jobNumber: p.job.number,
+    currentEstimateCents: jobMoney.ceCents,
+  });
+  const lockCopy = draftClaim
+    ? lockPeriodCopy({
+        jobNumber: p.job.number,
+        periodLabel: draftClaim.periodLabel,
+      })
+    : null;
   const costBan =
     /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
   const visibleChanges = statusBadge
@@ -169,7 +181,16 @@ export async function Job({
           actions={
             <div className="flex items-center gap-2">
               {estimateDraft && canApprove ? (
-                <form action={runAction}>
+                <ConfirmForm
+                  action={runAction}
+                  triggerLabel="Approve estimate"
+                  triggerClassName="rounded-md border px-3 py-1.5 text-xs font-medium max-sm:inline-flex max-sm:tap-target max-sm:items-center max-sm:justify-center max-sm:text-body"
+                  triggerTestId="approve-estimate"
+                  title={approveCopy.title}
+                  description={approveCopy.description}
+                  confirmLabel={approveCopy.confirmLabel}
+                  destructive={approveCopy.destructive}
+                >
                   <input
                     type="hidden"
                     name="action"
@@ -181,17 +202,19 @@ export async function Job({
                     name="label"
                     value="Approve estimate"
                   />
-                  <button
-                    type="submit"
-                    className="rounded-md border px-3 py-1.5 text-xs font-medium"
-                    data-testid="approve-estimate"
-                  >
-                    Approve estimate
-                  </button>
-                </form>
+                </ConfirmForm>
               ) : null}
-              {draftClaim && canLock && !estimateDraft ? (
-                <form action={runAction}>
+              {draftClaim && canLock && !estimateDraft && lockCopy ? (
+                <ConfirmForm
+                  action={runAction}
+                  triggerLabel={`Lock ${draftClaim.periodLabel}`}
+                  triggerClassName="rounded-md border px-3 py-1.5 text-xs font-medium max-sm:inline-flex max-sm:tap-target max-sm:items-center max-sm:justify-center max-sm:text-body"
+                  triggerTestId="lock-claim"
+                  title={lockCopy.title}
+                  description={lockCopy.description}
+                  confirmLabel={lockCopy.confirmLabel}
+                  destructive={lockCopy.destructive}
+                >
                   <input
                     type="hidden"
                     name="action"
@@ -203,14 +226,7 @@ export async function Job({
                     name="label"
                     value={`Lock ${draftClaim.periodLabel}`}
                   />
-                  <button
-                    type="submit"
-                    className="rounded-md border px-3 py-1.5 text-xs font-medium"
-                    data-testid="lock-claim"
-                  >
-                    Lock {draftClaim.periodLabel}
-                  </button>
-                </form>
+                </ConfirmForm>
               ) : null}
               {estimateDraft ? (
                 <span

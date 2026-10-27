@@ -44,7 +44,7 @@ export function ConfirmDialog({
           <AlertDialog.Title className="text-base font-semibold text-balance">
             {title}
           </AlertDialog.Title>
-          <AlertDialog.Description className="mt-2 text-sm text-pretty text-muted-foreground">
+          <AlertDialog.Description className="mt-2 text-sm text-pretty text-muted-foreground tabular-nums">
             {description}
           </AlertDialog.Description>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

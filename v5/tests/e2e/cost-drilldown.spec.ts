@@ -257,7 +257,7 @@ test("after approve: totals = AC on drill page and job page; no approved-qty row
   expect(sinceBeforeLock).toBeGreaterThan(0);
   await signIn(page, "pm");
   await page.goto("/app/jobs/25-031");
-  await page.getByTestId("lock-claim").click();
+  await confirmDialog(page, page.getByTestId("lock-claim"));
   await expect(page.getByTestId("lock-claim")).toContainText("Period 3");
   await page.goto("/app/jobs/25-031/cost-items/04-210");
   await expect(page.getByTestId("cost-item-since-lock")).toHaveCount(0);

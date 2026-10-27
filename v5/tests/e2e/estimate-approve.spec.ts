@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { confirmDialog } from "./confirm-dialog";
 
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
@@ -34,7 +35,7 @@ test("PM approves draft estimate; budget matches fixture; second approve refused
     page.getByTestId("job-budget").locator("[data-cents]"),
   ).toHaveAttribute("data-cents", "0");
 
-  await page.getByTestId("approve-estimate").click();
+  await confirmDialog(page, page.getByTestId("approve-estimate"));
 
   await expect(page.getByTestId("estimate-status")).toHaveAttribute(
     "data-status",
