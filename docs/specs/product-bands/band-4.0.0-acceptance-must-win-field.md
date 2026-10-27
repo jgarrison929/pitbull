@@ -32,7 +32,7 @@ Without a server `?view=mobile` job-cost contract and phone glance, 4.0.0 would 
 
 ## Personas
 
-Persona resolution is **title / `role_profile` first** (not Identity role alone). E2E: [`e2e/fixtures/ROLE-PERSONA-MAP.md`](../../../e2e/fixtures/ROLE-PERSONA-MAP.md).
+Persona resolution is **title / `role_profile` first** (not Identity role alone). Personas: [`docs/ROLE-EXPERIENCE.md`](../../ROLE-EXPERIENCE.md) and the four role cards in [`AGENTS.md`](../../../AGENTS.md).
 
 | Persona | Profile / demo | 4.0.0 job-cost role |
 |---------|----------------|--------------------|
