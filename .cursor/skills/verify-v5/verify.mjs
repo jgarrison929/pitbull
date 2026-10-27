@@ -40,6 +40,7 @@ import {
 import { evaluateSpeedRows, SPEED_PASSES, speedPass } from "./speed.mjs";
 import { evaluateConfirm504, runConfirm504 } from "./confirm504.mjs";
 import { evaluateField504, runField504 } from "./field504.mjs";
+import { E6_NAME, evaluateE6, runE6 } from "./e6.mjs";
 import { evaluateJourney504, runJourneys504 } from "./journey504.mjs";
 import { demoPathPass, evaluateDemoPath, doneStatePass, evaluateDoneState, evaluatePassRows, pagePass, PASSES as SPEC504_PASSES } from "./spec504.mjs";
 import { AXE_PASSES, AXE_THEMES, axePass, C4_OPTIONS, evaluateAxeRows, loadAxeSource } from "./axe.mjs";
@@ -652,6 +653,13 @@ async function navCrawl(browser) {
       const byCheck = evaluateField504(o);
       writeFileSync(path.join(outDir, "spec504-field.json"), safeJson({ name: FD, byCheck, o }, SECRETS));
       for (const [k, failures] of Object.entries(byCheck)) check(k, failures.length === 0, failures.length ? failures.slice(0, 8).join("; ") : "OK");
+    });
+    // 5.0.4-e check 6 (spec #89, 9497f7e9): AC stays at the cutoff after the superintendent approves the 24-118 report.
+    await step(E6_NAME, async () => {
+      const o = await runE6(browser, base);
+      const failures = evaluateE6(o);
+      writeFileSync(path.join(outDir, "spec504-e6.json"), safeJson({ name: E6_NAME, failures, o }, SECRETS));
+      check(E6_NAME, failures.length === 0, failures.length ? failures.slice(0, 8).join("; ") : `since-lock +${o.after?.pm?.since?.cents}¢ = approved cost; AC, CPI, EAC unchanged; foreman sees no line`);
     });
     rcSignals.executed504 = true; // every 5.0.4 step above ran (each reports its own PASS/FAIL)
   }

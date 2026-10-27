@@ -133,6 +133,10 @@ jobs:
       - name: Skill harness-gaps must-fail (127.0.0.1 fixtures)
         run: node .cursor/skills/verify-v5/harness-gaps.mustfail.test.mjs
 
+      # 5.0.4-e check 6 on a 127.0.0.1 fake 24-118 page (~2 min). Same job for the same reason (time budget).
+      - name: Skill e-6 must-fail (127.0.0.1 fixtures)
+        run: node .cursor/skills/verify-v5/e6-mustfail.test.mjs
+
       - name: Prepare database (pre-deploy step)
         working-directory: v5
         run: npm run db:prepare
