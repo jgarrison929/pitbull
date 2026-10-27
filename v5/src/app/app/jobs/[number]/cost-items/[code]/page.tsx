@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ForecastMethodControl } from "@/components/app/forecast-method-control";
+import { CostEntriesEmpty, type AppRole } from "@/components/app/list-empty";
 import { Figure, Money } from "@/components/app/format";
 import {
   Kpi,
@@ -14,9 +15,6 @@ import { mh, qty, usdCents } from "@/lib/ev";
 import { actions } from "@/server/assistant/actions";
 import { getCostItemPage, type CostEntryRow } from "@/server/cost-item-page";
 import { requireUser } from "@/server/session";
-
-const EMPTY_LABOR =
-  "Labor posts here when a daily report for this cost item is approved";
 
 export default function CostItemPage({
   params,
@@ -408,16 +406,20 @@ async function CostItem({
             : "Newest first · labor posts and invoices behind this item's actual cost"
         }
       >
+        {data.entries.length === 0 ? (
+          <CostEntriesEmpty
+            role={user.role as AppRole}
+            jobNumber={data.job.number}
+            code={data.item.code}
+          />
+        ) : (
+          <>
         {!data.hasLaborEntries ? (
-          <p
-            className="border-b px-4 py-3 text-body text-muted-foreground"
-            data-testid="cost-item-empty-labor"
-          >
-            {EMPTY_LABOR}
+          <p className="border-b px-4 py-3 text-body text-muted-foreground">
+            Labor posts when the superintendent approves a daily report for
+            this cost code.
           </p>
         ) : null}
-        {data.entries.length === 0 ? null : (
-          <>
             <div className="md:hidden" data-testid="cost-item-entries-cards">
               {sinceLockEntries.length > 0 ? (
                 <p

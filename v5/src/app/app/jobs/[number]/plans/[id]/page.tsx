@@ -2,6 +2,11 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Figure } from "@/components/app/format";
 import { LocalTime } from "@/components/app/local-time";
+import {
+  PlanHistoryEmpty,
+  PlanLinesEmpty,
+  type AppRole,
+} from "@/components/app/list-empty";
 import { MetricCard, PageHeader, Section, Td, Th } from "@/components/app/page";
 import { utcDay } from "@/lib/dates";
 import { qty, usdCents } from "@/lib/ev";
@@ -139,6 +144,14 @@ async function Plan({
         meta="Planned and reported quantity and man-hours. Approve, return, and report stay on the job page."
       >
         <div data-testid="plan-detail-lines">
+        {data.lines.length === 0 ? (
+          <PlanLinesEmpty
+            role={user.role as AppRole}
+            status={data.plan.status}
+            jobNumber={data.job.number}
+          />
+        ) : (
+        <>
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[36rem] text-body">
             <thead>
@@ -251,15 +264,18 @@ async function Plan({
             );
           })}
         </ul>
+        </>
+        )}
         </div>
       </Section>
 
       <Section title="History" meta="Every step this plan went through">
         {data.history.length === 0 ? (
-          <p className="px-4 py-3 text-body text-muted-foreground">
-            History appears as this plan is issued, reported, returned, or
-            approved.
-          </p>
+          <PlanHistoryEmpty
+            role={user.role as AppRole}
+            status={data.plan.status}
+            jobNumber={data.job.number}
+          />
         ) : (
           <ol className="divide-y px-4" data-testid="plan-history">
             {data.history.map((h, i) => (
