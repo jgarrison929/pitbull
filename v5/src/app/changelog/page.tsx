@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { PageHeader } from "@/components/app/page";
 import { changelog } from "@/content/changelog";
 
 export const metadata: Metadata = { title: "Changelog · Pitbull" };
@@ -7,25 +9,32 @@ export default function ChangelogPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12">
       <div>
-        <a
+        <Link
           href="/app"
-          className="text-sm text-muted-foreground hover:underline"
+          className="tap-target inline-flex items-center text-body text-muted-foreground hover:underline"
         >
           ← Back to Pitbull
-        </a>
-        <h1 className="mt-2 text-xl font-semibold">Changelog</h1>
-        <p className="text-sm text-muted-foreground">
-          What shipped, newest first. Each release passed CI and the staging
-          verify run.
-        </p>
-        <p className="mt-2 text-sm">
-          <a href="/roadmap" className="underline hover:no-underline">
+        </Link>
+        <div className="mt-2">
+          <PageHeader
+            title="Changelog"
+            purpose="What each release changed."
+          />
+        </div>
+        <p className="mt-2 text-body">
+          <Link
+            href="/roadmap"
+            className="tap-target inline-flex items-center underline hover:no-underline"
+          >
             Roadmap
-          </a>
+          </Link>
           {" · "}
-          <a href="/status" className="underline hover:no-underline">
+          <Link
+            href="/status"
+            className="tap-target inline-flex items-center underline hover:no-underline"
+          >
             Status
-          </a>
+          </Link>
         </p>
       </div>
       <ol className="flex flex-col gap-6">
@@ -36,12 +45,18 @@ export default function ChangelogPage() {
             className="flex scroll-mt-6 flex-col gap-2"
           >
             <div className="flex items-baseline gap-2">
-              <h2 className="font-mono text-sm font-semibold">{r.version}</h2>
-              <time className="text-xs text-muted-foreground" dateTime={r.date}>
+              <h2 className="font-mono text-section font-semibold">
+                {r.version}
+              </h2>
+              <time
+                data-text="label"
+                className="text-label text-muted-foreground"
+                dateTime={r.date}
+              >
                 {r.date}
               </time>
             </div>
-            <ul className="list-disc pl-5 text-sm">
+            <ul className="list-disc pl-5 text-body">
               {r.items.map((i) => (
                 <li key={i}>{i}</li>
               ))}

@@ -1,0 +1,86 @@
+import { usdShort } from "@/lib/ev";
+import { overallStatus, varianceStatus, type Status } from "@/lib/status";
+
+/** Foreman JobStrip labels for today's plan on a job. */
+export type TodayPlanLabel = "Report due" | "Reported" | "No plan today";
+
+const planRank: Record<string, number> = {
+  issued: 3,
+  reported: 2,
+  approved: 2,
+  draft: 1,
+};
+
+/** Pick one foreman-facing label from today's plan statuses on a job. */
+export function todayPlanLabel(
+  statuses: Iterable<string>,
+): TodayPlanLabel {
+  let best: string | null = null;
+  let bestRank = 0;
+  for (const s of statuses) {
+    const r = planRank[s] ?? 0;
+    if (r > bestRank) {
+      bestRank = r;
+      best = s;
+    }
+  }
+  if (best === "issued") return "Report due";
+  if (best === "reported" || best === "approved") return "Reported";
+  return "No plan today";
+}
+
+export function showsCostIndexes(role: string): boolean {
+  return role === "pm" || role === "executive";
+}
+
+/** Superintendent keeps indexes on the job page only; foreman never. */
+export function showsJobPageCostIndexes(role: string): boolean {
+  return role !== "foreman";
+}
+
+export function showsStatusRiskBadge(role: string): boolean {
+  return role !== "foreman";
+}
+
+type AtRiskJob = {
+  shortName: string;
+  number: string;
+  cpi: number | null;
+  spi: number | null;
+  costVarianceCents: number;
+  scheduleVarianceCents: number;
+};
+
+/**
+ * One plain-language line for an at-risk job (executive /app summary).
+ * Returns null when the job is not at risk.
+ */
+export function atRiskSummaryLine(job: AtRiskJob): string | null {
+  const roll = {
+    cpi: job.cpi,
+    spi: job.spi,
+    costVarianceCents: job.costVarianceCents,
+    scheduleVarianceCents: job.scheduleVarianceCents,
+  };
+  if (overallStatus(roll) !== "at-risk") return null;
+
+  const cost = varianceStatus(job.cpi, job.costVarianceCents);
+  const sched = varianceStatus(job.spi, job.scheduleVarianceCents);
+  const overCost =
+    cost === "at-risk" ||
+    (job.costVarianceCents < 0 && statusRank(cost) >= statusRank(sched));
+
+  const name = `${job.shortName} (${job.number})`;
+  if (overCost) {
+    const spent = usdShort(Math.abs(job.costVarianceCents));
+    return `${name} is over cost: it has spent ${spent} more than the work it has done is worth`;
+  }
+  const behind = usdShort(Math.abs(job.scheduleVarianceCents));
+  return `${name} is behind schedule: earned value is ${behind} behind what was planned`;
+}
+
+const statusRank = (s: Status | null): number => {
+  if (s === "at-risk") return 2;
+  if (s === "watch") return 1;
+  return 0;
+};

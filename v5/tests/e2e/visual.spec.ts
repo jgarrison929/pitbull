@@ -160,10 +160,10 @@ async function measureScrollHeight(page: Page): Promise<number> {
 
 /**
  * Wait until scrollHeight stops changing after stabilize (time-chip wrap).
- * Harbor phone clipped Changes mid-card (~172px short; identical top pixels)
- * when fitViewport measured before wrap settled — not a shorter page. Seen on
- * rc/5.0.4 tip 9b69539 (light) and main-based PRs (dark). One-shot measure
- * loses the race; min-h-svh then locks scrollHeight === viewport.
+ * Harbor phone light clipped Changes mid-card (2925 vs 3097 on rc/5.0.4 tip
+ * 9b69539; identical top pixels) when fitViewport measured before wrap
+ * settled — not a shorter page. Remeasure-after-resize alone still lost the
+ * race: min-h-svh locks scrollHeight === viewport once sized short.
  *
  * Do NOT walk getBoundingClientRect bottoms: fixed/sticky + scrollY overshoots,
  * then min-h-svh locks the tall viewport (job-desktop overshoot on 79c0db0).

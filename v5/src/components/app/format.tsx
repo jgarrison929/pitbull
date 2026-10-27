@@ -1,5 +1,6 @@
+import { ExactMoney } from "@/components/app/exact-money";
 import { cn } from "@/lib/utils";
-import { idx, usdCents, usdShort } from "@/lib/ev";
+import { idx, usdShort } from "@/lib/ev";
 import { varianceStatus, type Status } from "@/lib/status";
 
 const statusStyle: Record<
@@ -26,6 +27,37 @@ const statusStyle: Record<
   },
 };
 
+/**
+ * Every number on a MetricCard (and phone list rows) goes through Figure so
+ * Verify can count primary/secondary figures (5.0.4-c).
+ */
+export function Figure({
+  children,
+  variant = "primary",
+  className,
+  ...props
+}: {
+  children: React.ReactNode;
+  variant?: "primary" | "secondary";
+  className?: string;
+} & React.HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span
+      data-figure={variant}
+      className={cn(
+        "tabular-nums",
+        variant === "primary"
+          ? "text-figure-primary font-semibold tracking-tight"
+          : "text-label font-medium text-muted-foreground",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </span>
+  );
+}
+
 /** A job's status. The dollar variance sits next to the color whenever it is known. */
 export function StatusPill({
   value,
@@ -37,13 +69,15 @@ export function StatusPill({
   const s = statusStyle[value];
   return (
     <span
+      data-text="label"
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium",
+        // Wrap on phone — nowrap + strip overflow was a hard status clip at 320.
+        "inline-flex max-w-full shrink-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-full px-2 py-0.5 text-label font-medium",
         s.tone,
       )}
       data-status={value}
     >
-      <span className={cn("size-1.5 rounded-full", s.dot)} />
+      <span className={cn("size-1.5 shrink-0 rounded-full", s.dot)} />
       {s.label}
       {varianceCents !== undefined && (
         <span className="tabular-nums">· {signedUsd(varianceCents)}</span>
@@ -72,7 +106,7 @@ export function StatusIndex({
   return (
     <span
       className={cn(
-        "inline-flex items-baseline gap-1.5 whitespace-nowrap tabular-nums",
+        "inline-flex max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0 tabular-nums",
         s ? statusStyle[s].text : "text-muted-foreground",
       )}
       data-status={s ?? "none"}
@@ -81,17 +115,22 @@ export function StatusIndex({
       <span data-testid={testId ? `${testId}-index` : undefined}>
         {idx(index)}
       </span>
-      <span className="text-[0.85em] font-normal">
+      <span data-text="label" className="text-label font-normal">
         {signedUsd(varianceCents)}
       </span>
     </span>
   );
 }
 
+/**
+ * Money display. Compact `$K`/`$M` by default. `exact` uses ExactMoney: phone
+ * shows one compact figure with exact one tap away (swap, never dual-mount);
+ * tablet/desktop shows dollars+cents. No ellipsis; no title-only reachability.
+ */
 export function Money({
   cents,
   signed = false,
-  /** Leaf budget lines: exact dollars and cents. Roll-ups stay compact. */
+  /** Leaf budget lines: exact dollars and cents at tablet/desktop. */
   exact = false,
 }: {
   cents: number;
@@ -105,14 +144,14 @@ export function Money({
         ? "text-positive"
         : ""
     : "";
-  const text = exact ? usdCents(cents) : usdShort(cents);
+  const sign = signed && cents > 0 ? "+" : "";
+  if (exact) {
+    return <ExactMoney cents={cents} signed={signed} className={tone} />;
+  }
   return (
-    <span
-      className={cn("whitespace-nowrap tabular-nums", tone)}
-      data-cents={cents}
-    >
-      {signed && cents > 0 ? "+" : ""}
-      {text}
+    <span className={cn("tabular-nums", tone)} data-cents={cents}>
+      {sign}
+      {usdShort(cents)}
     </span>
   );
 }

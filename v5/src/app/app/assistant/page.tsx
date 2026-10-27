@@ -8,6 +8,7 @@ export default function AssistantPage() {
     <>
       <PageHeader
         title="Assistant"
+        purpose="Ask in plain words. The assistant runs the same actions as the screens."
         meta="Ask, dictate, or act. Every answer names the action it ran."
       />
       <div className="lg:hidden">
@@ -17,7 +18,7 @@ export default function AssistantPage() {
           <Assistant variant="page" />
         </Suspense>
       </div>
-      <p className="hidden text-sm text-muted-foreground lg:block">
+      <p className="hidden text-body text-muted-foreground lg:block">
         The assistant is open in the right rail.
       </p>
     </>

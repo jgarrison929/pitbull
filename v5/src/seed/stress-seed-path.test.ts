@@ -103,8 +103,8 @@ describe("V5_SEED_STRESS=1 createSandbox (FK)", () => {
         .select()
         .from(dailyPlans)
         .where(eq(dailyPlans.companyId, companyId));
-      // 30 working days × 3 jobs + Cedar tomorrow + I-5 today + stress draft.
-      expect(plans).toHaveLength(30 * 3 + 2 + 1);
+      // 30 working days × 3 jobs + Cedar tomorrow + I-5 today + SR-99 reported + stress draft.
+      expect(plans).toHaveLength(30 * 3 + 3 + 1);
       expect(plans.every((p) => p.crewId)).toBe(true);
       const stressCrew = crewRows.find((c) => c.name === "Stress Crew")!;
       expect(plans.some((p) => p.crewId === stressCrew.id)).toBe(true);

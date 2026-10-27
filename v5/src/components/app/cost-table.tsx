@@ -7,7 +7,7 @@ import type { ValueSet, WbsMoney } from "@/lib/budget";
 import type { CostLine } from "@/lib/ev";
 import { mh, pct, pendingInstalledQtyMilli, qty, rollup } from "@/lib/ev";
 import { cn } from "@/lib/utils";
-import { Money, Progress, StatusIndex } from "./format";
+import { Figure, Money, Progress, StatusIndex } from "./format";
 import { DerivationText, TreeToggleIcon } from "./ui-glyphs";
 import { varianceStatus } from "@/lib/status";
 
@@ -62,10 +62,13 @@ function BudgetCell({
   exact?: boolean;
 }) {
   return (
-    <div className="text-right">
+    <div className="text-right md:whitespace-nowrap">
       <Money cents={centsOf(money, set)} exact={exact} />
       {money.mhMilli > 0 ? (
-        <div className="text-xs tabular-nums text-muted-foreground">
+        <div
+          data-text="label"
+          className="text-label tabular-nums text-muted-foreground"
+        >
           {mh(money.mhMilli)} MH
         </div>
       ) : null}
@@ -76,14 +79,6 @@ function BudgetCell({
 const hot = (l: CostLine) =>
   varianceStatus(l.cpi, l.varianceCents) === "at-risk";
 
-/** Exact dollars for approval-pending (not usdShort's $2K rounding). */
-function usdExact(cents: number) {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-}
-
 /** Claimed installed drives the number; live above that is pending until lock. */
 function InstalledCell({ l }: { l: CostLine }) {
   const pending = pendingInstalledQtyMilli(l);
@@ -92,7 +87,7 @@ function InstalledCell({ l }: { l: CostLine }) {
   const shown =
     l.evMethod === "units" ? l.claimedInstalledQtyMilli : l.installedQtyMilli;
   return (
-    <div className="text-right text-xs tabular-nums text-muted-foreground">
+    <div className="text-right text-label tabular-nums text-muted-foreground">
       <div>
         {qty(shown)} / {qty(l.budgetQtyMilli)} {l.unit}
       </div>
@@ -103,9 +98,14 @@ function InstalledCell({ l }: { l: CostLine }) {
           data-cents={approvalCents}
         >
           +{qty(approvalQty)} {l.unit}
-          {approvalCents > 0
-            ? ` · ${usdExact(approvalCents)} pending`
-            : " pending approval"}
+          {approvalCents > 0 ? (
+            <>
+              {" · "}
+              <Money cents={approvalCents} exact /> pending
+            </>
+          ) : (
+            " pending approval"
+          )}
         </div>
       ) : null}
       {pending > 0 && (
@@ -152,6 +152,7 @@ export function CostTable({
   defaultValueSet,
   estimateDraft = false,
   jobNumber,
+  showCostIndexes = true,
 }: {
   /** Full WBS ordered by path (summaries + leaves). Leaf EV lives on node.line. */
   nodes: WbsNode[];
@@ -161,6 +162,8 @@ export function CostTable({
   estimateDraft?: boolean;
   /** When set, leaf cost codes link to the cost-item drill-down. */
   jobNumber?: string;
+  /** Foreman: hide CPI / variance columns and labels (5.0.4-b). */
+  showCostIndexes?: boolean;
 }) {
   // Roll up from nodes only — avoid a second 10k-line props list on the RSC payload.
   const lines = useMemo(
@@ -217,17 +220,20 @@ export function CostTable({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Filter cost codes…"
-          className="w-full max-w-sm rounded-md border bg-background px-3 py-1.5 text-sm"
+          className="w-full max-w-sm rounded-md border bg-background px-3 py-2 text-body"
           data-testid="cost-tree-filter"
           aria-label="Filter cost codes"
         />
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span
+          data-text="label"
+          className="text-label text-muted-foreground tabular-nums"
+        >
           {visible.length} shown
         </span>
         <div
           role="radiogroup"
           aria-label="Budget column shows"
-          className="ml-auto flex overflow-hidden rounded-md border text-xs"
+          className="ml-auto flex overflow-hidden rounded-md border text-label"
           data-testid="value-set"
           data-set={valueSet}
         >
@@ -240,7 +246,7 @@ export function CostTable({
               title={VALUE_SETS[set].title}
               onClick={() => setValueSet(set)}
               className={cn(
-                "px-2.5 py-1 text-muted-foreground",
+                "tap-target px-3 text-muted-foreground",
                 valueSet === set && "bg-muted font-medium text-foreground",
               )}
               data-testid={`value-set-${set}`}
@@ -251,9 +257,8 @@ export function CostTable({
         </div>
       </div>
       {/*
-        Desktop grid min-width is ~47rem. Below lg the assistant rail is gone
-        and at 768–820px that grid was expanding document scrollWidth (~25–80px).
-        Scroll the tree inside the card; job total stays full width below. (#671)
+        Desktop grid min-width is ~56rem (5.0.4-c). Below lg the assistant rail
+        is gone; scroll the tree inside the card so the page does not grow. (#671)
       */}
       <div className="hidden min-w-0 md:block">
         <div className="overflow-x-auto">
@@ -264,6 +269,7 @@ export function CostTable({
             valueSet={valueSet}
             estimateDraft={estimateDraft}
             jobNumber={jobNumber}
+            showCostIndexes={showCostIndexes}
           />
         </div>
         <div
@@ -312,11 +318,13 @@ export function CostTable({
               </span>
               {estimateDraft ? <MetricDash /> : <Money cents={t.etcCents} />}
             </span>
-            {estimateDraft ? (
-              <MetricDash />
-            ) : (
-              <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
-            )}
+            {showCostIndexes ? (
+              estimateDraft ? (
+                <MetricDash />
+              ) : (
+                <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+              )
+            ) : null}
           </span>
         </div>
       </div>
@@ -328,20 +336,41 @@ export function CostTable({
           valueSet={valueSet}
           estimateDraft={estimateDraft}
           jobNumber={jobNumber}
+          showCostIndexes={showCostIndexes}
         />
-        <div className="flex items-center justify-between border-t py-3 text-sm font-medium">
-          <span>
-            Job total
-            {estimateDraft ? null : ` · ${pct(t.percent)}`}
-          </span>
-          <span>
-            CPI{" "}
-            {estimateDraft ? (
-              <MetricDash />
-            ) : (
-              <StatusIndex index={t.cpi} varianceCents={t.costVarianceCents} />
+        <div
+          data-card
+          className="flex flex-wrap items-baseline justify-between gap-2 border-t py-3"
+        >
+          <div className="min-w-0">
+            <div
+              data-text="label"
+              className="text-label font-medium text-muted-foreground"
+            >
+              Job total · EAC
+            </div>
+            <Figure variant="primary" className="mt-0.5 block">
+              {estimateDraft ? <MetricDash /> : <Money cents={t.eacCents} />}
+            </Figure>
+          </div>
+          <div className="flex flex-wrap items-baseline gap-x-3">
+            {estimateDraft ? null : (
+              <Figure variant="secondary">{pct(t.percent)} complete</Figure>
             )}
-          </span>
+            {showCostIndexes ? (
+              <Figure variant="secondary">
+                CPI{" "}
+                {estimateDraft ? (
+                  <MetricDash />
+                ) : (
+                  <StatusIndex
+                    index={t.cpi}
+                    varianceCents={t.costVarianceCents}
+                  />
+                )}
+              </Figure>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
@@ -355,12 +384,16 @@ function CostCodeLabel({
   n: WbsNode;
   jobNumber?: string;
 }) {
-  const codeClass = "mr-2 font-mono text-xs text-muted-foreground";
+  const codeClass =
+    "mr-2 font-mono text-label text-muted-foreground";
   if (n.isLeaf && jobNumber) {
     return (
       <Link
         href={`/app/jobs/${jobNumber}/cost-items/${encodeURIComponent(n.code)}`}
-        className={cn(codeClass, "hover:underline hover:text-foreground")}
+        className={cn(
+          codeClass,
+          "tap-target inline-flex items-center hover:underline hover:text-foreground",
+        )}
         data-testid={`cost-code-link-${n.code}`}
       >
         {n.code}
@@ -377,6 +410,7 @@ function VirtualTreeDesktop({
   valueSet,
   estimateDraft,
   jobNumber,
+  showCostIndexes,
 }: {
   rows: WbsNode[];
   onToggle: (id: string) => void;
@@ -384,6 +418,7 @@ function VirtualTreeDesktop({
   valueSet: ValueSet;
   estimateDraft: boolean;
   jobNumber?: string;
+  showCostIndexes: boolean;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -394,18 +429,33 @@ function VirtualTreeDesktop({
     measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 12,
   });
+  // 5.0.4-c type scale: exact $665,000.00 needs ~9rem cols — avoid "Actu" / "$665,000.(".
+  // Role-fit omits CPI column for foreman/superintendent.
+  const cols = showCostIndexes
+    ? "grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem_10rem]"
+    : "grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem]";
   return (
-    <div className="min-w-[47rem]">
-      <div className="grid grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_7.5rem_7.5rem_7.5rem_7.5rem] gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground">
+    <div className={showCostIndexes ? "min-w-[56rem]" : "min-w-[46rem]"}>
+      <div
+        className={cn(
+          "grid gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground",
+          cols,
+        )}
+      >
         <div>Cost code</div>
         <div className="whitespace-nowrap text-right">Installed</div>
         <div className="whitespace-nowrap text-right">% complete</div>
-        <div className="text-right" title={VALUE_SETS[valueSet].title}>
+        <div
+          className="whitespace-nowrap text-right"
+          title={VALUE_SETS[valueSet].title}
+        >
           {VALUE_SETS[valueSet].label}
         </div>
-        <div className="text-right">Earned</div>
-        <div className="text-right">Actual</div>
-        <div className="whitespace-nowrap text-right">CPI · variance</div>
+        <div className="whitespace-nowrap text-right">Earned</div>
+        <div className="whitespace-nowrap text-right">Actual</div>
+        {showCostIndexes ? (
+          <div className="whitespace-nowrap text-right">CPI · variance</div>
+        ) : null}
       </div>
       <div
         ref={parentRef}
@@ -428,8 +478,13 @@ function VirtualTreeDesktop({
                 ref={virtualizer.measureElement}
                 data-index={v.index}
                 className={cn(
-                  "absolute left-0 grid w-full grid-cols-[minmax(9rem,1.6fr)_6.5rem_7rem_7.5rem_7.5rem_7.5rem_7.5rem] items-start gap-x-3 border-b px-2 py-1.5 text-sm",
-                  l && !estimateDraft && hot(l) && "bg-negative-soft/60",
+                  "absolute left-0 grid w-full items-start gap-x-3 border-b px-2 py-1.5 text-sm",
+                  cols,
+                  l &&
+                    !estimateDraft &&
+                    showCostIndexes &&
+                    hot(l) &&
+                    "bg-negative-soft/60",
                 )}
                 style={{
                   transform: `translateY(${v.start}px)`,
@@ -508,30 +563,32 @@ function VirtualTreeDesktop({
                     ) : (
                       <BudgetCell money={n.money} set={valueSet} exact />
                     )}
-                    <div className="text-right">
+                    <div className="text-right md:whitespace-nowrap">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
                         <Money cents={l.earnedCents} exact />
                       )}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right md:whitespace-nowrap">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
                         <Money cents={l.actualCents} exact />
                       )}
                     </div>
-                    <div className="text-right">
-                      {estimateDraft ? (
-                        <MetricDash />
-                      ) : (
-                        <StatusIndex
-                          index={l.cpi}
-                          varianceCents={l.varianceCents}
-                        />
-                      )}
-                    </div>
+                    {showCostIndexes ? (
+                      <div className="text-right md:whitespace-nowrap">
+                        {estimateDraft ? (
+                          <MetricDash />
+                        ) : (
+                          <StatusIndex
+                            index={l.cpi}
+                            varianceCents={l.varianceCents}
+                          />
+                        )}
+                      </div>
+                    ) : null}
                   </>
                 ) : (
                   <>
@@ -543,7 +600,9 @@ function VirtualTreeDesktop({
                     ) : (
                       <BudgetCell money={n.money} set={valueSet} />
                     )}
-                    <div className="col-span-3" />
+                    <div
+                      className={showCostIndexes ? "col-span-3" : "col-span-2"}
+                    />
                   </>
                 )}
               </div>
@@ -562,6 +621,7 @@ function VirtualTreeMobile({
   valueSet,
   estimateDraft,
   jobNumber,
+  showCostIndexes,
 }: {
   rows: WbsNode[];
   onToggle: (id: string) => void;
@@ -569,12 +629,13 @@ function VirtualTreeMobile({
   valueSet: ValueSet;
   estimateDraft: boolean;
   jobNumber?: string;
+  showCostIndexes: boolean;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 88,
+    estimateSize: () => 112,
     measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 8,
   });
@@ -593,14 +654,20 @@ function VirtualTreeMobile({
         {virtualizer.getVirtualItems().map((v) => {
           const n = rows[v.index]!;
           const l = n.line;
+          const showDashBudget = estimateDraft && valueSet !== "ce";
           return (
             <div
               key={n.id}
               ref={virtualizer.measureElement}
               data-index={v.index}
+              data-card
               className={cn(
-                "absolute left-0 w-full border-b py-2",
-                l && !estimateDraft && hot(l) && "bg-negative-soft/60",
+                "absolute left-0 w-full border-b px-2 py-3",
+                l &&
+                  !estimateDraft &&
+                  showCostIndexes &&
+                  hot(l) &&
+                  "bg-negative-soft/60",
               )}
               style={{
                 transform: `translateY(${v.start}px)`,
@@ -609,95 +676,212 @@ function VirtualTreeMobile({
               data-testid="cost-tree-row"
               {...rowData(n)}
             >
-              <div className="flex items-baseline justify-between gap-2 pr-2">
-                <div className="min-w-0">
-                  {!n.isLeaf ? (
-                    <button
-                      type="button"
-                      className="mr-1 inline-flex items-center text-xs"
-                      onClick={() => onToggle(n.id)}
-                      aria-expanded={!collapsed.has(n.id)}
-                    >
-                      <TreeToggleIcon expanded={!collapsed.has(n.id)} />
-                    </button>
-                  ) : null}
-                  <CostCodeLabel n={n} jobNumber={jobNumber} />
-                  <span className="font-medium">{n.description}</span>
-                </div>
-                {l ? (
-                  estimateDraft ? (
-                    <MetricDash />
-                  ) : (
-                    <StatusIndex
-                      index={l.cpi}
-                      varianceCents={l.varianceCents}
-                    />
-                  )
+              <div className="flex min-w-0 items-start gap-2 pr-1">
+                {!n.isLeaf ? (
+                  <button
+                    type="button"
+                    className="tap-target inline-flex shrink-0 items-center justify-center text-label text-muted-foreground"
+                    onClick={() => onToggle(n.id)}
+                    aria-expanded={!collapsed.has(n.id)}
+                    aria-label={
+                      collapsed.has(n.id) ? "Expand" : "Collapse"
+                    }
+                  >
+                    <TreeToggleIcon expanded={!collapsed.has(n.id)} />
+                  </button>
                 ) : null}
-              </div>
-              {l ? (
-                <div className="mt-1 grid grid-cols-3 gap-2 pr-2 text-xs">
-                  <div>
-                    <div className="text-muted-foreground">Earned</div>
-                    {estimateDraft ? (
-                      <MetricDash />
-                    ) : (
-                      <Money cents={l.earnedCents} exact />
-                    )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <CostCodeLabel n={n} jobNumber={jobNumber} />
+                    <span className="min-w-0 text-body font-medium whitespace-normal">
+                      {n.description}
+                    </span>
                   </div>
-                  <div>
-                    <div className="text-muted-foreground">Actual</div>
-                    {estimateDraft ? (
-                      <MetricDash />
-                    ) : (
-                      <Money cents={l.actualCents} exact />
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <div className="text-muted-foreground">
-                      {VALUE_SETS[valueSet].label}
-                    </div>
-                    {estimateDraft && valueSet !== "ce" ? (
-                      <MetricDash />
-                    ) : (
-                      <BudgetCell money={n.money} set={valueSet} exact />
-                    )}
-                  </div>
-                  {!estimateDraft &&
-                  ((l.approvalPendingQtyMilli ?? 0) > 0 ||
-                    (l.approvalPendingCents ?? 0) > 0) ? (
-                    <div
-                      className="col-span-3 text-caution"
-                      data-testid={`approval-pending-${l.code}`}
-                      data-cents={l.approvalPendingCents ?? 0}
-                    >
-                      +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
-                      {(l.approvalPendingCents ?? 0) > 0
-                        ? ` · ${usdExact(l.approvalPendingCents!)} pending`
-                        : " pending approval"}
-                    </div>
-                  ) : null}
-                  {!estimateDraft && pendingInstalledQtyMilli(l) > 0 && (
-                    <div
-                      className="col-span-3 text-caution"
-                      data-testid={`pending-${l.code}`}
-                    >
-                      +{qty(pendingInstalledQtyMilli(l))} {l.unit} pending lock
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-1 flex items-baseline justify-between gap-2 pr-2 text-xs">
-                  <span className="text-muted-foreground">
-                    {VALUE_SETS[valueSet].label}
-                  </span>
-                  {estimateDraft && valueSet !== "ce" ? (
-                    <MetricDash />
+                  {l ? (
+                    <>
+                      <div
+                        data-text="label"
+                        className="mt-1 text-label text-muted-foreground"
+                      >
+                        EAC
+                      </div>
+                      <Figure variant="primary" className="mt-0.5 block">
+                        {estimateDraft ? (
+                          <MetricDash />
+                        ) : (
+                          <Money cents={l.eacCents} exact />
+                        )}
+                      </Figure>
+                      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                        <Figure variant="secondary">
+                          {showDashBudget ? (
+                            <MetricDash />
+                          ) : (
+                            <>
+                              CB <Money cents={n.money.cbCents} exact />
+                            </>
+                          )}
+                        </Figure>
+                        {showCostIndexes ? (
+                          <Figure variant="secondary">
+                            {estimateDraft ? (
+                              <MetricDash />
+                            ) : (
+                              <StatusIndex
+                                index={l.cpi}
+                                varianceCents={l.varianceCents}
+                              />
+                            )}
+                          </Figure>
+                        ) : null}
+                      </div>
+                      {/*
+                        Pending flags stay outside <details> so phone glance
+                        and e2e (approve-return @ 390) see them without a tap.
+                      */}
+                      {!estimateDraft &&
+                      ((l.approvalPendingQtyMilli ?? 0) > 0 ||
+                        (l.approvalPendingCents ?? 0) > 0) ? (
+                        <div
+                          className="mt-1 text-body text-caution"
+                          data-testid={`approval-pending-${l.code}`}
+                          data-cents={l.approvalPendingCents ?? 0}
+                        >
+                          +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
+                          {(l.approvalPendingCents ?? 0) > 0 ? (
+                            <>
+                              {" · "}
+                              <Money
+                                cents={l.approvalPendingCents!}
+                                exact
+                              />{" "}
+                              pending
+                            </>
+                          ) : (
+                            " pending approval"
+                          )}
+                        </div>
+                      ) : null}
+                      {!estimateDraft && pendingInstalledQtyMilli(l) > 0 ? (
+                        <div
+                          className="mt-1 text-body text-caution"
+                          data-testid={`pending-${l.code}`}
+                        >
+                          +{qty(pendingInstalledQtyMilli(l))} {l.unit} pending
+                          lock
+                        </div>
+                      ) : null}
+                      <details className="mt-2">
+                        <summary
+                          data-text="label"
+                          className="tap-target flex cursor-pointer list-none items-center text-label font-medium text-muted-foreground [&::-webkit-details-marker]:hidden"
+                        >
+                          More
+                        </summary>
+                        <div className="grid grid-cols-2 gap-2 pt-2 text-body">
+                          <div>
+                            <div
+                              data-text="label"
+                              className="text-label text-muted-foreground"
+                            >
+                              Earned
+                            </div>
+                            {estimateDraft ? (
+                              <MetricDash />
+                            ) : (
+                              <Money cents={l.earnedCents} exact />
+                            )}
+                          </div>
+                          <div>
+                            <div
+                              data-text="label"
+                              className="text-label text-muted-foreground"
+                            >
+                              Actual
+                            </div>
+                            {estimateDraft ? (
+                              <MetricDash />
+                            ) : (
+                              <Money cents={l.actualCents} exact />
+                            )}
+                          </div>
+                          <div>
+                            <div
+                              data-text="label"
+                              className="text-label text-muted-foreground"
+                            >
+                              {VALUE_SETS[valueSet].label}
+                            </div>
+                            {showDashBudget ? (
+                              <MetricDash />
+                            ) : (
+                              <BudgetCell
+                                money={n.money}
+                                set={valueSet}
+                                exact
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <div
+                              data-text="label"
+                              className="text-label text-muted-foreground"
+                            >
+                              Installed
+                            </div>
+                            {estimateDraft ? (
+                              <MetricDash />
+                            ) : (
+                              <span className="tabular-nums">
+                                {qty(
+                                  l.evMethod === "units"
+                                    ? l.claimedInstalledQtyMilli
+                                    : l.installedQtyMilli,
+                                )}{" "}
+                                / {qty(l.budgetQtyMilli)} {l.unit}
+                              </span>
+                            )}
+                          </div>
+                          {!estimateDraft && l.earnDerivation ? (
+                            <div
+                              className="col-span-2 text-label text-pretty text-muted-foreground"
+                              data-testid="earn-derivation"
+                              data-text="label"
+                            >
+                              <DerivationText text={l.earnDerivation} />
+                            </div>
+                          ) : null}
+                          {!estimateDraft && l.forecastDerivation ? (
+                            <div
+                              className="col-span-2 text-label text-pretty text-muted-foreground"
+                              data-testid="forecast-derivation"
+                              data-text="label"
+                            >
+                              <DerivationText text={l.forecastDerivation} />
+                            </div>
+                          ) : null}
+                        </div>
+                      </details>
+                    </>
                   ) : (
-                    <BudgetCell money={n.money} set={valueSet} />
+                    <>
+                      <div
+                        data-text="label"
+                        className="mt-1 text-label text-muted-foreground"
+                      >
+                        {VALUE_SETS[valueSet].label}
+                      </div>
+                      <Figure variant="primary" className="mt-0.5 block">
+                        {showDashBudget ? (
+                          <MetricDash />
+                        ) : (
+                          <Money cents={centsOf(n.money, valueSet)} />
+                        )}
+                      </Figure>
+                    </>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
