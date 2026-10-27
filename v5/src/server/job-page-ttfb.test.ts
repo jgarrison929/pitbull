@@ -22,6 +22,9 @@ describe("job page TTFB guards", () => {
     // type-only Role via schema — never value-import session (next/headers hang).
     expect(src).not.toMatch(/from ["']@\/server\/session["']/);
     expect(src).not.toMatch(/from ["']@\/server\/assistant\/actions["']/);
+    // Change feed via thin job-changes (WRITES filter) — not a raw args.job scan.
+    expect(src).toMatch(/from ["']@\/server\/job-changes["']/);
+    expect(src).toMatch(/\bjobChanges\s*\(/);
     expect(src).toMatch(/timedLoadJobPage/);
     expect(src).toMatch(/getReportedActualsForPlans/);
   });

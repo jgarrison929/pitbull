@@ -1,8 +1,7 @@
 import "server-only";
-import { and, desc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
-import { getDbQueryCount, requireDb } from "@/db";
-import { actionRuns, users } from "@/db/schema";
+import { getDbQueryCount } from "@/db";
+import { users } from "@/db/schema";
 import { planDateToday } from "@/lib/plan-date";
 import { listChangeOrders } from "@/server/change-orders";
 import {
@@ -10,6 +9,7 @@ import {
   getJobEvControls,
   getJobPagePlans,
 } from "@/server/data";
+import { jobChanges } from "@/server/job-changes";
 import { jobPagePlanSurface } from "@/server/job-page-plans";
 import { listCrews } from "@/server/plans";
 import {
@@ -89,38 +89,6 @@ export function jobPageCaps(role: Role): JobPageCaps {
   };
 }
 
-/**
- * Job change feed without importing assistant/actions (avoids evaluating the
- * full typed-action table on every job document). Filters by args.job; write
- * actions dominate the newest-20 for seeded demos.
- */
-async function listJobChanges(
-  companyId: string,
-  jobNumber: string,
-  limit = 20,
-) {
-  const rows = await requireDb()
-    .select({ run: actionRuns, userName: users.name, role: users.role })
-    .from(actionRuns)
-    .innerJoin(users, eq(users.id, actionRuns.userId))
-    .where(
-      and(
-        eq(actionRuns.companyId, companyId),
-        sql`${actionRuns.args}->>'job' = ${jobNumber}`,
-      ),
-    )
-    .orderBy(desc(actionRuns.createdAt))
-    .limit(limit);
-  return rows.map(({ run, userName, role }) => ({
-    id: run.id,
-    action: run.action,
-    summary: run.summary,
-    createdAt: run.createdAt.toISOString(),
-    userName,
-    role,
-  }));
-}
-
 /** Per-request cache so shell + page share one getJob when both hit. */
 export const getJobCached = cache(getJob);
 
@@ -147,7 +115,8 @@ export async function loadJobPage(
   const todayLA = planDateToday(seedNow());
   const pagePlansP = getJobPagePlans(companyId, p.job.id, todayLA);
   const siblingsP = Promise.all([
-    listJobChanges(companyId, p.job.number),
+    // Same WRITES-filtered feed as before (via job-changes, not assistant/actions).
+    jobChanges(companyId, p.job.number),
     caps.canLock
       ? draftClaimForJob(companyId, p.job.id)
       : Promise.resolve(null),
@@ -160,6 +129,7 @@ export async function loadJobPage(
   ]);
 
   const pagePlans = await pagePlansP;
+  // Pre-surface open headers — JobNewPlanSlot receives this (same as main).
   const plans = pagePlans.openPlans;
   const { open: openPlans, today } = jobPagePlanSurface(plans);
   const historyPlans = pagePlans.historyPlans;
@@ -179,6 +149,7 @@ export async function loadJobPage(
   return {
     p,
     caps,
+    plans,
     openPlans,
     today,
     historyPlans,

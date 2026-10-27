@@ -58,6 +58,7 @@ export async function Job({
   const {
     p,
     caps,
+    plans,
     openPlans,
     today,
     historyPlans,
@@ -228,7 +229,7 @@ export async function Job({
           <JobNewPlanSlot
             jobNumber={p.job.number}
             crews={crewRows.map((c) => ({ id: c.id, name: c.name }))}
-            plans={openPlans}
+            plans={plans}
           />
         </div>
       ) : null}
