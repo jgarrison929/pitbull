@@ -80,7 +80,10 @@ describe("change orders empty state", () => {
       onReviewEstimate: () => {},
     }));
     expect(html).toContain("No change orders on 26-010");
-    expect(html).toContain("Approve the estimate first");
+    const body =
+      "Approve the estimate first, because Current Budget is set from the Current Estimate and a change order cannot be logged until then.";
+    expect(leaves(html)).toContain(body);
+    expect(body.split(/[.!?]/).filter((s) => s.trim())).toHaveLength(1);
     expect(html).toContain("Review the estimate");
     expect(html).not.toContain("New change order");
     assertCrawlSafe(html);

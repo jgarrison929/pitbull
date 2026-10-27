@@ -161,7 +161,7 @@ export function changeOrdersBody(opts: {
 }): string {
   if (!opts.estimateApproved) {
     return opts.canCreate
-      ? "Approve the estimate first. A change order on a draft is wiped out when Current Budget is set from the Current Estimate."
+      ? "Approve the estimate first, because Current Budget is set from the Current Estimate and a change order cannot be logged until then."
       : "A project manager approves the estimate before anyone can log a change order on this job.";
   }
   return opts.canCreate
