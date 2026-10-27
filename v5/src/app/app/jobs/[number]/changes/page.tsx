@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LocalTime } from "@/components/app/local-time";
+import { ChangeLogList } from "@/components/app/change-log-list";
+import type { AppRole } from "@/components/app/list-empty";
 import { MetricCard, PageHeader, Section } from "@/components/app/page";
 import { jobChanges, jobChangesCount } from "@/server/assistant/actions";
 import { getJob } from "@/server/data";
@@ -125,25 +126,12 @@ async function Changes({
           ) : null
         }
       >
-        {visible.length === 0 ? (
-          <p className="px-4 py-3 text-body text-muted-foreground">
-            No changes yet.
-          </p>
-        ) : (
-          <ul className="divide-y px-4 text-body" data-testid="job-changes-full">
-            {visible.map((c) => (
-              <li key={c.id} className="py-3">
-                <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
-                <span
-                  data-text="label"
-                  className="text-label text-muted-foreground"
-                >
-                  <LocalTime iso={c.createdAt} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ChangeLogList
+          changes={visible}
+          jobNumber={job.job.number}
+          role={user.role as AppRole}
+          estimateApproved={!job.estimateDraft}
+        />
       </Section>
     </>
   );
