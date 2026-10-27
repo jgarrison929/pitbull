@@ -1,12 +1,15 @@
 ﻿# Mobile Phase 2 (Arc B) — plans viewer notes
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** 2.13.3 → 2.14.2  
 **Status:** Shipped through 2.14.2  
 
 ## Test commands
 
 ```powershell
-cd the removed web app
+cd src/Pitbull.Web/pitbull-web
 npm test -- --run plans-specs-mobile plans-specs-lookup plan-revision-label plan-metadata-cache plans-specs-mobile-layout help-field-workflows offline-store spatial-context
 ./scripts/preflight.ps1 -FullWeb -DotNet
 ```

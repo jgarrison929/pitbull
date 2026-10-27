@@ -136,11 +136,11 @@ fn build_write_prompt(audit_blob, focus, allow_bump) {
     p += "(3) Prefer small status/next-stamp patches over long narrative rewrites. ";
     p += "(4) When remapping band 3.8 remaining work, use NEXT FREE stamps after current VERSION — never reuse spent numbers. ";
     p += "(5) Do not commit. Do not force-push. Do not merge PRs. ";
-    p += "(6) Do not change application source (src/, tests/) unless a docs-only path is impossible — default is docs only. ";
+    p += "(6) Do not change the live app under v5/ unless a docs-only path is impossible — default is docs only. ";
     if allow_bump {
         p += "(7) Version stamp bumps are allowed only if auditor explicitly required them for honesty; keep stamp set in sync. ";
     } else {
-        p += "(7) Do NOT bump VERSION, package.json version, or csproj Version props. Docs stance only. ";
+        p += "(7) Do NOT bump VERSION or the v5 package.json version. Docs stance only. ";
     }
     p += "(8) After edits, re-read the files you changed and list residual_drifts honestly. ";
     p += "Return changed_files, summary, drifts_closed (file|claim keys), residual_drifts. ";

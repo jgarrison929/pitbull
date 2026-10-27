@@ -18,11 +18,11 @@ Features are shaped for how GCs work: jobs and cost codes, bids converting to pr
 
 ### Multi-tenant SaaS architecture
 
-PostgreSQL **row-level security**, company scoping, JWT + Identity roles and fine-grained permissions. Designed for multiple companies and strong tenant isolation.
+Each demo visitor gets a company-scoped sandbox. Sign-in is a role card; the session cookie holds a random token and the database stores only its hash.
 
 ### Role-native experience
 
-Executives, controllers, project managers, and estimators land on homes and KPIs that match their job — with drill-through to filtered operational data (see `docs/ROLE-EXPERIENCE.md`).
+The demo roles (executive, project manager, superintendent, foreman) land on homes that match their job. See [`AGENTS.md`](AGENTS.md).
 
 ### AI as leverage, not theater
 
@@ -30,34 +30,34 @@ Provider abstractions (Anthropic / OpenAI) for chat, project summaries, and docu
 
 ### Cloud-native delivery
 
-Docker and Railway-ready containers, health checks, migrations on deploy, Hangfire background jobs, CAP outbox messaging.
+One Railway service rooted at `v5/`, a health check, and database migrations on deploy.
 
 ## Platform status
 
-Delivered surface area includes multi-tenant core, projects/bids/contracts, time tracking, project management, billing/GL/AP/AR elements, workflow approvals (Phase 1), reports, AI module, demo multi-company seeds, in-app changelog, and role-summary dashboards.
+The live loop is estimate → budget → field plan and report → earned value → change orders, on one data model under `v5/`.
 
 Authoritative sources:
 
 | Source | Purpose |
 |--------|---------|
-| `CHANGELOG.md` + `VERSION` | What shipped and when |
-| `docs/ARCHITECTURE.md` | System design |
-| `src/Modules/*` | Domain implementation |
-| `docs/ROLE-EXPERIENCE.md` | Persona UX |
+| `v5/` | Live app |
+| `docs/roadmap.md` | What is next |
+| `docs/v5/` | Trust bar and increment specs |
+| `AGENTS.md` | Demo roles and version rules |
+| `VERSION` + `v5/package.json` | Public version |
 
 ## Stack
 
-- **Backend:** .NET 10, modular monolith, controllers → services (no MediatR in controllers), EF Core 10, PostgreSQL 17 + RLS  
-- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui  
-- **Messaging / jobs:** DotNetCore.CAP, Hangfire  
-- **Email:** Resend (optional)  
-- **Deploy:** Railway from `main`, Docker Compose for local and self-hosted  
+- **App:** Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui — one service under `v5/`
+- **Data:** PostgreSQL through Drizzle ORM
+- **Demo auth:** role cards on `/login`, per-visitor sandboxes
+- **Deploy:** Railway; the service root is `v5/`
 
 ## Direction
 
 Continue deepening construction accounting fidelity (WIP, certified payroll, dual-book nuances), expanding workflow coverage beyond change orders and billing applications, and tightening executive metrics so every KPI answers *why* with drill-through lists.
 
-**Differentiating horizon:** Jobsite Twin — field capture and system-of-record truth rendered as a spatial world model so humans and agents share one map of the work (zones-first, truthful overlays, cited agent briefs). Product design: `docs/pitbull-digital-twin-spec.md`. Capture engine: `docs/mobile3.md`.
+**Differentiating horizon:** Jobsite Twin — field capture and system-of-record truth rendered as a spatial world model so humans and agents share one map of the work (zones-first, truthful overlays, cited agent briefs). Pre-v5 design notes, not the live app: `docs/pitbull-digital-twin-spec.md` and `docs/mobile3.md`.
 
 ---
 

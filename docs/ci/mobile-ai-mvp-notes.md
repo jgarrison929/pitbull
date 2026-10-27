@@ -1,5 +1,8 @@
 # Mobile AI MVP core notes (2.19.3 → 2.20.2)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Intelligence band **shipped through 2.21.2**  
 **Spec:** `docs/specs/mobile-ai-intelligence.md`
 
@@ -39,10 +42,10 @@
 ## Tests
 
 ```powershell
-cd the removed web app
+cd src/Pitbull.Web/pitbull-web
 npm test -- --run field-ai-suggestion field-eod-summary field-photo-safety feature-flags ai-suggestion-label
 
-the removed test runner tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~AiFieldVoice|AiUsage"
+dotnet test tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~AiFieldVoice|AiUsage"
 ```
 
 ## Remainder shipped (2.20.3 → 2.21.2)

@@ -1,12 +1,15 @@
 ﻿# Mobile Phase 3 (Arc C) — site walk & schedule notes
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** 2.14.3 → 2.15.2  
 **Status:** Shipped through 2.15.2  
 
 ## Test commands
 
 ```powershell
-cd the removed web app
+cd src/Pitbull.Web/pitbull-web
 npm test -- --run site-walk-entry site-walk-analytics site-walk-twin-link schedule-critical-filter schedule-empty-copy progress-deep-link rfi-sub-link field-report-schedule-link
 ```
 

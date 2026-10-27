@@ -1,5 +1,8 @@
 ﻿# Mobile Phase 1 (Arc A) — CI & verification notes
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** 2.12.3 → 2.13.2  
 **Status:** Shipped through 2.13.2  
 
@@ -7,12 +10,12 @@
 
 ```powershell
 # Web unit (field/mobile helpers)
-cd the removed web app
+cd src/Pitbull.Web/pitbull-web
 npm test -- --run help-field-workflows field-report-analytics list-virtualization offline-store mobile-shell posthog-viewport
 
 # API unit (slim mobile projects list)
 cd ../../../
-the removed test runner tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit project file --filter "FullyQualifiedName~ProjectMobileListViewTests"
+dotnet test tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj --filter "FullyQualifiedName~ProjectMobileListViewTests"
 
 # E2E field report (requires API + web + Demo)
 cd e2e

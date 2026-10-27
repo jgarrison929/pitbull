@@ -14,7 +14,7 @@ Deeper orientation (settled decisions that still apply, domain glossary, anti-pa
 | Version | Root `VERSION` + `v5/package.json` (keep aligned) · in-app notes in `v5/src/content/changelog.ts` · root `CHANGELOG.md` is mostly legacy 3.x history |
 | Deploy | Railway staging tracks `main`; production via tagged promote — see `deploy/RAILWAY-*.md` and `docs/v5/fresh-start-plan.md` |
 
-**Do not** treat the removed 3.8.2 .NET host (Identity JWT, MediatR rules, CAP, Hangfire) as the live app. Those patterns matter only when reading the tag `legacy-3.8.2-final`.
+**Do not** treat the removed 3.8.2 host as the live app. Those patterns matter only when reading the tag `legacy-3.8.2-final`.
 
 ## Demo (v5)
 
@@ -29,7 +29,7 @@ On `/login`, pick a role card — no password. Each visitor gets a private sandb
 
 Proof after deploy: [`.cursor/skills/verify-v5/SKILL.md`](.cursor/skills/verify-v5/SKILL.md) (`verify-v5`).
 
-**Historical (legacy only):** Explore-as-role via `POST /api/auth/demo-role-login` and the six .NET personas (CEO / CFO / PM / Superintendent / Estimator / Contract Admin) lived in the frozen 3.8.2 app. Do not document them as the live demo.
+**Historical (legacy only):** Explore-as-role via `POST /api/auth/demo-role-login` and the six frozen demo personas (CEO / CFO / PM / Superintendent / Estimator / Contract Admin) lived in the removed 3.8.2 app. Do not document them as the live demo.
 
 ## Docs truth
 

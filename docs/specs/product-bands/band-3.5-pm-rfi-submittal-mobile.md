@@ -1,5 +1,8 @@
 # Spec: Product band 3.5 — RFI + Submittal mobile foundation
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through **3.5.0**  
 **Version band:** `3.4.1` → `3.5.0` (10 stamps)  
 **Theme:** Phone-first list/detail for RFIs and Submittals (next-gen PM arc open)  
@@ -44,11 +47,11 @@ Do not mix RFI create UI with CO or submittal package assembly on phone.
 
 | Area | Paths |
 |------|--------|
-| API | `the removed API host/Controllers/RfisController`, `ProjectManagementControllers` (submittals), optional slim DTO under `Features/` |
+| API | `src/Pitbull.Api/Controllers/RfisController.cs`, `ProjectManagementControllers.cs` (submittals), optional slim DTO under `Features/` |
 | Domain | `src/Modules/Pitbull.RFIs/`, `src/Modules/Pitbull.ProjectManagement/Domain/` (`PmSubmittal*`) |
-| Web | `the removed web app/src/app/(dashboard)/rfis/**`, `projects/[id]/rfis/**`, `projects/[id]/submittals/**` |
+| Web | `src/Pitbull.Web/pitbull-web/src/app/(dashboard)/rfis/**`, `projects/[id]/rfis/**`, `projects/[id]/submittals/**` |
 | Shared UI | mobile shell / bottom nav if deep links added; existing list components |
-| Help | `the removed web app/src/app/(dashboard)/help/page.tsx` |
+| Help | `src/Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx` |
 | Tests | API integration tests for list slim DTO; vitest for formatters/empty copy helpers |
 | E2E | Prefer unit/integration first; persona smoke path documented at checkpoint |
 

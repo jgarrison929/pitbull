@@ -1,5 +1,8 @@
 # Mobile / Today on site 3.3.x — CI & verification notes
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** `3.3.0` → `3.3.9`  
 **Status:** Shipped through **3.3.9**  
 **Spec:** `docs/specs/product-bands/band-3.3-today-on-site.md`
@@ -34,11 +37,11 @@ Required Role E2E already covers demo login shells. Manual / optional smoke for 
 ## Test commands
 
 ```powershell
-cd the removed web app
+cd src/Pitbull.Web/pitbull-web
 npm test -- --run today-on-site site-walk-today-on-site help-today-on-site
 
 # API unit (when present)
-the removed test runner tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~TodayOnSite"
+dotnet test tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~TodayOnSite"
 ```
 
 ## CI policy (merge gate)

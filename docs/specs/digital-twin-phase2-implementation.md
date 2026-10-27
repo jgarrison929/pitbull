@@ -1,5 +1,8 @@
 # Spec: Digital Twin Phase 2 implementation
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through **2.19.2** (Arc D complete)  
 **Version band:** 2.15.3 → 2.19.2 (40 PRs)  
 **Related:** [`pitbull-digital-twin-spec.md`](../pitbull-digital-twin-spec.md) Phase 2 (authoritative for data model); notes [`docs/ci/twin-phase2-notes.md`](../ci/twin-phase2-notes.md)
@@ -24,7 +27,7 @@ PM (desktop admin upload), superintendent (mobile read + zone fuel), CEO glance 
 | Area | Paths |
 |------|-------|
 | Twin page | `src/.../projects/[id]/twin/page.tsx` |
-| Spatial / twin API | search `Spatial`, `Twin`, `ModelAsset` under `src/Modules` + `the removed API host` |
+| Spatial / twin API | search `Spatial`, `Twin`, `ModelAsset` under `src/Modules` + `src/Pitbull.Api` |
 | Daily report fuel | mobile daily report + offline payload (`SpatialNodeId`, photos) |
 | Feature flags | appsettings / frontend feature flags for `digitalTwin` |
 | Project settings | project settings UI + schema for `RequireSpatialOnProgress` |

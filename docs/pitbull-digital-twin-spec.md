@@ -1,6 +1,9 @@
 # Pitbull Digital Twin / 3D Viewer Spec
 
-**Status:** Draft v2 — implementable product design  
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
+**Status:** Historical draft v2 (2026-07-11). Not the live v5 app.
 **Updated:** 2026-07-11  
 **Related:** `mobile3.md` (capture engine), `DEMO-COMPANY-PROFILES.md` (seed archetypes), `ROLE-EXPERIENCE.md` (personas), `ARCHITECTURE.md` (stack patterns)  
 **Goal:** A web-based spatial viewer that visualizes **existing** construction activity (progress, schedule, cost proxies, RFIs, photos) in project context. Mobile-captured data is the primary fuel.

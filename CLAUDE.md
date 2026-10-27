@@ -44,7 +44,7 @@ Do not hardcode route/test counts or “zero issues” claims — they rot. Pref
 | Field UX | Phone = capture + glance + filtered drill | Client-side portfolio/ledger aggregation | Honest mobile |
 | Metrics | Labeled proxies / InsufficientData | Invented KPIs or default-green | Truth over polish |
 
-**Legacy-only settled decisions** (removed 3.8.2 tree — do not apply as v5 defaults): modular .NET monolith + CAP outbox, controllers inject `I*Service` (no MediatR), EF `HasConversion<string>()` for enums, Hangfire. See historical [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) if you must read that era.
+**Legacy-only settled decisions** (removed 3.8.2 tree — do not apply as v5 defaults): a modular monolith with an outbox, controllers that inject a service interface (no MediatR), enums stored as strings, and background jobs. See historical [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) if you must read that era.
 
 ---
 
@@ -79,7 +79,7 @@ e2e/                           # Legacy Playwright (frozen; no CI)
 | `v5/src/server/` | Server actions / domain writes (plans, EV, change orders, sandboxes) |
 | `v5/src/db/` + `v5/drizzle/` | Schema and SQL migrations |
 | `v5/src/seed/` | Deterministic demo seed |
-| `v5/src/lib/` | Shared math and helpers (budget, EV, assistant routing) |
+| `v5/` shared helpers | Shared math and helpers (budget, EV, assistant routing) |
 | `v5/tests/` | Playwright e2e / visual |
 
 The 3.8.2 modules (Projects, Billing, TimeTracking, and the rest) are on tag `legacy-3.8.2-final` only.

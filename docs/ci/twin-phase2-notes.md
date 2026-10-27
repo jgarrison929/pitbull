@@ -1,5 +1,8 @@
 # Twin Phase 2 — complete notes (Arc D)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** 2.15.3 → 2.19.2  
 **Status:** **Shipped through 2.19.2** (Arc D complete)  
 **Spec:** `docs/specs/digital-twin-phase2-implementation.md`  
@@ -85,7 +88,7 @@
 | unset / empty | **ON** (production default) |
 | `false` / `0` / `off` / `no` | OFF — hide twin nav |
 
-See `the removed web app/src/lib/feature-flags.ts`.
+See `src/Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
 
 ## Model sample (2.16.6)
 
@@ -137,13 +140,13 @@ npx playwright test --project=twin-zone-roundtrip
 
 ```powershell
 # Arc D spatial suite
-the removed test runner tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration project file --filter "FullyQualifiedName~SpatialEndpoints"
+dotnet test tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj --filter "FullyQualifiedName~SpatialEndpoints"
 
 # Unit slices
-the removed test runner tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit project file --filter "FullyQualifiedName~TwinPhotoPinAggregation|SpatialCaptureQuality|ModelAsset|SpatialCost"
+dotnet test tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj --filter "FullyQualifiedName~TwinPhotoPinAggregation|SpatialCaptureQuality|ModelAsset|SpatialCost"
 
 # Web
-cd the removed web app
+cd src/Pitbull.Web/pitbull-web
 npm test -- --run twin-photo-pins overlay-formula help-twin-overlays help-zone-picker-twin spatial-context twin-surface
 ```
 

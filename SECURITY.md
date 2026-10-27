@@ -14,34 +14,17 @@ You should receive a response within 48 hours. If the issue is confirmed, we wil
 
 ## Security Features
 
-### Authentication & Authorization
-- **JWT Authentication**: All API endpoints (except auth) require valid JWT tokens
-- **Role-Based Access Control (RBAC)**: Admin, Manager, Supervisor, User roles
-- **Password Security**: Minimum 8 characters, requires uppercase, lowercase, digit
-- **Token Expiration**: 24-hour access tokens (1440 minutes), 7-day refresh tokens (configurable via appsettings.json)
+### Authentication
+- Demo sign-in is a role card on `/login`. That flow has no password.
+- The session cookie (`pcs_session`) holds a random token. The database stores only the SHA-256 hash (`v5/src/server/session.ts`).
+- `requireUser` sends a visitor with no session to `/login`.
 
-### API Security
-- **Rate Limiting**: All controllers protected with configurable rate limits
-- **Request Size Limits**: Payload size caps (10MB general, 100MB document uploads)
-- **Input Validation**: FluentValidation on all commands/queries
-- **CORS**: Explicit origin allowlist, no wildcards in production
+### Data
+- Application queries go through Drizzle and postgres.js, with bound parameters.
+- Each visitor sandbox is scoped to its own company. Sandboxes expire and can be reset from the demo.
 
-### Database Security
-- **Row-Level Security (RLS)**: PostgreSQL RLS policies enforce tenant isolation at database level
-- **Multi-Tenant Isolation**: Defense in depth with both application and database filtering
-- **Parameterized Queries**: EF Core prevents SQL injection
-- **Encrypted Connections**: TLS required for all database connections
-
-### Infrastructure
-- **HTTPS Only**: All production traffic encrypted
-- **Security Headers**: X-Content-Type-Options, X-Frame-Options, Strict-Transport-Security
-- **Health Checks**: Separate endpoints for liveness/readiness probes
-- **Logging**: Structured logging with correlation IDs, sensitive data redacted
-
-### Data Protection
-- **Soft Deletes**: Records are marked deleted, not removed
-- **Audit Fields**: CreatedAt/UpdatedAt/CreatedBy/UpdatedBy on all entities
-- **No Plaintext Secrets**: Environment variables for all credentials
+### Secrets
+- Credentials stay in environment variables. Do not commit them.
 
 ## Security Documentation
 

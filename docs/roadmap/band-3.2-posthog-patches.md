@@ -1,5 +1,8 @@
 # Band 3.2.0+ — PostHog / production patches (draft)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Planning from deploy logs + known field gaps (2026-07-14)  
 **Prerequisite:** `3.1.9` field mobile land on `main`  
 **Does not invent KPIs.**

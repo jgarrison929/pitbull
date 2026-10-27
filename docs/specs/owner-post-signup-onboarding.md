@@ -1,5 +1,8 @@
 # Spec: Owner Post-Signup Onboarding Gate (v2.0.2)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped (historical) — **out of 2.12→3.0 ladder**
 
 ## Problem
@@ -34,10 +37,10 @@ Company setup wizard calls this on **Complete Setup** for each wizard step.
 
 ## Touchpoints
 
-- `the removed API host/Services/OnboardingService` — `isSetupComplete` from checklist, auto-create checklist
-- `the removed API host/Controllers/AuthController` — seed checklist after register (optional; service handles lazy create)
-- `the removed web app/.../settings/company/setup/page.tsx` — mark checklist on save
-- `tests/Pitbull.Tests.Integration/Api/OwnerSignupIntegrationTests` — status incomplete after register, complete after checklist update
+- `src/Pitbull.Api/Services/OnboardingService.cs` — `isSetupComplete` from checklist, auto-create checklist
+- `src/Pitbull.Api/Controllers/AuthController.cs` — seed checklist after register (optional; service handles lazy create)
+- `src/Pitbull.Web/.../settings/company/setup/page.tsx` — mark checklist on save
+- `tests/Pitbull.Tests.Integration/Api/OwnerSignupIntegrationTests.cs` — status incomplete after register, complete after checklist update
 
 ## Test plan
 

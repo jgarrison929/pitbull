@@ -2,7 +2,7 @@
 
 Thanks for your interest in contributing to Pitbull! This guide will get you up and running.
 
-**Live product is [`v5/`](v5/)** (Next.js + Drizzle). Agent rules: [`AGENTS.md`](AGENTS.md). Roadmap: [`docs/roadmap.md`](docs/roadmap.md). The `src/` monolith is frozen at `legacy-3.8.2-final`.
+**Live product is [`v5/`](v5/)** (Next.js + Drizzle). Agent rules: [`AGENTS.md`](AGENTS.md). Roadmap: [`docs/roadmap.md`](docs/roadmap.md). The 3.8.2 monolith was removed; recover it from tag `legacy-3.8.2-final`.
 
 ---
 
@@ -64,9 +64,9 @@ The 3.8.2 API and web were removed from this tree. Recover them from tag `legacy
 
 **Builders do not enable auto-merge**; Verify/Watch owns merge after `ci-gate` PASS.
 
-### Legacy release checklist (frozen 3.x line)
+### Release checklist
 
-Root `CHANGELOG.md` and the .NET/web package stamps below describe the **legacy** ship process. Do not use them as the primary path for v5 increments.
+Root `CHANGELOG.md` is the frozen 3.x history. The steps below are the live v5 stamp set.
 
 1. Move items from `## [Unreleased]` in `CHANGELOG.md` into a new header with **date and time** of publish, e.g.  
    `## [2.3.0] - 2026-07-10T12:58:16-07:00`  
@@ -205,26 +205,15 @@ Live layout and demo rules are in [`AGENTS.md`](AGENTS.md). The removed 3.8.2 ho
 
 ## Code Style and Standards
 
-### Backend (.NET)
-
-- **Result pattern:** Handlers return `Result<T>`, never throw for business logic failures
-- **FluentValidation:** Create a validator class per command -- the pipeline runs them automatically
-- **Entity configuration:** snake_case tables, enums as strings, explicit decimal precision
-- **Queries:** Always use `.AsNoTracking()` for read operations
-- **Controllers:** `[Authorize]` at the class level. Only `AuthController` is public.
-- **Error codes:** Uppercase strings: `NOT_FOUND`, `VALIDATION_ERROR`, `INVALID_STATUS`
-- **No repositories:** Inject `PitbullDbContext` directly, use `db.Set<T>()` (or module services)
-- **Pass `CancellationToken`** through all async calls
-
 ### Frontend (TypeScript/React)
 
 - **TypeScript** for all files -- no plain JS
 - **Mobile-first:** Use responsive Tailwind classes (`sm:`, `md:`, `lg:`)
 - **Minimum viewport:** 375px (iPhone SE), no horizontal scroll
 - **Touch targets:** Minimum 44px for interactive elements
-- **API client:** Use the `api()` wrapper from `src/lib/api.ts`, never raw `fetch`
-- **Auth:** Use the `useAuth()` hook, never access tokens directly
 - **Linting:** `npm run lint` must pass with zero warnings
+
+Reads and writes go through server modules. The session helpers are `getCurrentUser` and `requireUser` in `v5/src/server/session.ts`.
 
 ### General
 

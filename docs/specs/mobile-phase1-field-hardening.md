@@ -1,5 +1,8 @@
 # Spec: Mobile Phase 1 field hardening
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through 2.13.2
 **Version band:** 2.12.2 → 2.13.2 (11 PRs from 2.12.1)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 1, [`docs/260712/goal-prompts.md`](../260712/goal-prompts.md)
@@ -24,12 +27,12 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 
 | Area | Paths |
 |------|-------|
-| Field report UI | `the removed web app/src/app/(dashboard)/daily-reports/mobile/page.tsx` |
+| Field report UI | `src/Pitbull.Web/pitbull-web/src/app/(dashboard)/daily-reports/mobile/page.tsx` |
 | Bottom nav | `src/.../components/layout/mobile-bottom-nav.tsx` |
 | Clearance | `src/.../components/layout/mobile-shell.ts` (`MOBILE_MAIN_BOTTOM_CLEARANCE`) |
 | Dashboard layout | `src/.../app/(dashboard)/layout.tsx` |
 | PWA prompt | `src/.../components/` (search `pwa-install-prompt`) |
-| SW | `the removed web app/public/sw.js` |
+| SW | `src/Pitbull.Web/pitbull-web/public/sw.js` |
 | Client sync | `src/.../lib/use-online-status.ts` (`syncDailyReport`) |
 | Offline store | `src/.../lib/offline-store.ts`, `daily-report-offline.ts` |
 | Offline tests | `src/.../__tests__/offline-store.test.ts` |
@@ -240,7 +243,7 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 
 ```powershell
 # Web unit
-cd the removed web app; npm test -- --run offline-store mobile-shell
+cd src/Pitbull.Web/pitbull-web; npm test -- --run offline-store mobile-shell
 # E2E (after 2.12.6)
 # from repo e2e conventions — see mobile-phase1-notes after 2.13.2
 ./scripts/preflight.ps1 -FullWeb -DotNet

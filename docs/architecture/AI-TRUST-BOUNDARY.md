@@ -1,5 +1,8 @@
 # AI trust boundary addendum
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Version note:** Documented for product band 2.21.1. Canonical summary also in `docs/ARCHITECTURE.md` § AI trust boundary.
 
 ## Boundary
@@ -16,8 +19,8 @@ AI may **suggest** narratives and summaries. Humans **confirm** before fields ar
 
 ## Related code
 
-- `the removed API host/Controllers/AiFieldVoiceController`  
-- `the removed API host/Validation/AiInputSanitizer`  
-- `the removed API host/Configuration/AiRateLimitPolicy`  
-- `the removed web app/src/lib/field-ai-suggestion.ts`  
-- `the removed web app/src/lib/voice-ai-merge.ts`  
+- `src/Pitbull.Api/Controllers/AiFieldVoiceController.cs`  
+- `src/Pitbull.Api/Validation/AiInputSanitizer.cs`  
+- `src/Pitbull.Api/Configuration/AiRateLimitPolicy.cs`  
+- `src/Pitbull.Web/pitbull-web/src/lib/field-ai-suggestion.ts`  
+- `src/Pitbull.Web/pitbull-web/src/lib/voice-ai-merge.ts`  

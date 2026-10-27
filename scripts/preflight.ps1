@@ -9,7 +9,7 @@
     2) Frontend unit tests (vitest)
     3) Frontend eslint on changed pitbull-web files (or full lint)
     4) Optional: full web lint + next build (-FullWeb)
-    5) Optional: .NET unit tests (-DotNet)
+    5) Optional: legacy unit tests (-DotNet)
 
   Exit 0 only if all selected gates pass.
 
@@ -153,10 +153,10 @@ if ($FullWeb) {
   }
 }
 
-# -- 5. Optional .NET unit tests -----------------------------------
+# -- 5. Optional legacy unit tests --------------------------------
 if ($DotNet) {
-  Write-Step ".NET unit tests"
-  Fail "Legacy .NET tests were removed with the 3.8.2 tree (tag legacy-3.8.2-final)."
+  Write-Step "Legacy unit tests"
+  Fail "Legacy unit tests were removed with the 3.8.2 tree (tag legacy-3.8.2-final)."
 }
 
 # -- Summary -------------------------------------------------------

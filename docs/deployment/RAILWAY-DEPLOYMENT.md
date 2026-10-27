@@ -121,7 +121,7 @@ app      CNAME    pitbull-production.up.railway.app  (Proxy status: DNS only)
 ```toml
 [build]
 builder = "dockerfile"
-buildCommand = "the removed publish command -c Release -o out"
+buildCommand = "dotnet publish -c Release -o out"
 
 [deploy]
 healthcheckPath = "/health"
@@ -160,7 +160,7 @@ deploy-staging:
 ### 6. Database Migrations
 **Ensure migrations run automatically:**
 ```csharp
-// In Program or startup
+// In Program.cs or startup
 if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 {
     using var scope = app.Services.CreateScope();
@@ -205,7 +205,7 @@ railway   railway   railway (demo + production)
 
 ### Required Endpoints
 ```csharp
-// Add to Program
+// Add to Program.cs
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse

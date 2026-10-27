@@ -1,5 +1,8 @@
 # Spec: Mobile AI intelligence (MVP)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through **2.21.2** (intelligence band complete)  
 **Version band:** 2.19.3 → 2.21.2 (20 PRs)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 4, AI module, `AiChatController`, `AiFieldVoiceController`; trust `docs/architecture/AI-TRUST-BOUNDARY.md`
@@ -24,7 +27,7 @@ Superintendent (field report), PM (optional summary).
 | Area | Paths |
 |------|-------|
 | Field report | `daily-reports/mobile/page.tsx` |
-| AI API | `the removed API host/Controllers/AiChatController` + AI services/modules |
+| AI API | `src/Pitbull.Api/Controllers/AiChatController.cs` + AI services/modules |
 | Usage tracking | existing AI usage entities/services |
 | PostHog | `lib/posthog.ts` |
 | Help | `help/page.tsx` |

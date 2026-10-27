@@ -1,5 +1,8 @@
 # Plan: Docs stance, code quality residual, Dependabot, Next.js 16.3
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Plan / documentation only (no product feature stamps in this doc)  
 **Baseline product version:** `3.7.7` (root `VERSION`, 2026-08-06 inventory)  
 **Owner intent:** Plan thoroughly; ship via separate PRs. Prefer truth over polish.  
