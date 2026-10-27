@@ -83,11 +83,52 @@ export function Section({
   );
 }
 
-export function EmptyState({ title, body }: { title: string; body: string }) {
+/**
+ * Primary action inside an empty state. 44px tall so a phone tap lands.
+ * Use on a link or a button. Tokens only, so light and dark both work.
+ */
+export const emptyStateActionClass =
+  "inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+/**
+ * Designed empty list. Title and explanation are separate lines.
+ * Pass `action` only when this role can take the next step.
+ * A filtered list with no rows uses the same component and a Clear filters action.
+ */
+export function EmptyState({
+  title,
+  body,
+  icon,
+  action,
+  testId,
+}: {
+  title: string;
+  body: string;
+  /** Optional lightweight mark. Decorative; the title carries the meaning. */
+  icon?: React.ReactNode;
+  /** Link or button for the next step. Omit when this role cannot act. */
+  action?: React.ReactNode;
+  testId?: string;
+}) {
   return (
-    <div className="flex flex-col items-center gap-1 py-10 text-center">
-      <div className="text-sm font-medium">{title}</div>
-      <p className="max-w-sm text-sm text-muted-foreground">{body}</p>
+    <div
+      className="flex flex-col items-center gap-3 px-4 py-8 text-center"
+      data-testid={testId}
+    >
+      {icon ? (
+        <div className="text-muted-foreground" aria-hidden="true">
+          {icon}
+        </div>
+      ) : null}
+      <div className="flex max-w-md flex-col items-center gap-1">
+        <p className="text-sm font-medium">{title}</p>
+        <p className="text-sm text-muted-foreground">{body}</p>
+      </div>
+      {action ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {action}
+        </div>
+      ) : null}
     </div>
   );
 }

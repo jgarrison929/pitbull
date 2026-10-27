@@ -4,6 +4,10 @@ import { useActionState, useState } from "react";
 import { runAction, runActionState, type ActionState } from "@/app/app/assistant/actions";
 import { ChoiceField } from "@/components/form/combobox";
 import { LocalTime } from "@/components/app/local-time";
+import {
+  ChangeOrderLinesEmpty,
+  ChangeOrdersEmpty,
+} from "@/components/app/list-empty";
 import type { Option } from "@/components/form/form";
 import type { CoCommandName, CoStatus } from "@/lib/change-order";
 import { qty, usdCents } from "@/lib/ev";
@@ -44,6 +48,10 @@ export function ChangeOrdersSection({
   searchUrl: string;
 }) {
   const { ledger } = data;
+  const [raising, setRaising] = useState(false);
+  const noOrders = data.changeOrders.length === 0;
+  const showRaiseForm =
+    data.job.estimateApproved && can.create && (!noOrders || raising);
   return (
     <section
       id="change-orders"
@@ -80,21 +88,32 @@ export function ChangeOrdersSection({
             These figures are read from the cost items and the approved lines.
           </p>
         )}
-        {data.job.estimateApproved ? (
-          can.create ? (
-            <RaiseForm jobNumber={jobNumber} />
-          ) : null
-        ) : (
+        {showRaiseForm ? (
+          <RaiseForm jobNumber={jobNumber} autoFocus={noOrders && raising} />
+        ) : null}
+        {!data.job.estimateApproved && !noOrders ? (
           <p className="text-sm text-muted-foreground">
             Approve the estimate before raising a change order. Approving the
             estimate sets Current Budget from the Current Estimate, so a change
             order on a draft estimate would be wiped out.
           </p>
-        )}
-        {data.changeOrders.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No change orders on this job.
-          </p>
+        ) : null}
+        {noOrders ? (
+          <ChangeOrdersEmpty
+            jobNumber={jobNumber}
+            canCreate={can.create}
+            estimateApproved={data.job.estimateApproved}
+            onCreate={() => setRaising(true)}
+            onReviewEstimate={() => {
+              const el = document.querySelector(
+                '[data-testid="approve-estimate"]',
+              );
+              if (el instanceof HTMLElement) {
+                el.scrollIntoView({ block: "center" });
+                el.focus();
+              }
+            }}
+          />
         ) : (
           data.changeOrders.map((co) => (
             <ChangeOrderCard
@@ -126,6 +145,9 @@ function ChangeOrderCard({
   searchUrl: string;
 }) {
   const commands = co.commands.filter((c) => can[c]);
+  const [pricing, setPricing] = useState(false);
+  const noLines = co.lines.length === 0;
+  const canPrice = commands.includes("price");
   return (
     <article
       className="rounded-md border"
@@ -256,10 +278,23 @@ function ChangeOrderCard({
           </div>
         </>
       ) : (
-        <p className="px-3 py-2 text-xs text-muted-foreground">
-          No lines yet. Price it per cost item.
-        </p>
+        <ChangeOrderLinesEmpty
+          status={co.status}
+          canPrice={canPrice && !pricing}
+          onPrice={() => setPricing(true)}
+        />
       )}
+      {noLines && pricing ? (
+        <div className="border-t px-3 py-2">
+          <PriceForm
+            jobNumber={jobNumber}
+            changeOrderId={co.id}
+            costItems={costItems}
+            searchUrl={searchUrl}
+            startOpen
+          />
+        </div>
+      ) : null}
       {co.preview ? (
         <p className="border-t px-3 py-2 text-xs" data-testid="co-preview">
           {co.preview.ok
@@ -286,10 +321,10 @@ function ChangeOrderCard({
           ))}
         </ul>
       ) : null}
-      {commands.length ? (
+      {commands.some((c) => !(c === "price" && noLines)) ? (
         <div className="flex flex-wrap items-start gap-3 border-t px-3 py-2">
           {commands.map((c) =>
-            c === "price" ? (
+            c === "price" && noLines ? null : c === "price" ? (
               <PriceForm
                 key={c}
                 jobNumber={jobNumber}
@@ -397,7 +432,13 @@ function ReasonCommand({
   );
 }
 
-function RaiseForm({ jobNumber }: { jobNumber: string }) {
+function RaiseForm({
+  jobNumber,
+  autoFocus,
+}: {
+  jobNumber: string;
+  autoFocus?: boolean;
+}) {
   return (
     <form
       action={runAction}
@@ -415,6 +456,7 @@ function RaiseForm({ jobNumber }: { jobNumber: string }) {
           required
           maxLength={120}
           placeholder="What changed?"
+          autoFocus={autoFocus}
           className="rounded-md border bg-background px-2 py-1 text-sm"
           data-testid="co-raise-title"
         />
@@ -448,13 +490,15 @@ function PriceForm({
   changeOrderId,
   costItems,
   searchUrl,
+  startOpen = false,
 }: {
   jobNumber: string;
   changeOrderId: string;
   costItems: (Option & { unit?: string })[];
   searchUrl: string;
+  startOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [rows, setRows] = useState<LineMode[]>([{ key: 1, add: true }]);
   const [state, action, pending] = useActionState<ActionState, FormData>(
     runActionState,

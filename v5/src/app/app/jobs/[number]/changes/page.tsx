@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LocalTime } from "@/components/app/local-time";
+import { ChangeLogList } from "@/components/app/change-log-list";
+import type { AppRole } from "@/components/app/list-empty";
 import { PageHeader, Section } from "@/components/app/page";
 import { jobChanges, jobChangesCount } from "@/server/assistant/actions";
 import { getJob } from "@/server/data";
@@ -69,7 +70,7 @@ async function Changes({
             </Link>
             {" · "}
             {total === 0
-              ? "No changes yet"
+              ? "None recorded"
               : `${total} ${total === 1 ? "change" : "changes"}`}
           </>
         }
@@ -107,22 +108,12 @@ async function Changes({
           ) : null
         }
       >
-        {changes.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-muted-foreground">
-            No changes yet.
-          </p>
-        ) : (
-          <ul className="divide-y px-4 text-sm" data-testid="job-changes-full">
-            {changes.map((c) => (
-              <li key={c.id} className="py-2">
-                <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
-                <span className="text-xs text-muted-foreground">
-                  <LocalTime iso={c.createdAt} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ChangeLogList
+          changes={changes}
+          jobNumber={job.job.number}
+          role={user.role as AppRole}
+          estimateApproved={!job.estimateDraft}
+        />
       </Section>
     </>
   );
