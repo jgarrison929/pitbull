@@ -130,6 +130,7 @@ export async function loadJobPage(
         original: p.money.job.obCents,
         current: p.money.job.cbCents,
       },
+      lockAt: p.lockAt,
     }),
     caps.canCreatePlan ? listCrews(companyId) : Promise.resolve([]),
   ]);

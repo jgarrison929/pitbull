@@ -674,6 +674,8 @@ export type ListChangeOrdersOpts = {
   job?: JobRow;
   /** Caller already has leaf OB/CB totals (getJob money.job) — skip the sum query. */
   ledgerSums?: { original: number; current: number };
+  /** Caller already has last lock (getJob.lockAt) — skip lastLockDate. */
+  lockAt?: Date | null;
 };
 
 /**
@@ -710,6 +712,7 @@ export async function listChangeOrders(
   const coIds = cos.map((c) => c.id);
   const needsLock = cos.some((c) => c.status === "priced");
   const haveSums = opts.ledgerSums != null;
+  const haveLock = opts.lockAt !== undefined;
   // Lines, events, and (optional) budget sums are independent — overlap RTTs.
   const [lineRows, events, sumRows, lockAt] = await Promise.all([
     coIds.length
@@ -772,7 +775,11 @@ export async function listChangeOrders(
               eq(costItems.isLeaf, true),
             ),
           ),
-    needsLock ? lastLockDate(companyId, job.id) : Promise.resolve(null),
+    haveLock
+      ? Promise.resolve(opts.lockAt ?? null)
+      : needsLock
+        ? lastLockDate(companyId, job.id)
+        : Promise.resolve(null),
   ]);
   const [sums] = sumRows;
 

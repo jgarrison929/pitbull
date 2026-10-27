@@ -232,32 +232,13 @@ export async function getJob(
   asOf = seedNow(),
 ) {
   const db = requireDb();
-  // Job+last-lock in one round-trip (scalar subquery) overlapped with WBS —
-  // peak pool checkout is 2 instead of 3 under Suspense×crawl concurrency.
-  // Scalar lock must correlate on the outer jobs.id column. Drizzle turns
-  // `${jobs.id}` inside sql`` into a bound param (often NULL), so EV cutoff
-  // silently fell back to asOf and job-page KPIs/layout drifted (~16px).
-  // sql.raw keeps the column ref; mapWith coerces timestamptz strings to Date.
-  const lockAtExpr = sql`(
-    select pc.locked_at
-    from progress_claims as pc
-    where pc.company_id = ${companyId}
-      and pc.job_id = ${sql.raw('"jobs"."id"')}
-      and pc.status = 'locked'
-    order by pc.locked_at desc
-    limit 1
-  )`.mapWith((v: unknown): Date | null => {
-    if (v == null) return null;
-    if (v instanceof Date) return v;
-    const d = new Date(String(v));
-    return Number.isNaN(d.getTime()) ? null : d;
-  });
-  const [jobRows, itemRows] = await Promise.all([
+  // Job row, WBS, and last lock are independent when keyed by company+number —
+  // overlap all three RTTs. A folded scalar lock subquery looked cheaper (peak
+  // 3→2) but Verify #70 pooled TTFB p95 rose vs main under the warm 24-browser
+  // burst (165 vs 140) — restore the parallel lock select (typed Date column).
+  const [jobRows, itemRows, lockRows] = await Promise.all([
     db
-      .select({
-        job: jobs,
-        lockedAt: lockAtExpr,
-      })
+      .select()
       .from(jobs)
       .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
       .limit(1),
@@ -272,12 +253,27 @@ export async function getJob(
         and(eq(costItems.companyId, companyId), eq(jobs.number, number)),
       )
       .orderBy(asc(costItems.path)),
+    db
+      .select({ lockedAt: progressClaims.lockedAt })
+      .from(progressClaims)
+      .innerJoin(
+        jobs,
+        and(eq(jobs.id, progressClaims.jobId), eq(jobs.companyId, companyId)),
+      )
+      .where(
+        and(
+          eq(progressClaims.companyId, companyId),
+          eq(jobs.number, number),
+          eq(progressClaims.status, "locked"),
+        ),
+      )
+      .orderBy(desc(progressClaims.lockedAt))
+      .limit(1),
   ]);
-  const jobRow = jobRows[0];
-  if (!jobRow) return null;
-  const job = jobRow.job;
+  const job = jobRows[0];
+  if (!job) return null;
   const items = itemRows.map((r) => r.item);
-  const lockAt = jobRow.lockedAt ?? null;
+  const lockAt = lockRows[0]?.lockedAt ?? null;
   const cutoff = lockAt ?? asOf;
   const lines = leafLines(items, cutoff, asOf);
   // Prefer JS leaf rollup so claimed-installed / as-of PV match costLine exactly.
