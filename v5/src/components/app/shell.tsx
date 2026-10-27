@@ -131,11 +131,43 @@ export function AppShell({
   );
 }
 
+/**
+ * Phone secondary label (≤480): may ellipsize when own `title` equals full text.
+ * verify-v5 classifies company-name + job-strip clips as secondary; untitled
+ * ellipsis fails the RC phone bar (Summit / SR-99 Interchange 24-118).
+ * Same pattern as plan-card / report-work-form max-[480px]:truncate + title.
+ */
+function SecondaryEllipsis({
+  text,
+  className,
+  testId,
+  children,
+}: {
+  text: string;
+  className?: string;
+  testId?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <span
+      className={cn("truncate", className)}
+      title={text}
+      data-testid={testId}
+    >
+      {children ?? text}
+    </span>
+  );
+}
+
 async function CompanyBadge() {
   const user = await requireUser();
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
-      <span className="truncate font-medium">{user.companyName}</span>
+      <SecondaryEllipsis
+        text={user.companyName}
+        testId="company-name"
+        className="font-medium"
+      />
       <span
         data-text="label"
         className="hidden rounded bg-brand/25 px-1.5 py-0.5 text-label font-medium sm:inline"
@@ -245,16 +277,21 @@ async function JobStrip() {
             activeClassName="border-foreground bg-muted/50 text-foreground"
           >
             <span className="min-w-0 flex-1 overflow-hidden">
-              <span className="block truncate font-medium text-foreground">
+              <SecondaryEllipsis
+                text={`${p.job.shortName} ${p.job.number}`}
+                className="block font-medium text-foreground"
+                testId="job-strip-label"
+              >
                 {p.job.shortName}{" "}
                 <span className="font-normal text-muted-foreground">
                   {p.job.number}
                 </span>
-              </span>
+              </SecondaryEllipsis>
               {meta ? (
-                <span
-                  className="block truncate tabular-nums"
-                  data-testid={
+                <SecondaryEllipsis
+                  text={meta}
+                  className="block tabular-nums"
+                  testId={
                     p.estimateDraft
                       ? "strip-estimate-draft"
                       : user.role === "foreman"
@@ -263,7 +300,7 @@ async function JobStrip() {
                   }
                 >
                   {meta}
-                </span>
+                </SecondaryEllipsis>
               ) : null}
             </span>
             {p.estimateDraft ? (
