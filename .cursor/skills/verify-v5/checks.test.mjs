@@ -2155,7 +2155,7 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.deepEqual([w.outcome, w.waitedMs, f.calls.confirm, f.calls.cancel], ["dialog", 300, 0, 0]);
 
   // Every skill drive that clicks a confirmed action calls confirmIfDialog right after the click.
-  const TRIGGER = /co-(approve|reject|void)\b|remove-plan-line|approve-report|return-report|name: \/\^(Approve|Reject|Void|Remove)\$\/|name: "(Approve report|Return to foreman|Remove|Reject|Void)"/;
+  const TRIGGER = /co-(approve|reject|void)\b|approve-estimate|lock-claim|remove-plan-line|approve-report|return-report|name: \/\^(Approve|Reject|Void|Remove)\$\/|name: "(Approve report|Return to foreman|Remove|Reject|Void)"/;
   const drives = readdirSync(here).filter((n) => n.endsWith(".mjs") && !n.endsWith(".test.mjs") && n !== "confirm-dialog.mustfail.mjs" && n !== "confirm-dialog.mjs");
   let triggers = 0;
   for (const name of drives) {

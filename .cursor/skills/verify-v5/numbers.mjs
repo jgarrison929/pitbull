@@ -65,6 +65,11 @@ export async function runM2(browser, base, { csv, shotDir, job = "26-010" }) {
     await page.getByTestId("import-estimate-summary").waitFor({ timeout: T });
     const summary = await visible(page, "import-estimate-summary");
     await page.getByTestId("approve-estimate").click();
+    // Approve estimate uses the same ConfirmDialog as the other irreversible actions.
+    await confirmIfDialog(page, {
+      settled: page.locator('[data-testid="estimate-status"][data-status="approved"]'),
+      timeout: T,
+    });
     await page.waitForFunction(
       () => document.querySelector('[data-testid="estimate-status"]')?.getAttribute("data-status") === "approved",
       null,
