@@ -11,7 +11,9 @@ export default defineConfig({
     toHaveScreenshot: {
       // Same Linux Chromium as CI. Zero tolerance — measured run-to-run noise
       // is 0px; a one-digit KPI change must fail (see visual.spec acceptance).
+      // threshold 0 counts the light-token channel change so CI uploads actuals.
       maxDiffPixels: 0,
+      threshold: 0,
       animations: "disabled",
     },
   },
