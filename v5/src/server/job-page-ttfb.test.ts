@@ -27,8 +27,10 @@ describe("job page TTFB guards", () => {
     expect(src).toMatch(/\bjobChanges\s*\(/);
     expect(src).toMatch(/timedLoadJobPage/);
     expect(src).toMatch(/getReportedActualsForPlans/);
-    // Reuse getJob row for CO ledger — skip redundant jobs select under burst.
-    expect(src).toMatch(/listChangeOrders\(companyId, p\.job\.number,.+, p\.job\)/);
+    // Reuse getJob row + money for CO ledger — skip redundant jobs/sum selects.
+    expect(src).toMatch(/listChangeOrders\(companyId, p\.job\.number,/);
+    expect(src).toMatch(/ledgerSums:/);
+    expect(src).toMatch(/job:\s*p\.job/);
   });
 
   it("must-fail: getJobPagePlans overlaps open-lines with history aggregates", () => {

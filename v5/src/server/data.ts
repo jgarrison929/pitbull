@@ -232,11 +232,22 @@ export async function getJob(
   asOf = seedNow(),
 ) {
   const db = requireDb();
-  // Job row, WBS, and last lock are independent when keyed by company+number —
-  // overlap all three RTTs (avoids serial job-then-rest under crawl burst).
-  const [jobRows, itemRows, lockRows] = await Promise.all([
+  // Job+last-lock in one round-trip (scalar subquery) overlapped with WBS —
+  // peak pool checkout is 2 instead of 3 under Suspense×crawl concurrency.
+  const [jobRows, itemRows] = await Promise.all([
     db
-      .select()
+      .select({
+        job: jobs,
+        lockedAt: sql<Date | null>`(
+          select ${progressClaims.lockedAt}
+          from ${progressClaims}
+          where ${progressClaims.companyId} = ${companyId}
+            and ${progressClaims.jobId} = ${jobs.id}
+            and ${progressClaims.status} = 'locked'
+          order by ${progressClaims.lockedAt} desc
+          limit 1
+        )`,
+      })
       .from(jobs)
       .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
       .limit(1),
@@ -251,27 +262,12 @@ export async function getJob(
         and(eq(costItems.companyId, companyId), eq(jobs.number, number)),
       )
       .orderBy(asc(costItems.path)),
-    db
-      .select({ lockedAt: progressClaims.lockedAt })
-      .from(progressClaims)
-      .innerJoin(
-        jobs,
-        and(eq(jobs.id, progressClaims.jobId), eq(jobs.companyId, companyId)),
-      )
-      .where(
-        and(
-          eq(progressClaims.companyId, companyId),
-          eq(jobs.number, number),
-          eq(progressClaims.status, "locked"),
-        ),
-      )
-      .orderBy(desc(progressClaims.lockedAt))
-      .limit(1),
   ]);
-  const job = jobRows[0];
-  if (!job) return null;
+  const jobRow = jobRows[0];
+  if (!jobRow) return null;
+  const job = jobRow.job;
   const items = itemRows.map((r) => r.item);
-  const lockAt = lockRows[0]?.lockedAt ?? null;
+  const lockAt = jobRow.lockedAt ?? null;
   const cutoff = lockAt ?? asOf;
   const lines = leafLines(items, cutoff, asOf);
   // Prefer JS leaf rollup so claimed-installed / as-of PV match costLine exactly.

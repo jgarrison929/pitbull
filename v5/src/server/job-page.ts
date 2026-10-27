@@ -124,7 +124,13 @@ export async function loadJobPage(
       ? getJobEvControls(companyId, p.job.id)
       : Promise.resolve({ milestones: [], pmItems: [] }),
     getApprovalPendingByCostItem(companyId, p.job.id),
-    listChangeOrders(companyId, p.job.number, undefined, p.job),
+    listChangeOrders(companyId, p.job.number, {
+      job: p.job,
+      ledgerSums: {
+        original: p.money.job.obCents,
+        current: p.money.job.cbCents,
+      },
+    }),
     caps.canCreatePlan ? listCrews(companyId) : Promise.resolve([]),
   ]);
 

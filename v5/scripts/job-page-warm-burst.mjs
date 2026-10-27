@@ -71,6 +71,7 @@ const cookiesByRole = {};
   await ctx.close();
 }
 
+const ttfbSamples = [];
 const loadSamples = [];
 const idleSamples = [];
 const slowest = [];
@@ -98,8 +99,16 @@ for (let round = 0; round < ROUNDS; round++) {
               timeout: 60_000,
             });
             const loadMs = Date.now() - t0;
+            const nav = await page.evaluate(() => {
+              const n = performance.getEntriesByType("navigation")[0];
+              return n && typeof n.responseStart === "number"
+                ? n.responseStart
+                : null;
+            });
+            const ttfbMs = nav != null && nav > 0 ? nav : loadMs;
             await page.waitForLoadState("networkidle");
             const idleMs = Date.now() - t0;
+            ttfbSamples.push(ttfbMs);
             loadSamples.push(loadMs);
             idleSamples.push(idleMs);
             slowest.push({
@@ -108,6 +117,7 @@ for (let round = 0; round < ROUNDS; round++) {
               theme,
               job,
               status: res?.status() ?? 0,
+              ttfbMs,
               loadMs,
               idleMs,
             });
@@ -122,6 +132,7 @@ for (let round = 0; round < ROUNDS; round++) {
 await browser.close();
 
 slowest.sort((a, b) => b.idleMs - a.idleMs);
+const ttfb = summarize(ttfbSamples);
 const load = summarize(loadSamples);
 const idle = summarize(idleSamples);
 const report = {
@@ -133,11 +144,12 @@ const report = {
   widths: WIDTHS.length,
   themes: THEMES.length,
   rounds: ROUNDS,
-  targets: { maxLoadMs: 1000, maxIdleMs: 1500 },
+  targets: { p95TtfbMs: 200, maxLoadMs: 1000, maxIdleMs: 1500 },
+  ttfb,
   load,
   idle,
   slowest: slowest.slice(0, 16),
-  pass: load.max < 1000 && idle.max < 1500,
+  pass: ttfb.p95 < 200 && load.max < 1000 && idle.max < 1500,
 };
 
 console.log(JSON.stringify(report, null, 2));
