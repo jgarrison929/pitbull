@@ -47,7 +47,7 @@ Prefer **truth over polish**. Root agent entrypoints: [`../AGENTS.md`](../AGENTS
 | Live product | `v5/` |
 | Product version | Root `VERSION` (= `v5/package.json`, currently **5.0.x**) |
 | Live stack | Next.js 16, React 19, PostgreSQL 17, Drizzle |
-| Frozen legacy | `src/` + `e2e/` at tag `legacy-3.8.2-final` (no CI) |
+| Frozen legacy | Removed from this tree. Recover from tag `legacy-3.8.2-final` (no CI) |
 | Deploy | Railway from `main` (staging) — `deploy/RAILWAY-SETUP.md` |
 | Demo | Role cards on `/login` → per-visitor sandbox |
 

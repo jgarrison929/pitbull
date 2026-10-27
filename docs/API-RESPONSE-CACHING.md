@@ -37,7 +37,6 @@ public async Task<IActionResult> GetById(Guid id)
 ### Tenant Isolation
 
 - All responses include `Vary: Authorization` header
-- Cache keys are scoped by the JWT token
 - No cross-tenant cache pollution
 
 ### ETags for Conditional Requests

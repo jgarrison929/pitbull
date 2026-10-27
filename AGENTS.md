@@ -1,6 +1,6 @@
 # Agent instructions — Pitbull Construction Solutions
 
-Construction **project controls** platform. The live product is **`v5/`** (Next.js + Drizzle + PostgreSQL). The legacy 3.8.2 monolith was removed from this tree; recover it from tag `legacy-3.8.2-final`. Legacy `e2e/` remains and is not the live demo. Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs.
+Construction **project controls** platform. The live product is **`v5/`** (Next.js + Drizzle + PostgreSQL). The legacy 3.8.2 monolith and its browser tests were removed from this tree; recover that source from tag `legacy-3.8.2-final`. Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs.
 
 Deeper orientation (settled decisions that still apply, domain glossary, anti-patterns): [`CLAUDE.md`](CLAUDE.md). Session/version rules in **this** file win on conflict.
 
@@ -29,7 +29,7 @@ On `/login`, pick a role card — no password. Each visitor gets a private sandb
 
 Proof after deploy: [`.cursor/skills/verify-v5/SKILL.md`](.cursor/skills/verify-v5/SKILL.md) (`verify-v5`).
 
-**Historical (legacy only):** Explore-as-role via `POST /api/auth/demo-role-login` and the six frozen demo personas (CEO / CFO / PM / Superintendent / Estimator / Contract Admin) lived in the removed 3.8.2 app. Do not document them as the live demo.
+**Historical (legacy only):** Explore-as-role and the six frozen demo personas (CEO / CFO / PM / Superintendent / Estimator / Contract Admin) lived in the removed 3.8.2 app. Do not document them as the live demo.
 
 ## Docs truth
 

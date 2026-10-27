@@ -151,7 +151,7 @@ All commit messages must follow the [Conventional Commits](https://www.conventio
 feat: add bid-to-project conversion endpoint
 fix: resolve FK constraint error on user registration
 docs: add best practices guide
-chore: update NuGet packages
+chore: update npm packages in v5
 refactor: extract validation pipeline behavior
 test: add unit tests for project creation
 ```
@@ -179,7 +179,6 @@ Commands/queries separated via `ICommand`/`IQuery` + handlers, but controllers u
 
 - Handlers often return `Result<T>`
 - Services registered via AddPitbullModule + AddPitbullModuleServices
-- See docs/ARCHITECTURE.md and module code for current patterns. (MediatR was removed Feb 2026 per CHANGELOG.)
 
 ### Feature + Service Pattern
 
@@ -189,7 +188,7 @@ Some features used a dedicated folder per command. Most modules used a service i
 
 Shared database, shared schema model with two enforcement layers:
 
-1. **Application-level:** Middleware resolves tenant from JWT claims and stamps entities automatically
+1. **Application-level:** Middleware resolved the tenant and stamped entities automatically
 2. **Database-level:** PostgreSQL Row-Level Security (RLS) policies enforce data isolation
 
 ### Frontend

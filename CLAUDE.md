@@ -68,7 +68,6 @@ v5/                            # Live product (Next.js + Drizzle)
 docs/                          # Roadmap, v5 plan/specs, archives
 deploy/                        # Railway setup / demo notes
 scripts/                       # Tooling (screenshots, preflight, …)
-e2e/                           # Legacy Playwright (frozen; no CI)
 ```
 
 ### v5 shape (orient here)
@@ -97,7 +96,7 @@ The 3.8.2 modules (Projects, Billing, TimeTracking, and the rest) are on tag `le
 ### Legacy patterns (3.8.2 tag only)
 
 - Controllers: `I*Service` injection; **do not add MediatR**.
-- Multi-tenancy: JWT tenant + PostgreSQL RLS `app.current_tenant`; company scoping via `ICompanyScoped`.
+- Multi-tenancy: tenant on the request plus PostgreSQL RLS `app.current_tenant`; company scoping via `ICompanyScoped`.
 - Soft-delete and no-tracking query conventions as in the historical ARCHITECTURE notes.
 
 ---
@@ -130,7 +129,7 @@ Agents must respect GC vocabulary:
 ## Demo & safety
 
 - **Live:** role-card login and sandboxes on `/login` (see persona table in [`AGENTS.md`](AGENTS.md)).
-- **Legacy:** `Demo:Enabled` + `demo-role-login` + `DemoRestrictionMiddleware` — historical only.
+- **Legacy:** `Demo:Enabled` plus the removed demo-role login — historical only.
 - **Never commit secrets.** Railway/env secrets stay on the platform or local untracked config.
 
 ---

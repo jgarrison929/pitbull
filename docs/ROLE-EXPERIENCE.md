@@ -31,14 +31,14 @@ How demo and real users land in the product after login. All personas use shell 
 ## Profile pipeline
 
 ```
-AppUser.Title + Identity roles
+Title + identity roles
         │
         ▼
  RoleProfileResolver (API)
         │
         ├── briefing section  GET /api/briefing/morning
         ├── dashboard layout  GET /api/dashboard/preferences (auto)
-        ├── JWT role_profile + job_title
+        ├── role profile + job title
         └── welcome tour steps
 ```
 

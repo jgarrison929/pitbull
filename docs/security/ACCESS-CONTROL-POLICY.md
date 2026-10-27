@@ -1,4 +1,7 @@
 # Access Control Policy
+
+> **Historical — not the live product.** This policy described the retired 3.8.2 .NET app (tag `legacy-3.8.2-final`) and is superseded pending a v5 rewrite. Controls for v5 are to be documented for v5.
+
 **Pitbull Construction Solutions**
 **Effective Date:** February 25, 2026
 **Version:** 1.0
@@ -15,13 +18,11 @@ Define access control requirements for all users, administrators, and AI agents 
 ## Authentication
 
 ### User Authentication
-- JWT-based authentication with configurable token expiration
 - Password requirements: minimum 8 characters, complexity enforced
 - Account lockout after 5 failed attempts (15-minute lockout)
 - Session tokens stored securely (HttpOnly, Secure, SameSite cookies)
 
 ### API Authentication
-- Bearer token (JWT) for API access
 - Vendor portal: Token-based authentication (time-limited, single-vendor scope)
 - AI agents: Service account tokens with scoped permissions
 
@@ -92,15 +93,6 @@ AI agents are first-class users with specific constraints:
 | Deactivation | Admin deactivates account (soft-disable, preserves audit history) | Logged |
 | Termination | Account disabled, sessions revoked, access removed | Logged |
 | Annual review | All accounts reviewed for appropriate access | Documented |
-
-## Demo Environment
-
-Demo users operate under `DemoRestrictionMiddleware`:
-- Cannot modify system settings
-- Cannot create new companies
-- Cannot access admin functions
-- Cannot send external communications (emails, notifications)
-- All demo data is reset periodically
 
 ## Review Schedule
 This policy will be reviewed annually or when significant changes occur in the authorization model.

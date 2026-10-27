@@ -12,7 +12,7 @@ set -euo pipefail
 
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <PR_NUMBER> <VIDEO_PATH>"
-  echo "Example: $0 375 e2e/recordings/demo-walkthrough-App-Walkthrough-Demo-demo-recording/video.mp4"
+  echo "Example: $0 375 demo.mp4"
   exit 1
 fi
 

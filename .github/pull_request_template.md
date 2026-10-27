@@ -4,7 +4,7 @@ What does this PR do? (one version step only)
 
 ## Spec
 
-- [ ] Linked or referenced: `docs/specs/…` (or docs/260712 for agent-infra)
+- [ ] Linked or referenced: `docs/specs/…`
 - [ ] Version row acceptance criteria addressed
 
 ## Version stamp (required for ship)
@@ -12,7 +12,6 @@ What does this PR do? (one version step only)
 - [ ] Root `VERSION`
 - [ ] `v5/package.json` (same version as root `VERSION`)
 - [ ] `v5/src/content/changelog.ts`
-- [ ] Docker ARG defaults if applicable
 - [ ] `CHANGELOG.md` — `## [x.y.z] - ISO-8601-with-offset`
 
 **This PR bumps:** `x.y.z` → `x.y.z+1` (exactly one step; see `AGENTS.md` and `docs/roadmap.md`)

@@ -34,7 +34,7 @@ Pitbull v5 is a single Next.js service with Postgres (Drizzle). The closed loop 
 |-------|------------|
 | App | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui |
 | Data | PostgreSQL 17, Drizzle ORM, per-visitor demo sandboxes |
-| Auth | Role cards in demo; JWT + Identity roles in the legacy host |
+| Auth | Role cards on `/login`; per-visitor sandboxes |
 
 Persona home layouts and role UX notes: [docs/ROLE-EXPERIENCE.md](docs/ROLE-EXPERIENCE.md).
 
@@ -101,7 +101,6 @@ v5/                            # Active Pitbull app (Next.js + Drizzle)
 docs/                          # Architecture, specs, roadmap, screenshots
   images/v5/                   # README screenshots from the live demo
 scripts/                       # Capture script, preflight, deploy helpers
-e2e/                           # Legacy Playwright (frozen; not the live demo)
 deploy/                        # Railway / production setup
 ```
 
