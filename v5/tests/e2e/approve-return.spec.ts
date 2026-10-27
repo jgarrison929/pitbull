@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
-import { usdCents } from "@/lib/ev";
+import { usdCents, usdShort } from "@/lib/ev";
 
 /** Cedar Creek (25-031) plans Bridge Crew 2 — pending/approve use its seeded rate. */
 const BRIDGE_RATE_CENTS = CREW_LABOR_RATE_CENTS["Bridge Crew 2"];
@@ -71,12 +71,22 @@ test.describe("superintendent approve / return", () => {
 
     // Check 4: nothing posted before approval; pending on the job page.
     expect(await actualCents(page)).toBe(actualBefore);
-    const pending = page.getByTestId("approval-pending-04-210").first();
+    // Phone + desktop both mount cost rows; assert the visible one (5.0.4-e).
+    const pending = page.locator(
+      '[data-testid="approval-pending-04-210"]:visible',
+    );
     await expect(pending).toBeVisible();
     await expect(pending).toContainText("12");
     const pendingCents = 22 * BRIDGE_RATE_CENTS;
     await expect(pending).toHaveAttribute("data-cents", String(pendingCents));
-    await expect(pending).toContainText(usdCents(pendingCents));
+    // Phone Money(exact): one compact figure; tap swaps to exact (no dual mount).
+    await expect(pending).toContainText(usdShort(pendingCents));
+    const moneyToggle = pending.getByTestId("money-exact-toggle");
+    if (await moneyToggle.count()) {
+      await moneyToggle.click();
+      await expect(pending).toContainText(usdCents(pendingCents));
+      await expect(pending).not.toContainText(usdShort(pendingCents));
+    }
 
     // Superintendent returns with a reason (form unmounts on success — assert banner).
     await signIn(page, "superintendent");
@@ -115,10 +125,12 @@ test.describe("superintendent approve / return", () => {
     const sinceAfterApprove = await sinceLockActualCents(page);
     expect(sinceAfterApprove).toBeGreaterThanOrEqual(22 * BRIDGE_RATE_CENTS);
 
-    await expect(page.getByTestId("approval-pending-04-210")).toHaveCount(0);
-    await expect(page.getByTestId("pending-04-210").first()).toContainText(
-      "12",
-    );
+    await expect(
+      page.locator('[data-testid="approval-pending-04-210"]:visible'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="pending-04-210"]:visible'),
+    ).toContainText("12");
     await expect(page.getByTestId("job-changes")).toContainText(/Approved/i);
 
     // Second approve via assistant must not double-post.

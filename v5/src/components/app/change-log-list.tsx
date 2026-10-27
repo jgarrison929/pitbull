@@ -52,7 +52,8 @@ export function ChangeLogList({
       <div className="py-3">
         <label
           htmlFor="changes-filter"
-          className="text-xs font-medium text-muted-foreground"
+          data-text="label"
+          className="text-label font-medium text-muted-foreground"
         >
           Filter changes
         </label>
@@ -62,25 +63,28 @@ export function ChangeLogList({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Name, cost code, or summary"
-          className="mt-1 w-full min-h-11 rounded-md border bg-background px-3 text-base"
+          className="tap-target mt-1 w-full min-h-11 rounded-md border bg-background px-3 text-body"
         />
       </div>
       {shown.length === 0 ? (
         <ChangesFilterEmpty onClear={() => setQ("")} />
       ) : (
         <>
-          <ul className="divide-y text-sm" data-testid="job-changes-full">
+          <ul className="divide-y text-body" data-testid="job-changes-full">
             {shown.map((c) => (
-              <li key={c.id} className="py-2">
+              <li key={c.id} className="py-3">
                 <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
-                <span className="text-xs text-muted-foreground">
+                <span
+                  data-text="label"
+                  className="text-label text-muted-foreground"
+                >
                   <LocalTime iso={c.createdAt} />
                 </span>
               </li>
             ))}
           </ul>
           {query ? (
-            <p className="py-2 text-xs text-muted-foreground">
+            <p data-text="label" className="py-2 text-label text-muted-foreground">
               {shown.length} on this page match
             </p>
           ) : null}

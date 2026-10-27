@@ -8,25 +8,26 @@ import {
 import { ChangeOrdersSection } from "@/components/app/change-orders";
 import { CostTable } from "@/components/app/cost-table";
 import { Money, StatusIndex, StatusPill } from "@/components/app/format";
-import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
+import {
+  Kpi,
+  KpiStrip,
+  MetricCard,
+  PageHeader,
+  Section,
+} from "@/components/app/page";
 import { EvMethodControls } from "@/components/app/ev-method-controls";
 import { ImportEstimateForm } from "@/components/app/import-estimate-form";
 import { JobNewPlanSlot } from "@/components/app/job-new-plan-slot";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { mh, pct, usdShort } from "@/lib/ev";
-import { getJob, getJobEvControls, getJobPagePlans } from "@/server/data";
-import { jobPagePlanSurface } from "@/server/job-page-plans";
 import {
-  draftClaimForJob,
-  getApprovalPendingByCostItem,
-  getReportedActualsForPlans,
-} from "@/server/progress";
-import { listChangeOrders } from "@/server/change-orders";
-import { listCrews } from "@/server/plans";
+  showsJobPageCostIndexes,
+  showsStatusRiskBadge,
+} from "@/lib/role-fit";
+import { timedLoadJobPage } from "@/server/job-page";
 import { requireUser, type CurrentUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
-import { actions, jobChanges } from "@/server/assistant/actions";
 import { LocalTime } from "@/components/app/local-time";
 
 export default function JobPage({ params }: PageProps<"/app/jobs/[number]">) {
@@ -57,61 +58,42 @@ export async function Job({
 }) {
   const { number } = await params;
   const user = userOverride ?? (await requireUser());
-  const p = await getJob(user.companyId, number);
-  // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
-  if (!p) notFound();
-  // Role gates before the parallel fetch so foreman (and other capture roles)
-  // skip lock / EV-control / crew-picker queries they never render.
-  const canEdit = actions["dailyPlan.updateLine"].roles?.includes(user.role);
-  const canCreatePlan =
-    actions["dailyPlan.create"].roles?.includes(user.role) ?? false;
-  const canAddRemove =
-    (actions["dailyPlan.addLine"].roles?.includes(user.role) ?? false) &&
-    (actions["dailyPlan.removeLine"].roles?.includes(user.role) ?? false);
-  const canReport = actions["dailyReport.post"].roles?.includes(user.role);
-  const canApproveReport = actions["dailyPlan.approve"].roles?.includes(
+  const { data, timing: timingPayload } = await timedLoadJobPage(
+    user.companyId,
+    number,
     user.role,
   );
-  const canReturn = actions["dailyPlan.return"].roles?.includes(user.role);
-  const canLock = actions["progressClaim.lock"].roles?.includes(user.role);
-  const canApprove = actions["estimate.approve"].roles?.includes(user.role);
-  const coCan = {
-    create: actions["changeOrder.create"].roles?.includes(user.role) ?? false,
-    price: actions["changeOrder.price"].roles?.includes(user.role) ?? false,
-    approve: actions["changeOrder.approve"].roles?.includes(user.role) ?? false,
-    reject: actions["changeOrder.reject"].roles?.includes(user.role) ?? false,
-    void: actions["changeOrder.void"].roles?.includes(user.role) ?? false,
-  };
-  const canImport = actions["estimate.importCsv"].roles?.includes(user.role);
-  const canEvEdit = actions["costItem.setPmPercent"].roles?.includes(user.role);
-  const [
-    pagePlans,
+  // Proxy already returns HTTP 404 for unknown jobs; this covers soft navigations.
+  if (!data) notFound();
+  const {
+    p,
+    caps,
+    plans,
+    openPlans,
+    today,
+    historyPlans,
     changes,
     draftClaim,
     evControls,
     approvalPending,
     coData,
     crewRows,
-  ] = await Promise.all([
-    // Open cards keep full lines; 30-day history is summary-only (page budget).
-    // todayLA defaults inside getJobPagePlans via seedNow + job TZ (never UTC).
-    getJobPagePlans(user.companyId, p.job.id),
-    jobChanges(user.companyId, p.job.number),
-    canLock
-      ? draftClaimForJob(user.companyId, p.job.id)
-      : Promise.resolve(null),
-    canEvEdit
-      ? getJobEvControls(user.companyId, p.job.id)
-      : Promise.resolve({ milestones: [], pmItems: [] }),
-    getApprovalPendingByCostItem(user.companyId, p.job.id),
-    listChangeOrders(user.companyId, p.job.number),
-    canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
-  ]);
-  // #18 page wiring: surface owns open split / New-plan today (M8).
-  // History summaries stay from getJobPagePlans (budget — no full line arrays).
-  const plans = pagePlans.openPlans;
-  const { open: openPlans, today } = jobPagePlanSurface(plans);
-  const historyPlans = pagePlans.historyPlans;
+    reportedByPlan,
+  } = data;
+  const {
+    canEdit,
+    canCreatePlan,
+    canAddRemove,
+    canReport,
+    canSubmit,
+    canApproveReport,
+    canReturn,
+    canLock,
+    canApprove,
+    canImport,
+    canEvEdit,
+    coCan,
+  } = caps;
   const historyDay = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
       weekday: "short",
@@ -119,15 +101,15 @@ export async function Job({
       day: "numeric",
       timeZone: "UTC",
     });
-  const reportable = openPlans.filter(
-    (pl) => pl.status === "issued" || pl.status === "reported",
-  );
-  const reportedByPlan = await getReportedActualsForPlans(
-    user.companyId,
-    reportable.map((pl) => pl.id),
-  );
   const estimateDraft = p.job.estimateStatus === "draft";
+  const costIndexes = showsJobPageCostIndexes(user.role);
+  const statusBadge = showsStatusRiskBadge(user.role);
   const jobMoney = p.money.job;
+  const costBan =
+    /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
+  const visibleChanges = statusBadge
+    ? changes
+    : changes.filter((c) => !costBan.test(c.summary));
   // Initial combobox options: first leaves only. Large WBS uses server search.
   const costItems = p.lines.slice(0, 40).map((l) => ({
     value: l.id,
@@ -161,96 +143,106 @@ export async function Job({
   }));
   return (
     <>
-      <PageHeader
-        title={p.job.name}
-        meta={
-          <>
-            {p.job.number} · {p.job.owner} · PM {p.job.pmName} · finish{" "}
-            <time dateTime={p.job.finishOn} data-testid="job-finish">
-              {new Date(`${p.job.finishOn}T00:00:00Z`).toLocaleDateString(
-                "en-US",
-                { month: "short", year: "numeric", timeZone: "UTC" },
-              )}
-            </time>
-          </>
-        }
-        actions={
-          <div className="flex items-center gap-2">
-            {estimateDraft && canApprove ? (
-              <form action={runAction}>
-                <input
-                  type="hidden"
-                  name="action"
-                  value="estimate.approve"
-                />
-                <input type="hidden" name="job" value={p.job.number} />
-                <input
-                  type="hidden"
-                  name="label"
-                  value="Approve estimate"
-                />
-                <button
-                  type="submit"
-                  className="rounded-md border px-3 py-1.5 text-xs font-medium"
-                  data-testid="approve-estimate"
-                >
-                  Approve estimate
-                </button>
-              </form>
-            ) : null}
-            {draftClaim && canLock && !estimateDraft ? (
-              <form action={runAction}>
-                <input
-                  type="hidden"
-                  name="action"
-                  value="progressClaim.lock"
-                />
-                <input type="hidden" name="job" value={p.job.number} />
-                <input
-                  type="hidden"
-                  name="label"
-                  value={`Lock ${draftClaim.periodLabel}`}
-                />
-                <button
-                  type="submit"
-                  className="rounded-md border px-3 py-1.5 text-xs font-medium"
-                  data-testid="lock-claim"
-                >
-                  Lock {draftClaim.periodLabel}
-                </button>
-              </form>
-            ) : null}
-            {estimateDraft ? (
-              <span
-                className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                data-status="draft"
-                data-testid="draft-label"
-              >
-                Draft
-              </span>
-            ) : (
-              <StatusPill
-                value={p.status!}
-                varianceCents={p.costVarianceCents}
-              />
-            )}
-          </div>
-        }
+      <div
+        hidden
+        data-testid="v5-timing"
+        data-db-ms={timingPayload.dbMs}
+        data-queries={timingPayload.queries}
+        data-total-ms={timingPayload.totalMs}
       />
-      <p
-        className="mb-3 text-xs text-muted-foreground"
-        data-testid="estimate-status"
-        data-status={p.job.estimateStatus}
-        data-source={p.job.estimateSource}
-      >
-        Estimate:{" "}
-        {estimateDraft
-          ? "draft — Approve freezes Original Budget from the Current Estimate"
-          : "approved — Original Budget frozen; Current Budget equals Original until change orders"}
-      </p>
-      {estimateDraft && canImport ? (
-        <ImportEstimateForm jobNumber={p.job.number} />
-      ) : null}
+      <div id="estimate">
+        <PageHeader
+          title={p.job.name}
+          purpose="Plan field work, track cost against budget, and decide on changes for this job."
+          meta={
+            <>
+              {p.job.number} · {p.job.owner} · PM {p.job.pmName} · finish{" "}
+              <time dateTime={p.job.finishOn} data-testid="job-finish">
+                {new Date(`${p.job.finishOn}T00:00:00Z`).toLocaleDateString(
+                  "en-US",
+                  { month: "short", year: "numeric", timeZone: "UTC" },
+                )}
+              </time>
+            </>
+          }
+          actions={
+            <div className="flex items-center gap-2">
+              {estimateDraft && canApprove ? (
+                <form action={runAction}>
+                  <input
+                    type="hidden"
+                    name="action"
+                    value="estimate.approve"
+                  />
+                  <input type="hidden" name="job" value={p.job.number} />
+                  <input
+                    type="hidden"
+                    name="label"
+                    value="Approve estimate"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md border px-3 py-1.5 text-xs font-medium"
+                    data-testid="approve-estimate"
+                  >
+                    Approve estimate
+                  </button>
+                </form>
+              ) : null}
+              {draftClaim && canLock && !estimateDraft ? (
+                <form action={runAction}>
+                  <input
+                    type="hidden"
+                    name="action"
+                    value="progressClaim.lock"
+                  />
+                  <input type="hidden" name="job" value={p.job.number} />
+                  <input
+                    type="hidden"
+                    name="label"
+                    value={`Lock ${draftClaim.periodLabel}`}
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md border px-3 py-1.5 text-xs font-medium"
+                    data-testid="lock-claim"
+                  >
+                    Lock {draftClaim.periodLabel}
+                  </button>
+                </form>
+              ) : null}
+              {estimateDraft ? (
+                <span
+                  className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                  data-status="draft"
+                  data-testid="draft-label"
+                >
+                  Draft
+                </span>
+              ) : statusBadge ? (
+                <StatusPill
+                  value={p.status!}
+                  varianceCents={p.costVarianceCents}
+                />
+              ) : null}
+            </div>
+          }
+        />
+        <p
+          className="mb-3 text-xs text-muted-foreground"
+          data-testid="estimate-status"
+          data-status={p.job.estimateStatus}
+          data-source={p.job.estimateSource}
+        >
+          Estimate:{" "}
+          {estimateDraft
+            ? "draft — Approve freezes Original Budget from the Current Estimate"
+            : "approved — Original Budget frozen; Current Budget equals Original until change orders"}
+        </p>
+        {estimateDraft && canImport ? (
+          <ImportEstimateForm jobNumber={p.job.number} />
+        ) : null}
+      </div>
       {/* Plans lead so Submit + crew footer stay reachable after KPI growth (#662). */}
       {canCreatePlan && !estimateDraft ? (
         <div className="contents" data-plan-today={today}>
@@ -275,8 +267,7 @@ export async function Job({
           }
           actions={
             <div className="flex flex-wrap gap-2">
-              {plan.status === "draft" &&
-              actions["dailyPlan.submit"].roles?.includes(user.role) ? (
+              {plan.status === "draft" && canSubmit ? (
                 <form action={runAction}>
                   <input type="hidden" name="action" value="dailyPlan.submit" />
                   <input type="hidden" name="job" value={p.job.number} />
@@ -309,6 +300,7 @@ export async function Job({
                       unit: l.unit,
                       manHours: l.manHours,
                       qtyMilli: l.qtyMilli,
+                      budgetRate: l.budgetRate,
                       reportedManHours: reported?.manHours,
                       reportedQtyMilli: reported?.qtyMilli,
                     };
@@ -372,7 +364,67 @@ export async function Job({
           </ul>
         </details>
       ) : null}
+      {/*
+        5.0.4-e: phone fold shows EAC + CPI first (2-col grid) when the role
+        sees cost indexes (5.0.4-b). EAC carries cost variance; CPI carries
+        earned and actual as its two secondaries. Foreman omits both.
+      */}
       <KpiStrip>
+        {costIndexes ? (
+          <>
+            <MetricCard
+              label="Estimate at completion (EAC)"
+              value={
+                estimateDraft ? (
+                  <span
+                    className="text-muted-foreground"
+                    data-testid="metric-dash"
+                  >
+                    —
+                  </span>
+                ) : (
+                  <span data-testid="job-eac" data-cents={p.eacCents}>
+                    {usdShort(p.eacCents)}
+                  </span>
+                )
+              }
+              secondary={
+                estimateDraft
+                  ? ["Approve the estimate to forecast"]
+                  : [
+                      `${p.costVarianceCents > 0 ? "+" : ""}${usdShort(p.costVarianceCents)} cost variance`,
+                    ]
+              }
+            />
+            <MetricCard
+              label="Cost performance (CPI)"
+              value={
+                estimateDraft ? (
+                  <span
+                    className="text-muted-foreground"
+                    data-testid="metric-dash"
+                  >
+                    —
+                  </span>
+                ) : (
+                  <StatusIndex
+                    index={p.cpi}
+                    varianceCents={p.costVarianceCents}
+                  />
+                )
+              }
+              secondary={
+                estimateDraft
+                  ? ["— earned", "— actual"]
+                  : [
+                      `Earned ${usdShort(p.earnedCents)}`,
+                      `Actual ${usdShort(p.actualCents)}`,
+                    ]
+              }
+              testId="job-cpi"
+            />
+          </>
+        ) : null}
         <Kpi
           label="Original budget"
           value={
@@ -408,7 +460,7 @@ export async function Job({
           testId="job-estimate"
         />
         <Kpi
-          label="Earned to date"
+          label="Earned value (EV)"
           value={
             estimateDraft ? (
               <span className="text-muted-foreground" data-testid="metric-dash">
@@ -428,7 +480,7 @@ export async function Job({
           testId="job-earned"
         />
         <Kpi
-          label="Actual cost"
+          label="Actual cost (AC)"
           value={
             estimateDraft ? (
               <span className="text-muted-foreground" data-testid="metric-dash">
@@ -454,56 +506,34 @@ export async function Job({
           }
           testId="job-actual"
         />
-        <Kpi
-          label="CPI"
-          value={
-            estimateDraft ? (
-              <span className="text-muted-foreground" data-testid="metric-dash">
-                —
-              </span>
-            ) : (
-              <StatusIndex index={p.cpi} varianceCents={p.costVarianceCents} />
-            )
-          }
-          sub={
-            estimateDraft ? (
-              "EAC — · ETC —"
-            ) : (
-              <>
-                EAC{" "}
-                <span data-testid="job-eac" data-cents={p.eacCents}>
-                  {usdShort(p.eacCents)}
+        {costIndexes ? (
+          <Kpi
+            label="Schedule performance (SPI)"
+            value={
+              estimateDraft ? (
+                <span
+                  className="text-muted-foreground"
+                  data-testid="metric-dash"
+                >
+                  —
                 </span>
-                {" · ETC "}
-                {usdShort(p.etcCents)}
-              </>
-            )
-          }
-          testId="job-cpi"
-        />
-        <Kpi
-          label="SPI"
-          value={
-            estimateDraft ? (
-              <span className="text-muted-foreground" data-testid="metric-dash">
-                —
-              </span>
-            ) : (
-              <StatusIndex
-                index={p.spi}
-                varianceCents={p.scheduleVarianceCents}
-              />
-            )
-          }
-          sub={
-            estimateDraft
-              ? "After estimate approval"
-              : p.sinceLockPlannedCents !== 0
-                ? `${usdShort(p.plannedCents)} planned · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
-                : `schedule variance · ${usdShort(p.plannedCents)} planned`
-          }
-          testId="job-spi"
-        />
+              ) : (
+                <StatusIndex
+                  index={p.spi}
+                  varianceCents={p.scheduleVarianceCents}
+                />
+              )
+            }
+            sub={
+              estimateDraft
+                ? "After estimate approval"
+                : p.sinceLockPlannedCents !== 0
+                  ? `Planned value (PV) ${usdShort(p.plannedCents)} · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
+                  : `schedule variance · Planned value (PV) ${usdShort(p.plannedCents)}`
+            }
+            testId="job-spi"
+          />
+        ) : null}
       </KpiStrip>
       <p
         className="mt-2 text-xs text-muted-foreground"
@@ -553,12 +583,9 @@ export async function Job({
         title="Budget vs earned value by cost code"
         meta={
           <span className="block whitespace-normal">
-            EV, AC, and PV share the last locked period; cost posted since that
-            lock shows separately. Foreman reports stay pending until the
-            superintendent approves; approved installs above the claim stay
-            pending lock until the PM locks. Job EAC is the sum of per-item
-            forecasts. CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A
-            cost overrun is never green.
+            {costIndexes
+              ? "EV, AC, and PV share the last locked period; cost posted since that lock shows separately. Foreman reports stay pending until the superintendent approves; approved installs above the claim stay pending lock until the PM locks. Job EAC is the sum of per-item forecasts. CPI ≥ 1.00 green, 0.95 to 1.00 amber, under 0.95 red. A cost overrun is never green."
+              : "Budget and earned amounts by cost code. Foreman reports stay pending until the superintendent approves."}
           </span>
         }
       >
@@ -569,6 +596,7 @@ export async function Job({
           defaultValueSet={estimateDraft ? "ce" : "cb"}
           estimateDraft={estimateDraft}
           jobNumber={p.job.number}
+          showCostIndexes={costIndexes}
         />
       </Section>
       {coData ? (
@@ -593,13 +621,13 @@ export async function Job({
           </Link>
         }
       >
-        {changes.length === 0 ? (
+        {visibleChanges.length === 0 ? (
           <p className="px-4 py-3 text-sm text-muted-foreground">
             No changes yet.
           </p>
         ) : (
           <ul className="divide-y px-4 text-sm" data-testid="job-changes">
-            {changes.map((c) => (
+            {visibleChanges.map((c) => (
               <li key={c.id} className="py-2">
                 <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
                 <span className="text-xs text-muted-foreground">

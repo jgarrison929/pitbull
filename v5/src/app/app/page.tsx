@@ -1,11 +1,18 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { Assistant } from "@/components/app/assistant";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { Money, StatusIndex } from "@/components/app/format";
+import { NextSteps } from "@/components/app/next-steps";
 import { PortfolioTable } from "@/components/app/portfolio-table";
 import { usdShort } from "@/lib/ev";
+import { atRiskSummaryLine, showsCostIndexes } from "@/lib/role-fit";
 import { getPortfolio } from "@/server/data";
+import { getNextSteps } from "@/server/next-steps";
 import { requireUser } from "@/server/session";
+
+const PURPOSE =
+  "Your next tasks across every job, then the portfolio.";
 
 export default function PortfolioPage() {
   return (
@@ -17,15 +24,85 @@ export default function PortfolioPage() {
 
 async function Portfolio() {
   const user = await requireUser();
-  const { jobs, activeJobCount, totals, contractCents } = await getPortfolio(
-    user.companyId,
-  );
-  const portfolio = (
+  const [{ jobs, activeJobCount, totals, contractCents }, nextSteps] =
+    await Promise.all([
+      getPortfolio(user.companyId),
+      getNextSteps(user),
+    ]);
+  // PageHeader owns the page title + purpose (5.0.4-b); NextSteps is untitled.
+  const next = <NextSteps data={nextSteps} titled={false} />;
+  const costIndexes = showsCostIndexes(user.role);
+  const atRiskLines =
+    user.role === "executive"
+      ? jobs
+          .filter((p) => !p.estimateDraft)
+          .map((p) => ({
+            href: `/app/jobs/${p.job.number}`,
+            text: atRiskSummaryLine({
+              shortName: p.job.shortName,
+              number: p.job.number,
+              cpi: p.cpi,
+              spi: p.spi,
+              costVarianceCents: p.costVarianceCents,
+              scheduleVarianceCents: p.scheduleVarianceCents,
+            }),
+          }))
+          .filter(
+            (row): row is { href: string; text: string } => row.text != null,
+          )
+      : [];
+
+  if (user.role === "foreman") {
+    // One PageHeader for all widths — phone/desktop must not each mount purpose.
+    return (
+      <>
+        <PageHeader
+          title="What needs you today"
+          purpose={PURPOSE}
+          meta={user.title}
+        />
+        <div
+          className="flex flex-col gap-3 md:hidden"
+          data-testid="foreman-phone"
+        >
+          {next}
+          <Assistant variant="page" compact />
+        </div>
+        <div className="hidden md:contents">
+          {next}
+          <Section title="Jobs" meta="Active jobs and percent complete">
+            <PortfolioTable jobs={jobs} role={user.role} />
+          </Section>
+        </div>
+      </>
+    );
+  }
+
+  return (
     <>
       <PageHeader
-        title="Portfolio"
+        title="What needs you today"
+        purpose={PURPOSE}
         meta={`${activeJobCount} active jobs · earned value to date`}
       />
+      {next}
+      {atRiskLines.length > 0 ? (
+        <ul
+          className="flex flex-col gap-2 text-sm"
+          data-testid="at-risk-summary"
+        >
+          {atRiskLines.map((row) => (
+            <li key={row.href}>
+              <Link
+                href={row.href}
+                className="underline-offset-2 hover:underline"
+              >
+                {row.text}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <KpiStrip>
         <Kpi
           label="Contract value"
@@ -39,52 +116,44 @@ async function Portfolio() {
           sub={`vs ${usdShort(totals.plannedCents)} planned`}
           testId="kpi-earned"
         />
-        <Kpi
-          label="Portfolio CPI"
-          value={
-            <StatusIndex
-              index={totals.cpi}
-              varianceCents={totals.costVarianceCents}
+        {costIndexes ? (
+          <>
+            <Kpi
+              label="Cost performance (CPI)"
+              value={
+                <StatusIndex
+                  index={totals.cpi}
+                  varianceCents={totals.costVarianceCents}
+                />
+              }
+              sub="earned ÷ actual · cost variance"
+              testId="kpi-cpi"
             />
-          }
-          sub="earned ÷ actual · cost variance"
-          testId="kpi-cpi"
-        />
-        <Kpi
-          label="Portfolio SPI"
-          value={
-            <StatusIndex
-              index={totals.spi}
-              varianceCents={totals.scheduleVarianceCents}
+            <Kpi
+              label="Schedule performance (SPI)"
+              value={
+                <StatusIndex
+                  index={totals.spi}
+                  varianceCents={totals.scheduleVarianceCents}
+                />
+              }
+              sub="earned ÷ planned · schedule variance"
+              testId="kpi-spi"
             />
-          }
-          sub="earned ÷ planned · schedule variance"
-          testId="kpi-spi"
-        />
+          </>
+        ) : null}
       </KpiStrip>
       <Section
+        id="jobs"
         title="Jobs"
-        meta="EAC is the sum of each job's per-item forecasts · EV/AC/PV at last lock"
+        meta={
+          costIndexes
+            ? "EAC is the sum of each job's per-item forecasts · EV/AC/PV at last lock"
+            : "Active jobs and percent complete"
+        }
       >
-        <PortfolioTable jobs={jobs} />
+        <PortfolioTable jobs={jobs} role={user.role} />
       </Section>
-    </>
-  );
-  if (user.role !== "foreman") return portfolio;
-  // A foreman on a phone gets the chat and voice view first; wider screens keep the portfolio.
-  return (
-    <>
-      <div
-        className="flex flex-col gap-3 md:hidden"
-        data-testid="foreman-phone"
-      >
-        <PageHeader
-          title={`Hi, ${user.name.split(" ")[0]}`}
-          meta={user.title}
-        />
-        <Assistant variant="page" />
-      </div>
-      <div className="hidden md:contents">{portfolio}</div>
     </>
   );
 }

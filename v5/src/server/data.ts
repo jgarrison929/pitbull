@@ -23,7 +23,9 @@ import {
   type ForecastMethod,
   type Rollup,
 } from "@/lib/ev";
+import { calendarDateInTz } from "@/lib/plan-date";
 import { isEstimateDraft } from "@/lib/portfolio";
+import { todayPlanLabel, type TodayPlanLabel } from "@/lib/role-fit";
 import { overallStatus, type Status } from "@/lib/status";
 import { planDateToday, timeZoneForJob } from "@/lib/plan-date";
 import { portfolioRollupsSql } from "@/server/cost-rollups";
@@ -209,6 +211,40 @@ export const getPortfolio = cache(async function getPortfolio(
 export type PortfolioJob = Awaited<
   ReturnType<typeof getPortfolio>
 >["jobs"][number];
+
+/**
+ * Foreman JobStrip: today's plan label per job (Report due / Reported / No plan today).
+ * One query for the company; does not filter by foreman — the strip lists every job.
+ */
+export const getTodayPlanLabelsByJob = cache(
+  async function getTodayPlanLabelsByJob(
+    companyId: string,
+    asOf = seedNow(),
+  ): Promise<Map<string, TodayPlanLabel>> {
+    const db = requireDb();
+    const today = calendarDateInTz(asOf);
+    const rows = await db
+      .select({
+        jobId: dailyPlans.jobId,
+        status: dailyPlans.status,
+      })
+      .from(dailyPlans)
+      .where(
+        and(eq(dailyPlans.companyId, companyId), eq(dailyPlans.planDate, today)),
+      );
+    const byJob = new Map<string, string[]>();
+    for (const r of rows) {
+      const list = byJob.get(r.jobId);
+      if (list) list.push(r.status);
+      else byJob.set(r.jobId, [r.status]);
+    }
+    const out = new Map<string, TodayPlanLabel>();
+    for (const [jobId, statuses] of byJob) {
+      out.set(jobId, todayPlanLabel(statuses));
+    }
+    return out;
+  },
+);
 
 /** Job id only — for search/typeahead paths that must not hydrate the WBS. */
 export async function resolveJobId(companyId: string, number: string) {

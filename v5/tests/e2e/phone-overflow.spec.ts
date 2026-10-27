@@ -87,8 +87,13 @@ for (const viewport of VIEWPORTS) {
 
         for (const path of NAV_PAGES) {
           await page.goto(path);
+          // Prefer visible chrome: foreman phone hides job-strip (hidden md:flex).
           await expect(
-            page.locator("main, [data-testid='job-strip'], [data-testid='phone-tab-bar']").first(),
+            page
+              .locator(
+                "main:visible, [data-testid='job-strip']:visible, [data-testid='phone-tab-bar']:visible",
+              )
+              .first(),
           ).toBeVisible({ timeout: 30_000 });
           await assertNoPhoneOverflow(page);
         }

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChangeLogList } from "@/components/app/change-log-list";
 import type { AppRole } from "@/components/app/list-empty";
-import { PageHeader, Section } from "@/components/app/page";
+import { MetricCard, PageHeader, Section } from "@/components/app/page";
 import { jobChanges, jobChangesCount } from "@/server/assistant/actions";
 import { getJob } from "@/server/data";
 import { requireUser } from "@/server/session";
@@ -54,26 +54,43 @@ async function Changes({
     PAGE_SIZE,
     (page - 1) * PAGE_SIZE,
   );
+  // Foreman must not see cost-index language in the feed (5.0.4-b check 2).
+  const costBan = /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
+  const visible =
+    user.role === "foreman"
+      ? changes.filter((c) => !costBan.test(c.summary))
+      : changes;
 
   return (
     <>
       <PageHeader
         title="Changes on this job"
+        purpose="Every recorded change on this job, newest first."
         meta={
           <>
             <Link
               href={`/app/jobs/${job.job.number}`}
-              className="underline hover:no-underline"
+              className="tap-target inline-flex items-center underline hover:no-underline"
               data-testid="changes-back"
             >
               {job.job.number} · {job.job.name}
             </Link>
             {" · "}
             {total === 0
-              ? "None recorded"
+              ? "No changes yet"
               : `${total} ${total === 1 ? "change" : "changes"}`}
           </>
         }
+      />
+      <MetricCard
+        label="Changes logged"
+        value={total.toLocaleString("en-US")}
+        secondary={[
+          total === 0 ? "None yet" : "Newest first",
+          totalPages > 1 ? `Page ${page} of ${totalPages}` : "One page",
+        ]}
+        testId="changes-count-card"
+        className="mb-0"
       />
       <Section
         title="All changes"
@@ -81,14 +98,15 @@ async function Changes({
         actions={
           totalPages > 1 ? (
             <nav
-              className="flex items-center gap-2 text-xs"
+              data-text="label"
+              className="flex items-center gap-2 text-label"
               data-testid="changes-pagination"
               aria-label="Change list pages"
             >
               {page > 1 ? (
                 <Link
                   href={`/app/jobs/${number}/changes?page=${page - 1}`}
-                  className="underline hover:no-underline"
+                  className="tap-target inline-flex items-center underline hover:no-underline"
                 >
                   Previous
                 </Link>
@@ -99,7 +117,7 @@ async function Changes({
               {page < totalPages ? (
                 <Link
                   href={`/app/jobs/${number}/changes?page=${page + 1}`}
-                  className="underline hover:no-underline"
+                  className="tap-target inline-flex items-center underline hover:no-underline"
                 >
                   Next
                 </Link>
@@ -109,7 +127,7 @@ async function Changes({
         }
       >
         <ChangeLogList
-          changes={changes}
+          changes={visible}
           jobNumber={job.job.number}
           role={user.role as AppRole}
           estimateApproved={!job.estimateDraft}

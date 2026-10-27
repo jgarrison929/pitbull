@@ -2,6 +2,7 @@
 // (KPI tiles and cost-tree rows carry the exact cents in data-cents / data-*-cents next to the rendered
 // dollars). Evaluation lives in checks.mjs. Every flow uses a fresh visitor sandbox and resets it after.
 import path from "node:path";
+import { confirmIfDialog } from "./confirm-dialog.mjs";
 import { signInRole } from "./crawl.mjs";
 
 const T = 30000;
@@ -27,7 +28,7 @@ export async function resetDemo(page, base) {
   await page.waitForURL(/reset=1/, { timeout: T });
 }
 
-async function jobState(page, base, job) {
+export async function jobState(page, base, job) {
   await page.goto(`${base}/app/jobs/${job}`, { waitUntil: "networkidle" });
   const rows = await page.$$eval('[data-testid="cost-tree-row"]', (els) =>
     Object.fromEntries(
@@ -94,6 +95,8 @@ export async function runM4M5(browser, base, { shotDir, job = "25-031", co = "CO
     const coStatus = await card.getAttribute("data-status");
     const coText = (await card.innerText()).replace(/\s+/g, " ").slice(0, 200);
     await card.getByRole("button", { name: /^Approve$/ }).click();
+    // PR #65 ConfirmDialog: confirm it only when it opens (main before #65 posts on the click).
+    await confirmIfDialog(page, { settled: byLabel(page.locator('[data-testid="co-card"][data-status="approved"]')).first(), timeout: T });
     await byLabel(page.locator('[data-testid="co-card"][data-status="approved"]')).first().waitFor({ timeout: T });
     const after = pick(await jobState(page, base, job));
     if (shotDir) await page.screenshot({ path: path.join(shotDir, "m4m5-after-approve.png"), fullPage: true });
