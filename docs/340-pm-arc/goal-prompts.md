@@ -1,5 +1,8 @@
 # Goal prompts — PM next-gen arc
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 > **Current product:** root `VERSION` = **`3.8.0`**.  
 > **Next free stamp:** **`3.8.1`** (band 3.8 remainder — remapped CPM; see [`band-3.8-pm-cpm-practices.md`](../specs/product-bands/band-3.8-pm-cpm-practices.md)).  
 > **Do not copy-paste** historical goals for `3.4.x`–`3.7.5` as “next” — those stamps are **shipped archive**.  

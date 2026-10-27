@@ -15,18 +15,17 @@ What does this PR do? (one version step only)
 - [ ] Docker ARG defaults if applicable
 - [ ] `CHANGELOG.md` — `## [x.y.z] - ISO-8601-with-offset`
 
-**This PR bumps:** `x.y.z` → `x.y.z+1` (exactly one step; see `docs/260712/VERSION-WORKFLOW.md`)
-
-## Help center
-
-- [ ] N/A (no user-visible flow change), **or**
-- [ ] Updated `help/page.tsx` in this PR
+**This PR bumps:** `x.y.z` → `x.y.z+1` (exactly one step; see `AGENTS.md` and `docs/roadmap.md`)
 
 ## Test plan
 
-- [ ] `./scripts/preflight.ps1 -FullWeb -DotNet` (or note why partial)
+- [ ] From `v5/`: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run e2e` (the v5 job under ci-gate)
 - [ ] Unit / integration / E2E named in the goal prompt
 - [ ] Mobile: no client-side ledger aggregation; truth rules intact
+
+## Before / After
+
+- [ ] This description says what changed (tree, screen, or no UI change)
 
 ## Checklist
 

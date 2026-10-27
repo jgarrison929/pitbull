@@ -116,7 +116,7 @@ fn build_scan_prompt(domain, focus, prior_summary) {
     p += "Use read-only tools only: read_file, grep, list_dir. Do NOT invent findings from memory. ";
     p += "MUST open real source files before reporting. ";
     p += "Prefer concrete, fixable issues with file paths. Skip pure style nits. ";
-    p += "Respect settled architecture: no MediatR in controllers, no gstack, modular monolith. ";
+    p += "Respect settled architecture: one Next.js app under v5/, server modules, Drizzle, and role-card sandboxes. Do not add gstack. ";
     p += "Prefer truth over polish; do not invent KPIs. ";
     p += "Report at most 8 findings as {file, issue, severity, domain, fix_hint, evidence}. ";
     p += "severity is critical|high|medium|low. domain is short tag (log-safe, auth, rls, validation, deps, data, api, frontend). ";
@@ -135,8 +135,8 @@ fn build_fix_prompt(findings_blob, focus) {
     p += "Use tools freely (read_file, grep, search_replace, write, run_terminal_command). ";
     p += "Apply the HIGHEST severity findings first from this list (JSON): ";
     p += findings_blob;
-    p += " Rules: (1) Prefer LogSafe.Text / LogSafe.Email for untrusted log args — never log raw emails. ";
-    p += "(2) Do not add MediatR to controllers or reintroduce gstack. ";
+    p += " Rules: (1) Never log raw emails or untrusted strings. ";
+    p += "(2) Do not reintroduce gstack. Writes stay in the v5 server modules. ";
     p += "(3) Keep changes small and correct; add/adjust unit tests when behavior changes. ";
     p += "(4) Do not commit secrets. Do not force-push. Do not amend published commits. ";
     p += "(5) After ANY v5 package change run npm ci in v5/ and fix lockfile drift. The 3.8.2 solution was removed. ";

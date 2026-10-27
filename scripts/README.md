@@ -23,7 +23,6 @@ DB_CONNECTION_STRING="Host=prod-db;Database=pitbull;Username=app;Password=***" .
 ```powershell
 ./scripts/preflight.ps1              # version + vitest + changed-file eslint
 ./scripts/preflight.ps1 -FullWeb     # + full lint + next build
-./scripts/preflight.ps1 -DotNet      # fails: legacy unit tests were removed
 ```
 
 ### `check-deployment-status.sh`

@@ -74,7 +74,7 @@ Root `CHANGELOG.md` is the frozen 3.x history. The steps below are the live v5 s
 2. Bump root `VERSION` and `v5/package.json` together (prefer `scripts/bump-version.ps1` / `scripts/stamp-version.ps1`)
 3. Bump the `v5/package-lock.json` `pcs-v5` version fields to match
 4. Add the matching entry at the top of `v5/src/content/changelog.ts`
-5. Run local preflight: `./scripts/preflight.ps1` (optional `-FullWeb`). `-DotNet` fails: the legacy test projects were removed.
+5. Run local preflight: `./scripts/preflight.ps1` (optional `-FullWeb`). The v5 job in ci-gate runs `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and `npm run e2e` from `v5/`.
 6. Merge the PR to `main`. Staging deploys after CI.
 7. Tag and push to promote production when appropriate:
    ```bash

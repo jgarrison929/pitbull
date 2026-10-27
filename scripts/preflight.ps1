@@ -9,18 +9,15 @@
     2) Frontend unit tests (vitest)
     3) Frontend eslint on changed pitbull-web files (or full lint)
     4) Optional: full web lint + next build (-FullWeb)
-    5) Optional: legacy unit tests (-DotNet)
 
   Exit 0 only if all selected gates pass.
 
 .EXAMPLE
   ./scripts/preflight.ps1
   ./scripts/preflight.ps1 -FullWeb
-  ./scripts/preflight.ps1 -DotNet
 #>
 param(
   [switch]$FullWeb,
-  [switch]$DotNet,
   [switch]$SkipTests,
   [switch]$SkipVersion
 )
@@ -151,12 +148,6 @@ if ($FullWeb) {
   } finally {
     Pop-Location
   }
-}
-
-# -- 5. Optional legacy unit tests --------------------------------
-if ($DotNet) {
-  Write-Step "Legacy unit tests"
-  Fail "Legacy unit tests were removed with the 3.8.2 tree (tag legacy-3.8.2-final)."
 }
 
 # -- Summary -------------------------------------------------------

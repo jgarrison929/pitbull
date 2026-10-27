@@ -1,5 +1,8 @@
 # Spec: Mobile Phase 3 — site walk & schedule
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through 2.15.2  
 **Version band:** 2.14.3 → 2.15.2 (10 PRs)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 3
