@@ -85,7 +85,7 @@
 | unset / empty | **ON** (production default) |
 | `false` / `0` / `off` / `no` | OFF — hide twin nav |
 
-See `src/Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
+See `Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
 
 ## Model sample (2.16.6)
 
@@ -143,7 +143,7 @@ dotnet test tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj --f
 dotnet test tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj --filter "FullyQualifiedName~TwinPhotoPinAggregation|SpatialCaptureQuality|ModelAsset|SpatialCost"
 
 # Web
-cd src/Pitbull.Web/pitbull-web
+cd Pitbull.Web/pitbull-web
 npm test -- --run twin-photo-pins overlay-formula help-twin-overlays help-zone-picker-twin spatial-context twin-surface
 ```
 

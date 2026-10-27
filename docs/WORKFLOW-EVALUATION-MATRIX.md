@@ -124,7 +124,7 @@ Detailed findings: `<temp-dir>\grok-goal-eaf1b63e9147\implementer\workflow-revie
 
 ## Frontend alignment (G5)
 
-Shared transition helpers: `src/Pitbull.Web/pitbull-web/src/lib/workflow-transitions.ts` (mirrors C# `*StatusTransitions`).
+Shared transition helpers: `Pitbull.Web/pitbull-web/src/lib/workflow-transitions.ts` (mirrors C# `*StatusTransitions`).
 
 | Page | Verdict | Pattern |
 |------|---------|---------|

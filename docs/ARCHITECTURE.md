@@ -162,8 +162,8 @@ Features/
 
 ### Railway (Production)
 
-- **API:** Docker container from `src/Pitbull.Api/Dockerfile`
-- **Frontend:** Docker container from `src/Pitbull.Web/pitbull-web/Dockerfile`
+- **API:** Docker container from `Pitbull.Api/Dockerfile`
+- **Frontend:** Docker container from `Pitbull.Web/pitbull-web/Dockerfile`
 - **Database:** Railway-managed PostgreSQL 17
 - **Cache:** Railway-managed Redis 7
 - Auto-deploy on push to `main`

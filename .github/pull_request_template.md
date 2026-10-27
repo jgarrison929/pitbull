@@ -10,8 +10,8 @@ What does this PR do? (one version step only)
 ## Version stamp (required for ship)
 
 - [ ] Root `VERSION`
-- [ ] `src/Pitbull.Web/pitbull-web/package.json`
-- [ ] `src/Pitbull.Api/Pitbull.Api.csproj` Version / AssemblyVersion / FileVersion / InformationalVersion
+- [ ] `v5/package.json` (same version as root `VERSION`)
+- [ ] `v5/src/content/changelog.ts`
 - [ ] Docker ARG defaults if applicable
 - [ ] `CHANGELOG.md` — `## [x.y.z] - ISO-8601-with-offset`
 

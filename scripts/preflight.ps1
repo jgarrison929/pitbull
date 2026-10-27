@@ -75,32 +75,21 @@ if (-not $SkipVersion) {
       Fail "VERSION not X.Y.Z: '$v'"
     } else {
       Ok "VERSION = $v"
-      Assert-FileContains "src/Pitbull.Web/pitbull-web/package.json" "`"version`": `"$v`"" "package.json"
-      Assert-FileContains "src/Pitbull.Web/pitbull-web/package-lock.json" "`"version`": `"$v`"" "package-lock.json (root)"
-      # Guard: never full-string Replace product VERSION through package-lock (corrupts deps like is-core-module).
-      $lockPath = Join-Path $RepoRoot "src/Pitbull.Web/pitbull-web/package-lock.json"
+      Assert-FileContains "v5/package.json" "`"version`": `"$v`"" "v5/package.json"
+      # Guard: never full-string Replace product VERSION through package-lock (corrupts dependency versions).
+      $lockPath = Join-Path $RepoRoot "v5/package-lock.json"
       $lockText = Get-Content $lockPath -Raw
-      # Real is-core-module tops out at 2.16.x on npm — 2.17+ means VERSION stamp leaked into lockfile.
       if ($lockText -match 'is-core-module/-/is-core-module-2\.1[7-9]\.') {
-        Fail "package-lock.json has corrupted is-core-module (product VERSION replace leaked into deps). Fix to real npm version (e.g. 2.16.2); never global-replace VERSION in package-lock."
+        Fail "v5/package-lock.json has corrupted is-core-module (product VERSION replace leaked into deps). Never global-replace VERSION in package-lock."
       } else {
-        Ok "package-lock is-core-module not product-VERSION-corrupted"
+        Ok "v5 package-lock is-core-module not product-VERSION-corrupted"
       }
-      Assert-FileContains "src/Pitbull.Api/Pitbull.Api.csproj" "<Version>$v</Version>" "API csproj Version"
-      Assert-FileContains "src/Pitbull.Api/Pitbull.Api.csproj" "<AssemblyVersion>$v.0</AssemblyVersion>" "API AssemblyVersion"
-      Assert-FileContains "src/Pitbull.Api/Pitbull.Api.csproj" "<FileVersion>$v.0</FileVersion>" "API FileVersion"
-      Assert-FileContains "src/Pitbull.Api/Pitbull.Api.csproj" "<InformationalVersion>$v</InformationalVersion>" "API InformationalVersion"
-      Assert-FileContains "src/Pitbull.Api/Dockerfile" "ARG VERSION=$v" "API Dockerfile ARG"
-      Assert-FileContains "src/Pitbull.Web/pitbull-web/Dockerfile" "ARG NEXT_PUBLIC_APP_VERSION=$v" "Web Dockerfile ARG"
-      Assert-FileContains "docker-compose.prod.yml" "APP_VERSION:-$v" "docker-compose.prod.yml"
-      Assert-FileContains "src/Pitbull.Web/pitbull-web/src/lib/app-version.ts" "return `"$v`"" "app-version.ts fallback"
-      Assert-FileContains "CHANGELOG.md" "## [$v]" "CHANGELOG header"
     }
   }
 }
 
 # -- 2. Frontend tests ---------------------------------------------
-$web = Join-Path $RepoRoot "src/Pitbull.Web/pitbull-web"
+$web = Join-Path $RepoRoot "v5"
 if (-not $SkipTests) {
   Write-Step "Frontend unit tests (vitest)"
   Push-Location $web
@@ -133,8 +122,8 @@ try {
 
     $changed = @(
       $rawDiff |
-        Where-Object { $_ -match 'Pitbull\.Web/pitbull-web/src/.*\.(ts|tsx|js|jsx|mjs)$' } |
-        ForEach-Object { $_ -replace '^src/Pitbull\.Web/pitbull-web/', '' } |
+        Where-Object { $_ -match '^v5/.*\.(ts|tsx|js|jsx|mjs)$' } |
+        ForEach-Object { $_ -replace '^v5/', '' } |
         Where-Object { Test-Path (Join-Path $web $_) }
     )
 
@@ -167,13 +156,7 @@ if ($FullWeb) {
 # -- 5. Optional .NET unit tests -----------------------------------
 if ($DotNet) {
   Write-Step ".NET unit tests"
-  $unitProj = Join-Path $RepoRoot "tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj"
-  if (-not (Test-Path $unitProj)) {
-    Fail "missing $unitProj"
-  } else {
-    dotnet test $unitProj --verbosity minimal
-    if ($LASTEXITCODE -ne 0) { Fail "dotnet unit tests" } else { Ok "dotnet unit tests" }
-  }
+  Fail "Legacy .NET tests were removed with the 3.8.2 tree (tag legacy-3.8.2-final)."
 }
 
 # -- Summary -------------------------------------------------------

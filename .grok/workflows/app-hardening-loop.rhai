@@ -66,7 +66,7 @@ let max_rounds = 4;
 // CI / package alignment is first so fix rounds prefer red main over polish.
 let domains = [
     "CI and failed GitHub Actions: NU1605 package downgrades across csproj (Api vs Tests.Unit/Integration), Hangfire/PostHog/IdentityModel version skew, ESLint brace-expansion/minimatch overrides, broken integration tests from security merges; inspect package.json overrides and all PackageReference pins",
-    "CodeQL log-forging and sensitive log data: LogSafe usage, raw emails/tokens in ILogger calls under src/Pitbull.Api and src/Modules",
+    "CodeQL log-forging and sensitive log data: the 3.8.2 API and modules were removed (tag legacy-3.8.2-final). Do not file findings against that tree in this checkout.",
     "AuthN/Z and demo safety: AuthController, DemoRestrictionMiddleware, IsDemoUser, JWT claims, RBAC permissions",
     "Multi-tenant data isolation: TenantMiddleware, RLS session config, ICompanyScoped, IgnoreQueryFilters misuse",
     "Input validation and injection: SQL raw queries, AiInputSanitizer, open redirects, mass assignment",
@@ -139,8 +139,8 @@ fn build_fix_prompt(findings_blob, focus) {
     p += "(2) Do not add MediatR to controllers or reintroduce gstack. ";
     p += "(3) Keep changes small and correct; add/adjust unit tests when behavior changes. ";
     p += "(4) Do not commit secrets. Do not force-push. Do not amend published commits. ";
-    p += "(5) After ANY package or csproj change run: dotnet restore Pitbull.sln and ensure zero NU1605. ";
-    p += "(6) Run targeted tests: dotnet test tests/Pitbull.Tests.Unit --filter LogSafe when touching LogSafe; npm run lint for web. ";
+    p += "(5) After ANY v5 package change run npm ci in v5/ and fix lockfile drift. The 3.8.2 solution was removed. ";
+    p += "(6) Run v5 checks: npm run lint, npm run typecheck, npm test. ";
     p += "(7) If blocked (needs secrets, external systems), set blocked=true and explain. ";
     p += "Return changed_files, summary, tests_run. ";
     p
@@ -251,11 +251,8 @@ while round < max_rounds {
         let verify_prompt = "";
         verify_prompt += "Adversarially verify the latest hardening edits in the Pitbull repo. ";
         verify_prompt += "Use read_file/grep/run_terminal_command. MUST: ";
-        verify_prompt += "dotnet restore Pitbull.sln (fail if NU1605 or restore errors); ";
-        verify_prompt += "dotnet build src/Pitbull.Api/Pitbull.Api.csproj; ";
-        verify_prompt += "and targeted unit tests for touched surfaces (LogSafe/Auth/DemoRestriction as relevant). ";
-        verify_prompt += "If package.json or eslint changed, run npm run lint in src/Pitbull.Web/pitbull-web. ";
-        verify_prompt += "Set ok=true only if restore+build(+lint) are healthy. List residual_risks briefly.";
+        verify_prompt += "The 3.8.2 .NET tree was removed. Verify the live app from v5/: npm ci, npm run lint, npm run typecheck, npm test, npm run build. ";
+        verify_prompt += "Set ok=true only if those commands are healthy. List residual_risks briefly.";
         let v = agent(verify_prompt, #{
             label: "verify-r" + round.to_string(),
             capability_mode: "execute",

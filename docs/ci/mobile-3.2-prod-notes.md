@@ -22,7 +22,7 @@
 ## Test commands
 
 ```powershell
-cd src/Pitbull.Web/pitbull-web
+cd Pitbull.Web/pitbull-web
 npm test -- --run sw-cache-version fetch-retry deploy-recovery plan-pin-flush plans-open-copy posthog-session-recording help-deploy-offline band-3.2-coverage
 ```
 

@@ -8,7 +8,7 @@ I enter as a payroll processor, open Payroll Runs, inspect a run generated from 
 
 On `origin/main` (3.8.2, `88a686d3`):
 
-- Runs: `GET/POST /api/payroll/runs`, `GET/PUT/DELETE /api/payroll/runs/{id}`, `POST /api/payroll/runs/generate`, `POST /api/payroll/runs/{id}/approve`, `POST /api/payroll/runs/{id}/export` (`src/Pitbull.Api/Controllers/PayrollRunsController.cs`).
+- Runs: `GET/POST /api/payroll/runs`, `GET/PUT/DELETE /api/payroll/runs/{id}`, `POST /api/payroll/runs/generate`, `POST /api/payroll/runs/{id}/approve`, `POST /api/payroll/runs/{id}/export` (`Pitbull.Api/Controllers/PayrollRunsController.cs`).
 - Certified: `GET /api/payroll/certified` (list), `POST /api/payroll/certified/generate`, `GET /api/payroll/certified/{payrollRunId}/wh347-pdf` (`CertifiedPayrollController.cs`). There is **no** `GET /api/payroll/certified/{id}` on main.
 - Pay periods: `GET /api/pay-periods`, `GET /api/pay-periods/current`, `POST /api/pay-periods/{id}/lock|unlock|close`, `GET /api/pay-periods/{id}/summary` (`PayPeriodsController.cs`).
 - Reviews: `/api/payroll/reviews` (`PayrollReviewsController.cs`, `[Authorize(Roles = "Admin,ProjectManager")]`).
@@ -43,7 +43,7 @@ Treat the #583-only items as `verified-unreachable` (prerequisite: an API built 
 
 ## Gotchas
 
-- **Demo read-only fires before routing:** `DemoRestrictionMiddleware` (`src/Pitbull.Api/Middleware/DemoRestrictionMiddleware.cs`) returns `403 DEMO_READ_ONLY` for every non-GET under `/api/payroll` for demo principals, including POST routes that don't exist on the running build (for example `validate-prevailing-wage` and `/post` on main). So a 403 does not prove a route exists; check source or the GET shape.
+- **Demo read-only fires before routing:** `DemoRestrictionMiddleware` (`Pitbull.Api/Middleware/DemoRestrictionMiddleware.cs`) returns `403 DEMO_READ_ONLY` for every non-GET under `/api/payroll` for demo principals, including POST routes that don't exist on the running build (for example `validate-prevailing-wage` and `/post` on main). So a 403 does not prove a route exists; check source or the GET shape.
 - **Payroll Reviews:** `/api/payroll/reviews` requires the Identity role `Admin` or `ProjectManager`. No seeded demo persona has either role (mgr-payroll and CEO/CFO are `Manager`, PM is `Supervisor`), so `/payroll/reviews` shows "Failed to load pending payroll reviews" (403). Verified-unreachable with demo personas.
 - **Pay Periods UI:** web middleware redirects non-Admin tokens away from `/admin/*` to `/`, so `/admin/pay-periods` is unreachable for demo personas. Use `GET /api/pay-periods`.
 - **Shared DB from other branches:** the shared Postgres can hold rows written by a PR #583 build (for example a run with status `7` = Posted). A main-built API returns them as numeric `7`, and `/payroll/runs` shows `7`. That is environment contamination, not a main bug.

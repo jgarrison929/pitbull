@@ -422,7 +422,7 @@ The marker type can be any class in the module assembly. By convention, use the 
 
 ### Next.js App Router
 
-The frontend lives at `src/Pitbull.Web/pitbull-web/` and uses Next.js with the App Router.
+The frontend lives at `Pitbull.Web/pitbull-web/` and uses Next.js with the App Router.
 
 **Route groups:**
 
@@ -499,7 +499,7 @@ Migrations live in the API project (`Pitbull.Api`) since that's where the EF mig
 **Adding a new migration:**
 
 ```bash
-cd src/Pitbull.Api
+cd Pitbull.Api
 dotnet ef migrations add <MigrationName> -- --environment Development
 ```
 

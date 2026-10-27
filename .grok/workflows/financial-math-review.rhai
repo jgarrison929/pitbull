@@ -118,13 +118,9 @@ fn build_scan_prompt(domain, focus, prior_summary) {
     p += "You are auditing Pitbull Construction Solutions (repo root) for FINANCIAL MATH errors. ";
     p += "Focus area: " + focus + ". Domain shard: " + domain + ". ";
     p += "Use read-only tools only: read_file, grep, list_dir. Do NOT invent findings from memory. ";
-    p += "You MUST open real source files before reporting. Priority paths: ";
-    p += "src/Modules/Pitbull.Billing/Services/WipCalculationService.cs, ";
-    p += "src/Modules/Pitbull.Billing/Services/WipReportService.cs, ";
-    p += "src/Modules/Pitbull.Billing/Features/Wip/WipContracts.cs, ";
-    p += "src/Pitbull.Api/Features/SeedData/SeedDataService.cs (CreateWipReports, CreateBillingApplications), ";
-    p += "tests/Pitbull.Tests.Unit/Services/WipCalculationServiceTests.cs, ";
-    p += "src/Pitbull.Web/pitbull-web/src/app/(dashboard)/accounting/wip/[id]/page.tsx. ";
+    p += "The 3.8.2 monolith, its tests, and pitbull-web were removed from this checkout. ";
+    p += "Recover them from tag legacy-3.8.2-final. Live math is under v5/. ";
+    p += "Do not report findings for paths that are not in this checkout. ";
     p += "Look for wrong formulas, wrong data sources, unit/scale mismatches, seed values that do not ";
     p += "derive from related entities (projects, owner contracts, COs, billing apps, time costs), ";
     p += "and double-counting or missing costs. ";

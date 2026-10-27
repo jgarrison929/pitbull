@@ -22,7 +22,7 @@
 ## Test commands
 
 ```powershell
-cd src/Pitbull.Web/pitbull-web
+cd Pitbull.Web/pitbull-web
 npm test -- --run offline-photo plan-binary-cache plan-pin-draft field-quick-log help-field-workflows
 ```
 

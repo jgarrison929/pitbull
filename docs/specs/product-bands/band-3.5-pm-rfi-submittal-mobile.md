@@ -44,11 +44,11 @@ Do not mix RFI create UI with CO or submittal package assembly on phone.
 
 | Area | Paths |
 |------|--------|
-| API | `src/Pitbull.Api/Controllers/RfisController.cs`, `ProjectManagementControllers.cs` (submittals), optional slim DTO under `Features/` |
+| API | `Pitbull.Api/Controllers/RfisController.cs`, `ProjectManagementControllers.cs` (submittals), optional slim DTO under `Features/` |
 | Domain | `src/Modules/Pitbull.RFIs/`, `src/Modules/Pitbull.ProjectManagement/Domain/` (`PmSubmittal*`) |
-| Web | `src/Pitbull.Web/pitbull-web/src/app/(dashboard)/rfis/**`, `projects/[id]/rfis/**`, `projects/[id]/submittals/**` |
+| Web | `Pitbull.Web/pitbull-web/src/app/(dashboard)/rfis/**`, `projects/[id]/rfis/**`, `projects/[id]/submittals/**` |
 | Shared UI | mobile shell / bottom nav if deep links added; existing list components |
-| Help | `src/Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx` |
+| Help | `Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx` |
 | Tests | API integration tests for list slim DTO; vitest for formatters/empty copy helpers |
 | E2E | Prefer unit/integration first; persona smoke path documented at checkpoint |
 

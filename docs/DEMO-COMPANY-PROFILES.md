@@ -59,4 +59,4 @@ Bump `SeedDataVersion` in `SeedDataService` when content changes. With `Demo__Se
 ## Related
 
 - Role accounts and home UX: `docs/ROLE-EXPERIENCE.md`
-- Demo bootstrap: `src/Pitbull.Api/Demo/DemoBootstrapper.cs`
+- Demo bootstrap: `Pitbull.Api/Demo/DemoBootstrapper.cs`

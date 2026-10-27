@@ -34,9 +34,9 @@ Company setup wizard calls this on **Complete Setup** for each wizard step.
 
 ## Touchpoints
 
-- `src/Pitbull.Api/Services/OnboardingService.cs` — `isSetupComplete` from checklist, auto-create checklist
-- `src/Pitbull.Api/Controllers/AuthController.cs` — seed checklist after register (optional; service handles lazy create)
-- `src/Pitbull.Web/.../settings/company/setup/page.tsx` — mark checklist on save
+- `Pitbull.Api/Services/OnboardingService.cs` — `isSetupComplete` from checklist, auto-create checklist
+- `Pitbull.Api/Controllers/AuthController.cs` — seed checklist after register (optional; service handles lazy create)
+- `Pitbull.Web/.../settings/company/setup/page.tsx` — mark checklist on save
 - `tests/Pitbull.Tests.Integration/Api/OwnerSignupIntegrationTests.cs` — status incomplete after register, complete after checklist update
 
 ## Test plan

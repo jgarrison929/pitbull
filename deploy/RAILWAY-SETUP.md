@@ -2,14 +2,14 @@
 
 Step-by-step guide for deploying Pitbull to a **new Railway account** from GitHub.
 
-> **Live product is `v5/`.** Staging and production serve the Next.js app under [`v5/`](../v5/), not the frozen `src/` monolith. Prefer [`docs/v5/fresh-start-plan.md`](../docs/v5/fresh-start-plan.md) and current Railway service settings for the real build roots. Sections below that still show `src/Pitbull.Api` / `src/Pitbull.Web/pitbull-web` Dockerfiles are **legacy bootstrap notes** kept for history — do not use them for a new v5 deploy without verifying against the live Railway project.
+> **Live product is `v5/`.** Staging and production serve the Next.js app under [`v5/`](../v5/) with service root directory `v5`. The legacy API/web Railway services and the 3.8.2 tree were removed (recover from tag `legacy-3.8.2-final`). Sections below are historical bootstrap notes. Do not run `scripts/railway-provision.ps1` or `scripts/railway-setup.ps1`; both exit immediately.
 
 ## Architecture (legacy bootstrap sketch)
 
 ```
 Railway Project (historical two-service layout)
 ├── Postgres          (managed plugin)
-├── pitbull-api       (Docker: src/Pitbull.Api/Dockerfile — frozen legacy)
+├── pitbull-api       (Docker: Pitbull.Api/Dockerfile — frozen legacy)
 └── pitbull-web       (Docker: was src/…; live demo is built from v5/)
 ```
 
@@ -28,11 +28,7 @@ Railway Project (historical two-service layout)
 
 ### One-command CLI provision
 
-```powershell
-railway login
-.\scripts\railway-provision.ps1
-git push origin main   # staging deploy per commit; do NOT also run railway redeploy
-```
+Retired with the 3.8.2 services. `scripts/railway-provision.ps1` exits immediately. Deploy v5 by pushing `main` with the Railway service root directory set to `v5`.
 
 **Important:** GitHub auto-deploy is enabled. Pushing to `main` deploys **staging**. Production deploys only when the `production` branch moves (via a version tag / Release workflow). Do not chain `railway redeploy --from-source` after a push (that causes double deploys).
 
@@ -55,15 +51,15 @@ git push origin main   # staging deploy per commit; do NOT also run railway rede
 1. **+ New** → **GitHub Repo** → same repo
 2. Rename service to `pitbull-web`
 3. **Settings → Source**:
-   - **Root Directory**: `src/Pitbull.Web/pitbull-web`
+   - **Root Directory**: `Pitbull.Web/pitbull-web`
    - **Builder**: Dockerfile (`Dockerfile` in that directory)
 
 ### Configure API service root directory
 
 1. Select `pitbull-api` → **Settings → Source**:
    - **Root Directory**: `/` (repo root)
-   - **Builder**: Dockerfile (`src/Pitbull.Api/Dockerfile`, build context `.`)
-   - Configured in `src/Pitbull.Api/railway.json` + `railpack.json` at repo root
+   - **Builder**: Dockerfile (`Pitbull.Api/Dockerfile`, build context `.`)
+   - Configured in `Pitbull.Api/railway.json` + `railpack.json` at repo root
 
 ---
 
@@ -267,10 +263,4 @@ Repeat `railway link` for each service, or use the dashboard for multi-service s
 
 ## Local parity check
 
-Before pushing to Railway:
-
-```bash
-cp .env.example .env
-# fill JWT_KEY, NEXT_PUBLIC_API_BASE_URL, etc.
-docker compose -f docker-compose.prod.yml up --build
-```
+The legacy production compose file was removed with the 3.8.2 tree. Run the live app from `v5/` (`npm ci`, `npm run db:prepare`, `npm run dev`). Railway service root directory is `v5`.

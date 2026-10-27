@@ -34,7 +34,7 @@ Required Role E2E already covers demo login shells. Manual / optional smoke for 
 ## Test commands
 
 ```powershell
-cd src/Pitbull.Web/pitbull-web
+cd Pitbull.Web/pitbull-web
 npm test -- --run today-on-site site-walk-today-on-site help-today-on-site
 
 # API unit (when present)

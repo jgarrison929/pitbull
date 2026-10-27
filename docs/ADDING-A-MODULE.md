@@ -11,7 +11,7 @@ This guide uses a hypothetical **Contracts** module (example only; adapt names).
 ## Prerequisites
 - .NET 10 SDK
 - Familiarity with docs/ARCHITECTURE.md and docs/ADDING-A-MODULE.md (patterns, Dockerfile updates, no RenameColumn in migrations, etc.)
-- Run `dotnet build` and `cd src/Pitbull.Web/pitbull-web && npm run build` before PRs
+- Run `dotnet build` and `cd Pitbull.Web/pitbull-web && npm run build` before PRs
 
 ---
 
@@ -25,13 +25,13 @@ dotnet add reference ../Pitbull.Core/Pitbull.Core.csproj
 dotnet sln add ../../.. src/Modules/Pitbull.Contracts/Pitbull.Contracts.csproj   # adjust as needed
 cd ../../..
 dotnet sln Pitbull.sln add src/Modules/Pitbull.Contracts/Pitbull.Contracts.csproj
-cd src/Pitbull.Api
+cd Pitbull.Api
 dotnet add reference ../Modules/Pitbull.Contracts/Pitbull.Contracts.csproj
 ```
 
 Add NuGet only as needed (FluentValidation, EF Core usually transitively via Core).
 
-**Critical:** Also update `src/Pitbull.Api/Dockerfile` with a COPY for the new .csproj (or Railway build breaks).
+**Critical:** Also update `Pitbull.Api/Dockerfile` with a COPY for the new .csproj (or Railway build breaks).
 
 ---
 
@@ -164,8 +164,8 @@ public class ContractsController(IContractService contractService) : ControllerB
 ## Step 8: Migration
 
 ```bash
-cd src/Pitbull.Api
-dotnet ef migrations add AddContractsModule -p src/Modules/Pitbull.Core -s src/Pitbull.Api
+cd Pitbull.Api
+dotnet ef migrations add AddContractsModule -p src/Modules/Pitbull.Core -s Pitbull.Api
 ```
 
 - NEVER `RenameColumn`, `RenameTable`, `DROP TABLE`, raw TRUNCATE in migrations.
@@ -175,7 +175,7 @@ dotnet ef migrations add AddContractsModule -p src/Modules/Pitbull.Core -s src/P
 
 ```bash
 dotnet build Pitbull.sln --configuration Release   # 0 warnings
-cd src/Pitbull.Web/pitbull-web && npm run build && npm run lint
+cd Pitbull.Web/pitbull-web && npm run build && npm run lint
 dotnet test ...
 ```
 

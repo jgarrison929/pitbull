@@ -39,7 +39,7 @@
 ## Tests
 
 ```powershell
-cd src/Pitbull.Web/pitbull-web
+cd Pitbull.Web/pitbull-web
 npm test -- --run field-ai-suggestion field-eod-summary field-photo-safety feature-flags ai-suggestion-label
 
 dotnet test tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~AiFieldVoice|AiUsage"

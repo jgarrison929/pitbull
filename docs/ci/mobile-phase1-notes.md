@@ -7,7 +7,7 @@
 
 ```powershell
 # Web unit (field/mobile helpers)
-cd src/Pitbull.Web/pitbull-web
+cd Pitbull.Web/pitbull-web
 npm test -- --run help-field-workflows field-report-analytics list-virtualization offline-store mobile-shell posthog-viewport
 
 # API unit (slim mobile projects list)

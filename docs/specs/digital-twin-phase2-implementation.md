@@ -24,7 +24,7 @@ PM (desktop admin upload), superintendent (mobile read + zone fuel), CEO glance 
 | Area | Paths |
 |------|-------|
 | Twin page | `src/.../projects/[id]/twin/page.tsx` |
-| Spatial / twin API | search `Spatial`, `Twin`, `ModelAsset` under `src/Modules` + `src/Pitbull.Api` |
+| Spatial / twin API | search `Spatial`, `Twin`, `ModelAsset` under `src/Modules` + `Pitbull.Api` |
 | Daily report fuel | mobile daily report + offline payload (`SpatialNodeId`, photos) |
 | Feature flags | appsettings / frontend feature flags for `digitalTwin` |
 | Project settings | project settings UI + schema for `RequireSpatialOnProgress` |

@@ -7,8 +7,8 @@ I enter as field leadership (superintendent) or PM, open the mobile Field report
 ## How it works (source-verified 2026-10-07, origin/main)
 
 - Web: `/daily-reports/mobile` (the "Field report" 4-step wizard: job, date, type, foreman ...; e2e `FIELD_REPORT_PATH` in `e2e/tests/mobile-field-report.spec.ts`) and `/projects/{id}/daily-reports` ("Daily Reports" log with New Report, totals, and status filter). There is **no** top-level `/daily-reports` page. A 307 on `/daily-reports` while signed out is only the auth middleware.
-- API is project-scoped: `/api/projects/{projectId}/daily-reports` (`ProjectDailyReportsController` in `src/Pitbull.Api/Controllers/ProjectManagementControllers.cs`). It has list/get/create/update/delete and `/{id}/submit|approve|lock`, photos, rollup, weather, and deliveries (+ OCR). `GET /api/daily-reports` returns 404.
-- Demo seed (`src/Pitbull.Api/Demo/DemoBootstrapper.cs`) creates **no** daily reports on main, so every project's list is empty unless a test created reports.
+- API is project-scoped: `/api/projects/{projectId}/daily-reports` (`ProjectDailyReportsController` in `Pitbull.Api/Controllers/ProjectManagementControllers.cs`). It has list/get/create/update/delete and `/{id}/submit|approve|lock`, photos, rollup, weather, and deliveries (+ OCR). `GET /api/daily-reports` returns 404.
+- Demo seed (`Pitbull.Api/Demo/DemoBootstrapper.cs`) creates **no** daily reports on main, so every project's list is empty unless a test created reports.
 
 ## Live recipe (read-only)
 

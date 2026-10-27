@@ -24,7 +24,7 @@ This is the emotional + practical reaction we want. It combines **speed, context
 ## Current State (Codebase Review – July 2026)
 
 **Strengths already in place:**
-- Excellent role-aware mobile foundation in `src/Pitbull.Web/pitbull-web/src/components/layout/workspaces.ts`:
+- Excellent role-aware mobile foundation in `Pitbull.Web/pitbull-web/src/components/layout/workspaces.ts`:
   - `field` and `Foreman` roles have `mobileTabs` and `quickActions` prominently featuring:
     - "Report" → `/daily-reports/mobile`
     - Crew time entry

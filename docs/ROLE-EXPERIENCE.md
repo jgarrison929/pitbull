@@ -67,10 +67,10 @@ AP/AR clerks, field engineer, payroll — full seed exists (`DemoBootstrapper`);
 
 | Concern | Path |
 |---------|------|
-| Profile resolver | `src/Pitbull.Api/Services/RoleProfileResolver.cs` |
+| Profile resolver | `Pitbull.Api/Services/RoleProfileResolver.cs` |
 | Briefing | `BriefingService.cs` |
 | Role summary API | `RoleDashboardSummaryService.cs` → `GET /api/dashboard/role-summary` |
-| Role views | `src/Pitbull.Web/.../components/dashboard/role-views/` |
+| Role views | `Pitbull.Web/.../components/dashboard/role-views/` |
 | Login catalog | `AuthController` demo roles + `login/page.tsx` |
 
 ## Jobsite Digital Twin (field + PM)

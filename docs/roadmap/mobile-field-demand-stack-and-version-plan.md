@@ -27,7 +27,7 @@ Market severity order for construction **mobile** (field crews and supers). Rank
 
 Statuses: **covered** (meets demand for MVP/product bar), **partial** (shipped core but market still feels a hole), **gap** (explicit non-goal or missing).
 
-Evidence is phase specs (Status: Shipped…), CI notes, or named source under `src/Pitbull.Web/pitbull-web`.
+Evidence is phase specs (Status: Shipped…), CI notes, or named source under `Pitbull.Web/pitbull-web`.
 
 | Surface | Primary paths / specs | Demand fit | Status | Notes |
 |---------|----------------------|------------|--------|-------|

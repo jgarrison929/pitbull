@@ -51,15 +51,9 @@ Thanks for your interest in contributing to Pitbull! This guide will get you up 
 
    Full runbook: [`v5/README.md`](v5/README.md). Checks: `npm run lint && npm run typecheck && npm test && npm run build && npm run e2e`.
 
-### Setup (legacy — frozen `src/`)
+### Setup (legacy 3.8.2)
 
-Only when intentionally working in the frozen monolith:
-
-```bash
-cd src/Pitbull.Api && dotnet restore && dotnet run
-# and, separately:
-cd src/Pitbull.Web/pitbull-web && npm ci && npm run dev
-```
+The 3.8.2 API and web were removed from this tree. Recover them from tag `legacy-3.8.2-final`. Do not `cd` into that tree on `main`.
 
 ---
 
@@ -78,10 +72,10 @@ Root `CHANGELOG.md` and the .NET/web package stamps below describe the **legacy*
 1. Move items from `## [Unreleased]` in `CHANGELOG.md` into a new header with **date and time** of publish, e.g.  
    `## [2.3.0] - 2026-07-10T12:58:16-07:00`  
    (ISO-8601 with offset preferred; date-only `YYYY-MM-DD` still works for older entries)
-2. Bump `VERSION`, legacy `package.json`, and API csproj Version props together (prefer `scripts/bump-version.ps1` / `scripts/stamp-version.ps1`)
-3. Bump `ARG VERSION` / `ARG NEXT_PUBLIC_APP_VERSION` defaults in Dockerfiles / `docker-compose.prod.yml` if they hardcode the version
-4. Bump web `package-lock.json` root `version` and `app-version.ts` fallback to match
-5. Run local preflight: `./scripts/preflight.ps1` (optional `-FullWeb`, `-DotNet`)
+2. Bump root `VERSION` and `v5/package.json` together (prefer `scripts/bump-version.ps1` / `scripts/stamp-version.ps1`)
+3. Bump the `v5/package-lock.json` `pcs-v5` version fields to match
+4. Add the matching entry at the top of `v5/src/content/changelog.ts`
+5. Run local preflight: `./scripts/preflight.ps1` (optional `-FullWeb`). `-DotNet` fails: the legacy test projects were removed.
 6. Merge the PR to `main`. Staging deploys after CI.
 7. Tag and push to promote production when appropriate:
    ```bash
@@ -256,51 +250,27 @@ For deeper architecture details, see `docs/BEST-PRACTICES.md` and `docs/ADDING-A
 
 ### Before Every PR
 
-Both of these must pass:
+Both of these must pass from `v5/`:
 
 ```bash
-# Backend build (from repo root)
-dotnet build Pitbull.sln --configuration Release
-
-# Frontend build + lint
-cd src/Pitbull.Web/pitbull-web && npm run build && npm run lint
+npm run lint && npm run typecheck && npm test
+npm run build
 ```
 
 ### CI Pipeline
 
-GitHub Actions runs automatically on push/PR to `main` (see .github/workflows/ci.yml):
-
-**Backend:**
-- `dotnet restore` / `dotnet build --configuration Release`
-- Migration safety check (no RenameColumn/RenameTable or DROP/TRUNCATE)
-- Unit tests (`tests/Pitbull.Tests.Unit`)
-- Integration tests with PostgreSQL 17 service container
-
-**Frontend:**
-- `npm ci` / `npm run build` / `npm run lint`
+GitHub Actions runs `.github/workflows/ci.yml` on push/PR to `main`. The required check is `ci-gate`. The v5 job (lint, typecheck, unit tests, build, Playwright smoke) runs on every push to `main` and on PRs that touch `v5/**` or that workflow.
 
 Required jobs must pass before merge. Production promote also requires a successful CI run on the tagged commit (see `.github/workflows/release.yml`).
 
-### MediatR community license (quiet Lucky Penny warnings)
+### MediatR community license
 
-Core still registers MediatR for domain events/handlers. Without a license key, tests and API startup log Lucky Penny license warnings.
-
-**Do not commit the JWT.** Wire it via env / user-secrets / CI secret:
-
-| Where | How |
-|-------|-----|
-| Local API | `dotnet user-secrets set "MediatR:LicenseKey" "<jwt>" --project src/Pitbull.Api` or `MediatR__LicenseKey` in `.env` |
-| Local tests / shell | `$env:MEDIATR_LICENSE_KEY = "<jwt>"` (or `LUCKYPENNY_LICENSE_KEY`) |
-| CI | Repo secret `MEDIATR_LICENSE_KEY` (injected in `.github/workflows/ci.yml`) |
-
-Resolution order (see `MediatRLicense` in Core): `MediatR:LicenseKey` config → `MEDIATR_LICENSE_KEY` → `LUCKYPENNY_LICENSE_KEY`. Community keys: [luckypennysoftware.com/community](https://luckypennysoftware.com/community).
+The 3.8.2 API that registered MediatR was removed with that tree (tag `legacy-3.8.2-final`). v5 does not use it.
 
 ### Writing Tests
 
-- Unit tests go in `tests/Pitbull.Tests.Unit/`
-- Integration tests use a real PostgreSQL instance via service containers
-- Test the service/handler logic; controllers are thin
-- Use the Result pattern assertions where applicable: check `result.IsSuccess` and `result.ErrorCode` (also PagedResult)
+- v5 unit tests live under `v5/` and run with `npm test` (Vitest). Playwright smoke is `npm run e2e`.
+- The 3.8.2 xUnit projects were removed with that tree (tag `legacy-3.8.2-final`).
 
 ---
 

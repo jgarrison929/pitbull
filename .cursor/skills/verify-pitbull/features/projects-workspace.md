@@ -6,9 +6,9 @@ I enter the Pitbull web UI as a known role, open Projects, pick a project from t
 
 ## How it works (source-verified 2026-10-07, origin/main)
 
-- Web: `/projects` (list with search/status filter and "+ New Project"), `/projects/{id}` (dashboard), and project tabs under `/projects/{id}/...` (daily-reports, rfis, submittals, schedule, job-cost, documents, punch-list, site-walk, twin, and more) in `src/Pitbull.Web/pitbull-web/src/app/(dashboard)/projects/`.
-- API: `GET /api/projects`, `GET /api/projects/{id}`, `GET /api/projects/{id}/stats`, `.../rfi-cost-summary`, `.../today-on-site`, `.../ai-summary` (`src/Pitbull.Api/Controllers/ProjectsController.cs`). Mutations: `POST /api/projects`, `PUT/DELETE /api/projects/{id}`, `POST /api/projects/{id}/activate`.
-- The web client sends `X-Company-Id` for the active company (`src/Pitbull.Web/pitbull-web/src/lib/api.ts`).
+- Web: `/projects` (list with search/status filter and "+ New Project"), `/projects/{id}` (dashboard), and project tabs under `/projects/{id}/...` (daily-reports, rfis, submittals, schedule, job-cost, documents, punch-list, site-walk, twin, and more) in `Pitbull.Web/pitbull-web/src/app/(dashboard)/projects/`.
+- API: `GET /api/projects`, `GET /api/projects/{id}`, `GET /api/projects/{id}/stats`, `.../rfi-cost-summary`, `.../today-on-site`, `.../ai-summary` (`Pitbull.Api/Controllers/ProjectsController.cs`). Mutations: `POST /api/projects`, `PUT/DELETE /api/projects/{id}`, `POST /api/projects/{id}/activate`.
+- The web client sends `X-Company-Id` for the active company (`Pitbull.Web/pitbull-web/src/lib/api.ts`).
 
 ## Live recipe (read-only)
 

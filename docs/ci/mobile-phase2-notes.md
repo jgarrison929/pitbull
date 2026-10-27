@@ -6,7 +6,7 @@
 ## Test commands
 
 ```powershell
-cd src/Pitbull.Web/pitbull-web
+cd Pitbull.Web/pitbull-web
 npm test -- --run plans-specs-mobile plans-specs-lookup plan-revision-label plan-metadata-cache plans-specs-mobile-layout help-field-workflows offline-store spatial-context
 ./scripts/preflight.ps1 -FullWeb -DotNet
 ```

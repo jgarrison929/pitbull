@@ -9,8 +9,8 @@ Failed Railway deploys burn time. Treat every band PR as production-bound.
 
 1. **Stamp set** (same PR):  
    - root `VERSION`  
-   - `src/Pitbull.Web/pitbull-web/package.json` → `version`  
-   - `src/Pitbull.Api/Pitbull.Api.csproj` version props  
+   - `Pitbull.Web/pitbull-web/package.json` → `version`  
+   - `Pitbull.Api/Pitbull.Api.csproj` version props  
    - Docker `ARG` defaults when present  
    - `CHANGELOG.md` entry + ISO timestamp on release headers  
 

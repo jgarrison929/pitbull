@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+throw "Retired with the 3.8.2 app. Legacy unit and integration tests were removed (tag legacy-3.8.2-final)."
 $repoRoot = Split-Path -Parent $PSScriptRoot
 # Linux CI pwsh often has empty $env:TEMP; Path.GetTempPath() is cross-platform.
 if ([string]::IsNullOrWhiteSpace($ScratchDir)) {

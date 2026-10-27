@@ -6,8 +6,8 @@ I open time tracking as a supervisor/PM, see my crew-entry surface, and open the
 
 ## How it works (source-verified 2026-10-07, origin/main)
 
-- Web routes (`src/Pitbull.Web/pitbull-web/src/app/(dashboard)/time-tracking/`): `/time-tracking`, `/time-tracking/crew-entry`, `/time-tracking/approval` ("PM Time Review"), `/time-tracking/approval/mobile`, `/time-tracking/mobile` (field entry), `/time-tracking/new`, `/time-tracking/audit`, `/time-tracking/print`.
-- API (`src/Pitbull.Api/Controllers/TimeEntriesController.cs`): `GET /api/time-entries` (filters `projectId`, `employeeId`, `startDate`, `endDate`, `status`, `foremanId`, paging), `GET /api/time-entries/{id}`, `GET /api/time-entries/review-queue`, `GET /api/time-entries/by-project/{projectId}`, `GET /api/time-entries/cost-report`, `GET /api/time-entries/yesterday-crew`, `GET /api/time-entries/export/vista`, `GET /api/time-entries/audit-trail`.
+- Web routes (`Pitbull.Web/pitbull-web/src/app/(dashboard)/time-tracking/`): `/time-tracking`, `/time-tracking/crew-entry`, `/time-tracking/approval` ("PM Time Review"), `/time-tracking/approval/mobile`, `/time-tracking/mobile` (field entry), `/time-tracking/new`, `/time-tracking/audit`, `/time-tracking/print`.
+- API (`Pitbull.Api/Controllers/TimeEntriesController.cs`): `GET /api/time-entries` (filters `projectId`, `employeeId`, `startDate`, `endDate`, `status`, `foremanId`, paging), `GET /api/time-entries/{id}`, `GET /api/time-entries/review-queue`, `GET /api/time-entries/by-project/{projectId}`, `GET /api/time-entries/cost-report`, `GET /api/time-entries/yesterday-crew`, `GET /api/time-entries/export/vista`, `GET /api/time-entries/audit-trail`.
 - Mutations: `POST /api/time-entries`, `PUT /{id}`, `POST /{id}/approve`, `POST /{id}/reject`, `POST /review`, `POST /batch`, and `POST /submit`.
 
 ## Live recipe (read-only)

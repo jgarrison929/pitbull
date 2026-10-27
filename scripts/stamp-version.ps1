@@ -1,4 +1,5 @@
-# Stamp product version surfaces (CONTRIBUTING / preflight). Never global-replace package-lock.
+# Stamp product version surfaces. Never global-replace package-lock.
+# Live stamps: root VERSION, v5/package.json, v5/package-lock.json (pcs-v5 blocks only).
 param(
   [Parameter(Mandatory = $true)][string]$From,
   [Parameter(Mandatory = $true)][string]$To
@@ -16,25 +17,13 @@ function Replace-InFile($path, $old, $new) {
 }
 
 Set-Content -Path (Join-Path $root "VERSION") -Value $To -NoNewline
-Replace-InFile "src\Pitbull.Web\pitbull-web\package.json" "`"version`": `"$From`"" "`"version`": `"$To`""
-# package-lock root only (lines 3 and packages[""])
-$lockPath = "src\Pitbull.Web\pitbull-web\package-lock.json"
-$lock = Get-Content $lockPath
-if ($lock[2] -match [regex]::Escape("`"version`": `"$From`"")) {
-  $lock[2] = $lock[2] -replace [regex]::Escape($From), $To
-}
-if ($lock[8] -match [regex]::Escape("`"version`": `"$From`"")) {
-  $lock[8] = $lock[8] -replace [regex]::Escape($From), $To
-}
-$lock | Set-Content $lockPath
-Replace-InFile "src\Pitbull.Web\pitbull-web\src\lib\app-version.ts" "return `"$From`"" "return `"$To`""
-Replace-InFile "src\Pitbull.Api\Pitbull.Api.csproj" "<Version>$From</Version>" "<Version>$To</Version>"
-Replace-InFile "src\Pitbull.Api\Pitbull.Api.csproj" "<AssemblyVersion>$From.0</AssemblyVersion>" "<AssemblyVersion>$To.0</AssemblyVersion>"
-Replace-InFile "src\Pitbull.Api\Pitbull.Api.csproj" "<FileVersion>$From.0</FileVersion>" "<FileVersion>$To.0</FileVersion>"
-Replace-InFile "src\Pitbull.Api\Pitbull.Api.csproj" "<InformationalVersion>$From</InformationalVersion>" "<InformationalVersion>$To</InformationalVersion>"
-# Docker: replace ARG defaults carefully
-(Get-Content "src\Pitbull.Api\Dockerfile" -Raw) -replace "ARG VERSION=$From", "ARG VERSION=$To" | Set-Content "src\Pitbull.Api\Dockerfile" -NoNewline
-(Get-Content "src\Pitbull.Web\pitbull-web\Dockerfile" -Raw) -replace "ARG NEXT_PUBLIC_APP_VERSION=$From", "ARG NEXT_PUBLIC_APP_VERSION=$To" | Set-Content "src\Pitbull.Web\pitbull-web\Dockerfile" -NoNewline
-(Get-Content "docker-compose.prod.yml" -Raw) -replace "APP_VERSION:-$From", "APP_VERSION:-$To" | Set-Content "docker-compose.prod.yml" -NoNewline
+Replace-InFile "v5/package.json" "`"version`": `"$From`"" "`"version`": `"$To`""
+
+$lockPath = "v5/package-lock.json"
+$lock = [IO.File]::ReadAllText((Resolve-Path $lockPath))
+$pattern = '("name": "pcs-v5",\r?\n\s*"version": ")' + [regex]::Escape($From) + '(")'
+$lock2 = [regex]::Replace($lock, $pattern, '${1}' + $To + '${2}')
+if ($lock2 -eq $lock) { Write-Warning "pcs-v5 version $From not found in $lockPath" }
+[IO.File]::WriteAllText((Resolve-Path $lockPath), $lock2)
 Write-Output "Stamped $From -> $To"
 Get-Content VERSION

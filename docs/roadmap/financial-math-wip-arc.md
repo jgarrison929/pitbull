@@ -16,7 +16,7 @@
 | Report generate/update | `src/Modules/Pitbull.Billing/Services/WipReportService.cs` | Calls calc; writes EV fields; surety export | Inherits calc; CPI = earned/cost (nonstandard vs BCWP/ACWP) |
 | Contracts/DTOs | `src/Modules/Pitbull.Billing/Features/Wip/WipContracts.cs` | Line + surety DTOs | % assumed unit fraction |
 | GL post | `src/Modules/Pitbull.Billing/Features/Wip/WipGlPostingService.cs` | JE for over/under | Posts wrong AR/revenue if over/under wrong |
-| UI | `src/Pitbull.Web/.../accounting/wip/[id]/page.tsx` | `formatPercent(v) => (v * 100)%` | Double-scales if value is already 0–100 |
+| UI | `Pitbull.Web/.../accounting/wip/[id]/page.tsx` | `formatPercent(v) => (v * 100)%` | Double-scales if value is already 0–100 |
 | Unit tests | `tests/Pitbull.Tests.Unit/Services/WipCalculationServiceTests.cs` | Happy path only | Does not lock owner CO / full job cost / gross billings |
 | Seed WIP | `SeedDataService.CreateWipReports` | Fabricates lines from schedule EV profiles | Not derived from TimeEntry / BillingApplication / real COs |
 
