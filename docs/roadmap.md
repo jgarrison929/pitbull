@@ -131,8 +131,12 @@ Not started: 5.0.4-g (guided demo path), 5.1.1 wire-up (links table, link action
 | 5.0.3 | 2026-10-26 | Average Performance per cost item, dark theme, plan history, faster job pages | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) (Parts B to F) | Staging verify on the tagged sha, tag, production verify |
 | 5.0.4 | 2026-10-30 | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) | Slices a, b, d, e, f pass Verify into `rc/5.0.4`. Slice g gets built. One RC handover with phone checks, then merge to `main` and tag |
 | 5.0.5 | 2026-11-02 | The S-curve for each job and the portfolio | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) | #12 passes Verify and merges to main, then stamp, staging verify, tag |
+| 5.0.6 | 2026-11-04 | One job page order for every role: header with "Next for you", five KPI cards, the cost table, then the role's work. The first cost row sits within 900 px of the top at 1440 | [5.0.6](v5/specs/5.0.6-job-page-anatomy.md) | Starts after 5.0.4 merges to `main`. One slice, then stamp, staging verify, tag |
+| 5.0.7 | 2026-11-09 | A detail drawer for cost items, change orders, and plan lines on the job page, plus a read-only change order page at `/app/jobs/[number]/change-orders/[co]` | [5.0.7](v5/specs/5.0.7-detail-drawer.md) | Starts after 5.0.6 and the #62 follow-ups ([#70](https://github.com/jgarrison929/pitbull/pull/70)) merge. One slice, then stamp, staging verify, tag |
 
 5.0.4 is a 5.0 increment because the app did not show what to do next and was crowded on phones (Joshua's review, 2026-10-25). That misses trust bar item 5. It adds no migration, so it runs beside 5.1.0.
+
+5.0.6 and 5.0.7 come from Pitbull UX's audit of staging 5.0.3 and its specs of 2026-10-27 (PT). They finish trust bar item 5's page anatomy: header, KPIs, primary table, detail drawer. Neither adds a migration. The same audit added slice 5.0.4-i and 20 new checks to [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md#pitbull-ux-checks-2026-10-27).
 
 Gaps still open in the 5.0 story:
 
