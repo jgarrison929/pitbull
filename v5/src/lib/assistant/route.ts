@@ -23,7 +23,14 @@ export type ActionName =
   | "costItem.setMilestone"
   | "costItem.setForecastMethod"
   | `changeOrder.${CoCommandName}`
-  | "changeOrder.show";
+  | "changeOrder.show"
+  | "schedule.addActivity"
+  | "schedule.editActivity"
+  | "schedule.removeActivity"
+  | "schedule.linkCostItem"
+  | "schedule.unlinkCostItem"
+  | "schedule.setHoliday"
+  | "schedule.removeHoliday";
 
 /** Per-line actuals for dailyReport.post (screen form or assistant). */
 export type ReportActualArg = {
@@ -74,6 +81,16 @@ export type JobArgs = {
   qty?: string;
   workers?: string;
   hours?: string;
+  /** schedule.addActivity / editActivity: activity code. */
+  code?: string;
+  /** schedule.addActivity / editActivity / setHoliday: display name. */
+  name?: string;
+  /** schedule.addActivity / editActivity: working-day duration. */
+  durationDays?: string;
+  /** schedule.addActivity / editActivity: YYYY-MM-DD early start. */
+  startOn?: string;
+  /** schedule.editActivity / removeActivity: optimistic concurrency token. */
+  version?: string;
 };
 export type Intent = { action: ActionName; args: JobArgs };
 
@@ -140,6 +157,11 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
   // must not land on estimate.approve or dailyPlan.approve.
   const changeOrder = routeChangeOrder(prompt, args);
   if (changeOrder) return changeOrder;
+
+  // Schedule before plan create/show — "Add activity …" must not hit dailyPlan.show
+  // via the generic "schedule" catch-all later.
+  const schedule = routeSchedule(prompt, jobs);
+  if (schedule) return schedule;
 
   const createPlan = routeCreatePlan(prompt, jobs);
   if (createPlan) return createPlan;
@@ -637,6 +659,172 @@ export function parseForecastMethodCue(prompt: string): string | null {
   return null;
 }
 
+/**
+ * Schedule prompts (5.1.0-b). Before dailyPlan.show's "schedule" catch-all.
+ * "Add activity X on 25-031" → schedule.addActivity (role gate still applies).
+ */
+export function routeSchedule(prompt: string, jobs: JobRef[]): Intent | null {
+  const text = prompt.toLowerCase();
+  const known =
+    findJob(prompt, jobs)?.number ??
+    codesIn(prompt).find((c) => jobs.some((j) => j.number === c));
+  const unknownJobCode = codesIn(prompt).find(
+    (c) => !jobs.some((j) => j.number === c),
+  );
+  const job =
+    known ??
+    (unknownJobCode && codesIn(prompt).length === 1 ? unknownJobCode : undefined);
+  const base: JobArgs = job ? { job } : {};
+
+  // Holidays before generic activity — "set holiday …" has no activity code.
+  if (/\b(holiday|holidays)\b/.test(text)) {
+    const date =
+      prompt.match(/\b(\d{4}-\d{2}-\d{2})\b/)?.[1] ??
+      prompt.match(/\bon\s+(\d{1,2}\/\d{1,2}\/\d{4})\b/i)?.[1];
+    const name =
+      prompt.match(/\b(?:named?|called)\s+["']?([^"'\n,]+)["']?/i)?.[1]?.trim() ??
+      prompt.match(/\bholiday\s+["']([^"']+)["']/i)?.[1]?.trim() ??
+      "";
+    if (/\b(remove|delete|clear)\b/.test(text)) {
+      return {
+        action: "schedule.removeHoliday",
+        args: { ...base, ...(date ? { date } : {}) },
+      };
+    }
+    if (/\b(set|add|mark)\b/.test(text)) {
+      return {
+        action: "schedule.setHoliday",
+        args: {
+          ...base,
+          ...(date ? { date } : {}),
+          ...(name ? { name } : {}),
+        },
+      };
+    }
+  }
+
+  if (/\b(unlink|un-link)\b/.test(text) && /\b(cost|code|item)\b/.test(text)) {
+    const { costCode } = resolveJobAndCostCode(prompt, jobs);
+    const activity = parseActivityRef(prompt);
+    return {
+      action: "schedule.unlinkCostItem",
+      args: {
+        ...base,
+        ...(activity ? { activity } : {}),
+        ...(costCode ? { costCode } : {}),
+      },
+    };
+  }
+
+  if (
+    /\b(link|link(?:s|ed|ing)?)\b/.test(text) &&
+    /\b(cost|code|item)\b/.test(text) &&
+    /\bactivit/.test(text)
+  ) {
+    const { costCode } = resolveJobAndCostCode(prompt, jobs);
+    const activity = parseActivityRef(prompt);
+    return {
+      action: "schedule.linkCostItem",
+      args: {
+        ...base,
+        ...(activity ? { activity } : {}),
+        ...(costCode ? { costCode } : {}),
+      },
+    };
+  }
+
+  if (
+    /\b(remove|delete)\b/.test(text) &&
+    /\bactivit/.test(text) &&
+    !/\b(plan|line|holiday)\b/.test(text)
+  ) {
+    const activity = parseActivityRef(prompt);
+    const version = prompt.match(/\bversion\s*[:=]?\s*(\d+)\b/i)?.[1];
+    return {
+      action: "schedule.removeActivity",
+      args: {
+        ...base,
+        ...(activity ? { activity } : {}),
+        ...(version ? { version } : {}),
+      },
+    };
+  }
+
+  if (
+    /\b(edit|rename|update|change)\b/.test(text) &&
+    /\bactivit/.test(text) &&
+    !/\b(plan|line)\b/.test(text)
+  ) {
+    const activity = parseActivityRef(prompt);
+    const version = prompt.match(/\bversion\s*[:=]?\s*(\d+)\b/i)?.[1];
+    const durationDays =
+      prompt.match(/\b(\d{1,4})\s*(?:working\s+)?days?\b/i)?.[1] ??
+      prompt.match(/\bduration\s*[:=]?\s*(\d{1,4})\b/i)?.[1];
+    const startOn = prompt.match(
+      /\b(?:start(?:ing)?|from)\s+(\d{4}-\d{2}-\d{2})\b/i,
+    )?.[1];
+    const name =
+      prompt.match(/\b(?:rename(?:d)?\s+to|name(?:d)?)\s+["']?([^"'\n,]+)["']?/i)?.[1]
+        ?.trim() ??
+      prompt.match(/:\s*([^,\n]+?)(?:\s*,|\s*$)/)?.[1]?.trim();
+    const code = prompt.match(/\bcode\s*[:=]?\s*([A-Za-z0-9_-]+)\b/i)?.[1];
+    return {
+      action: "schedule.editActivity",
+      args: {
+        ...base,
+        ...(activity ? { activity } : {}),
+        ...(version ? { version } : {}),
+        ...(durationDays ? { durationDays } : {}),
+        ...(startOn ? { startOn } : {}),
+        ...(name ? { name } : {}),
+        ...(code ? { code } : {}),
+      },
+    };
+  }
+
+  // "Add activity X on 25-031" / "Add activity F … 3 days starting 2026-11-17"
+  if (/\badd\b/.test(text) && /\bactivit/.test(text) && !/\bplan\b/.test(text)) {
+    const activity = parseActivityRef(prompt);
+    const durationDays =
+      prompt.match(/\b(\d{1,4})\s*(?:working\s+)?days?\b/i)?.[1] ??
+      prompt.match(/\bduration\s*[:=]?\s*(\d{1,4})\b/i)?.[1];
+    const startOn =
+      prompt.match(
+        /\b(?:start(?:ing)?|from|on)\s+(\d{4}-\d{2}-\d{2})\b/i,
+      )?.[1] ?? prompt.match(/\b(\d{4}-\d{2}-\d{2})\b/)?.[1];
+    const name =
+      prompt.match(/\bnamed?\s+["']?([^"'\n,]+)["']?/i)?.[1]?.trim() ??
+      prompt.match(/:\s*([^,\n]+?)(?:\s*,|\s+\d+\s*days?\b|\s*$)/i)?.[1]
+        ?.trim();
+    return {
+      action: "schedule.addActivity",
+      args: {
+        ...base,
+        ...(activity ? { code: activity, activity } : {}),
+        ...(name ? { name } : {}),
+        ...(durationDays ? { durationDays } : {}),
+        ...(startOn ? { startOn } : {}),
+      },
+    };
+  }
+
+  return null;
+}
+
+/** Activity code or letter after "activity", else a lone A–Z / CODE token. */
+function parseActivityRef(prompt: string): string | undefined {
+  const named =
+    prompt.match(/\bactivit(?:y|ies)\s+([A-Za-z0-9_-]+)\b/i)?.[1] ??
+    prompt.match(/\b(?:activity|code)\s*[:=]\s*([A-Za-z0-9_-]+)\b/i)?.[1];
+  if (named && !/^\d{2}-\d{3}$/.test(named)) return named;
+  // "link 04-210 to C" / "unlink 04-210 from B"
+  const toCode = prompt.match(
+    /\b(?:to|from|on)\s+([A-Za-z][A-Za-z0-9_-]*)\b/,
+  )?.[1];
+  if (toCode && !/^(to|from|on|the|a|an)$/i.test(toCode)) return toCode;
+  return undefined;
+}
+
 /** Shown when no action matches, and as suggestions in the empty state. */
 export const examples = [
   "How is the portfolio doing?",
@@ -654,4 +842,5 @@ export const examples = [
   "Approve the estimate on Harbor Abutment",
   "Raise a change order on Cedar Creek: Added guardrail at the east approach",
   "Approve change order CO-001 on Cedar Creek",
+  "Add activity F on 25-031: Falsework, 3 days starting 2026-11-17",
 ];

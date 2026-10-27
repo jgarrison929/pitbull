@@ -28,6 +28,13 @@ const LABELS: Record<string, string> = {
   "changeOrder.approve": "Approved change order",
   "changeOrder.reject": "Rejected change order",
   "changeOrder.void": "Voided change order",
+  "schedule.addActivity": "Added activity",
+  "schedule.editActivity": "Edited activity",
+  "schedule.removeActivity": "Removed activity",
+  "schedule.linkCostItem": "Linked cost item",
+  "schedule.unlinkCostItem": "Unlinked cost item",
+  "schedule.setHoliday": "Set holiday",
+  "schedule.removeHoliday": "Removed holiday",
 };
 
 /** Past-tense success → "Couldn't …" so a role/unknown/domain refusal never reads as done. */
@@ -55,6 +62,13 @@ const REFUSAL_LABELS: Record<string, string> = {
   "changeOrder.approve": "Couldn't approve change order",
   "changeOrder.reject": "Couldn't reject change order",
   "changeOrder.void": "Couldn't void change order",
+  "schedule.addActivity": "Couldn't add activity",
+  "schedule.editActivity": "Couldn't edit activity",
+  "schedule.removeActivity": "Couldn't remove activity",
+  "schedule.linkCostItem": "Couldn't link cost item",
+  "schedule.unlinkCostItem": "Couldn't unlink cost item",
+  "schedule.setHoliday": "Couldn't set holiday",
+  "schedule.removeHoliday": "Couldn't remove holiday",
 };
 
 /** e.g. "Rejected change order on 24-118" — never `changeOrder.reject(24-118)`. */
