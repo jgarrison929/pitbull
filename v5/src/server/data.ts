@@ -380,6 +380,36 @@ export type PlanHistorySummary = {
  * aggregated history summaries so 30 days of field history does not ship
  * every line into the RSC payload (page budget / networkidle).
  */
+async function historyPlanTotals(
+  companyId: string,
+  historyIds: string[],
+): Promise<Map<string, { lineCount: number; manHours: number }>> {
+  const totals = new Map<string, { lineCount: number; manHours: number }>();
+  if (!historyIds.length) return totals;
+  const db = requireDb();
+  const rows = await db
+    .select({
+      planId: dailyPlanLines.planId,
+      lineCount: sql<number>`count(*)::int`.mapWith(Number),
+      // Same formula as planLine manHours: (workers * hoursTenths) / 10.
+      manHours: sql<number>`(sum(${dailyPlanLines.workers} * ${dailyPlanLines.hoursTenths})::float8 / 10)`.mapWith(
+        Number,
+      ),
+    })
+    .from(dailyPlanLines)
+    .where(
+      and(
+        eq(dailyPlanLines.companyId, companyId),
+        inArray(dailyPlanLines.planId, historyIds),
+      ),
+    )
+    .groupBy(dailyPlanLines.planId);
+  for (const r of rows) {
+    totals.set(r.planId, { lineCount: r.lineCount, manHours: r.manHours });
+  }
+  return totals;
+}
+
 export async function getJobPagePlans(
   companyId: string,
   jobId: string,
@@ -392,10 +422,18 @@ export async function getJobPagePlans(
   const openHeaders = headers.filter(({ plan }) => plan.planDate >= todayLA);
   const historyHeaders = headers.filter(({ plan }) => plan.planDate < todayLA);
 
-  const linesByPlan = await loadPlanLinesByPlanId(
-    companyId,
-    openHeaders.map(({ plan }) => plan.id),
-  );
+  // Open lines and history aggregates are independent once headers are known —
+  // overlap the two RTTs (serial chain was a cold-path tax under crawl burst).
+  const [linesByPlan, totals] = await Promise.all([
+    loadPlanLinesByPlanId(
+      companyId,
+      openHeaders.map(({ plan }) => plan.id),
+    ),
+    historyPlanTotals(
+      companyId,
+      historyHeaders.map(({ plan }) => plan.id),
+    ),
+  ]);
 
   const openPlans = openHeaders.map(({ plan, foreman, crew }) => ({
     ...plan,
@@ -403,32 +441,6 @@ export async function getJobPagePlans(
     foreman,
     lines: linesByPlan.get(plan.id) ?? [],
   }));
-
-  const historyIds = historyHeaders.map(({ plan }) => plan.id);
-  const totals = new Map<string, { lineCount: number; manHours: number }>();
-  if (historyIds.length) {
-    const db = requireDb();
-    const rows = await db
-      .select({
-        planId: dailyPlanLines.planId,
-        lineCount: sql<number>`count(*)::int`.mapWith(Number),
-        // Same formula as planLine manHours: (workers * hoursTenths) / 10.
-        manHours: sql<number>`(sum(${dailyPlanLines.workers} * ${dailyPlanLines.hoursTenths})::float8 / 10)`.mapWith(
-          Number,
-        ),
-      })
-      .from(dailyPlanLines)
-      .where(
-        and(
-          eq(dailyPlanLines.companyId, companyId),
-          inArray(dailyPlanLines.planId, historyIds),
-        ),
-      )
-      .groupBy(dailyPlanLines.planId);
-    for (const r of rows) {
-      totals.set(r.planId, { lineCount: r.lineCount, manHours: r.manHours });
-    }
-  }
 
   const historyPlans: PlanHistorySummary[] = historyHeaders
     .map(({ plan, crew }) => {

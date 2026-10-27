@@ -668,18 +668,30 @@ async function commit(
   return after;
 }
 
-/** Everything the job page and changeOrder.show read. Null when the job is not in this company. */
+/**
+ * Everything the job page and changeOrder.show read. Null when the job is not
+ * in this company. Pass `job` when the caller already loaded the row (job page)
+ * so we skip a redundant select under crawl burst.
+ */
 export async function listChangeOrders(
   companyId: string,
   jobNumber: string,
   now = getSeedClock(),
+  jobRow?: JobRow,
 ): Promise<JobChangeOrders | null> {
   const db = requireDb();
-  const [job] = await db
-    .select()
-    .from(jobs)
-    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
-    .limit(1);
+  let job = jobRow ?? null;
+  if (job && (job.companyId !== companyId || job.number !== jobNumber)) {
+    job = null;
+  }
+  if (!job) {
+    const [row] = await db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
+      .limit(1);
+    job = row ?? null;
+  }
   if (!job) return null;
 
   const cos = await db
