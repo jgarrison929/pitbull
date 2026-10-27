@@ -169,8 +169,9 @@ function EntryRows({
 }
 
 /**
- * Phone cards: one primary figure (amount) per entry (5.0.4-e).
- * Entry testids stay on the desktop table only so e2e counts stay unique.
+ * Phone stacked rows: amount primary; MH + rate always visible (5.0.4-e / PB-107).
+ * No overflow-x scroller — key figures wrap; never hide behind sideways scroll.
+ * Entry labor/other/date testids stay on the desktop table so e2e counts stay unique.
  */
 function EntryCards({
   entries,
@@ -180,11 +181,13 @@ function EntryCards({
   jobNumber: string;
 }) {
   return (
-    <ul className="divide-y md:hidden" data-testid="cost-item-entries-cards">
+    <ul className="divide-y">
       {entries.map((e) => (
         <li
           key={e.id}
           data-card
+          data-testid="cost-entry-card"
+          data-kind={e.kind}
           data-amount-cents={e.amountCents}
           data-at={e.at}
           className={
@@ -197,30 +200,63 @@ function EntryCards({
           >
             {utcDay(e.at)}
           </div>
-          <div className="mt-0.5 text-body">
+          <div className="mt-0.5 min-w-0 text-body whitespace-normal">
             <EntryDetail e={e} jobNumber={jobNumber} />
           </div>
-          <Figure variant="primary" className="mt-1 block">
+          <div
+            data-text="label"
+            className="mt-2 text-label font-medium text-muted-foreground"
+          >
+            Amount
+          </div>
+          <Figure
+            variant="primary"
+            className="mt-0.5 block"
+            data-testid="cost-entry-card-amount"
+          >
             <Money cents={e.amountCents} exact />
           </Figure>
           {e.kind === "labor" ? (
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-              <Figure variant="secondary">
-                {e.manHours.toLocaleString("en-US", {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                })}{" "}
-                MH
-              </Figure>
-              <Figure variant="secondary">
-                {e.rateCents != null ? usdCents(e.rateCents) : "—"}/hr
-              </Figure>
+            <div className="mt-2 grid min-w-0 grid-cols-2 gap-x-3 gap-y-2">
+              <div className="min-w-0">
+                <div
+                  data-text="label"
+                  className="text-label text-muted-foreground"
+                >
+                  MH
+                </div>
+                <Figure
+                  variant="secondary"
+                  className="mt-0.5 block"
+                  data-testid="cost-entry-card-mh"
+                >
+                  {e.manHours.toLocaleString("en-US", {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}
+                </Figure>
+              </div>
+              <div className="min-w-0">
+                <div
+                  data-text="label"
+                  className="text-label text-muted-foreground"
+                >
+                  Rate
+                </div>
+                <Figure
+                  variant="secondary"
+                  className="mt-0.5 block"
+                  data-testid="cost-entry-card-rate"
+                >
+                  {e.rateCents != null ? `${usdCents(e.rateCents)}/hr` : "—"}
+                </Figure>
+              </div>
             </div>
           ) : null}
           {e.kind === "labor" && e.approverName ? (
             <p
               data-text="label"
-              className="mt-1 text-label text-muted-foreground"
+              className="mt-2 text-label text-muted-foreground"
             >
               {e.approverName}
             </p>
@@ -382,71 +418,78 @@ async function CostItem({
         ) : null}
         {data.entries.length === 0 ? null : (
           <>
-            {sinceLockEntries.length > 0 ? (
-              <p
-                data-text="label"
-                className="border-b bg-muted/40 px-4 py-2 text-label text-muted-foreground md:hidden"
-              >
-                Posted since the {lockLabel} lock (pending)
-              </p>
-            ) : null}
-            <EntryCards
-              entries={
-                sinceLockEntries.length > 0
-                  ? sinceLockEntries
-                  : throughLockEntries
-              }
-              jobNumber={data.job.number}
-            />
-            {sinceLockEntries.length > 0 ? (
-              <>
-                <div
-                  data-card
-                  className="flex items-baseline justify-between gap-2 border-b px-4 py-3 text-caution md:hidden"
-                  data-total-cents={data.sinceLockCents}
+            <div className="md:hidden" data-testid="cost-item-entries-cards">
+              {sinceLockEntries.length > 0 ? (
+                <p
+                  data-text="label"
+                  className="border-b bg-muted/40 px-4 py-2 text-label text-muted-foreground"
                 >
-                  <span data-text="label" className="text-label font-medium">
-                    Subtotal · since {lockLabel} lock
-                  </span>
-                  <Figure variant="primary">
-                    <Money cents={data.sinceLockCents} exact />
-                  </Figure>
-                </div>
-                {throughLockEntries.length > 0 ? (
-                  <>
-                    <p
-                      data-text="label"
-                      className="border-b bg-muted/40 px-4 py-2 text-label text-muted-foreground md:hidden"
-                    >
-                      Through the {lockLabel} lock
-                    </p>
-                    <EntryCards
-                      entries={throughLockEntries}
-                      jobNumber={data.job.number}
-                    />
-                  </>
-                ) : null}
-              </>
-            ) : null}
-            <div
-              data-card
-              className="flex items-baseline justify-between gap-2 px-4 py-3 md:hidden"
-              data-total-cents={data.postedTotalCents}
-            >
-              <span data-text="label" className="text-label font-medium">
-                Total
-                {data.periodLabel
-                  ? ` · through ${data.periodLabel} lock`
-                  : ""}
-              </span>
-              <Figure variant="primary">
-                <Money cents={data.postedTotalCents} exact />
-              </Figure>
+                  Posted since the {lockLabel} lock (pending)
+                </p>
+              ) : null}
+              <EntryCards
+                entries={
+                  sinceLockEntries.length > 0
+                    ? sinceLockEntries
+                    : throughLockEntries
+                }
+                jobNumber={data.job.number}
+              />
+              {sinceLockEntries.length > 0 ? (
+                <>
+                  <div
+                    data-card
+                    className="flex items-baseline justify-between gap-2 border-b px-4 py-3 text-caution"
+                    data-total-cents={data.sinceLockCents}
+                  >
+                    <span data-text="label" className="text-label font-medium">
+                      Subtotal · since {lockLabel} lock
+                    </span>
+                    <Figure variant="primary">
+                      <Money cents={data.sinceLockCents} exact />
+                    </Figure>
+                  </div>
+                  {throughLockEntries.length > 0 ? (
+                    <>
+                      <p
+                        data-text="label"
+                        className="border-b bg-muted/40 px-4 py-2 text-label text-muted-foreground"
+                      >
+                        Through the {lockLabel} lock
+                      </p>
+                      <EntryCards
+                        entries={throughLockEntries}
+                        jobNumber={data.job.number}
+                      />
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+              <div
+                data-card
+                className="flex items-baseline justify-between gap-2 px-4 py-3"
+                data-total-cents={data.postedTotalCents}
+              >
+                <span data-text="label" className="text-label font-medium">
+                  Total
+                  {data.periodLabel
+                    ? ` · through ${data.periodLabel} lock`
+                    : ""}
+                </span>
+                <Figure variant="primary">
+                  <Money cents={data.postedTotalCents} exact />
+                </Figure>
+              </div>
             </div>
 
+            {/*
+              Desktop-only wide table. Phones use EntryCards (no overflow-x).
+              data-scroll-x marks the intentional md+ scroller for verify rules.
+            */}
             <div
               className="hidden overflow-x-auto md:block"
               data-testid="cost-item-entries"
+              data-scroll-x
             >
               <table className="w-full min-w-[40rem] text-body">
                 <thead>
