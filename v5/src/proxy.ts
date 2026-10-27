@@ -3,10 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import postgres from "postgres";
 import { databaseConnectionString } from "@/db/database-url";
 import { PROXY_DB_POOL_MAX } from "@/db/pool-config";
+import { isErrorProbeAllowed } from "@/lib/error-probe";
 import { parseJobDrillPath } from "@/lib/job-drill-path";
 import { isUuid } from "@/lib/uuid";
 
 const SESSION_COOKIE = "pcs_session";
+const ERROR_PROBE_PATH = "/app/error-probe";
 
 /**
  * Shared pool for drill-down 404 checks. Opening+closing a connection on every
@@ -62,11 +64,12 @@ function withServerTiming(res: NextResponse, proxyMs: number) {
 }
 
 /**
- * Unknown / invalid drill-down paths must be HTTP 404. Under Cache Components the
- * app shell Suspense boundaries commit 200 before page-level notFound() can run,
- * so the check happens here before the page streams.
+ * Paths that must be HTTP 404 before the app shell streams. Under Cache
+ * Components, Suspense boundaries commit 200 before page-level notFound() can
+ * run, so the check happens here.
  *
  * Covers:
+ * - /app/error-probe when V5_ERROR_PROBE is unset (e2e-only probe)
  * - /app/jobs/:number
  * - /app/jobs/:number/changes
  * - /app/jobs/:number/cost-items/:code  (not …/search)
@@ -74,6 +77,13 @@ function withServerTiming(res: NextResponse, proxyMs: number) {
  */
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
+
+  // Dev/e2e probe — unreachable in production builds (flag off → real 404).
+  if (path === ERROR_PROBE_PATH) {
+    if (!isErrorProbeAllowed()) return notFoundResponse();
+    return NextResponse.next();
+  }
+
   const parsed = parseJobDrillPath(path);
   if (!parsed) return NextResponse.next();
 
@@ -169,6 +179,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/app/error-probe",
     "/app/jobs/:number",
     "/app/jobs/:number/changes",
     "/app/jobs/:number/cost-items/:code",
