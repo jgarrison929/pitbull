@@ -2213,3 +2213,91 @@ console.log(`ok: checks.test.mjs (${results.length} cases)`);
   assert.match(docker, /faketime/);
   console.log(`ok: Dockerfile pins playwright v${pw} by digest with fonts-dejavu-core + faketime`);
 }
+
+// ---- Before/After gate (before-after.mjs; Joshua's rule, 2026-10-27) ----
+// No network: images come from a fake fetch, the PR from a fake gh.
+{
+  const { evaluateBeforeAfter, runBeforeAfterGate, parseBeforeAfter, imageSize, isUiPath, visualDiffFromReport } = await import("./before-after.mjs");
+  const png = (w, h) => {
+    const b = Buffer.alloc(33);
+    b.writeUInt32BE(0x89504e47, 0);
+    b.writeUInt32BE(0x0d0a1a0a, 4);
+    b.writeUInt32BE(13, 8);
+    b.write("IHDR", 12, "ascii");
+    b.writeUInt32BE(w, 16);
+    b.writeUInt32BE(h, 20);
+    return b;
+  };
+  const IMG = {
+    "https://img.test/app-before.png": png(390, 844),
+    "https://img.test/app-after.png": png(390, 844),
+    "https://img.test/app-after-tall.png": png(390, 900),
+    "https://img.test/job-before.png": png(1280, 800),
+    "https://img.test/job-after.png": png(1280, 800),
+  };
+  const fakeFetch = async (url) => {
+    const bytes = IMG[url];
+    return bytes
+      ? { ok: true, status: 200, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) }
+      : { ok: false, status: 404, arrayBuffer: async () => new ArrayBuffer(0) };
+  };
+  const gate = (body, files = ["v5/src/app/app/page.tsx"], visual = null) =>
+    runBeforeAfterGate({ pr: 1, visual, fetchImpl: fakeFetch, gh: () => JSON.stringify({ body, files: files.map((path) => ({ path })) }) });
+  const pair = (label, b, a) => `![Before: ${label}](https://img.test/${b})\n![After: ${label}](https://img.test/${a})`;
+  const head = "## Summary\nChange.\n\n## Before / After\n";
+  const tail = "\n\n## Test plan\n- ran it\n";
+
+  const mustFail = {
+    "no section": [`## Summary\nChange.${tail}`, /no `## Before \/ After` section/],
+    "empty section": [`${head}\n<!-- add shots -->\n${tail}`, /section is empty/],
+    "before with no after": [`${head}![Before: /app · 390×844 · light](https://img.test/app-before.png)${tail}`, /before "\/app · 390×844 · light" has no after/],
+    "mismatched sizes": [`${head}${pair("/app · 390×844 · light", "app-before.png", "app-after-tall.png")}${tail}`, /sizes differ: before 390×844, after 390×900/],
+    "labels mismatch in a pair": [
+      `${head}![Before: /app · 390×844 · light](https://img.test/app-before.png)\n![After: /app · 390×844 · dark](https://img.test/app-after.png)${tail}`,
+      /labels differ in theme/,
+    ],
+    "label without theme": [`${head}${pair("/app · 390×844", "app-before.png", "app-after.png")}${tail}`, /does not state the theme/],
+    "unfetchable image": [`${head}${pair("/app · 390×844 · light", "app-before.png", "gone.png")}${tail}`, /can't be fetched: HTTP 404/],
+    "no visual change without a reason": [`${head}No visual change${tail}`, /has no reason line/],
+  };
+  for (const [name, [body, re]] of Object.entries(mustFail)) {
+    const r = await gate(body);
+    assert.equal(r.pass, false, `before/after must-fail "${name}" passed`);
+    assert.ok(r.failures.some((x) => re.test(x)), `before/after "${name}": ${JSON.stringify(r.failures)}`);
+    console.log(`ok: before/after must-fail ${name}`);
+  }
+  // A false "No visual change" on a UI diff: the 0 px visual run shows a diff -> FAIL, verdict contradicted.
+  {
+    const body = `${head}No visual change: refactor only.${tail}`;
+    const report = { suites: [{ file: "visual.spec.ts", specs: [{ title: "app phone light", file: "visual.spec.ts", tests: [{ status: "unexpected" }] }] }] };
+    const r = await gate(body, ["v5/src/components/job-strip.tsx"], visualDiffFromReport(report));
+    assert.equal(r.pass, false);
+    assert.equal(r.verdict, "contradicted");
+    assert.ok(r.failures.some((x) => /CONTRADICTED.*1 snapshot\(s\) differ: app phone light/.test(x)), JSON.stringify(r.failures));
+    const r2 = await gate(body, ["v5/src/app/globals.css"], { ran: true, diffPixels: 12, diff: true });
+    assert.equal(r2.verdict, "contradicted");
+    const r4 = await gate(`${head}No visual change: refactor only.\n\`\`\`\ntests ok\n\`\`\`${tail}`, ["v5/src/app/app/page.tsx"], { ran: true, diffPixels: 3, diff: true });
+    assert.equal(r4.verdict, "contradicted", "a code block next to the claim must not hide the contradiction");
+    const r3 = await gate(body, ["v5/src/app/app/page.tsx"], null);
+    assert.equal(r3.pass, false, "UI-touching No visual change with no visual run must not pass");
+    console.log("ok: before/after must-fail false No visual change on a UI diff (contradicted)");
+  }
+  // Valid fixtures that must PASS.
+  {
+    const r = await gate(`${head}${pair("/app · 390×844 · light", "app-before.png", "app-after.png")}\n\n${pair("/app/jobs/25-031 · 1280x800 · dark", "job-before.png", "job-after.png")}${tail}`);
+    assert.deepEqual(r.failures, []);
+    assert.equal(r.verdict, "pass");
+    console.log("ok: before/after valid labeled image pairs pass");
+    const r2 = await gate(`${head}Non-UI change. checks.test before:\n\`\`\`\nnot ok\n\`\`\`\nafter:\n\`\`\`\nok\n\`\`\`${tail}`, [".cursor/skills/verify-v5/checks.mjs"]);
+    assert.deepEqual(r2.failures, []);
+    console.log("ok: before/after valid non-UI evidence passes");
+    const r3 = await gate(`${head}No visual change\nReason: server-only query change.${tail}`, ["v5/src/app/app/page.tsx"], { ran: true, diffPixels: 0, diff: false });
+    assert.deepEqual(r3.failures, []);
+    console.log("ok: before/after No visual change with a reason and a clean 0 px run passes");
+  }
+  assert.equal(parseBeforeAfter("## Before / After\n").kind, "empty");
+  assert.deepEqual(imageSize(png(3, 4)), { width: 3, height: 4 });
+  assert.ok(isUiPath("v5/src/app/x.tsx") && isUiPath("v5/src/components/a.tsx") && isUiPath("v5/x.css") && isUiPath("v5/tests/e2e/visual.spec.ts-snapshots/a.png"));
+  assert.ok(!isUiPath("v5/src/server/x.ts") && !isUiPath(".cursor/skills/verify-v5/checks.mjs"));
+  assert.ok(evaluateBeforeAfter({ body: "x" }).failures.length === 1);
+}
