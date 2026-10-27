@@ -3,9 +3,16 @@
 import { useActionState, useState } from "react";
 import { runAction, runActionState, type ActionState } from "@/app/app/assistant/actions";
 import { ChoiceField } from "@/components/form/combobox";
+import { ConfirmForm } from "@/components/form/confirm-form";
 import { LocalTime } from "@/components/app/local-time";
 import type { Option } from "@/components/form/form";
 import type { CoCommandName, CoStatus } from "@/lib/change-order";
+import {
+  approveChangeOrderCopy,
+  rejectChangeOrderCopy,
+  voidChangeOrderCopy,
+  type ConfirmCopy,
+} from "@/lib/confirm-copy";
 import { qty, usdCents } from "@/lib/ev";
 import type { ChangeOrderView, JobChangeOrders } from "@/server/change-orders";
 
@@ -303,6 +310,20 @@ function ChangeOrderCard({
                 jobNumber={jobNumber}
                 changeOrderId={co.id}
                 command={c}
+                copy={
+                  c === "reject"
+                    ? rejectChangeOrderCopy({
+                        jobNumber,
+                        label: co.label,
+                        totalCents: co.totalCents,
+                      })
+                    : voidChangeOrderCopy({
+                        jobNumber,
+                        label: co.label,
+                        status: co.status,
+                        totalCents: co.totalCents,
+                      })
+                }
               />
             ) : (
               <CommandForm
@@ -311,6 +332,18 @@ function ChangeOrderCard({
                 changeOrderId={co.id}
                 command={c}
                 revision={co.revision}
+                copy={approveChangeOrderCopy({
+                  jobNumber,
+                  label: co.label,
+                  cbDeltaCents: co.preview?.ok
+                    ? co.preview.move.cbDeltaCents
+                    : null,
+                  eacDeltaCents: co.preview?.ok
+                    ? co.preview.move.eacDeltaCents
+                    : null,
+                  refusal:
+                    co.preview && !co.preview.ok ? co.preview.why : null,
+                })}
               />
             ),
           )}
@@ -336,14 +369,25 @@ function CommandForm({
   changeOrderId,
   command,
   revision,
+  copy,
 }: {
   jobNumber: string;
   changeOrderId: string;
   command: CoCommandName;
   revision: number;
+  copy: ConfirmCopy;
 }) {
   return (
-    <form action={runAction}>
+    <ConfirmForm
+      action={runAction}
+      triggerLabel={COMMAND_LABEL[command]}
+      triggerClassName="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+      triggerTestId={`co-${command}`}
+      title={copy.title}
+      description={copy.description}
+      confirmLabel={copy.confirmLabel}
+      destructive={copy.destructive}
+    >
       <input type="hidden" name="action" value={`changeOrder.${command}`} />
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="changeOrder" value={changeOrderId} />
@@ -351,14 +395,7 @@ function CommandForm({
       {command === "approve" ? (
         <input type="hidden" name="revision" value={String(revision)} />
       ) : null}
-      <button
-        type="submit"
-        className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-        data-testid={`co-${command}`}
-      >
-        {COMMAND_LABEL[command]}
-      </button>
-    </form>
+    </ConfirmForm>
   );
 }
 
@@ -366,13 +403,25 @@ function ReasonCommand({
   jobNumber,
   changeOrderId,
   command,
+  copy,
 }: {
   jobNumber: string;
   changeOrderId: string;
   command: "reject" | "void";
+  copy: ConfirmCopy;
 }) {
   return (
-    <form action={runAction} className="flex flex-col gap-1">
+    <ConfirmForm
+      action={runAction}
+      className="flex flex-col gap-1"
+      triggerLabel={COMMAND_LABEL[command]}
+      triggerClassName="rounded-md border px-3 py-1.5 text-xs font-medium"
+      triggerTestId={`co-${command}`}
+      title={copy.title}
+      description={copy.description}
+      confirmLabel={copy.confirmLabel}
+      destructive={copy.destructive}
+    >
       <input type="hidden" name="action" value={`changeOrder.${command}`} />
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="changeOrder" value={changeOrderId} />
@@ -386,14 +435,7 @@ function ReasonCommand({
         className="rounded-md border bg-background px-2 py-1 text-sm"
         data-testid={`co-${command}-reason`}
       />
-      <button
-        type="submit"
-        className="rounded-md border px-3 py-1.5 text-xs font-medium"
-        data-testid={`co-${command}`}
-      >
-        {COMMAND_LABEL[command]}
-      </button>
-    </form>
+    </ConfirmForm>
   );
 }
 

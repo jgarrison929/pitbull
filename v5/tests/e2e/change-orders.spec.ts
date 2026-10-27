@@ -136,6 +136,22 @@ test("PM approves priced CO-001; budget and EAC rise once", async ({
   const ob0 = await attr(ledger, "data-original-cents");
 
   await co.getByTestId("co-approve").click();
+  const approveDialog = page.getByRole("alertdialog");
+  await expect(approveDialog).toContainText(
+    "Approve change order CO-001 on 25-031?",
+  );
+  await expect(approveDialog).toContainText("$60,000.00");
+  await expect(approveDialog).toContainText("cannot be undone");
+  await approveDialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(approveDialog).toBeHidden();
+  await expect(co).toHaveAttribute("data-status", "priced");
+  expect(await cents(page, "job-budget")).toBe(cb0);
+
+  await co.getByTestId("co-approve").click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Approve change order" })
+    .click();
   await expect(co).toHaveAttribute("data-status", "approved");
   expect(await cents(page, "job-budget")).toBe(cb0 + DELTA);
   expect(await cents(page, "job-eac")).toBe(eac0 + DELTA);
@@ -191,6 +207,20 @@ test("foreman cannot approve; reject or void moves nothing", async ({
     .getByTestId("co-void-reason")
     .fill("Opened by mistake");
   await card(page, "24-118", 1).getByTestId("co-void").click();
+  const voidDialog = page.getByRole("alertdialog");
+  await expect(voidDialog).toContainText("Void change order CO-001 on 24-118?");
+  await expect(voidDialog).toContainText("not in pending changes");
+  await expect(voidDialog).toContainText("cannot be undone");
+  await voidDialog.getByTestId("confirm-dialog-cancel").click();
+  await expect(voidDialog).toBeHidden();
+  await expect(card(page, "24-118", 1)).toHaveAttribute("data-status", "draft");
+  expect(await cents(page, "job-budget")).toBe(cb0);
+
+  await card(page, "24-118", 1).getByTestId("co-void").click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Void change order" })
+    .click();
   await expect(card(page, "24-118", 1)).toHaveAttribute("data-status", "voided");
   expect(await cents(page, "job-budget")).toBe(cb0);
   expect(await cents(page, "job-eac")).toBe(eac0);
@@ -206,6 +236,14 @@ test("foreman cannot approve; reject or void moves nothing", async ({
     .getByTestId("co-reject-reason")
     .fill("Owner declined");
   await card(page, "24-077", 2).getByTestId("co-reject").click();
+  const rejectDialog = page.getByRole("alertdialog");
+  await expect(rejectDialog).toContainText(
+    "Reject change order CO-002 on 24-077?",
+  );
+  await expect(rejectDialog).toContainText("does not enter Current Budget");
+  await rejectDialog
+    .getByRole("button", { name: "Reject change order" })
+    .click();
   await expect(card(page, "24-077", 2)).toHaveAttribute(
     "data-status",
     "rejected",

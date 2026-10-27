@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { confirmDialog } from "./confirm-dialog";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
 
 const roles = [
@@ -166,7 +167,7 @@ test("after approve: totals = AC on drill page and job page; no approved-qty row
 
   await signIn(page, "superintendent");
   await page.goto("/app/jobs/25-031");
-  await page.getByTestId("approve-report").click();
+  await confirmDialog(page, page.getByTestId("approve-report"));
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
     "approved",
@@ -279,7 +280,7 @@ test("lock-day plan stays pending until the next lock (24-077)", async ({
 
   await signIn(page, "superintendent");
   await page.goto("/app/jobs/24-077");
-  await page.getByTestId("approve-report").click();
+  await confirmDialog(page, page.getByTestId("approve-report"));
   await expect(page.getByTestId("plan-card")).toHaveAttribute(
     "data-status",
     "approved",

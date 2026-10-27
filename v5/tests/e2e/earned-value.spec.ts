@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { confirmDialog } from "./confirm-dialog";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
 
 /** Seeded Cedar working plan (tomorrow under V5_SEED_NOW=2026-10-20). */
@@ -51,7 +52,7 @@ async function issueAndReportPour(
 async function approveAsSuperintendent(page: Page) {
   await signIn(page, "superintendent");
   await page.goto("/app/jobs/25-031");
-  await workingPlan(page).getByTestId("approve-report").click();
+  await confirmDialog(page, workingPlan(page).getByTestId("approve-report"));
   await expect(workingPlan(page)).toHaveAttribute("data-status", "approved");
 }
 
