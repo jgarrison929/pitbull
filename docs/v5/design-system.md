@@ -178,14 +178,14 @@ The same server actions run after confirm. Lock Period and Approve estimate on t
 At widths of 640 px and under:
 
 - The header brand mark and the user menu are at least 44×44 px. The desktop rail mark stays 32 px.
-- Assistant suggestion chips wrap. The row does not scroll sideways. Each chip is at least 44 px tall.
+- Assistant suggestion chips on the phone page wrap onto more lines. That row does not scroll sideways, and each chip is at least 44 px tall. The desktop rail keeps one row of chips (at least 24 px) that scrolls inside the rail, so the rail does not set the page height.
 - A cost-item KPI of $10,000.00 or more shows the short form (`$690K`) with the exact dollars in `title` and `data-cents`. Smaller KPI amounts stay exact. Cost entry amounts and totals stay exact.
-- Figures use tabular numbers and sit flush right.
+- Card figures use tabular numbers and stay start-aligned. Cost-tree and table numeric cells use tabular numbers and sit flush right.
 - A cost-table CPI or SPI shows the index, the dollar variance, and a word: On track, Watch, or At risk.
 - A cost-tree expand control is named with the cost code and the description, for example "Expand 02 Earthwork", and it sets `aria-expanded` and `aria-controls`.
 - A cost-tree scroll region is in the tab order, so sideways and vertical scrolling is reachable from the keyboard.
 
-On a phone, a project manager or executive job page puts the EAC and CPI cards above the title. The job strip spells the first use as "Cost performance (CPI)" and "Schedule performance (SPI)".
+On a phone, a project manager or executive job page puts the EAC and CPI cards above the title. The job strip spells the first cost-index pill as "Cost performance (CPI)" and "Schedule performance (SPI)". Later pills stay short (`CPI 0.96 · SPI 0.91`) so the strip stays one row on a desktop. Buttons that are 44 px on a phone stay the compact control size on a desktop (at least 24 px).
 
 ### Fields
 

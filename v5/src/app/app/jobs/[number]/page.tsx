@@ -187,7 +187,7 @@ export async function Job({
                   />
                   <button
                     type="submit"
-                    className="min-h-11 min-w-11 rounded-md border px-3 py-1.5 text-body font-medium"
+                    className="rounded-md border px-3 py-1.5 text-xs font-medium max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:text-body"
                     data-testid="approve-estimate"
                   >
                     Approve estimate
@@ -209,7 +209,7 @@ export async function Job({
                   />
                   <button
                     type="submit"
-                    className="min-h-11 min-w-11 rounded-md border px-3 py-1.5 text-body font-medium"
+                    className="rounded-md border px-3 py-1.5 text-xs font-medium max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:text-body"
                     data-testid="lock-claim"
                   >
                     Lock {draftClaim.periodLabel}
@@ -228,13 +228,14 @@ export async function Job({
                 <StatusPill
                   value={p.status!}
                   varianceCents={p.costVarianceCents}
+                  testId="job-status"
                 />
               ) : null}
             </div>
           }
         />
         <p
-          className="mb-3 text-body text-muted-foreground"
+          className="mb-3 text-xs text-muted-foreground max-[640px]:text-body"
           data-testid="estimate-status"
           data-status={p.job.estimateStatus}
           data-source={p.job.estimateSource}
@@ -366,7 +367,7 @@ export async function Job({
                   {pl.lineCount === 1 ? "line" : "lines"} · {pl.manHours} MH
                 </span>
                 {pl.returnReason ? (
-                  <span className="text-label text-caution" data-text="label">
+                  <span className="text-xs text-caution max-[640px]:text-label" data-text="label">
                     Returned: {pl.returnReason}
                   </span>
                 ) : null}
@@ -551,7 +552,7 @@ export async function Job({
       </div>
       <div className={phoneKpiFirst ? "flex max-md:order-4 flex-col gap-5" : "flex flex-col gap-5"}>
       <p
-        className="mt-2 text-body text-muted-foreground"
+        className="mt-2 text-xs text-muted-foreground max-[640px]:text-body"
         data-testid="estimate-categories"
         data-source={p.job.estimateSource}
       >
@@ -631,7 +632,7 @@ export async function Job({
         actions={
           <Link
             href={`/app/jobs/${p.job.number}/changes`}
-            className="inline-flex min-h-11 min-w-11 items-center text-body font-medium underline hover:no-underline"
+            className="text-xs font-medium underline hover:no-underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:items-center max-[640px]:text-body"
             data-testid="job-changes-full-link"
           >
             Full change list
@@ -639,15 +640,15 @@ export async function Job({
         }
       >
         {visibleChanges.length === 0 ? (
-          <p className="px-4 py-3 text-body text-muted-foreground">
+          <p className="px-4 py-3 text-sm text-muted-foreground max-[640px]:text-body">
             No changes yet.
           </p>
         ) : (
-          <ul className="divide-y px-4 text-body" data-testid="job-changes">
+          <ul className="divide-y px-4 text-sm max-[640px]:text-body" data-testid="job-changes">
             {visibleChanges.map((c) => (
               <li key={c.id} className="py-2">
                 <span className="font-medium">{c.userName}</span> · {c.summary}{" "}
-                <span className="text-label text-muted-foreground" data-text="label">
+                <span className="text-xs text-muted-foreground max-[640px]:text-label" data-text="label">
                   <LocalTime iso={c.createdAt} />
                 </span>
               </li>

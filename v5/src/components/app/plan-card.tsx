@@ -60,6 +60,7 @@ export function PlanCard({
         draft ? "border-brand bg-caution-soft/40" : "bg-card",
       )}
       data-testid="plan-card"
+      id={`plan-${plan.id}`}
       data-status={plan.status}
       data-plan-id={plan.id}
       data-plan-date={plan.planDate}

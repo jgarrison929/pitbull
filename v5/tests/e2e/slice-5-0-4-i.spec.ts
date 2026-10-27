@@ -509,7 +509,7 @@ test.describe("5.0.4-i phone fit and a11y", () => {
     await expect(card.getByTestId("cost-entry-card-amount")).toBeVisible();
   });
 
-  test("c-7 tabular right-aligned figures", async ({ page }) => {
+  test("c-7 tabular figures and end-aligned numeric cells", async ({ page }) => {
     await signIn(page, "pm");
     await page.goto("/app/jobs/24-077");
     const planHref = await page
@@ -525,36 +525,88 @@ test.describe("5.0.4-i phone fit and a11y", () => {
         planHref!,
       ]) {
         await page.goto(path);
+        await expect(page.locator("h1")).toBeVisible();
         const misses = await page.evaluate(() => {
-          const out: string[] = [];
-          const figureRe =
-            /[−+]?\$[\d,]+(\.\d+)?[KMB]?|\b[\d,.]+\s*MH\b|\b\d+\.\d{2}\b|\b[\d,.]+\s+(CY|LF|EA|TON|SF|SY|HR|CF|LS)\b/;
-          const nodes = new Set<Element>([
-            ...document.querySelectorAll("[data-figure]"),
-          ]);
-          for (const cell of document.querySelectorAll(
-            "td, [data-testid='cost-tree-row']",
-          )) {
-            const text = (cell.textContent ?? "").replace(/\s+/g, " ");
-            if (!figureRe.test(text)) continue;
-            const inner = cell.querySelector(
-              "[data-cents], [data-figure], .tabular-nums",
-            );
-            nodes.add(inner ?? cell);
-          }
-          for (const el of nodes) {
-            const s = getComputedStyle(el);
+          const shown = (el: Element) => {
+            let n: Element | null = el;
+            while (n) {
+              const s = getComputedStyle(n);
+              if (s.display === "none" || s.visibility === "hidden") return false;
+              n = n.parentElement;
+            }
             const r = el.getBoundingClientRect();
-            if (s.display === "none" || r.width === 0 || r.height === 0) continue;
-            const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
-            if (!figureRe.test(text) && !el.hasAttribute("data-figure")) continue;
-            const tabular = s.fontVariantNumeric.includes("tabular-nums");
-            const align = s.textAlign === "right" || s.textAlign === "end";
-            const flexEnd =
-              (s.display === "flex" || s.display === "inline-flex") &&
-              (s.justifyContent === "flex-end" || s.alignItems === "flex-end");
-            if (!tabular || !(align || flexEnd)) {
-              out.push(`${text.slice(0, 40)} align=${s.textAlign}`);
+            return r.width > 0 && r.height > 0;
+          };
+          const digitsTabular = (el: Element) => {
+            const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+            let node = walker.nextNode();
+            while (node) {
+              if (/\d/.test(node.textContent ?? "")) {
+                const parent = node.parentElement;
+                if (
+                  !parent ||
+                  !getComputedStyle(parent).fontVariantNumeric.includes(
+                    "tabular-nums",
+                  )
+                ) {
+                  return false;
+                }
+              }
+              node = walker.nextNode();
+            }
+            return true;
+          };
+          const exceptions = [
+            /\b(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*, )?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}(?:, \d{4})?(?:, \d{1,2}:\d{2}\s?[AP]M)?\b/g,
+            /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}\b/g,
+            /\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?: UTC)?)?\b/g,
+            /\b\d{2}-\d{3}\b/g,
+            /\b\d{2}(?= [A-Z][a-z])/g,
+            /\bCO-\d+\b/g,
+          ];
+          const exemptAtStart = (text: string) => {
+            for (const re of exceptions) {
+              re.lastIndex = 0;
+              const m = re.exec(text);
+              if (m && m.index === 0) return true;
+            }
+            return false;
+          };
+          const endAligned = (cell: Element) => {
+            const s = getComputedStyle(cell);
+            if (s.textAlign === "right" || s.textAlign === "end") return true;
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            const text = range.getBoundingClientRect();
+            const box = cell.getBoundingClientRect();
+            const pad = parseFloat(s.paddingRight) || 0;
+            const border = parseFloat(s.borderRightWidth) || 0;
+            return Math.abs(text.right - (box.right - pad - border)) <= 2;
+          };
+          const out: string[] = [];
+          for (const figure of document.querySelectorAll("[data-figure]")) {
+            if (!shown(figure)) continue;
+            if (!digitsTabular(figure)) {
+              out.push(`figure ${(figure.textContent ?? "").slice(0, 40)}`);
+            }
+          }
+          const cells = [
+            ...document.querySelectorAll("main td"),
+            ...document.querySelectorAll(
+              "[data-testid='cost-tree-row'] > div:nth-child(n+2)",
+            ),
+          ];
+          for (const cell of cells) {
+            if (!shown(cell)) continue;
+            const text = (cell.textContent ?? "").replace(/\s+/g, " ").trim();
+            const isTd = cell.tagName === "TD";
+            if (isTd) {
+              if (!/^[+−-]?\$?\d/.test(text) || exemptAtStart(text)) continue;
+            }
+            if (!digitsTabular(cell) || !endAligned(cell)) {
+              out.push(
+                `cell ${text.slice(0, 40)} align=${getComputedStyle(cell).textAlign}`,
+              );
             }
           }
           return out.slice(0, 12);
@@ -562,6 +614,94 @@ test.describe("5.0.4-i phone fit and a11y", () => {
         expect(misses, `${mode} ${path}`).toEqual([]);
       }
     }
+  });
+
+  test("c-1 card figures above the fold", async ({ page }) => {
+    await signIn(page, "pm");
+    const paths = ["/app/jobs/24-077", "/app/jobs/24-077/cost-items/07-300", "/app/jobs/25-031"];
+    for (const mode of ["light", "dark"] as const) {
+      await theme(page, mode);
+      for (const size of [
+        { width: 320, height: 568 },
+        { width: 390, height: 844 },
+      ]) {
+        await page.setViewportSize(size);
+        for (const path of paths) {
+          await page.goto(path);
+          await expect(page.locator("h1")).toBeVisible();
+          const misses = await page.evaluate((fold) => {
+            const exceptions = [
+              /\b(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*, )?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}(?:, \d{4})?(?:, \d{1,2}:\d{2}\s?[AP]M)?\b/g,
+              /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}\b/g,
+              /\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?: UTC)?)?\b/g,
+              /\b\d{2}-\d{3}\b/g,
+              /\b\d{2}(?= [A-Z][a-z])/g,
+              /\bCO-\d+\b/g,
+            ];
+            const strip = (text: string) => {
+              let next = text;
+              for (const re of exceptions) next = next.replace(re, "");
+              return next;
+            };
+            const numberRe = /[$−-]?\d[\d,]*(\.\d+)?\s?(%|[KMB])?/;
+            const shown = (el: Element) => {
+              const s = getComputedStyle(el);
+              if (s.display === "none" || s.visibility === "hidden") return false;
+              const r = el.getBoundingClientRect();
+              return r.width > 0 && r.height > 0;
+            };
+            const out: string[] = [];
+            for (const card of document.querySelectorAll("[data-card]")) {
+              if (!shown(card)) continue;
+              if (card.getBoundingClientRect().top >= fold) continue;
+              const primary = [...card.querySelectorAll("[data-figure='primary']")].filter(shown);
+              const secondary = [...card.querySelectorAll("[data-figure='secondary']")].filter(shown);
+              if (primary.length !== 1 || secondary.length > 2) {
+                out.push(`count p=${primary.length} s=${secondary.length}`);
+              }
+              const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+              let node = walker.nextNode();
+              while (node) {
+                const el = node.parentElement;
+                if (el && shown(el) && !el.closest("[data-figure]")) {
+                  const raw = (node.textContent ?? "").replace(/\s+/g, " ").trim();
+                  if (raw && numberRe.test(strip(raw))) out.push(raw.slice(0, 60));
+                }
+                node = walker.nextNode();
+              }
+            }
+            return out.slice(0, 8);
+          }, size.height);
+          expect(misses, `${mode} ${size.width} ${path}`).toEqual([]);
+        }
+      }
+    }
+  });
+
+  test("anchors, job-status, and d-1 submit text", async ({ page }) => {
+    await signIn(page, "superintendent");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/app/jobs/25-031");
+    const plan = page.locator("[data-testid='plan-card'][data-status='draft']").first();
+    await expect(plan).toBeVisible();
+    const planId = await plan.getAttribute("data-plan-id");
+    await expect(plan).toHaveAttribute("id", `plan-${planId}`);
+    await expect(plan.getByTestId("submit-plan")).toHaveText("Submit plan");
+    await page.goto("/app/jobs/24-118");
+    await expect(page.getByTestId("approve-report").first()).toHaveText("Approve report");
+    await expect(page.getByTestId("return-report").first()).toHaveText("Return to foreman");
+    await expect(page.getByTestId("job-status")).toBeVisible();
+
+    await signIn(page, "foreman");
+    await page.goto("/app/jobs/24-077");
+    await expect(page.getByTestId("report-work").first()).toHaveText("Report day's work");
+
+    await signIn(page, "pm");
+    await page.goto("/app/jobs/25-031");
+    const co = page.locator("[data-testid='co-card'][data-co-number='1']");
+    await expect(co).toBeVisible();
+    await expect(co).toHaveAttribute("id", "co-CO-001");
+    await expect(page.getByTestId("job-status")).toBeVisible();
   });
 
   test("c-8 and #67 axe on the touched pages", async ({ page }) => {
@@ -838,11 +978,25 @@ async function expectShellTargets(page: Page, where: string) {
   const menuBox = await visibleBox(page, menu);
   expect(menuBox.width, `${where} menu`).toBeGreaterThanOrEqual(44);
   expect(menuBox.height, `${where} menu`).toBeGreaterThanOrEqual(44);
-  const company = page.getByTestId("company-name");
-  await expect(company).toContainText("Summit Highway & Bridge");
-  await expect(company).toHaveAccessibleName(/Summit Highway & Bridge/);
+  const company = page.locator("header").getByTestId("company-name");
+  await expect(company, where).toBeVisible();
+  const companyText = ((await company.innerText()) ?? "").replace(/\s+/g, " ").trim();
+  expect(companyText, where).toBe("Summit Highway & Bridge");
   const companyBox = await visibleBox(page, company);
+  expect(companyBox.ellipsis, where).toBe(false);
   expect(companyBox.scrollWidth, where).toBeLessThanOrEqual(companyBox.clientWidth + 1);
+  const ariaHidden = await company.evaluate((el) => {
+    let n: Element | null = el;
+    while (n) {
+      if (n.getAttribute("aria-hidden") === "true") return true;
+      n = n.parentElement;
+    }
+    return false;
+  });
+  expect(ariaHidden, where).toBe(false);
+  await expect(
+    page.locator("header").getByText("Summit Highway & Bridge", { exact: true }),
+  ).toBeVisible();
   const labels = page.getByTestId("job-strip-label");
   const n = await labels.count();
   for (let i = 0; i < n; i++) {

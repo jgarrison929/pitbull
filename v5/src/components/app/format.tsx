@@ -45,7 +45,7 @@ export function Figure({
     <span
       data-figure={variant}
       className={cn(
-        "min-w-0 max-w-full whitespace-normal break-words text-right tabular-nums",
+        "min-w-0 max-w-full whitespace-normal break-words tabular-nums",
         variant === "primary"
           ? "text-figure-primary font-semibold tracking-tight"
           : "text-label font-medium text-muted-foreground",
@@ -62,14 +62,17 @@ export function Figure({
 export function StatusPill({
   value,
   varianceCents,
+  testId,
 }: {
   value: Status;
   varianceCents?: number;
+  testId?: string;
 }) {
   const s = statusStyle[value];
   return (
     <span
       data-text="label"
+      data-testid={testId}
       className={cn(
         // Wrap on phone — nowrap + strip overflow was a hard status clip at 320.
         "inline-flex max-w-full shrink-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-full px-2 py-0.5 text-label font-medium",

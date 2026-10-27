@@ -233,6 +233,9 @@ async function JobStrip() {
       ? await getTodayPlanLabelsByJob(user.companyId)
       : null;
   const foremanPhoneHide = user.role === "foreman";
+  const spelledJobId = costIndexes
+    ? jobs.find((p) => !p.estimateDraft)?.job.id
+    : undefined;
   return (
     <nav
       aria-label="Jobs"
@@ -247,7 +250,9 @@ async function JobStrip() {
         const meta = p.estimateDraft
           ? "Estimate draft"
           : costIndexes
-            ? `Cost performance (CPI) ${idx(p.cpi)} · Schedule performance (SPI) ${idx(p.spi)}`
+            ? p.job.id === spelledJobId
+              ? `Cost performance (CPI) ${idx(p.cpi)} · Schedule performance (SPI) ${idx(p.spi)}`
+              : `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`
             : user.role === "foreman"
               ? foremanLabel
               : null;

@@ -91,14 +91,14 @@ async function Portfolio() {
       {next}
       {atRiskLines.length > 0 ? (
         <ul
-          className="flex flex-col gap-2 text-body"
+          className="flex flex-col gap-2 text-sm max-[640px]:text-body"
           data-testid="at-risk-summary"
         >
           {atRiskLines.map((row) => (
             <li key={row.href}>
               <Link
                 href={row.href}
-                className="inline-flex min-h-11 items-center underline-offset-2 hover:underline"
+                className="underline-offset-2 hover:underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:items-center"
               >
                 <AtRiskAmount text={row.text} cents={row.cents} />
               </Link>

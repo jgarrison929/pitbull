@@ -263,7 +263,13 @@ export function AssistantPanel({
         )}
       </ol>
       <div
-        className="flex w-full min-w-0 flex-wrap gap-1.5 px-4 pb-2"
+        className={cn(
+          "flex gap-1.5 px-4 pb-2",
+          // Phone page: wrap so every chip is on screen at 320. Desktop rail:
+          // one row. Wrapped chips in the 22rem rail set the page height
+          // (fitViewportToPage follows the rail).
+          phone ? "w-full min-w-0 flex-wrap" : "overflow-x-auto",
+        )}
         data-testid="assistant-chips"
       >
         {examples.map((e) => (
@@ -274,8 +280,10 @@ export function AssistantPanel({
             disabled={pending}
             data-text="label"
             className={cn(
-              "max-w-full min-w-11 whitespace-normal break-words rounded-full border text-left text-muted-foreground hover:bg-muted",
-              phone ? "min-h-11 px-3 py-2 text-label" : "px-2.5 py-1 text-xs",
+              "rounded-full border text-muted-foreground hover:bg-muted",
+              phone
+                ? "max-w-full min-h-11 min-w-11 whitespace-normal break-words px-3 py-2 text-left text-label"
+                : "shrink-0 px-2.5 py-1 text-xs",
             )}
           >
             {e}

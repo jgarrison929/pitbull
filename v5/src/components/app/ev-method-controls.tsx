@@ -34,8 +34,8 @@ export function EvMethodControls({
     <div className="flex flex-col gap-4" data-testid="ev-method-controls">
       {pmItems.length > 0 && (
         <section className="rounded-xl border p-4">
-          <h3 className="text-section font-semibold">PM percent complete</h3>
-          <p className="mb-3 text-label text-muted-foreground" data-text="label">
+          <h3 className="text-sm font-semibold max-[640px]:text-section">PM percent complete</h3>
+          <p className="mb-3 text-xs text-muted-foreground max-[640px]:text-label" data-text="label">
             Log a percent with a reason. The latest entry is what a claim lock
             freezes.
           </p>
@@ -50,8 +50,8 @@ export function EvMethodControls({
       )}
       {milestones.length > 0 && (
         <section className="rounded-xl border p-4">
-          <h3 className="text-section font-semibold">Milestones</h3>
-          <p className="mb-3 text-label text-muted-foreground" data-text="label">
+          <h3 className="text-sm font-semibold max-[640px]:text-section">Milestones</h3>
+          <p className="mb-3 text-xs text-muted-foreground max-[640px]:text-label" data-text="label">
             Mark weighted milestones complete. Who/why is stored on the
             milestone log (not the PM percent log).
           </p>
@@ -96,20 +96,20 @@ function PmPercentForm({
         value={`Log PM % on ${item.code}`}
       />
       <div>
-        <div className="text-body font-medium">
+        <div className="text-sm font-medium max-[640px]:text-body">
           <span
-            className="mr-1 font-mono text-label text-muted-foreground"
+            className="mr-1 font-mono text-xs text-muted-foreground max-[640px]:text-label"
             data-text="label"
           >
             {item.code}
           </span>
           {item.description}
         </div>
-        <div className="text-label text-muted-foreground" data-text="label">
+        <div className="text-xs text-muted-foreground max-[640px]:text-label" data-text="label">
           Current log {item.percentMilli / 10}%
         </div>
       </div>
-      <label className="flex flex-col gap-1 text-label" data-text="label">
+      <label className="flex flex-col gap-1 text-xs max-[640px]:text-label" data-text="label">
         Percent
         <input
           name="percent"
@@ -119,23 +119,23 @@ function PmPercentForm({
           step={0.1}
           defaultValue={item.percentMilli / 10}
           required
-          className="rounded-md border bg-background px-2 py-1.5 text-body"
+          className="rounded-md border bg-background px-2 py-1.5 text-sm max-[640px]:text-body"
         />
       </label>
-      <label className="flex flex-col gap-1 text-label" data-text="label">
+      <label className="flex flex-col gap-1 text-xs max-[640px]:text-label" data-text="label">
         Reason
         <input
           name="reason"
           type="text"
           required
           placeholder="Field walk / why"
-          className="rounded-md border bg-background px-2 py-1.5 text-body"
+          className="rounded-md border bg-background px-2 py-1.5 text-sm max-[640px]:text-body"
         />
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="min-h-11 min-w-11 rounded-md border px-3 py-1.5 text-body font-medium hover:bg-muted disabled:opacity-60"
+        className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-60 max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:text-body"
       >
         {pending ? "Saving…" : "Log"}
       </button>
@@ -163,7 +163,7 @@ function MilestoneRowForm({
     {},
   );
   return (
-    <li className="flex flex-wrap items-center gap-2 py-2 text-body">
+    <li className="flex flex-wrap items-center gap-2 py-2 text-sm max-[640px]:text-body">
       <form action={action} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="action" value="costItem.setMilestone" />
         <input type="hidden" name="job" value={jobNumber} />
@@ -179,18 +179,18 @@ function MilestoneRowForm({
           value={`${milestone.complete ? "Reopen" : "Complete"} ${milestone.name}`}
         />
         <span
-          className="font-mono text-label text-muted-foreground"
+          className="font-mono text-xs text-muted-foreground max-[640px]:text-label"
           data-text="label"
         >
           {milestone.code}
         </span>
         <span className="font-medium">{milestone.name}</span>
-        <span className="text-label text-muted-foreground" data-text="label">
+        <span className="text-xs text-muted-foreground max-[640px]:text-label" data-text="label">
           {milestone.weightMilli / 10}%
         </span>
         <span
           data-text="label"
-          className="text-label text-foreground"
+          className="text-xs text-foreground max-[640px]:text-label"
           data-testid={`milestone-${milestone.id}`}
         >
           {milestone.complete ? "Complete" : "Open"}
@@ -199,12 +199,12 @@ function MilestoneRowForm({
           name="reason"
           type="text"
           placeholder="Who/why (optional)"
-          className="rounded-md border bg-background px-2 py-1 text-body"
+          className="rounded-md border bg-background px-2 py-1 text-xs max-[640px]:text-body"
         />
         <button
           type="submit"
           disabled={pending}
-          className="min-h-11 min-w-11 rounded-md border px-2 py-1 text-body font-medium hover:bg-muted disabled:opacity-60"
+          className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60 max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:text-body"
         >
           {pending
             ? "…"
