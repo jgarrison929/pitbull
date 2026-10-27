@@ -91,10 +91,25 @@ for (const viewport of VIEWPORTS) {
       }
     });
 
-    test("foreman does not see the job strip on phone", async ({ page }) => {
+    test("foreman job pill shows the plan state without clipping", async ({
+      page,
+    }) => {
       await signIn(page, "foreman");
+      await page.goto("/app/jobs/24-077");
       await expect(page.getByTestId("company-name")).toBeVisible();
-      await expect(page.getByTestId("job-strip")).toBeHidden();
+      const pill = page
+        .getByTestId("job-strip")
+        .locator("a")
+        .filter({ hasText: "24-077" });
+      await expect(pill).toBeVisible();
+      await expect(pill).toContainText("I-5 Culvert");
+      await expect(pill).toContainText(/Report due|Reported|No plan today/);
+      const hits = await measureShellLabels(page);
+      expect(hits.some((h) => h.text.includes("24-077"))).toBe(true);
+      for (const h of hits) {
+        expect(h.clipped, `clipped "${h.text}" (${h.testId})`).toBe(false);
+        expect(h.ellipsis, `ellipsis on "${h.text}" (${h.testId})`).toBe(false);
+      }
     });
   });
 }
