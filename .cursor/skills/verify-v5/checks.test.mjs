@@ -1918,7 +1918,9 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     assert.ok(items.some((item) => item.section === section), `missing acceptance section ${section}`);
   }
   assert.equal(items.filter((item) => item.section === "5.0.4-f").length, 1);
-  assert.equal(items.find((item) => item.section === "5.0.4-f").title, "Checks for 5.0.4-f");
+  // Spec now has a numbered check under ### Checks for 5.0.4-f (#78/#80); acceptanceItems uses that title.
+  assert.equal(items.find((item) => item.section === "5.0.4-f").title, "Plan lines as cards on phones.");
+  assert.deepEqual(acceptanceItems("### Checks for 5.0.4-z\n\nA paragraph with no numbered titles.\n\n## Next\n"), [{ section: "5.0.4-z", title: "Checks for 5.0.4-z" }]);
   const pending = evaluateRcAcceptance(items, ["5.0.4-0"]);
   assert.ok(!pending.some((line) => line.startsWith("5.0.4-0:")));
   assert.ok(pending.some((line) => line.startsWith("5.0.4-a:") && line.includes("not executed")));

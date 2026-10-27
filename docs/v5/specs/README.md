@@ -18,6 +18,7 @@ Checked against `main` at `d56eb6be` on 2026-10-26 at 10:40 AM (PT). Slices nobo
 | Slice ID | Spec | Migration | Notes |
 |---|---|---|---|
 | 5.0.4-g | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-g-guided-demo-path) | none | Guided demo path. Targets `rc/5.0.4`. Needs a and b ([#26](https://github.com/jgarrison929/pitbull/pull/26), [#27](https://github.com/jgarrison929/pitbull/pull/27)) on the RC branch |
+| 5.0.4-i | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-i-phone-fit-and-a11y-leftovers) | none | Phone fit and a11y leftovers from Pitbull UX: assistant chip wrap, short money on cost-item KPI cards, cost-tree toggle names, color-only CPI, `PmPercentForm` list markup, shell targets. Targets `rc/5.0.4` |
 | 5.1.1 wire-up | [5.1.1](5.1.1-dependencies-and-cpm.md) | **0022** | `activity_links`, `schedule.linkActivities` and `unlinkActivities`, CPM pass on write, critical-path highlight. The engine is on `main` in `v5/src/lib/cpm.ts`. Stack on 5.1.0-b ([#37](https://github.com/jgarrison929/pitbull/pull/37)) |
 | 5.1.2-b | [5.1.2](5.1.2-baseline-and-pv.md) | none | PV reads baseline dates. Stack on 5.1.2-a ([#36](https://github.com/jgarrison929/pitbull/pull/36)) |
 | 5.1.2-c | [5.1.2](5.1.2-baseline-and-pv.md) | none | Gantt baseline bar and re-baseline reason form. Stack on 5.1.2-a and 5.1.0-c ([#40](https://github.com/jgarrison929/pitbull/pull/40)) |
@@ -67,6 +68,8 @@ Drizzle's journal is contiguous. A number is a claim, not a file. A migration me
 | 5.0.3 | [A second forecast method, the dark theme, and plan history](5.0.3-s-curve-and-forecast-methods.md) | 2026-10-28 | Parts B to F on `main`. Part A moved to 5.0.5 |
 | 5.0.4 | [Clear next steps and mobile polish](5.0.4-clear-next-steps-and-mobile-polish.md) | 2026-10-30 | In build on `rc/5.0.4` |
 | 5.0.5 | [The S-curve](5.0.5-s-curve.md) (was 5.0.3 Part A) | 2026-11-02 | In build in [#12](https://github.com/jgarrison929/pitbull/pull/12) |
+| 5.0.6 | [Job page anatomy](5.0.6-job-page-anatomy.md) (from Pitbull UX) | 2026-11-04 | Ready after 5.0.4 merges to `main` |
+| 5.0.7 | [Detail drawer](5.0.7-detail-drawer.md) (from Pitbull UX) | 2026-11-09 | Ready after 5.0.6 and [#70](https://github.com/jgarrison929/pitbull/pull/70) |
 | 5.1.0 | [Activities, calendar, Gantt, and plan-line links](5.1.0-activities-and-gantt.md) | 2026-10-29 | a merged, b to d open |
 | 5.1.1 | [Dependencies, float, and the critical path](5.1.1-dependencies-and-cpm.md) | 2026-11-03 | Library on `main`, wire-up ready to build |
 | 5.1.2 | [Baseline and PV from baseline dates](5.1.2-baseline-and-pv.md) | 2026-11-06 | a open |
