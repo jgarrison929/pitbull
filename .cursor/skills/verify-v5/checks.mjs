@@ -84,11 +84,20 @@ export const PHONE_MAX_PX = 480;
 export const DESKTOP_MIN_PX = 768;
 /** Interactive controls at phone widths must be at least this square, in CSS pixels. */
 export const MIN_TAP_PX = 44;
+/** Seeded company name. 5.0.4-b check 8: "\"Summit Highway & Bridge\" appears in full in its `innerText` and its accessible name". */
+export const COMPANY_NAME = "Summit Highway & Bridge";
 /**
  * Smallest readable text at phone widths, in CSS pixels. Every visible text node is held to this
- * floor (secondary labels included). Inputs, textareas and selects are held to MIN_INPUT_FONT_PX.
+ * floor (secondary labels included). 5.0.4-c check 2 (main 4c9d3539): "every visible text node's parent has
+ * computed `font-size` ≥ 14 px" (was 12 before 5.0.4). Inputs, textareas and selects are held to MIN_INPUT_FONT_PX.
  */
-export const MIN_SECONDARY_FONT_PX = 12;
+export const MIN_SECONDARY_FONT_PX = 14;
+/**
+ * 5.0.4-c check 2 (main 4c9d3539): "Every `p`, `li`, `td`, `input`, `select`, `textarea`, and `button` has
+ * `font-size` ≥ 16 px unless it carries `data-text="label"`." Inputs, textareas and selects use MIN_INPUT_FONT_PX.
+ */
+export const MIN_BODY_FONT_PX = 16;
+export const BODY_FONT_SELECTOR = "p, li, td, button";
 /** Body inputs. Below 16px, iOS Safari zooms the page on focus. */
 export const MIN_INPUT_FONT_PX = 16;
 
@@ -107,7 +116,8 @@ export const PRIMARY_ACTION_VERB = {
  * Kind of a clipped box. Protected content wins over a secondary label:
  * a status pill, money (`data-cents` or a `$` amount anywhere in the text), a table header, or an h1 / page title
  * anywhere in the box (the element, an ancestor that is that thing, or a descendant).
- * A secondary label is only the job strip, the company name, or `data-clip="secondary"`.
+ * A secondary label is only the job strip or `data-clip="secondary"`. The company name left this list with
+ * 5.0.4-b check 8 (main 4c9d3539), which requires it in full.
  * Being inside `header` does not make a clip secondary.
  */
 export function classifyClip({ statusInBox, centsInBox, moneyText, headerInBox, titleInBox, secondaryBox }) {
@@ -150,6 +160,212 @@ export function secondaryReachable({ text, title, ariaLabel, expanded }) {
  * clipCount: every clipped element. When it is greater than clips.length, a later clip was not listed.
  * primaryActions: { role, text, tag, visible, inView, blocked } from the landing page.
  */
+/** 5.0.4-a check 5 (main 4c9d3539): "Every `next-step` label's first word is one of Submit, Report, Approve, Review, Decide, or Open." */
+export const NEXT_STEP_VERBS = ["Submit", "Report", "Approve", "Review", "Decide", "Open"];
+/** 5.0.4-a check 9: job number in every label; exact money in "Approve CO" / "Decide CO" labels. */
+export const NEXT_STEP_JOB_NUMBER = /\b\d{2}-\d{3}\b/;
+export const NEXT_STEP_CO_LABEL = /^(Approve|Decide) CO/;
+export const NEXT_STEP_EXACT_MONEY = /\$\d{1,3}(,\d{3})*\.\d{2}/;
+/** 5.0.4-a check 9 runs "at 1280×800 and 390×844"; check 1 and check 5 at every 5.0.4-a size. */
+export const NEXT_STEP_LABEL_WIDTHS = [390, 1280];
+
+/**
+ * 5.0.4-a checks 1, 5, 9 on one /app row (row.nextSteps from measurePage with phone checks on).
+ * Check 1: the count clause (≥ 1 next step whose top is above the viewport height) and the href clause (every next-step
+ * href answers HTTP 200, row.nextStepHrefStatus from measurePage; a next step with no href or an unchecked href FAILS).
+ */
+export function evaluateNextSteps(row) {
+  if (row.path !== "/app" || !Array.isArray(row.nextSteps)) return [];
+  const f = [];
+  const where = `${row.role}@${row.width} ${row.path}`;
+  const above = row.nextSteps.filter((s) => s.visible && Number.isFinite(s.top) && s.top < s.viewportH).length;
+  if (above < 1) f.push(`${where}: 5.0.4-a check 1: ${above} next-step above the fold (want ≥ 1; ${row.nextStepCount ?? row.nextSteps.length} on the page)`);
+  for (const s of row.nextSteps) {
+    const label = String(s.label ?? "");
+    const first = label.trim().split(/\s+/)[0] ?? "";
+    // Check 1, href clause.
+    const st = row.nextStepHrefStatus;
+    if (!s.href) f.push(`${where}: 5.0.4-a check 1: next-step "${clipLabel(label)}" has no href`);
+    else if (!st || !(s.href in st)) f.push(`${where}: 5.0.4-a check 1: next-step "${clipLabel(label)}" href ${s.href} not requested`);
+    else if (st[s.href] !== 200) f.push(`${where}: 5.0.4-a check 1: next-step "${clipLabel(label)}" href ${s.href} answered ${st[s.href]} (want 200)`);
+    if (!NEXT_STEP_VERBS.includes(first)) f.push(`${where}: 5.0.4-a check 5: next-step "${clipLabel(label)}" starts with "${first}", not one of ${NEXT_STEP_VERBS.join(", ")}`);
+    if (NEXT_STEP_LABEL_WIDTHS.includes(row.width)) {
+      if (!NEXT_STEP_JOB_NUMBER.test(label)) f.push(`${where}: 5.0.4-a check 9: next-step "${clipLabel(label)}" has no job number`);
+      if (NEXT_STEP_CO_LABEL.test(label) && !NEXT_STEP_EXACT_MONEY.test(label)) f.push(`${where}: 5.0.4-a check 9: next-step "${clipLabel(label)}" has no exact amount ($#,###.##)`);
+    }
+  }
+  if ((row.nextStepCount ?? 0) > row.nextSteps.length) f.push(`${where}: ${row.nextStepCount} next-step elements, only ${row.nextSteps.length} read`);
+  return f;
+}
+
+/** 5.0.4-b check 1: "exactly 1 `h1` with non-empty text and 1 `page-purpose` with 10 to 90 characters", at 320, 390 and 1280. */
+export const TITLE_CHECK_WIDTHS = [320, 390, 1280];
+export const PURPOSE_MIN_CHARS = 10;
+export const PURPOSE_MAX_CHARS = 90;
+/** 5.0.4-b check 6 and 7 run at 320 (×568); 5.0.4-a check 7 at 390 (×844). */
+export const PURPOSE_FIT_WIDTH = 320;
+export const PURPOSE_MIN_FONT_PX = 14;
+export const NEXT_STEP_WRAP_WIDTH = 390;
+export const JOB_STRIP_LABEL_NUMBER = /\d{2}-\d{3}/;
+
+/** 5.0.4-b: "`/changelog`, `/status`, and `/roadmap` are prose pages". */
+export const PROSE_PATHS = ["/changelog", "/status", "/roadmap"];
+export const CPI_WORD = /\bCPI\b/;
+export const SPI_WORD = /\bSPI\b/;
+export const AT_RISK_WORD = /At risk/;
+export const DOLLAR_DELTA = /[−-]\$\d/;
+export const FOREMAN_PILL_STATES = ["Report due", "Reported", "No plan today"];
+/** b-3: the superintendent sees `job-cpi` and `job-spi` once each on this job page. */
+export const SUPER_INDEX_JOB = "/app/jobs/25-031";
+
+/** 5.0.4-b checks 2 and 3 on one crawl row (phone checks on; every width). */
+export function evaluateCostIndexes(row) {
+  const f = [];
+  const ix = row.indexes;
+  if (!ix) return f;
+  const where = `${row.role}@${row.width} ${row.path}`;
+  const prose = PROSE_PATHS.includes(row.path);
+  const text = String(row.text ?? "");
+  if (row.role === "foreman") {
+    if (ix.metricIds.length) f.push(`${where}: 5.0.4-b check 2: foreman sees ${ix.metricIds.length} cost index value(s) (${ix.metricIds.slice(0, 4).join(", ")})`);
+    if (AT_RISK_WORD.test(text)) f.push(`${where}: 5.0.4-b check 2: foreman sees "At risk"`);
+    const d = text.match(DOLLAR_DELTA);
+    if (d) f.push(`${where}: 5.0.4-b check 2: foreman sees a dollar delta "${d[0]}"`);
+    if (!prose) {
+      if (CPI_WORD.test(text)) f.push(`${where}: 5.0.4-b check 2: foreman sees the word CPI`);
+      if (SPI_WORD.test(text)) f.push(`${where}: 5.0.4-b check 2: foreman sees the word SPI`);
+    }
+    if (row.path === "/app/jobs/24-077" && row.width === 390) {
+      const pill = (ix.stripPills ?? []).find((p) => p.includes("24-077"));
+      if (!pill) f.push(`${where}: 5.0.4-b check 2: no 24-077 pill in job-strip`);
+      else {
+        if (!pill.includes("I-5 Culvert")) f.push(`${where}: 5.0.4-b check 2: 24-077 pill "${clipLabel(pill)}" lacks "I-5 Culvert"`);
+        const states = FOREMAN_PILL_STATES.filter((st) => (st === "Reported" ? /\bReported\b/.test(pill) : pill.includes(st)));
+        if (states.length !== 1) f.push(`${where}: 5.0.4-b check 2: 24-077 pill "${clipLabel(pill)}" shows ${states.length} of ${FOREMAN_PILL_STATES.join(" / ")} (want exactly 1)`);
+      }
+    }
+  }
+  if (row.role === "superintendent") {
+    const strip = ix.stripText ?? "";
+    if (CPI_WORD.test(strip) || SPI_WORD.test(strip)) f.push(`${where}: 5.0.4-b check 3: superintendent sees CPI/SPI in the job strip`);
+    const stripIds = ix.stripMetricIds ?? [];
+    if (stripIds.length) f.push(`${where}: 5.0.4-b check 3: superintendent sees ${stripIds.length} cost index value(s) inside JobStrip (${stripIds.slice(0, 4).join(", ")})`);
+    const isJob = /^\/app\/jobs\/[^/]+$/.test(row.path);
+    if (prose) {
+      if (ix.metricIds.length) f.push(`${where}: 5.0.4-b check 3: superintendent sees ${ix.metricIds.length} cost index value(s) on a prose page`);
+    } else if (!isJob && (row.path === "/app" || row.path.startsWith("/app/"))) {
+      // /app, /app/assistant, cost-item pages, plan pages (and any other non-job /app page)
+      if (ix.metricIds.length) f.push(`${where}: 5.0.4-b check 3: superintendent sees ${ix.metricIds.length} cost index value(s) (${ix.metricIds.slice(0, 4).join(", ")})`);
+      if (CPI_WORD.test(text)) f.push(`${where}: 5.0.4-b check 3: superintendent sees the word CPI`);
+      if (SPI_WORD.test(text)) f.push(`${where}: 5.0.4-b check 3: superintendent sees the word SPI`);
+    }
+    if (row.path === SUPER_INDEX_JOB) {
+      for (const id of ["job-cpi", "job-spi"]) {
+        const n = ix.metricIds.filter((x) => x === id).length;
+        if (n !== 1) f.push(`${where}: 5.0.4-b check 3: superintendent sees ${id} ${n} time(s) on 25-031 (want 1)`);
+      }
+    }
+  }
+  return f;
+}
+
+/** 5.0.4-a check 7, 5.0.4-b checks 1, 6 and 7 on one crawl row (phone checks on). */
+export function evaluateTitlesAndLabels(row) {
+  const f = [];
+  const where = `${row.role}@${row.width} ${row.path}`;
+  const t = row.titles;
+  if (t && TITLE_CHECK_WIDTHS.includes(row.width)) {
+    if (t.h1Count !== 1) f.push(`${where}: 5.0.4-b check 1: ${t.h1Count} visible h1 (want exactly 1)`);
+    else if (!t.h1Texts[0]) f.push(`${where}: 5.0.4-b check 1: the h1 is empty`);
+    if (t.purposeCount !== 1) f.push(`${where}: 5.0.4-b check 1: ${t.purposeCount} page-purpose (want exactly 1)`);
+    else if (!(t.purpose.len >= PURPOSE_MIN_CHARS && t.purpose.len <= PURPOSE_MAX_CHARS)) f.push(`${where}: 5.0.4-b check 1: page-purpose is ${t.purpose.len} characters (want ${PURPOSE_MIN_CHARS} to ${PURPOSE_MAX_CHARS}): "${clipLabel(t.purpose.text)}"`);
+  }
+  if (t?.purpose && row.width === PURPOSE_FIT_WIDTH) {
+    const p = t.purpose;
+    if (!(p.scrollWidth <= p.clientWidth)) f.push(`${where}: 5.0.4-b check 6: page-purpose scrollWidth ${p.scrollWidth} > clientWidth ${p.clientWidth}`);
+    if (p.ellipsis) f.push(`${where}: 5.0.4-b check 6: page-purpose has text-overflow: ellipsis`);
+    if (!(p.fontPx >= PURPOSE_MIN_FONT_PX)) f.push(`${where}: 5.0.4-b check 6: page-purpose font-size ${p.fontPx}px < ${PURPOSE_MIN_FONT_PX}px`);
+  }
+  if (Array.isArray(row.jobStripLabels) && row.width === PURPOSE_FIT_WIDTH) {
+    for (const l of row.jobStripLabels) {
+      if (!JOB_STRIP_LABEL_NUMBER.test(l.text)) f.push(`${where}: 5.0.4-b check 7: job-strip-label "${clipLabel(l.text)}" has no job number`);
+      if (!(l.scrollWidth <= l.clientWidth)) f.push(`${where}: 5.0.4-b check 7: job-strip-label "${clipLabel(l.text)}" scrollWidth ${l.scrollWidth} > clientWidth ${l.clientWidth}`);
+    }
+  }
+  if (row.path === "/app" && row.width === NEXT_STEP_WRAP_WIDTH) {
+    for (const s of row.nextSteps ?? []) {
+      if (!s.visible) continue;
+      if (s.w < MIN_TAP_PX || s.h < MIN_TAP_PX) f.push(`${where}: 5.0.4-a check 7: next-step "${clipLabel(s.label)}" ${Math.floor(s.w)}×${Math.floor(s.h)} < ${MIN_TAP_PX}×${MIN_TAP_PX}`);
+      if (s.ellipsis) f.push(`${where}: 5.0.4-a check 7: next-step "${clipLabel(s.label)}" has text-overflow: ellipsis`);
+      if (!(s.scrollWidth <= s.clientWidth)) f.push(`${where}: 5.0.4-a check 7: next-step "${clipLabel(s.label)}" scrollWidth ${s.scrollWidth} > clientWidth ${s.clientWidth}`);
+    }
+  }
+  return f;
+}
+
+// 5.0.4-c check 1 (main 05cd947c, #80), verbatim: "A guard check also fails the card if any visible text node inside
+// it, outside a `data-figure` element, still matches `/[$−-]?\d[\d,]*(\.\d+)?\s?(%|[KMB])?/` after Verify deletes the
+// allowed exceptions from that text node. The exceptions are deleted in this order, each regex global and
+// case-sensitive" … "Before any of these, Verify drops the whole text of every **name element** inside the card: an
+// element whose `data-testid` is one of the names below, and everything inside it." … "The exemption covers only these
+// elements. Verify does not match names in free text." … "Nothing else is exempt. A quantity such as "12 CY" outside a
+// `data-figure` element fails the guard."
+/** #80 c-1 name elements: `company-name`, `job-strip-label`, `job-name`, `crew-name`. */
+export const NAME_TEST_IDS = ["company-name", "job-strip-label", "job-name", "crew-name"];
+export const NAME_SELECTOR = NAME_TEST_IDS.map((id) => `[data-testid="${id}"]`).join(", ");
+export const FIGURE_GUARD = /[$−-]?\d[\d,]*(\.\d+)?\s?(%|[KMB])?/;
+export const FIGURE_EXCEPTIONS = [
+  // 1. Dates: weekday and day; month and year; ISO
+  /\b(?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*, )?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}(?:, \d{4})?(?:, \d{1,2}:\d{2}\s?[AP]M)?\b/g,
+  /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}\b/g,
+  /\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?: UTC)?)?\b/g,
+  // 2. Job numbers and leaf cost codes
+  /\b\d{2}-\d{3}\b/g,
+  // 3. Roll-up cost codes, only when followed by the code's name
+  /\b\d{2}(?= [A-Z][a-z])/g,
+  // 4. Change order numbers
+  /\bCO-\d+\b/g,
+];
+/** c-1: the text left after deleting the exceptions in order; a guard hit on it fails the card. */
+export function stripFigureExceptions(text) {
+  let t = String(text ?? "");
+  for (const re of FIGURE_EXCEPTIONS) t = t.replace(new RegExp(re.source, "g"), "");
+  return t;
+}
+export const FIGURE_WIDTHS = [320, 390];
+export const MAX_SECONDARY_FIGURES = 2;
+export const E1_ROLES = ["pm", "executive"];
+export const E1_PATHS = ["/app/jobs/25-031", "/app/jobs/24-118", "/app/jobs/24-077", "/app/jobs/25-031/cost-items/04-210"];
+const ROLLUP_SHORT = /^[−-]?\$\d+(\.\d)?[KMB]?$/;
+
+/**
+ * 5.0.4-c check 1 at 320/390: every card above the fold has exactly 1 primary and ≤ 2 secondary figures and no stray
+ * number. 5.0.4-e check 1 adds, for the PM and the executive on E1_PATHS, every phone cost row in
+ * cost-tree-scroll-mobile whether above the fold or not (rows the virtualizer has rendered), and roll-up rows show
+ * usdShort with the exact value in title and data-cents.
+ */
+export function evaluateFigures(row) {
+  if (!FIGURE_WIDTHS.includes(row.width) || !Array.isArray(row.cards)) return [];
+  const where = `${row.role}@${row.width} ${row.path}`;
+  const e1 = E1_ROLES.includes(row.role) && E1_PATHS.includes(row.path);
+  const f = [];
+  for (const c of row.cards) {
+    if (!(c.aboveFold || (e1 && c.costRow))) continue;
+    const id = c.code ? `${c.testid ?? "card"} ${c.code}` : c.testid ?? `card@${Math.round(c.top)}`;
+    if (c.primary !== 1) f.push(`${where}: ${id} has ${c.primary} primary figures (want 1)`);
+    if (c.secondary > MAX_SECONDARY_FIGURES) f.push(`${where}: ${id} has ${c.secondary} secondary figures (want ≤ ${MAX_SECONDARY_FIGURES})`);
+    for (const t of c.stray ?? []) f.push(`${where}: ${id} has a number outside data-figure: "${t}"`);
+    if (e1 && c.rollup) {
+      if (!c.money?.length) f.push(`${where}: roll-up ${id} has no [data-cents] money`);
+      for (const m of c.money ?? []) {
+        if (!ROLLUP_SHORT.test(m.text)) f.push(`${where}: roll-up ${id} "${m.text}" is not usdShort`);
+        if (!m.title || m.cents == null) f.push(`${where}: roll-up ${id} "${m.text}" lacks title or data-cents`);
+      }
+    }
+  }
+  return f;
+}
+
 export function evaluatePhoneUx(row) {
   const f = [];
   const where = `${row.role}@${row.width} ${row.path}`;
@@ -170,6 +386,19 @@ export function evaluatePhoneUx(row) {
       f.push(`${where}: job-strip element "${clipLabel(hit.text)}" right ${px(hit.right)} > clientWidth ${px(hit.clientWidth)}`);
     }
   }
+  // 5.0.4-0 right edge, whole page (lead review of #84): at 320 and 390 every visible element under body ends at or
+  // before clientWidth, outside [data-scroll-x]; and no visible [data-scroll-x] on a phone. Not recorded is a FAIL.
+  if (PHONE_OVERFLOW_WIDTHS.includes(width)) {
+    if (!row.pastRight || !Array.isArray(row.pastRight.items)) f.push(`${where}: right-edge scan not recorded`);
+    else {
+      for (const hit of row.pastRight.items) {
+        f.push(`${where}: ${hit.tag}${hit.testid ? `[data-testid="${hit.testid}"]` : ""} "${clipLabel(hit.text)}" right ${px(hit.right)} > clientWidth ${px(hit.clientWidth)}`);
+      }
+      if (row.pastRight.count > row.pastRight.items.length) f.push(`${where}: ${row.pastRight.count} elements past the right edge, ${row.pastRight.items.length} listed`);
+    }
+    if (!Array.isArray(row.scrollX)) f.push(`${where}: [data-scroll-x] scan not recorded`);
+    else for (const s of row.scrollX) f.push(`${where}: visible [data-scroll-x] ${s.tag}${s.testid ? `[data-testid="${s.testid}"]` : ""} "${clipLabel(s.text)}" (no sideways scrolling on phones)`);
+  }
   if (Number.isFinite(width) && width <= PHONE_MAX_PX) {
     for (const t of row.tapMisses ?? []) {
       f.push(`${where}: tap target ${t.tag} ${px(t.w)}×${px(t.h)}px < ${MIN_TAP_PX}×${MIN_TAP_PX} ("${clipLabel(t.text)}")`);
@@ -178,11 +407,32 @@ export function evaluatePhoneUx(row) {
     if ((row.tapMissCount ?? tapShown) > tapShown) f.push(`${where}: ${row.tapMissCount} tap targets under ${MIN_TAP_PX}×${MIN_TAP_PX}`);
     for (const t of row.textMisses ?? []) {
       if (t.kind === "input") f.push(`${where}: input text ${px(t.px)}px < ${MIN_INPUT_FONT_PX}px ("${clipLabel(t.text)}")`);
+      else if (t.kind === "body") f.push(`${where}: body text ${t.tag ?? ""} ${px(t.px)}px < ${MIN_BODY_FONT_PX}px ("${clipLabel(t.text)}")`);
       else f.push(`${where}: secondary text ${px(t.px)}px < ${MIN_SECONDARY_FONT_PX}px ("${clipLabel(t.text)}")`);
     }
     const textShown = row.textMisses?.length ?? 0;
     if ((row.textMissCount ?? textShown) > textShown) f.push(`${where}: ${row.textMissCount} text nodes under the phone size floor`);
   }
+  // 5.0.4-b check 8 (main 1381687f, #78): `header [data-testid="company-name"]` "has `scrollWidth` ≤ `clientWidth`",
+  // "has computed `text-overflow` other than `ellipsis`", "has `innerText`, with whitespace collapsed, equal to
+  // "Summit Highway & Bridge"", and "neither it nor an ancestor has `aria-hidden="true"`, and
+  // `page.locator("header").getByText("Summit Highway & Bridge", { exact: true })` is visible".
+  // "For each role at 320×568, light and dark, on every `/app` page".
+  if (width === 320 && row.companyName) {
+    const cn = row.companyName;
+    if (cn.missing) f.push(`${where}: 5.0.4-b check 8: header company-name missing`);
+    else {
+      if (cn.text !== COMPANY_NAME) f.push(`${where}: 5.0.4-b check 8: company name innerText "${clipLabel(cn.text)}" ≠ "${COMPANY_NAME}"`);
+      if (!(cn.scrollWidth <= cn.clientWidth)) f.push(`${where}: 5.0.4-b check 8: company name scrollWidth ${px(cn.scrollWidth)} > clientWidth ${px(cn.clientWidth)}`);
+      if (cn.textOverflow === "ellipsis") f.push(`${where}: 5.0.4-b check 8: company name text-overflow is ellipsis`);
+      if (cn.ariaHidden) f.push(`${where}: 5.0.4-b check 8: company name (or an ancestor) is aria-hidden`);
+      if (!cn.exactVisible) f.push(`${where}: 5.0.4-b check 8: header has no visible exact "${COMPANY_NAME}" text`);
+    }
+  }
+  f.push(...evaluateNextSteps(row));
+  f.push(...evaluateTitlesAndLabels(row));
+  f.push(...evaluateCostIndexes(row));
+  f.push(...evaluateFigures(row));
   const clipShown = row.clips?.length ?? 0;
   if ((row.clipCount ?? clipShown) > clipShown) f.push(`${where}: ${row.clipCount} clipped elements, only ${clipShown} listed`);
   const phone = Number.isFinite(width) && width <= PHONE_MAX_PX;

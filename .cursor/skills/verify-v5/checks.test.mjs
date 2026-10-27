@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   commitResults,
+  E1_PATHS,
   expectedCommitFor,
   newestV5Tag,
   resolveTarget,
@@ -25,6 +26,7 @@ import {
   runStep,
   MIN_INPUT_FONT_PX,
   MIN_SECONDARY_FONT_PX,
+  MIN_BODY_FONT_PX,
   MIN_TAP_PX,
   PHONE_MAX_PX,
   PHONE_OVERFLOW_WIDTHS,
@@ -34,6 +36,9 @@ import {
   textHasMoney,
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
+import { evaluateCostIndexes, evaluateNextSteps, evaluateTitlesAndLabels, NEXT_STEP_VERBS, PURPOSE_MAX_CHARS, PURPOSE_MIN_CHARS } from "./checks.mjs";
+import { AXE_PASSES, C8_TAGS, evaluateAxeRows, loadAxeSource, TOGGLE_NAME } from "./axe.mjs";
+import { contextFor, crawl504Want, E1_EXTRA, e1ExtraCoverageFailures, SPEC_504_SIZES, SPEC_504_THEMES, spec504LoadCount, THEME_COOKIE, themeFailures } from "./crawl.mjs";
 import { CONFIRM_DIALOG_CANCEL, CONFIRM_DIALOG_CONFIRM, CONFIRM_DIALOG_ROLE, CONFIRM_GRACE_MS, confirmDecision, confirmIfDialog, watchForDialog } from "./confirm-dialog.mjs";
 import { countJourneyTaps, evaluateJourneyTaps, JOURNEY_TAP_LIMIT } from "./journeys.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
@@ -54,6 +59,7 @@ import {
   appliedMigrationTags,
   evaluateAppliedJournal,
   evaluateRcAcceptance,
+  SPEC504_EXECUTED_ITEMS,
   evaluateRcHead,
   evaluateRcMigrations,
   journalAppliesCleanly,
@@ -63,7 +69,10 @@ import {
   parseRcMerges,
   phoneChecksEnabled,
   readRcHistory,
+  readStatusColorHits,
   resolveRcMode,
+  STATUS_COLOR_PATTERN,
+  statusColorCheck,
 } from "./rc.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -150,7 +159,8 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
   assert.equal(PHONE_MAX_PX, 480);
   assert.equal(DESKTOP_MIN_PX, 768);
   assert.equal(MIN_TAP_PX, 44);
-  assert.equal(MIN_SECONDARY_FONT_PX, 12);
+  assert.equal(MIN_SECONDARY_FONT_PX, 14);
+  assert.equal(MIN_BODY_FONT_PX, 16);
   assert.equal(MIN_INPUT_FONT_PX, 16);
   assert.deepEqual(Object.keys(PRIMARY_ACTION_VERB), ["executive", "pm", "superintendent", "foreman"]);
   const src = readFileSync(path.join(here, "checks.mjs"), "utf8");
@@ -159,7 +169,8 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
     ["PHONE_MAX_PX", "480"],
     ["DESKTOP_MIN_PX", "768"],
     ["MIN_TAP_PX", "44"],
-    ["MIN_SECONDARY_FONT_PX", "12"],
+    ["MIN_SECONDARY_FONT_PX", "14"],
+    ["MIN_BODY_FONT_PX", "16"],
     ["MIN_INPUT_FONT_PX", "16"],
   ]) {
     assert.equal((src.match(new RegExp(`\\b${name}\\s*=`, "g")) ?? []).length, 1, `${name} assigned once`);
@@ -184,8 +195,25 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
   assert.doesNotMatch(crawlSrc, /data-clip='secondary'\], header/, "a header is not a secondary label");
   const phone = {
     ...good, width: 320, docScrollWidth: 320, viewportWidth: 320,
-    tapMisses: [], textMisses: [], clips: [], primaryActions: [],
+    tapMisses: [], textMisses: [], clips: [], primaryActions: [], pastRight: { count: 0, items: [] }, scrollX: [],
   };
+  // Whole-page right edge (lead review of #84): any visible element past clientWidth at 320/390, outside [data-scroll-x].
+  {
+    const hit = { tag: "div", testid: "kpi-strip", text: "EAC $1.2M", right: 402, clientWidth: 390 };
+    const past = evaluatePhoneUx({ ...phone, width: 390, docScrollWidth: 390, viewportWidth: 390, pastRight: { count: 1, items: [hit] } });
+    mustFail("element past clientWidth outside job-strip at 390", past);
+    assert.match(past.join("\n"), /div\[data-testid="kpi-strip"\] "EAC \$1\.2M" right 402 > clientWidth 390/);
+    const many = evaluatePhoneUx({ ...phone, pastRight: { count: 30, items: [{ ...hit, right: 330, clientWidth: 320 }] } });
+    assert.ok(many.some((x) => /30 elements past the right edge, 1 listed/.test(x)), JSON.stringify(many));
+    const sx = evaluatePhoneUx({ ...phone, scrollX: [{ tag: "div", testid: "cost-table", text: "03-210 Footing" }] });
+    mustFail("visible [data-scroll-x] on a phone", sx);
+    assert.match(sx.join("\n"), /visible \[data-scroll-x\] div\[data-testid="cost-table"\]/);
+    const missing = evaluatePhoneUx({ ...phone, pastRight: undefined, scrollX: undefined });
+    mustFail("right-edge scan not recorded", missing);
+    assert.ok(missing.some((x) => /right-edge scan not recorded/.test(x)) && missing.some((x) => /\[data-scroll-x\] scan not recorded/.test(x)));
+    mustPass("right edge outside the phone widths is not this clause", evaluatePhoneUx({ ...phone, width: 1280, docScrollWidth: 1280, viewportWidth: 1280, pastRight: { count: 1, items: [{ ...hit, right: 1400, clientWidth: 1280 }] }, scrollX: [{ tag: "div", testid: null, text: "x" }] }));
+    assert.match(crawlSrc, /el\.closest\("\[data-scroll-x\]"\) \|\| !shown\(el\)/, "the right-edge scan skips only [data-scroll-x] regions and hidden elements");
+  }
   const allowedSecondary = { kind: "secondary", text: "Cedar Creek Bridge", reachable: true, ellipsis: true };
   mustPass("phone observations within the floors", evaluatePhoneUx(phone));
   mustPass(
@@ -239,6 +267,9 @@ assert.equal(emptyHitAllowed({ path: "/app/jobs/25-031", ...draft }), false);
   mustFail("tap target 44×43.9", evaluatePhoneUx({ ...phone, tapMisses: [{ tag: "a", w: 44, h: 43.9, text: "Portfolio" }] }));
   mustPass("tap target exactly 44×44 is not a miss", evaluatePhoneUx(phone));
   mustFail("secondary text 11px", evaluatePhoneUx({ ...phone, textMisses: [{ kind: "secondary", px: 11, text: "Portfolio" }] }));
+  // 5.0.4-c check 2 (main 4c9d3539): the floor is 14 px, so 13 px (passed under the old 12 px floor) fails.
+  mustFail("secondary text 13px (5.0.4-c check 2 floor 14)", evaluatePhoneUx({ ...phone, textMisses: [{ kind: "secondary", px: 13, text: "Portfolio" }] }));
+  mustFail("body text p 15px (5.0.4-c check 2 body 16)", evaluatePhoneUx({ ...phone, textMisses: [{ kind: "body", tag: "p", px: 15, text: "Paragraph" }] }));
   mustFail("input text 14px", evaluatePhoneUx({ ...phone, textMisses: [{ kind: "input", px: 14, text: "Hours" }] }));
   mustFail("clipped money, even with a title", evaluatePhoneUx({ ...phone, clips: [{ kind: "money", text: "$1,234.56", reachable: true, ellipsis: true }] }));
   mustFail("clipped money at 1280", evaluatePhoneUx({ ...phone, width: 1280, clips: [{ kind: "money", text: "$1,234.56", reachable: true, ellipsis: true }] }));
@@ -476,9 +507,11 @@ mustFail("M5 reset did not restore", evaluateM5({ ...m5good, afterReset: { ...m5
   mustFail("schedule page ERP", evaluateCrawlRow({ ...sched, text: "Export to ERP" }));
   mustFail("schedule page error boundary", evaluateCrawlRow({ ...sched, text: "Application error: a client-side exception has occurred" }));
   mustFail("job page still needs cost rows", evaluateCrawlRow({ ...good, seededCounts: { costRows: 0, activityRows: 5 } }));
-  const clipped = { ...sched, width: 320, clips: [{ kind: "money", text: "$1,234.56", ellipsis: true, reachable: false }], clipCount: 1 };
+  const clipped = { ...sched, width: 320, clips: [{ kind: "money", text: "$1,234.56", ellipsis: true, reachable: false }], clipCount: 1, pastRight: { count: 0, items: [] }, scrollX: [] };
   mustPass("schedule clip ignored when phone checks are off", evaluateCrawlRow(clipped));
-  mustFail("schedule clip fails when phone checks are on", evaluateCrawlRow(clipped, { phoneChecks: true }));
+  const schedClip = evaluateCrawlRow(clipped, { phoneChecks: true });
+  mustFail("schedule clip fails when phone checks are on", schedClip);
+  assert.ok(schedClip.some((x) => /\$1,234\.56/.test(x)), `the money clip itself must be the failure; got ${JSON.stringify(schedClip)}`);
 
   const jobRow = (job, links, role = "pm", width = 390) => ({
     role, width, path: `/app/jobs/${job}`, scheduleLinks: links,
@@ -1925,6 +1958,16 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.ok(!pending.some((line) => line.startsWith("5.0.4-0:")));
   assert.ok(pending.some((line) => line.startsWith("5.0.4-a:") && line.includes("not executed")));
   assert.ok(pending.some((line) => line.startsWith("5.0.4-f:") && line.includes("not executed")));
+  // skm2b: executed 5.0.4 items count as executed one by one; the field intel and g-3 items stay "not executed".
+  {
+    const spec80 = readFileSync(path.join(here, "../../../docs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md"), "utf8");
+    const all = acceptanceItems(spec80);
+    const left = evaluateRcAcceptance(all, ["5.0.4-0", ...SPEC504_EXECUTED_ITEMS]);
+    assert.ok(all.some((i) => i.section === "5.0.4-i"), "rc/5.0.4 carries the #80 spec (5.0.4-i present)");
+    assert.deepEqual(left, [], "every #80 acceptance item is executed (field504.mjs covers d 2/10/3+11 and g-3)");
+    assert.ok(evaluateRcAcceptance(all, ["5.0.4-0", ...SPEC504_EXECUTED_ITEMS.filter((x) => x !== "5.0.4-g: State is real.")]).some((l) => /State is real/.test(l)), "an item dropped from the executed list is reported not executed");
+    assert.ok(evaluateRcAcceptance(all, ["5.0.4-a: Seeded count."]).every((l) => !l.includes('"Seeded count."')));
+  }
   const history = {
     branch: "rc/5.0.4",
     merges,
@@ -2278,4 +2321,201 @@ console.log(`ok: checks.test.mjs (${results.length} cases)`);
   assert.match(docker, /fonts-dejavu-core/);
   assert.match(docker, /faketime/);
   console.log(`ok: Dockerfile pins playwright v${pw} by digest with fonts-dejavu-core + faketime`);
+}
+
+// ---- 5.0.4-c check 5 (main 4c9d3539): no text-amber-/text-red-/text-green-/bg-amber- under v5/src/{components,app} ----
+{
+  assert.equal(STATUS_COLOR_PATTERN, "text-(amber|red|green)-|bg-amber-");
+  const repo = mkdtempSync(path.join(os.tmpdir(), "pv-c5-"));
+  const g = (args) => execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  g(["init", "-q"]);
+  const put = (rel, body) => { mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true }); writeFileSync(path.join(repo, rel), body); };
+  const commit = (msg) => { g(["add", "-A"]); g(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", msg]); return g(["rev-parse", "HEAD"]).trim(); };
+  put("v5/src/components/app/cost-table.tsx", 'export const A = <span className="text-caution">0.93</span>;\n');
+  put("v5/src/lib/elsewhere.ts", 'export const outOfScope = "text-red-500";\n'); // outside the two dirs: not a hit
+  const clean = commit("tokens only");
+  const cleanHits = readStatusColorHits({ sha: clean, git: g });
+  assert.deepEqual(cleanHits, [], "control: status tokens only must have 0 hits");
+  assert.equal(statusColorCheck(cleanHits).ok, true);
+  for (const [cls, rel] of [["text-amber-700 dark:text-amber-400", "v5/src/components/app/cost-table.tsx"], ["text-red-600", "v5/src/app/app/jobs/[number]/cost-items/[code]/page.tsx"], ["text-green-700", "v5/src/components/x.tsx"], ["bg-amber-50", "v5/src/app/y.tsx"]]) {
+    put(rel, `export const B = <span className="${cls}">0.93</span>;\n`);
+    const bad = commit(`mutant ${cls}`);
+    const hits = readStatusColorHits({ sha: bad, git: g });
+    const c = statusColorCheck(hits);
+    assert.equal(c.ok, false, `mutant ${cls} in ${rel} must FAIL; got ${JSON.stringify(c)}`);
+    assert.ok(hits.some((h) => h.startsWith(`${rel}:`)), `hit names ${rel}; got ${JSON.stringify(hits)}`);
+    put(rel, 'export const B = <span className="text-caution">0.93</span>;\n');
+    commit(`revert ${cls}`);
+  }
+  assert.equal(statusColorCheck(null, "boom").ok, false, "a grep that did not run is a FAIL, not a pass");
+  rmSync(repo, { recursive: true, force: true });
+  console.log("passes: 5.0.4-c check 5 control (tokens only, a hit outside v5/src/{components,app} ignored); FAILS as expected: text-amber-, text-red-, text-green-, bg-amber- mutants; a grep that did not run fails");
+}
+
+// ---- 5.0.4-a checks 1, 5, 9 (main 4c9d3539) on /app next-step labels ----
+{
+  assert.deepEqual(NEXT_STEP_VERBS, ["Submit", "Report", "Approve", "Review", "Decide", "Open"]);
+  const step = (label, top = 200) => ({ label, href: "/app/jobs/25-031", visible: true, top, viewportH: 844 });
+  // Control: the label templates in rc/5.0.4 v5/src/server/next-steps.ts (a83dcb1c), filled with seed values.
+  const control = [
+    "Submit tomorrow's plan: Bridge Crew 2 on 25-031",
+    "Approve 1 daily report: Interchange Crew 1 on 24-118",
+    "Report today's quantities for Culvert Crew (24-077)",
+    "Approve CO-001 on 25-031: $60,000.00",
+    "Approve the estimate for Harbor (26-010)",
+    "Review the forecast on 07-300 (24-077): spending more than it earns",
+    "Open I-5 Culvert (24-077): $255K over cost",
+    "Decide CO-002 on 24-118: $1,250.50",
+  ];
+  const OK200 = { "/app/jobs/25-031": 200 };
+  for (const width of [320, 390, 1280]) {
+    const row = { role: "pm", width, path: "/app", nextSteps: control.map((l) => step(l)), nextStepCount: control.length, nextStepHrefStatus: OK200 };
+    assert.deepEqual(evaluateNextSteps(row), [], `control labels at ${width}`);
+  }
+  const one = (label, width = 390, extra = {}) => evaluateNextSteps({ role: "pm", width, path: "/app", nextSteps: [step(label)], nextStepCount: 1, nextStepHrefStatus: OK200, ...extra });
+  const mf = (name, f, re) => assert.ok(f.some((x) => re.test(x)), `${name} must FAIL with ${re}; got ${JSON.stringify(f)}`);
+  mf("a-5 verb outside the set", one("Check the Cedar plan on 25-031"), /check 5: .* starts with "Check"/);
+  mf("a-5 lower-case verb", one("submit tomorrow's plan: Bridge Crew 2 on 25-031"), /check 5: .* starts with "submit"/);
+  mf("a-5 at 320 too", one("Go to 25-031", 320), /check 5/);
+  mf("a-9 no job number", one("Submit tomorrow's plan: Bridge Crew 2"), /check 9: .* has no job number/);
+  mf("a-9 CO short money", one("Approve CO-001 on 25-031: $60K"), /check 9: .* has no exact amount/);
+  mf("a-9 CO no cents", one("Decide CO-001 on 25-031: $60,000", 1280), /check 9: .* has no exact amount/);
+  assert.deepEqual(one("Submit tomorrow's plan: Bridge Crew 2", 320), [], "a-9 is scoped to 390 and 1280 (spec sizes); check 5 still runs at 320");
+  mf("a-1 none above the fold", evaluateNextSteps({ role: "pm", width: 320, path: "/app", nextSteps: [step("Submit plan on 25-031", 900)], nextStepCount: 1 }), /check 1: 0 next-step above the fold/);
+  mf("a-1 no next steps", evaluateNextSteps({ role: "pm", width: 1280, path: "/app", nextSteps: [], nextStepCount: 0 }), /check 1: 0 next-step above the fold/);
+  // a-1 href clause (lead review of #84): every next-step href answers 200 in the crawl.
+  mf("a-1 href 404", one(control[0], 390, { nextStepHrefStatus: { "/app/jobs/25-031": 404 } }), /check 1: .* href \/app\/jobs\/25-031 answered 404 \(want 200\)/);
+  mf("a-1 href redirect", one(control[0], 390, { nextStepHrefStatus: { "/app/jobs/25-031": 307 } }), /answered 307/);
+  mf("a-1 href not requested", one(control[0], 390, { nextStepHrefStatus: undefined }), /check 1: .* href \/app\/jobs\/25-031 not requested/);
+  mf("a-1 next step without href", evaluateNextSteps({ role: "pm", width: 390, path: "/app", nextSteps: [{ ...step(control[0]), href: null }], nextStepCount: 1, nextStepHrefStatus: {} }), /check 1: .* has no href/);
+  mf("unread next steps", evaluateNextSteps({ role: "pm", width: 1280, path: "/app", nextSteps: [step(control[0])], nextStepCount: 40 }), /40 next-step elements, only 1 read/);
+  assert.deepEqual(evaluateNextSteps({ role: "pm", width: 390, path: "/app/jobs/25-031", nextSteps: [step("bad")] }), [], "only /app");
+  console.log("passes: 5.0.4-a checks 1/5/9 control (rc next-steps.ts label templates at 320/390/1280); FAILS as expected: verb outside the set, lower-case verb, no job number, CO short money, CO without cents, none above the fold, unread next steps");
+}
+
+// ---- 5.0.4 theme/size pass (main 4c9d3539 "Mobile and layout checks"): 320×568, 390×844, 1280×800 × light/dark ----
+{
+  assert.deepEqual(SPEC_504_SIZES, [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 1280, height: 800 }]);
+  assert.deepEqual(SPEC_504_THEMES, ["light", "dark"]);
+  assert.equal(THEME_COOKIE, "pcs_theme");
+  assert.deepEqual(contextFor(320, 568, "dark").viewport, { width: 320, height: 568 });
+  assert.equal(contextFor(320, 568, "dark").colorScheme, "dark");
+  assert.deepEqual(contextFor(1280, 800).viewport, { width: 1280, height: 800 });
+  assert.deepEqual(contextFor(390), { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, "the main nav crawl context is unchanged");
+  assert.deepEqual(contextFor(1280), { viewport: { width: 1280, height: 900 } }, "the main nav crawl context is unchanged");
+  assert.equal(spec504LoadCount(["/app", "/status"]), 4 * 3 * 2);
+  const r = (theme, htmlTheme) => ({ role: "pm", width: 390, height: 844, path: "/app", theme, htmlTheme });
+  assert.deepEqual(themeFailures([r("dark", "dark"), r("light", "light"), { role: "pm", width: 390, path: "/app" }]), []);
+  assert.ok(/page rendered light, pass is dark/.test(themeFailures([r("dark", "light")])[0] ?? ""), "dark pass on a light page must FAIL");
+  assert.ok(/theme not recorded/.test(themeFailures([r("dark", undefined)])[0] ?? ""), "an unrecorded theme must FAIL");
+  const vsrc = readFileSync(path.join(here, "verify.mjs"), "utf8");
+  assert.match(vsrc, /if \(phoneChecks\) \{\n\s+await step\("5\.0\.4 crawl: 4 roles × 320×568\/390×844\/1280×800 × light\/dark"/, "the 5.0.4 pass runs when phone checks are on");
+  assert.match(vsrc, /failures\.length === 0 && rows\.length === want/, "the 5.0.4 pass needs every load and 0 failures");
+  console.log("passes: 5.0.4 theme/size pass constants, contexts (main nav crawl unchanged), load count; FAILS as expected: dark pass on a light page, unrecorded theme");
+}
+
+// ---- 5.0.4 axe evaluators (c-4, c-8, i-3, i-4) ----
+{
+  assert.deepEqual(C8_TAGS, ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]);
+  assert.deepEqual(AXE_PASSES["c-8"].sizes, [{ width: 1440, height: 900 }, { width: 390, height: 844 }]);
+  assert.deepEqual(AXE_PASSES["c-8"].pages, ["/app/jobs/24-077", "/app/jobs/26-010", "/app/jobs/24-077/cost-items/07-300"]);
+  assert.deepEqual(AXE_PASSES["i-3"].pages, ["/app/jobs/26-010"]);
+  assert.deepEqual(AXE_PASSES["i-4"].roles, ["pm", "executive", "superintendent"]);
+  assert.deepEqual(AXE_PASSES["i-4"].sizes, [{ width: 1440, height: 900 }]);
+  assert.deepEqual(AXE_PASSES["i-4"].pages, ["/app/jobs/24-077", "/app/jobs/24-118", "/app/jobs/25-031"]);
+  for (const n of ["Collapse 02 Earthwork", "Expand 03 Concrete"]) assert.ok(TOGGLE_NAME.test(n), n);
+  for (const n of ["Expand", "Collapse", "", "Expand 02", "collapse 02 Earthwork"]) assert.ok(!TOGGLE_NAME.test(n), `"${n}" must not pass`);
+  const ok = { role: "pm", width: 390, height: 844, theme: "dark", path: "/app/jobs/26-010", status: 200, htmlTheme: "dark", violations: [], toggles: ["Collapse 02 Earthwork"] };
+  assert.deepEqual(evaluateAxeRows([ok], { toggles: true }), []);
+  const mf = (name, rows, re, opts) => { const f = evaluateAxeRows(rows, opts); assert.ok(f.some((x) => re.test(x)), `${name} must FAIL with ${re}; got ${JSON.stringify(f)}`); };
+  mf("one violation", [{ ...ok, violations: [{ id: "color-contrast", impact: "serious", count: 1, targets: ["p"] }] }], /axe color-contrast \(serious\) × 1/);
+  mf("axe did not run", [{ ...ok, violations: undefined }], /axe did not run/);
+  mf("wrong theme", [{ ...ok, htmlTheme: "light" }], /page rendered light, pass is dark/);
+  mf("HTTP 500", [{ ...ok, status: 500 }], /HTTP 500/);
+  mf("load threw", [{ ...ok, error: "timeout" }], /timeout/);
+  mf("toggle named Expand", [{ ...ok, toggles: ["Expand"] }], /tree toggle name "Expand"/, { toggles: true });
+  mf("no toggles", [{ ...ok, toggles: [] }], /no visible cost-tree toggle/, { toggles: true });
+  const missing = loadAxeSource(mkdtempSync(path.join(os.tmpdir(), "pv-noaxe-")));
+  assert.ok(missing.error && /axe-core not loadable/.test(missing.error), "no axe-core is an error, not a skip");
+  const vsrc = readFileSync(path.join(here, "verify.mjs"), "utf8");
+  assert.match(vsrc, /const failures = axe\.error \? \[axe\.error\]/, "a missing axe-core FAILS the axe checks");
+  console.log("passes: 5.0.4 axe pass definitions match c-8/i-3/i-4 as written; FAILS as expected: a violation, axe not run, wrong theme, HTTP 500, a load error, an 'Expand' toggle, no toggles, axe-core missing");
+}
+
+// ---- 5.0.4-a check 7, 5.0.4-b checks 1, 6, 7 ----
+{
+  assert.equal(PURPOSE_MIN_CHARS, 10);
+  assert.equal(PURPOSE_MAX_CHARS, 90);
+  const purpose = (text, o = {}) => ({ text, len: text.length, scrollWidth: 280, clientWidth: 280, ellipsis: false, fontPx: 14, ...o });
+  const good = (width, o = {}) => ({ role: "foreman", width, path: "/app/jobs/24-077", titles: { h1Count: 1, h1Texts: ["I-5 Culvert"], purposeCount: 1, purpose: purpose("Plan field work, track cost against budget, and decide on changes for this job.") }, jobStripLabels: [{ text: "I-5 Culvert 24-077 Report due", scrollWidth: 200, clientWidth: 200 }], ...o });
+  for (const w of [320, 390, 768, 1280]) assert.deepEqual(evaluateTitlesAndLabels(good(w)), [], `control at ${w}`);
+  const mf = (name, row, re) => { const f = evaluateTitlesAndLabels(row); assert.ok(f.some((x) => re.test(x)), `${name} must FAIL with ${re}; got ${JSON.stringify(f)}`); };
+  const t = (o) => ({ ...good(320).titles, ...o });
+  mf("b-1 two h1", good(1280, { titles: t({ h1Count: 2, h1Texts: ["a", "b"] }) }), /check 1: 2 visible h1/);
+  mf("b-1 no h1", good(390, { titles: t({ h1Count: 0, h1Texts: [] }) }), /check 1: 0 visible h1/);
+  mf("b-1 empty h1", good(390, { titles: t({ h1Texts: [""] }) }), /check 1: the h1 is empty/);
+  mf("b-1 no purpose", good(320, { titles: t({ purposeCount: 0, purpose: null }) }), /check 1: 0 page-purpose/);
+  mf("b-1 purpose 9 chars", good(320, { titles: t({ purpose: purpose("Too short") }) }), /check 1: page-purpose is 9 characters/);
+  mf("b-1 purpose 91 chars", good(1280, { titles: t({ purpose: purpose("x".repeat(91)) }) }), /check 1: page-purpose is 91 characters/);
+  assert.deepEqual(evaluateTitlesAndLabels(good(1280, { titles: t({ purpose: purpose("x".repeat(90)) }) })), [], "90 chars passes");
+  assert.deepEqual(evaluateTitlesAndLabels(good(1280, { titles: t({ purpose: purpose("x".repeat(10)) }) })), [], "10 chars passes");
+  mf("b-6 purpose spills", good(320, { titles: t({ purpose: purpose("Plan field work and more", { scrollWidth: 300 }) }) }), /check 6: page-purpose scrollWidth 300 > clientWidth 280/);
+  mf("b-6 purpose ellipsis", good(320, { titles: t({ purpose: purpose("Plan field work and more", { ellipsis: true }) }) }), /check 6: .*ellipsis/);
+  mf("b-6 purpose 13px", good(320, { titles: t({ purpose: purpose("Plan field work and more", { fontPx: 13 }) }) }), /check 6: page-purpose font-size 13px < 14px/);
+  mf("b-7 label without number", good(320, { jobStripLabels: [{ text: "I-5 Culvert", scrollWidth: 100, clientWidth: 100 }] }), /check 7: job-strip-label "I-5 Culvert" has no job number/);
+  mf("b-7 label spills", good(320, { jobStripLabels: [{ text: "I-5 Culvert 24-077", scrollWidth: 140, clientWidth: 100 }] }), /check 7: .*scrollWidth 140 > clientWidth 100/);
+  const step = (o) => ({ label: "Submit tomorrow's plan: Bridge Crew 2 on 25-031", visible: true, w: 358, h: 48, ellipsis: false, scrollWidth: 300, clientWidth: 300, ...o });
+  const app = (o) => ({ role: "foreman", width: 390, path: "/app", nextSteps: [step(o)] });
+  assert.deepEqual(evaluateTitlesAndLabels(app({})), []);
+  mf("a-7 43px tall", app({ h: 43 }), /check 7: next-step .* 358×43 < 44×44/);
+  mf("a-7 ellipsis", app({ ellipsis: true }), /check 7: .*ellipsis/);
+  mf("a-7 label spills", app({ scrollWidth: 320 }), /check 7: .*scrollWidth 320 > clientWidth 300/);
+  console.log("passes: 5.0.4-a check 7 and 5.0.4-b checks 1/6/7 controls (incl. 10 and 90 chars); FAILS as expected: 2/0 h1, empty h1, no purpose, 9 and 91 chars, purpose spill/ellipsis/13px, label without job number, label spill, next step 43 px, ellipsis, spill");
+}
+
+// ---- 5.0.4-b checks 2 and 3: cost indexes per role ----
+{
+  const ix = (o = {}) => ({ metricIds: [], stripText: "I-5 Culvert 24-077 Report due · Cedar Creek 25-031 No plan today", stripPills: ["I-5 Culvert 24-077 Report due", "Cedar Creek 25-031 No plan today"], ...o });
+  const row = (role, p, text, o = {}, width = 390) => ({ role, width, path: p, text, indexes: ix(o) });
+  // controls
+  assert.deepEqual(evaluateCostIndexes(row("foreman", "/app/jobs/24-077", "Report today's quantities")), []);
+  assert.deepEqual(evaluateCostIndexes(row("foreman", "/changelog", "5.0.4 adds CPI and SPI labels")), [], "prose pages may say CPI/SPI");
+  assert.deepEqual(evaluateCostIndexes(row("superintendent", "/app/jobs/25-031", "Cost performance (CPI) 0.98 Schedule performance (SPI) 1.01", { metricIds: ["job-cpi", "job-spi"] })), []);
+  assert.deepEqual(evaluateCostIndexes(row("superintendent", "/roadmap", "CPI on the job page")), []);
+  assert.deepEqual(evaluateCostIndexes(row("pm", "/app", "At risk −$3.1M CPI 0.93", { metricIds: ["kpi-cpi"] })), [], "PM keeps CPI");
+  const mf = (name, r, re) => { const f = evaluateCostIndexes(r); assert.ok(f.some((x) => re.test(x)), `${name} must FAIL with ${re}; got ${JSON.stringify(f)}`); };
+  mf("b-2 foreman metric value", row("foreman", "/app", "x", { metricIds: ["job-cpi"] }), /check 2: foreman sees 1 cost index value/);
+  mf("b-2 foreman metric on prose page", row("foreman", "/status", "x", { metricIds: ["kpi-spi"] }), /check 2: foreman sees 1 cost index value/);
+  mf("b-2 foreman At risk", row("foreman", "/app", "24-077 At risk"), /check 2: foreman sees "At risk"/);
+  mf("b-2 foreman dollar delta (U+2212)", row("foreman", "/app/jobs/24-077", "variance −$3,100"), /check 2: foreman sees a dollar delta "−\$3"/);
+  mf("b-2 foreman dollar delta (hyphen)", row("foreman", "/changelog", "variance -$3,100"), /dollar delta "-\$3"/);
+  mf("b-2 foreman word CPI", row("foreman", "/app/assistant", "Your CPI is 0.93"), /check 2: foreman sees the word CPI/);
+  mf("b-2 foreman word SPI", row("foreman", "/app", "SPI 1.01"), /check 2: foreman sees the word SPI/);
+  mf("b-2 pill lacks name", row("foreman", "/app/jobs/24-077", "x", { stripPills: ["24-077 Report due"] }), /lacks "I-5 Culvert"/);
+  mf("b-2 pill no state", row("foreman", "/app/jobs/24-077", "x", { stripPills: ["I-5 Culvert 24-077"] }), /shows 0 of/);
+  mf("b-3 super metric inside JobStrip on a job page", row("superintendent", "/app/jobs/25-031", "Cost performance (CPI) 0.98", { metricIds: ["job-cpi", "job-spi", "strip-cpi"], stripMetricIds: ["strip-cpi"] }), /inside JobStrip \(strip-cpi\)/);
+  mf("b-2 pill two states", row("foreman", "/app/jobs/24-077", "x", { stripPills: ["I-5 Culvert 24-077 Report due Reported"] }), /shows 2 of/);
+  mf("b-2 no 24-077 pill", row("foreman", "/app/jobs/24-077", "x", { stripPills: [] }), /no 24-077 pill/);
+  mf("b-3 super CPI in strip on job page", row("superintendent", "/app/jobs/24-077", "x", { stripText: "I-5 Culvert 24-077 CPI 0.93" }), /check 3: superintendent sees CPI\/SPI in the job strip/);
+  mf("b-3 super CPI word on /app", row("superintendent", "/app", "CPI 0.93"), /check 3: superintendent sees the word CPI/);
+  mf("b-3 super metric on cost-item", row("superintendent", "/app/jobs/24-077/cost-items/07-300", "x", { metricIds: ["item-cpi"] }), /check 3: superintendent sees 1 cost index value/);
+  mf("b-3 super SPI on plan page", row("superintendent", "/app/jobs/25-031/plans/abc", "SPI 1.01"), /check 3: superintendent sees the word SPI/);
+  mf("b-3 super metric on prose page", row("superintendent", "/changelog", "x", { metricIds: ["kpi-cpi"] }), /on a prose page/);
+  mf("b-3 super 25-031 missing job-spi", row("superintendent", "/app/jobs/25-031", "x", { metricIds: ["job-cpi"] }), /job-spi 0 time\(s\) on 25-031/);
+  mf("b-3 super 25-031 job-cpi twice", row("superintendent", "/app/jobs/25-031", "x", { metricIds: ["job-cpi", "job-cpi", "job-spi"] }), /job-cpi 2 time\(s\)/);
+  console.log("passes: 5.0.4-b checks 2/3 controls (foreman prose page, superintendent 25-031 once each, PM keeps CPI); FAILS as expected: foreman metric/At risk/−$/-$/CPI/SPI, 24-077 pill name/state/missing, superintendent strip/word/metric on cost-item, plan, prose, 25-031 counts");
+}
+
+// ---- 5.0.4-e check 1: the 04-210 cost item page is in crawl504 (lead review of #84) ----
+{
+  const pages = ["/app", "/app/jobs/25-031"];
+  assert.equal(crawl504Want(pages), (4 * 3 * 2 + 2 * 2) * 2, "crawl504 want counts the 8 04-210 loads");
+  const full = [];
+  for (const theme of SPEC_504_THEMES) for (const role of E1_EXTRA.roles) for (const { width } of E1_EXTRA.sizes) full.push({ path: E1_EXTRA.path, role, width, theme });
+  assert.equal(full.length, 8);
+  assert.deepEqual(e1ExtraCoverageFailures(full), []);
+  const short = e1ExtraCoverageFailures(full.filter((r) => !(r.role === "executive" && r.width === 320 && r.theme === "dark")));
+  assert.deepEqual(short, ["5.0.4-e check 1: no dark executive@320 load of /app/jobs/25-031/cost-items/04-210"]);
+  assert.ok(E1_PATHS.includes(E1_EXTRA.path), "evaluateFigures applies e-1 to the 04-210 rows");
+  console.log("FAILS as expected: crawl504 missing the dark executive@320 04-210 load; passes: all 8 04-210 loads, want counts them");
 }

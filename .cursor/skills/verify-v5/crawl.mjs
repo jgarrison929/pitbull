@@ -1,7 +1,7 @@
 // Browser half of the nav crawl: signs in by role card and measures each page. Evaluation lives in
 // checks.mjs (evaluateCrawlRow) so the must-fail tests can drive the same code against a fake server.
 import path from "node:path";
-import { classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, PHONE_OVERFLOW_WIDTHS, secondaryReachable, textHasMoney } from "./checks.mjs";
+import { BODY_FONT_SELECTOR, classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_BODY_FONT_PX, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, PHONE_OVERFLOW_WIDTHS, secondaryReachable, textHasMoney, FIGURE_GUARD, FIGURE_EXCEPTIONS, COMPANY_NAME, NAME_SELECTOR } from "./checks.mjs";
 import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillDiscoveryFailures, drillPath, partCItemFor } from "./drill.mjs";
 import { captureFailure, secretValues, startFailureRecorder } from "./evidence.mjs";
 
@@ -180,10 +180,54 @@ export async function signInRole(page, base, role, timeout = 30000) {
   await page.waitForLoadState("networkidle");
 }
 
-export function contextFor(width) {
-  return width < 768
-    ? { viewport: { width, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
-    : { viewport: { width, height: 900 } };
+export function contextFor(width, height = null, theme = null) {
+  const ctx = width < 768
+    ? { viewport: { width, height: height ?? 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
+    : { viewport: { width, height: height ?? 900 } };
+  if (theme) ctx.colorScheme = theme;
+  return ctx;
+}
+
+/**
+ * 5.0.4 (main 4c9d3539) "Mobile and layout checks": viewports 320×568, 390×844 and 1280×800, light and dark.
+ * ("5.0.4 adds the 568 px tall phone, the 800 px tall desktop, the dark theme pass, and the measures above.")
+ */
+export const SPEC_504_SIZES = [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 1280, height: 800 }];
+export const SPEC_504_THEMES = ["light", "dark"];
+/** Theme cookie read on the server for first paint (v5/src/lib/theme.ts THEME_COOKIE). */
+export const THEME_COOKIE = "pcs_theme";
+
+/** Loads one 5.0.4 theme pass must produce: roles × sizes × pages. */
+export function spec504LoadCount(pages, { roles = CRAWL_ROLES, sizes = SPEC_504_SIZES } = {}) {
+  return roles.length * sizes.length * pages.length;
+}
+
+/**
+ * 5.0.4-e check 1 names `/app/jobs/25-031/cost-items/04-210` for the PM and the executive at 320×568 and 390×844, light
+ * and dark. The nav crawl has no cost-item pages, so crawl504 adds these loads and counts them in its total.
+ */
+export const E1_EXTRA = { path: "/app/jobs/25-031/cost-items/04-210", roles: ["pm", "executive"], sizes: [{ width: 320, height: 568 }, { width: 390, height: 844 }] };
+export function crawl504Want(pages, { themes = SPEC_504_THEMES } = {}) {
+  return (spec504LoadCount(pages) + E1_EXTRA.roles.length * E1_EXTRA.sizes.length) * themes.length;
+}
+/** Every E1_EXTRA role × size × theme load is in the crawl504 rows. */
+export function e1ExtraCoverageFailures(rows, { themes = SPEC_504_THEMES } = {}) {
+  const f = [];
+  for (const theme of themes) for (const role of E1_EXTRA.roles) for (const { width } of E1_EXTRA.sizes) {
+    if (!rows.some((r) => r.path === E1_EXTRA.path && r.role === role && r.width === width && r.theme === theme)) f.push(`5.0.4-e check 1: no ${theme} ${role}@${width} load of ${E1_EXTRA.path}`);
+  }
+  return f;
+}
+
+/** A dark pass that did not render dark (no `dark` class on <html>) proves nothing; same for a light pass. */
+export function themeFailures(rows) {
+  const f = [];
+  for (const r of rows) {
+    if (!r.theme) continue;
+    if (r.htmlTheme == null) f.push(`${r.role}@${r.width}x${r.height ?? "?"} ${r.theme} ${r.path}: theme not recorded`);
+    else if (r.htmlTheme !== r.theme) f.push(`${r.role}@${r.width}x${r.height ?? "?"} ${r.theme} ${r.path}: page rendered ${r.htmlTheme}, pass is ${r.theme}`);
+  }
+  return f;
 }
 
 /** Attach listeners that collect 4xx/5xx responses and console/page errors into `sink` (drained per page). */
@@ -215,7 +259,9 @@ export function jobStripHits(path, hasStrip, hits) {
  * and evaluateCrawlRow's default (phoneChecks false) does not read them.
  */
 function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits) {
-  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, phoneChecks, phoneOverflowWidths, path } = arg;
+  const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, minBody, bodySel, phoneChecks, phoneOverflowWidths, figureGuard, figureExceptions, nameSelector, path } = arg;
+  const FIGURE_GUARD_RE = new RegExp(figureGuard);
+  const FIGURE_EXCEPTION_RES = (figureExceptions ?? []).map((src) => new RegExp(src, "g"));
   const doc = document.documentElement;
   const vw = Math.min(intendedW, window.visualViewport?.width ?? intendedW);
   const sw = Math.max(doc.scrollWidth, document.body?.scrollWidth ?? 0);
@@ -242,6 +288,7 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
   const out = {
     text: document.body?.innerText ?? "",
     hasMain: !!document.querySelector("main"),
+    htmlTheme: document.documentElement.classList.contains("dark") ? "dark" : "light",
     errorBoundaryMarkers: [...document.querySelectorAll(boundarySel)].map((e) => `[data-testid="${e.getAttribute("data-testid")}"]`),
     scrollWidth: sw,
     viewportW: vw,
@@ -299,11 +346,24 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
       const px = parseFloat(getComputedStyle(el).fontSize);
       if (px < minSecondary) pushText("secondary", px, direct);
     }
+    // 5.0.4-c check 2: p, li, td and button ≥ 16 px unless the element itself is data-text="label". A labelled wrapper
+    // does not exempt the p / li / td / button inside it.
+    for (const el of document.querySelectorAll(bodySel)) {
+      if (!shown(el) || el.matches('[data-text="label"]')) continue;
+      const text = oneLine(el.innerText || el.getAttribute("aria-label") || "");
+      if (!text) continue;
+      const px = parseFloat(getComputedStyle(el).fontSize);
+      if (px < minBody) {
+        textMissCount += 1;
+        if (textMisses.length < 8) textMisses.push({ kind: "body", tag: el.tagName.toLowerCase(), px: Math.floor(px * 10) / 10, text: text.slice(0, 40) });
+      }
+    }
   }
   const fullText = (el) => oneLine(el.textContent).slice(0, 80);
   // Self or ancestor (closest) plus a descendant (querySelector). closest does not see descendants.
   const boxHas = (el, selector) => !!el.querySelector(selector) || !!el.closest(selector);
-  const secondarySelector = "[data-testid='job-strip'], [data-testid='company-name'], [data-clip='secondary']";
+  // 5.0.4-b check 8 (main 4c9d3539): the company name must show in full, so it is not a secondary label any more.
+  const secondarySelector = "[data-testid='job-strip'], [data-clip='secondary']";
   const isClipped = (el) => {
     const cs = getComputedStyle(el);
     const hides = cs.overflowX === "hidden" || cs.overflowX === "clip" || (cs.textOverflow === "ellipsis" && cs.overflowX !== "visible");
@@ -392,6 +452,104 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
   out.clips = clips;
   out.clipCount = clips.length;
   out.primaryActions = primaryActions;
+  // 5.0.4-a checks 1, 5, 7 and 9: every next-step label on /app (the overflow line is not a next-step element).
+  const ellipsisOf = (el) => getComputedStyle(el).textOverflow === "ellipsis" || [...el.querySelectorAll("*")].some((c) => getComputedStyle(c).textOverflow === "ellipsis");
+  if (path === "/app") {
+    const steps = [...document.querySelectorAll('[data-testid="next-step"]')];
+    out.nextStepCount = steps.length;
+    out.nextSteps = steps.slice(0, 32).map((el) => {
+      const rect = el.getBoundingClientRect();
+      return { label: oneLine(el.innerText || el.textContent), href: el.getAttribute("href"), visible: shown(el), top: rect.top, viewportH: window.innerHeight, w: rect.width, h: rect.height, ellipsis: ellipsisOf(el), scrollWidth: el.scrollWidth, clientWidth: el.clientWidth };
+    });
+  }
+  // 5.0.4-b checks 1 and 6: one non-empty h1 and one page-purpose of 10 to 90 characters that fits.
+  {
+    const h1s = [...document.querySelectorAll("h1")].filter((e) => shown(e));
+    const purposes = [...document.querySelectorAll('[data-testid="page-purpose"]')].filter((e) => shown(e));
+    const pp = purposes[0];
+    out.titles = {
+      h1Count: h1s.length,
+      h1Texts: h1s.map((e) => oneLine(e.innerText)).slice(0, 4),
+      purposeCount: purposes.length,
+      purpose: pp ? { text: oneLine(pp.innerText).slice(0, 200), len: oneLine(pp.innerText).length, scrollWidth: pp.scrollWidth, clientWidth: pp.clientWidth, ellipsis: ellipsisOf(pp), fontPx: parseFloat(getComputedStyle(pp).fontSize) } : null,
+    };
+  }
+  // 5.0.4-b checks 2 and 3: cost index values and words per role.
+  {
+    const strip = document.querySelector('[data-testid="job-strip"]');
+    out.indexes = {
+      metricIds: [...document.querySelectorAll('[data-testid$="-cpi"], [data-testid$="-spi"]')].filter((e) => shown(e)).map((e) => e.getAttribute("data-testid")),
+      stripText: strip && shown(strip) ? oneLine(strip.innerText) : null,
+      stripMetricIds: strip ? [...strip.querySelectorAll('[data-testid$="-cpi"], [data-testid$="-spi"]')].filter((e) => shown(e)).map((e) => e.getAttribute("data-testid")) : [],
+      stripPills: strip ? [...strip.querySelectorAll("a")].filter((e) => shown(e)).map((e) => oneLine(e.innerText)).slice(0, 16) : [],
+    };
+  }
+  // 5.0.4-b check 7: each job-strip-label has a job number and fits.
+  if (path === "/app" || path.startsWith("/app/")) {
+    out.jobStripLabels = [...document.querySelectorAll('[data-testid="job-strip-label"]')].filter((e) => shown(e)).slice(0, 16).map((e) => ({ text: oneLine(e.innerText).slice(0, 80), scrollWidth: e.scrollWidth, clientWidth: e.clientWidth }));
+  }
+  // 5.0.4-c check 1 and 5.0.4-e check 1: figures per [data-card] and the stray-number guard. Every card is recorded
+  // with its top so the evaluator can apply "above the fold" (c-1) or "above the fold or not" (e-1 phone cost rows).
+  {
+    const fold = window.innerHeight;
+    const strip = (text) => FIGURE_EXCEPTION_RES.reduce((t, re) => t.replace(re, ""), String(text));
+    const cards = [];
+    for (const card of document.querySelectorAll("[data-card]")) {
+      if (!shown(card)) continue;
+      const r = card.getBoundingClientRect();
+      const figs = [...card.querySelectorAll("[data-figure]")].filter((e) => shown(e) && !e.closest("details:not([open]) > :not(summary)"));
+      const stray = [];
+      const w = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        const el = n.parentElement;
+        // A `display: contents` element has no box of its own: its text is visible when its nearest boxed ancestor is.
+        let boxed = el;
+        while (boxed && boxed !== card && getComputedStyle(boxed).display === "contents") boxed = boxed.parentElement;
+        if (!el || el.closest("[data-figure], script, style") || !shown(boxed) || el.closest("details:not([open]) > :not(summary)")) continue;
+        if (nameSelector && el.closest(nameSelector)) continue; // #80: a name element's whole text is dropped first
+        if (el.closest("[data-card]") !== card) continue;
+        const m = strip(n.textContent).match(FIGURE_GUARD_RE);
+        if (m) stray.push(oneLine(n.textContent).slice(0, 60));
+      }
+      const row = card.matches('[data-testid="cost-tree-row"]') && card.closest('[data-testid="cost-tree-scroll-mobile"]');
+      const rollup = row ? Boolean(card.querySelector("button[aria-expanded]")) : false;
+      cards.push({
+        testid: card.getAttribute("data-testid"),
+        code: card.getAttribute("data-code"),
+        top: r.top,
+        aboveFold: r.top < fold,
+        costRow: Boolean(row),
+        rollup,
+        primary: figs.filter((e) => e.getAttribute("data-figure") === "primary").length,
+        secondary: figs.filter((e) => e.getAttribute("data-figure") === "secondary").length,
+        stray: stray.slice(0, 4),
+        money: rollup ? [...card.querySelectorAll("[data-cents]")].filter((e) => shown(e) && !e.closest("details:not([open]) > :not(summary)")).map((e) => ({ text: oneLine(e.innerText), cents: e.getAttribute("data-cents"), title: e.getAttribute("title") })).slice(0, 6) : undefined,
+      });
+    }
+    out.cards = cards.slice(0, 200);
+    out.cardCount = cards.length;
+  }
+  // 5.0.4-b check 8 (#78): `header [data-testid="company-name"]`: no horizontal overflow, text-overflow not ellipsis,
+  // collapsed innerText equal to the seed name, no aria-hidden on it or an ancestor, and the exact name visible as text
+  // inside header (the DOM equivalent of `header.getByText(name, { exact: true })` being visible).
+  if (path === "/app" || path.startsWith("/app/")) {
+    const cn = document.querySelector('header [data-testid="company-name"]');
+    if (!cn || !shown(cn)) out.companyName = { missing: true };
+    else {
+      let ariaHidden = false;
+      for (let a = cn; a; a = a.parentElement) if (a.getAttribute && a.getAttribute("aria-hidden") === "true") ariaHidden = true;
+      const header = cn.closest("header");
+      const exactVisible = [...header.querySelectorAll("*")].some((e) => shown(e) && oneLine(e.textContent) === arg.companyName && ![...e.children].some((c) => oneLine(c.textContent) === arg.companyName));
+      out.companyName = {
+        text: oneLine(cn.innerText),
+        scrollWidth: cn.scrollWidth,
+        clientWidth: cn.clientWidth,
+        textOverflow: getComputedStyle(cn).textOverflow,
+        ariaHidden,
+        exactVisible,
+      };
+    }
+  }
   // 5.0.4-0 clause 2, same gate as the other phone observations: 320 and 390 only.
   // A strip with overflow-x:auto can keep document scrollWidth inside the viewport while a
   // flex-shrink:0 pill's box still ends past clientWidth. Clause 1 does not see that.
@@ -414,6 +572,32 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
     }
     // if (strip) alone would record [] when the element is absent and the row would pass.
     out.stripPastRight = jobStripHits(path, !!strip, stripPastRight);
+    // Whole page, not only job-strip: every visible element under body whose right edge is past clientWidth. A region
+    // the app marks as a horizontal scroller ([data-scroll-x]) is skipped here, and any visible [data-scroll-x] is
+    // recorded on its own (a phone may not scroll sideways at all).
+    const pastRight = [];
+    let pastRightCount = 0;
+    for (const el of document.body.querySelectorAll("*")) {
+      if (el.closest("[data-scroll-x]") || !shown(el)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.right > clientWidth) {
+        pastRightCount += 1;
+        if (pastRight.length < 12) {
+          pastRight.push({
+            tag: el.tagName.toLowerCase(),
+            testid: el.getAttribute("data-testid"),
+            text: oneLine(el.innerText || el.getAttribute("aria-label") || el.textContent).slice(0, 60),
+            right: rect.right,
+            clientWidth,
+          });
+        }
+      }
+    }
+    out.pastRight = { count: pastRightCount, items: pastRight };
+    out.scrollX = [...document.querySelectorAll("[data-scroll-x]")]
+      .filter((el) => shown(el))
+      .slice(0, 8)
+      .map((el) => ({ tag: el.tagName.toLowerCase(), testid: el.getAttribute("data-testid"), text: oneLine(el.innerText || el.textContent).slice(0, 60) }));
   }
   return out;
 }
@@ -446,10 +630,31 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
     minTap: MIN_TAP_PX,
     minSecondary: MIN_SECONDARY_FONT_PX,
     minInput: MIN_INPUT_FONT_PX,
+    minBody: MIN_BODY_FONT_PX,
+    bodySel: BODY_FONT_SELECTOR,
     phoneChecks: phoneChecks === true,
     phoneOverflowWidths: PHONE_OVERFLOW_WIDTHS,
+    figureGuard: FIGURE_GUARD.source,
+    companyName: COMPANY_NAME,
+    figureExceptions: FIGURE_EXCEPTIONS.map((r) => r.source),
+    nameSelector: NAME_SELECTOR,
     path: p,
   });
+  // 5.0.4-a check 1, href clause: every next-step href on /app answers HTTP 200 (page.request in the signed-in context,
+  // no redirect followed, so a bounce to /login is a 3xx and fails).
+  if (phoneChecks === true && Array.isArray(dom.nextSteps)) {
+    const statuses = {};
+    for (const s of dom.nextSteps) {
+      if (!s.href || s.href in statuses) continue;
+      try {
+        const r = await page.request.get(new URL(s.href, base + p).toString(), { maxRedirects: 0 });
+        statuses[s.href] = r.status();
+      } catch (error) {
+        statuses[s.href] = String(error?.message ?? error).split("\n")[0].slice(0, 80);
+      }
+    }
+    dom.nextStepHrefStatus = statuses;
+  }
   if (shotDir) {
     await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });
   }
@@ -485,12 +690,15 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
  * (screenshot, HTML, URL with query, console/page errors, failed requests; see evidence.mjs) while the
  * page still shows it; the failing row gets `evidence: <json file>`. Capture never changes a verdict.
  */
-export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths = CRAWL_WIDTHS, shotDir, onRow, drill, schedule, evidence, phoneChecks = false } = {}) {
+export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths = CRAWL_WIDTHS, heights = null, theme = null, shotDir, onRow, drill, schedule, evidence, phoneChecks = false } = {}) {
   const rows = [];
   const secrets = evidence ? (evidence.secrets ?? secretValues()) : [];
   for (const [ri, role] of roles.entries()) {
     for (const [wi, width] of widths.entries()) {
-      const ctx = await browser.newContext(contextFor(width));
+      const height = heights?.[width] ?? null;
+      const ctx = await browser.newContext(contextFor(width, height, theme));
+      // 5.0.4 theme pass: the server reads the theme cookie for first paint, so set it before any load.
+      if (theme) await ctx.addCookies([{ name: THEME_COOKIE, value: theme, url: base }]);
       const page = await ctx.newPage();
       const sink = { responses: [], console: [], page: [] };
       watch(page, sink);
@@ -503,7 +711,8 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
         mark = failureRecorder?.mark() ?? 0;
         let row;
         try {
-          row = { ...(await measurePage(page, base, href, sink, { width, role, shotDir, phoneChecks })), ...extra };
+          row = { ...(await measurePage(page, base, href, sink, { width, role, shotDir: shotDir && theme ? path.join(shotDir, theme) : shotDir, phoneChecks })), ...extra };
+          if (theme) Object.assign(row, { theme, height: page.viewportSize()?.height ?? height });
         } catch (error) {
           if (evidence) await capture(extra.drill ? "drill" : extra.partC ? `partc-${extra.partC}` : "crawl", href, `load threw: ${String(error?.message ?? error).split("\n")[0]}`);
           throw error;

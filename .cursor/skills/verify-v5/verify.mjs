@@ -34,8 +34,14 @@ import {
   shaMatches,
   slowestRow,
 } from "./checks.mjs";
-import { crawl, CRAWL_ROLES, CRAWL_WIDTHS, expectedNavLoads, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_PATH, SCHEDULE_ROLE_ACCESS, SCHEDULE_ROUTE_FILE, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, scheduleRouteAtCommit, scheduleWidths } from "./crawl.mjs";
-import { DRILL_ROLE_ACCESS, drillCoverageFailures, drillDiscoveryFailures, drillItemCount, drillLoadPlan, expectedDrillLoads, loadSeedCrawlTargets, PART_C_CHECK_4, partCFailures, seedChildEnv } from "./drill.mjs";
+import { evaluateSpeedRows, SPEED_PASSES, speedPass } from "./speed.mjs";
+import { evaluateConfirm504, runConfirm504 } from "./confirm504.mjs";
+import { evaluateField504, runField504 } from "./field504.mjs";
+import { evaluateJourney504, runJourneys504 } from "./journey504.mjs";
+import { demoPathPass, evaluateDemoPath, doneStatePass, evaluateDoneState, evaluatePassRows, pagePass, PASSES as SPEC504_PASSES } from "./spec504.mjs";
+import { AXE_PASSES, AXE_THEMES, axePass, C4_OPTIONS, evaluateAxeRows, loadAxeSource } from "./axe.mjs";
+import { crawl, navCrawlPages, CRAWL_ROLES, SPEC_504_SIZES, SPEC_504_THEMES, spec504LoadCount, crawl504Want, E1_EXTRA, e1ExtraCoverageFailures, themeFailures, CRAWL_WIDTHS, expectedNavLoads, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_PATH, SCHEDULE_ROLE_ACCESS, SCHEDULE_ROUTE_FILE, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, scheduleRouteAtCommit, scheduleWidths } from "./crawl.mjs";
+import { DRILL_ROLE_ACCESS, drillItemList, drillCoverageFailures, drillDiscoveryFailures, drillItemCount, drillLoadPlan, expectedDrillLoads, loadSeedCrawlTargets, PART_C_CHECK_4, partCFailures, seedChildEnv } from "./drill.mjs";
 import { resolveDefaultCommit } from "./default-commit.mjs";
 import { readMainCi, readRelease, resolvePrefix } from "./main-ci.mjs";
 import { runM2, runM4M5 } from "./numbers.mjs";
@@ -47,6 +53,7 @@ import {
   attributeChecks,
   browserFailureCheck,
   buildRcChecks,
+  SPEC504_EXECUTED_ITEMS,
   deployedForMainRule,
   evaluateAppliedJournal,
   evaluateRcHead,
@@ -296,7 +303,7 @@ async function scanBannedVisible(page, label) {
 /** RC handover reads these after the browser run. Unset on a per-PR run. */
 let statusCommitShown = null;
 let migrationsLabel = null;
-const rcSignals = { crawlRan: false, crawlFailures: [] };
+const rcSignals = { crawlRan: false, crawlFailures: [], executed504: false };
 
 let browser;
 try {
@@ -533,6 +540,102 @@ async function navCrawl(browser) {
         (partC.length ? ` — ${partC.slice(0, 6).join("; ")}` : ""),
     );
   });
+  // 5.0.4 "Mobile and layout checks (all slices)" (main 4c9d3539): the spec viewports 320×568, 390×844 and
+  // 1280×800, in light and dark. Runs only with the 5.0.4 phone checks on (rc ≥ 5.0.4 or --phone-checks).
+  if (phoneChecks) {
+    await step("5.0.4 crawl: 4 roles × 320×568/390×844/1280×800 × light/dark", async () => {
+      const heights = Object.fromEntries(SPEC_504_SIZES.map((s) => [s.width, s.height]));
+      const rows = [];
+      for (const theme of SPEC_504_THEMES) {
+        rows.push(...(await crawl(browser, base, { pages, widths: SPEC_504_SIZES.map((s) => s.width), heights, theme, shotDir: path.join(shotDir, "crawl504"), phoneChecks: true, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
+        // 5.0.4-e check 1: the 04-210 cost item page, PM and executive, 320×568 and 390×844.
+        rows.push(...(await crawl(browser, base, { pages: [E1_EXTRA.path], roles: E1_EXTRA.roles, widths: E1_EXTRA.sizes.map((s) => s.width), heights, theme, shotDir: path.join(shotDir, "crawl504"), phoneChecks: true, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
+      }
+      const failures = [...themeFailures(rows), ...e1ExtraCoverageFailures(rows), ...rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks: true }).map((f) => `${r.theme}: ${f}`))];
+      rcSignals.crawlFailures = [...(rcSignals.crawlFailures ?? []), ...failures];
+      const want = crawl504Want(pages);
+      writeFileSync(path.join(outDir, "crawl504.json"), safeJson({ sizes: SPEC_504_SIZES, themes: SPEC_504_THEMES, pages, failures, rows: rows.map((r) => ({ ...r, text: undefined, textChars: r.text.length })) }, SECRETS));
+      check(
+        "5.0.4 crawl: 4 roles × 320×568/390×844/1280×800 × light/dark",
+        failures.length === 0 && rows.length === want,
+        `${rows.length}/${want} loads, ${failures.length} failures` + (failures.length ? ` — ${failures.slice(0, 8).join("; ")}` : ""),
+      );
+    });
+    // 5.0.4-c checks 4 and 8, 5.0.4-i checks 3 and 4 (axe).
+    const axe = loadAxeSource(repo);
+    const axeRuns = [
+      { key: "c-4", name: "5.0.4-c check 4: axe color-contrast 0 on every nav-crawl page, 320×568/390×844/1280×800, light and dark", roles: CRAWL_ROLES, sizes: SPEC_504_SIZES, pages, options: C4_OPTIONS },
+      ...Object.entries(AXE_PASSES).map(([key, p]) => ({ key, ...p })),
+    ];
+    for (const run of axeRuns) {
+      await step(run.name, async () => {
+        const rows = axe.error ? [] : await axePass(browser, base, { ...run, themes: AXE_THEMES, source: axe.source });
+        const failures = axe.error ? [axe.error] : evaluateAxeRows(rows, { toggles: Boolean(run.toggles) });
+        const want = run.roles.length * run.sizes.length * run.pages.length * AXE_THEMES.length;
+        writeFileSync(path.join(outDir, `axe-${run.key}.json`), safeJson({ name: run.name, axeVersion: axe.version ?? null, options: run.options, failures, rows }, SECRETS));
+        check(run.name, failures.length === 0 && rows.length === want, `axe-core ${axe.version ?? "missing"}; ${rows.length}/${want} loads, ${failures.length} failures` + (failures.length ? ` — ${failures.slice(0, 8).join("; ")}` : ""));
+      });
+    }
+    // The spec504.mjs page passes: 5.0.4-a, b, c, d, e, f page checks and 5.0.4-i checks 1, 2, 5, 6.
+    for (const [key, def] of Object.entries(SPEC504_PASSES)) {
+      const pass = { ...def, pages: def.pages ?? pages.filter((p) => p === "/app" || p.startsWith("/app/")) };
+      await step(pass.name, async () => {
+        const rows = await pagePass(browser, base, pass);
+        const failures = evaluatePassRows(pass, rows);
+        const want = pass.roles.length * pass.sizes.length * pass.themes.length * pass.pages.length;
+        writeFileSync(path.join(outDir, `spec504-${key}.json`), safeJson({ name: pass.name, failures, rows }, SECRETS));
+        check(pass.name, failures.length === 0 && rows.length === want, `${rows.length}/${want} loads, ${failures.length} failures` + (failures.length ? ` — ${failures.slice(0, 8).join("; ")}` : ""));
+      });
+    }
+    for (const [key, pass] of Object.entries(SPEED_PASSES)) {
+      await step(pass.name, async () => {
+        const rows = await speedPass(browser, base, pass);
+        const failures = evaluateSpeedRows(pass, rows);
+        const want = pass.roles.length * pass.sizes.length * pass.themes.length * pass.pages.length;
+        writeFileSync(path.join(outDir, `${key}.json`), safeJson({ name: pass.name, failures, rows }, SECRETS));
+        check(pass.name, failures.length === 0 && rows.length === want, `${rows.length}/${want} page sets × 5 runs, ${failures.length} failures` + (failures.length ? ` — ${failures.slice(0, 8).join("; ")}` : ""));
+      });
+    }
+    const G12 = "5.0.4-g checks 1 and 2: demo path links (allowed set, 200, no 4xx/5xx) and Dismiss persists until Reset demo";
+    await step(G12, async () => {
+      const allowed = new Set([...navCrawlPages(seedJobNumbers), ...drillItemList(seedDrill).map((x) => x.path), "/login"]);
+      const d = await demoPathPass(browser, base, allowed);
+      const failures = evaluateDemoPath(d);
+      writeFileSync(path.join(outDir, "spec504-g.json"), safeJson({ name: G12, failures, allowed: [...allowed], d }, SECRETS));
+      check(G12, failures.length === 0, failures.length ? failures.slice(0, 8).join("; ") : `${d.links.length} links OK; dismiss ${JSON.stringify(d.dismiss)}`);
+    });
+    const A4 = "5.0.4-a check 4: foreman done state after both foreman journeys (390×844, one sandbox)";
+    await step(A4, async () => {
+      const d = await doneStatePass(browser, base);
+      const failures = evaluateDoneState(d);
+      writeFileSync(path.join(outDir, "spec504-a-4.json"), safeJson({ name: A4, failures, d }, SECRETS));
+      check(A4, failures.length === 0, failures.length ? failures.join("; ") : `foreman 0 next steps; done "${String(d.foreman?.done ?? "").slice(0, 80)}"; superintendent submit item gone`);
+    });
+    const JR = "5.0.4 first-task journeys: 8 journeys at 390×844 and 1280×800 (tap limit, 1 tap from /app, 0 px scroll to action, 0 4xx/5xx, no dead end, done state)";
+    await step(JR, async () => {
+      const rows = await runJourneys504(browser, base);
+      const failures = rows.flatMap(evaluateJourney504);
+      writeFileSync(path.join(outDir, "spec504-journeys.json"), safeJson({ name: JR, failures, rows }, SECRETS));
+      check(JR, failures.length === 0 && rows.length === 16, `${rows.length}/16 journey runs, ${failures.length} failures` + (failures.length ? ` — ${failures.slice(0, 8).join("; ")}` : ""));
+    });
+    // 5.0.4-h checks 1 to 7 and the #65 regression guard (check 8 is the M2 drive in numberChecks).
+    const H = "5.0.4-h checks 1-7 and the #65 guard: Lock Period / Approve estimate confirm (PM and executive, 390×844 and 1280×800, light and dark)";
+    await step(H, async () => {
+      const o = await runConfirm504(browser, base);
+      const byCheck = evaluateConfirm504(o);
+      writeFileSync(path.join(outDir, "spec504-h.json"), safeJson({ name: H, byCheck, o }, SECRETS));
+      for (const [k, failures] of Object.entries(byCheck)) check(`5.0.4-h ${k}`, failures.length === 0, failures.length ? failures.slice(0, 8).join("; ") : "OK");
+    });
+    // 5.0.4-d checks 3, 4, 5 (field intel checks 2, 10, 3 and 11) and 5.0.4-g check 3, driven at 390×844.
+    const FD = "5.0.4-d checks 3-5 and 5.0.4-g check 3: issue → foreman sees, offline replay, live G/L and posted quantity, demo-path state";
+    await step(FD, async () => {
+      const o = await runField504(browser, base);
+      const byCheck = evaluateField504(o);
+      writeFileSync(path.join(outDir, "spec504-field.json"), safeJson({ name: FD, byCheck, o }, SECRETS));
+      for (const [k, failures] of Object.entries(byCheck)) check(k, failures.length === 0, failures.length ? failures.slice(0, 8).join("; ") : "OK");
+    });
+    rcSignals.executed504 = true; // every 5.0.4 step above ran (each reports its own PASS/FAIL)
+  }
 }
 
 /** M2 / M4 / M5 numbers, read from the job page the user sees. */
@@ -888,6 +991,7 @@ if (rc) {
     crawlFailures: rcSignals.crawlFailures,
     migrationsLabel,
     healthOk,
+    executedItems: rcSignals.executed504 ? SPEC504_EXECUTED_ITEMS : [],
   }));
   const merges = history?.merges ?? [];
   const attributed = attributeChecks(checks, merges);
