@@ -60,9 +60,14 @@ test("draft 26-010 job page: dashes in cost table, no Lock claim", async ({
 
 test("job strip labels draft as Estimate draft", async ({ page }) => {
   await signIn(page, "pm");
-  // Harbor may sit off-screen in the strip; scroll it into view.
-  const strip = page.getByTestId("strip-estimate-draft").first();
-  await strip.scrollIntoViewIfNeeded();
+  // strip-estimate-draft lives on job-strip (Harbor draft) — not the job-page
+  // empty-EV section. Wait for the strip to settle; avoid scrollIntoViewIfNeeded
+  // on a stale node while shell RSC remounts (detach flake).
+  await expect(page.getByTestId("job-strip")).toBeVisible();
+  const strip = page
+    .getByTestId("strip-estimate-draft")
+    .filter({ visible: true })
+    .first();
   await expect(strip).toHaveText("Estimate draft");
 });
 
