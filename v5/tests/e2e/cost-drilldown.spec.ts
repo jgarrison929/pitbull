@@ -52,10 +52,23 @@ for (const role of roles) {
     expect(total).toBe(ac);
 
     await page.goto("/app/jobs/25-031/cost-items/05-120");
-    await expect(page.getByTestId("cost-item-empty-labor")).toHaveText(
-      "Labor posts here when a daily report for this cost item is approved",
+    const emptyLabor = page.getByTestId("cost-item-empty-labor");
+    await expect(emptyLabor).toContainText(
+      "superintendent approves a daily report",
     );
     await expect(page.getByText("No reports yet")).toHaveCount(0);
+    if (role === "foreman") {
+      await expect(
+        emptyLabor.getByRole("link", { name: "Report day's work" }),
+      ).toHaveAttribute("href", "/app/jobs/25-031");
+    } else if (role === "superintendent") {
+      await expect(
+        emptyLabor.getByRole("link", { name: "Open daily plans" }),
+      ).toHaveAttribute("href", "/app/jobs/25-031");
+    } else {
+      await expect(emptyLabor.getByRole("link")).toHaveCount(0);
+      await expect(emptyLabor.getByRole("button")).toHaveCount(0);
+    }
 
     await page.goto("/app/jobs/25-031/changes");
     await expect(page.getByTestId("job-changes-full")).toBeVisible();
