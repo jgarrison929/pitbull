@@ -2155,25 +2155,57 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.deepEqual([w.outcome, w.waitedMs, f.calls.confirm, f.calls.cancel], ["dialog", 300, 0, 0]);
 
   // Every skill drive that clicks a confirmed action calls confirmIfDialog right after the click.
-  const TRIGGER = /co-(approve|reject|void)\b|remove-plan-line|approve-report|return-report|name: \/\^(Approve|Reject|Void|Remove)\$\/|name: "(Approve report|Return to foreman|Remove|Reject|Void)"/;
-  const drives = readdirSync(here).filter((n) => n.endsWith(".mjs") && !n.endsWith(".test.mjs") && n !== "confirm-dialog.mustfail.mjs" && n !== "confirm-dialog.mjs");
-  let triggers = 0;
-  for (const name of drives) {
-    const lines = readFileSync(path.join(here, name), "utf8").split("\n");
+  // PR #65: CO approve/reject/void, plan-line remove, plan approve/return. PR #71: Approve estimate
+  // (approve-estimate) and Lock Period (lock-claim) on the job page.
+  const TRIGGER = /co-(approve|reject|void)\b|remove-plan-line|approve-report|return-report|approve-estimate|lock-claim|name: \/\^(Approve|Reject|Void|Remove)\$\/|name: \/\^?(Approve estimate|Lock( Period| \\w)?)|name: "(Approve report|Return to foreman|Remove|Reject|Void|Approve estimate|Lock Period[^"]*)"|getByText\("(Approve estimate|Lock Period[^"]*)"\)/;
+  const scanDrive = (src) => {
+    const lines = src.split("\n");
+    const out = { triggers: 0, bypass: [] };
     lines.forEach((line, i) => {
       if (!TRIGGER.test(line) || !line.includes(".click(")) return;
-      triggers++;
-      const next = lines.slice(i + 1, i + 4).join("\n");
-      assert.match(next, /await confirmIfDialog\(page,/, `${name}:${i + 1} clicks a confirmed action without confirmIfDialog`);
+      out.triggers++;
+      if (!/await confirmIfDialog\(page,/.test(lines.slice(i + 1, i + 4).join("\n"))) out.bypass.push(i + 1);
     });
+    return out;
+  };
+  // The scan itself must catch a bypass (bad twin) and pass the routed drive (good twin), for each #71 trigger.
+  const twins = [
+    ['await page.getByTestId("approve-estimate").click();', "Approve estimate (test id)"],
+    ['await page.getByTestId("lock-claim").click();', "Lock Period (test id)"],
+    ['await page.getByRole("button", { name: /^Approve estimate$/ }).click();', "Approve estimate (role name)"],
+    ['await page.getByRole("button", { name: "Lock Period 2" }).click();', "Lock Period (role name)"],
+    ['await page.getByRole("button", { name: /^Lock Period 2$/ }).click();', "Lock Period (role regex)"],
+  ];
+  for (const [click, label] of twins) {
+    const bad = scanDrive(`    ${click}\n    await page.waitForFunction(() => true, null, { timeout: T });\n`);
+    assert.deepEqual([bad.triggers, bad.bypass.length], [1, 1], `scan must flag a ${label} click that bypasses confirmIfDialog`);
+    const good = scanDrive(`    ${click}\n    await confirmIfDialog(page, { settled: s, timeout: T });\n`);
+    assert.deepEqual([good.triggers, good.bypass.length], [1, 0], `scan must pass a ${label} click routed through confirmIfDialog`);
   }
-  assert.ok(triggers >= 1, "the CO-001 approve drive in numbers.mjs is found by the trigger scan");
+  const drives = readdirSync(here).filter((n) => n.endsWith(".mjs") && !n.endsWith(".test.mjs") && !n.endsWith(".mustfail.mjs") && n !== "confirm-dialog.mjs");
+  assert.ok(drives.includes("numbers.mjs") && !drives.includes("job-confirm.mustfail.mjs"), "drive list: numbers.mjs in, must-fail probes out");
+  let triggers = 0;
+  const kinds = new Set();
+  for (const name of drives) {
+    const src = readFileSync(path.join(here, name), "utf8");
+    const r = scanDrive(src);
+    triggers += r.triggers;
+    for (const k of ["approve-estimate", "lock-claim", "co-card"]) if (src.includes(k)) kinds.add(k);
+    assert.deepEqual(r.bypass, [], `${name}: line(s) ${r.bypass.join(", ")} click a confirmed action without confirmIfDialog`);
+  }
+  assert.ok(triggers >= 2, "the CO-001 approve drive and the M2 Approve estimate drive in numbers.mjs are found by the trigger scan");
+  assert.ok(kinds.has("approve-estimate"), "the M2 Approve estimate click is in a scanned drive");
   const numbersSrc = readFileSync(path.join(here, "numbers.mjs"), "utf8");
   assert.match(
     numbersSrc,
     /await card\.getByRole\("button", \{ name: \/\^Approve\$\/ \}\)\.click\(\);\n.*\n    await confirmIfDialog\(page, \{ settled: byLabel\(page\.locator\('\[data-testid="co-card"\]\[data-status="approved"\]'\)\)\.first\(\), timeout: T \}\);\n    await byLabel\(page\.locator\('\[data-testid="co-card"\]\[data-status="approved"\]'\)\)\.first\(\)\.waitFor\(\{ timeout: T \}\);/,
   );
-  results.push(`passes: confirmIfDialog confirms only a present ConfirmDialog, throws when confirm fails or the dialog stays, ${triggers} confirmed-action click(s) in the drives call it`);
+  // M2: confirm, then the unchanged approved-status wait (the M2 pass rule lives in evaluateM2, untouched).
+  assert.match(
+    numbersSrc,
+    /await page\.getByTestId\("approve-estimate"\)\.click\(\);\n.*\n    await confirmIfDialog\(page, \{ settled: page\.locator\('\[data-testid="estimate-status"\]\[data-status="approved"\]'\), timeout: T \}\);\n    await page\.waitForFunction\(\n      \(\) => document\.querySelector\('\[data-testid="estimate-status"\]'\)\?\.getAttribute\("data-status"\) === "approved",/,
+  );
+  results.push(`passes: confirmIfDialog confirms only a present ConfirmDialog, throws when confirm fails or the dialog stays, ${triggers} confirmed-action click(s) in the drives call it (incl. M2 Approve estimate), the scan flags ${twins.length} Approve estimate / Lock Period bypass twins`);
 }
 
 // ---- every skill test is named in the Run-it block and in a ci.yml job ----
