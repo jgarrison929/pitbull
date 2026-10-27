@@ -78,7 +78,9 @@
     --brand-foreground: oklch(0.2 0.02 260);
     --positive: oklch(0.52 0.13 155);
     --positive-soft: oklch(0.96 0.04 155);
-    --caution: oklch(0.6 0.14 70);
+    /* Light caution and muted-foreground clear WCAG 2.2 AA (4.5:1) on white,
+       muted, and the status tints. Hue stays amber. Dark overrides are below. */
+    --caution: oklch(0.532 0.115 70);
     --caution-soft: oklch(0.97 0.05 85);
     --negative: oklch(0.55 0.2 20);
     --negative-soft: oklch(0.96 0.03 15);
@@ -99,7 +101,7 @@
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
+    --muted-foreground: oklch(0.525 0 0);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
