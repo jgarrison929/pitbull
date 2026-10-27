@@ -128,6 +128,11 @@ jobs:
         working-directory: v5
         run: npm ci
 
+      # S1-S12 harness before/after fixtures (127.0.0.1, ~1.5 min). Runs here, not in verify-v5-mustfail, because that
+      # job already uses ~15.5 of its 16 minutes.
+      - name: Skill harness-gaps must-fail (127.0.0.1 fixtures)
+        run: node .cursor/skills/verify-v5/harness-gaps.mustfail.test.mjs
+
       - name: Prepare database (pre-deploy step)
         working-directory: v5
         run: npm run db:prepare

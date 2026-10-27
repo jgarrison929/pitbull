@@ -353,9 +353,18 @@ export const PROBES = {
     const main = document.querySelector("main");
     const visible = (e) => shown(e) && !e.closest("details:not([open]) > :not(summary)");
     const labelOf = (f) => { const p = f.previousElementSibling; return p && p.getAttribute("data-text") === "label" ? (p.innerText ?? "").trim() : ""; };
-    const lines = [...document.querySelectorAll('[data-testid="plan-detail-line"]')].filter(shown).map((l) => ({ figures: [...l.querySelectorAll("[data-figure]")].filter(visible).map((f) => ({ text: (f.innerText ?? "").replace(/\s+/g, " ").trim(), label: labelOf(f) })) }));
+    const one = (t) => (t ?? "").replace(/\s+/g, " ").trim();
+    const lines = [...document.querySelectorAll('[data-testid="plan-detail-line"]')].filter(shown).map((l) => {
+      // f-1 (Planner ruling 2026-10-27, #86): the reported figure is `plan-detail-line-reported`.
+      const rep = l.querySelector('[data-testid="plan-detail-line-reported"]');
+      return {
+        figures: [...l.querySelectorAll("[data-figure]")].filter(visible).map((f) => ({ text: one(f.innerText), label: labelOf(f) })),
+        reported: rep ? { visible: visible(rep), text: one(rep.innerText) } : null,
+      };
+    });
+    const status = document.querySelector('[data-testid="plan-detail-status"]');
     const scrollers = main ? [...main.querySelectorAll("*")].filter((e) => shown(e) && e.scrollWidth > e.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(e).overflowX)).length : 0;
-    return { tables: main ? [...main.querySelectorAll("table")].filter(shown).length : 0, past: main ? [...main.querySelectorAll("*")].filter((e) => shown(e) && e.getBoundingClientRect().right > cw + 0.5).length : 0, scrollers, lines };
+    return { tables: main ? [...main.querySelectorAll("table")].filter(shown).length : 0, past: main ? [...main.querySelectorAll("*")].filter((e) => shown(e) && e.getBoundingClientRect().right > cw + 0.5).length : 0, scrollers, lines, planStatus: status ? one(status.getAttribute("data-status") || status.innerText) : null };
   },
   shellTargets: () => {
     const box = (e) => (e && e.getClientRects().length > 0 ? (({ width, height }) => ({ w: width, h: height }))(e.getBoundingClientRect()) : null);
@@ -462,6 +471,41 @@ export async function readKpiRef(browser, base, spec) {
   return { job, code, desktop, phone };
 }
 
+/** S9: the first visible plan-line Edit button, by accessible name ("Edit" once trimmed; the svg adds a leading space). */
+export function editButton(page) {
+  return page.locator("main").getByRole("button", { name: /^\s*Edit\s*$/ }).filter({ visible: true }).first();
+}
+
+/** S4: true when every a-2 target for the role is on the page and the link's anchor (if any) exists. */
+export function firstTargetReady(data) {
+  const t = Object.values(data?.targets ?? {});
+  return t.length > 0 && t.every(Boolean) && data?.anchor?.anchorFound !== false;
+}
+
+/**
+ * S4: poll PROBES.firstTarget until firstTargetReady or the timeout. Returns { ready, waitedMs }. Never throws: the
+ * probe that follows records whatever is (not) there, and evaluateFirstTarget fails a target that never rendered.
+ */
+export async function waitForFirstTarget(page, { role, href }, { timeout = 15000, pollMs = 100 } = {}) {
+  const t0 = Date.now();
+  for (;;) {
+    const data = await page.evaluate(PROBES.firstTarget, { role, href }).catch(() => null);
+    if (firstTargetReady(data)) {
+      // Rendered. Let a hash scroll finish: the target boxes must hold still for one poll (at most 2 s more).
+      let last = JSON.stringify(data.targets);
+      for (const t1 = Date.now(); Date.now() - t1 < 2000;) {
+        await page.waitForTimeout(pollMs);
+        const now = JSON.stringify((await page.evaluate(PROBES.firstTarget, { role, href }).catch(() => null))?.targets ?? null);
+        if (now === last) break;
+        last = now;
+      }
+      return { ready: true, waitedMs: Date.now() - t0 };
+    }
+    if (Date.now() - t0 >= timeout) return { ready: false, waitedMs: Date.now() - t0 };
+    await page.waitForTimeout(pollMs);
+  }
+}
+
 /** One fresh context per role × size × theme: sign in, load each page to network idle, run the probe. */
 export async function pagePass(browser, base, pass) {
   const rows = [];
@@ -504,10 +548,15 @@ export async function pagePass(browser, base, pass) {
                 await page.waitForURL((u) => u.toString() !== before, { timeout: 30000 });
                 await page.waitForLoadState("networkidle");
                 row.landed = page.url().replace(base, "");
+                // S4: a soft navigation changes the URL before the next page renders, so waitForURL and networkidle
+                // return at once. Wait until the role's targets (and the #plan-<id> / co-CO-001 anchor) are on the
+                // page. A target that never renders is still probed after the wait and still fails.
+                row.targetWait = await waitForFirstTarget(page, { role, href: row.clicked.href });
               }
               if (pass.action === "clickEdit") {
                 // d-1: "PlanLineEditor (after **Edit**)": the first visible Edit button on a plan line.
-                const edit = page.locator("main button:visible", { hasText: /^Edit$/ }).first();
+                // S9: the button's text is " Edit" (svg + leading space), so match its trimmed accessible name.
+                const edit = editButton(page);
                 row.clicked = { label: "Edit" };
                 await edit.click({ timeout: 10000 });
                 await page.locator('[data-testid="line-form"]:visible').first().waitFor({ timeout: 10000 });
@@ -794,16 +843,28 @@ export function evaluateKpiFold(r) {
   return f;
 }
 
-/** f-1: each phone plan line shows planned qty, reported qty, planned MH and reported MH as visible figures. */
-export function planLineFailures(line) {
+/** f-1 (#86): before the first report the reported figure reads exactly this. */
+export const NOT_REPORTED_YET = "Not reported yet";
+/** f-1 (#86): after a report, "Reported 12 CY · 22.0 MH": a real quantity, a unit, and real MH. No "—" placeholder. */
+export const REPORTED_FIGURE = /^Reported \d[\d,]*(\.\d+)? \S+ · \d[\d,]*(\.\d+)? MH$/;
+
+/**
+ * f-1: each phone plan line shows planned qty and planned MH as visible figures, plus a visible reported figure
+ * `[data-testid="plan-detail-line-reported"]` that reads exactly "Not reported yet" before the first report, or the
+ * reported quantity and MH after it. "Reported — · — MH" or any other placeholder fails. `draft` (the plan is a draft,
+ * e.g. the Cedar tomorrow plan) allows only "Not reported yet".
+ */
+export function planLineFailures(line, { draft = false } = {}) {
   const f = [];
   const has = (re) => line.figures.some((g) => re.test(`${g.label} ${g.text}`.trim()));
   if (!has(/(^|\s)Planned (?!MH)\S/)) f.push("planned quantity");
-  if (!has(/(^|\s)Reported (?!MH)\S/)) f.push("reported quantity");
-  // MH shows either under its own "Planned MH" / "Reported MH" label or as the MH value inside the planned or reported
-  // figure ("Reported 175 CY · 42.0 MH").
+  // MH shows either under its own "Planned MH" label or as the MH value inside the planned figure.
   if (!has(/Planned MH|(^|\s)Planned .*\d MH\b/)) f.push("planned MH");
-  if (!has(/Reported MH|(^|\s)Reported .*\d MH\b/)) f.push("reported MH");
+  const r = line.reported;
+  if (!r) f.push('reported figure (no [data-testid="plan-detail-line-reported"])');
+  else if (!r.visible) f.push(`reported figure (plan-detail-line-reported "${r.text}" is not visible)`);
+  else if (draft) { if (r.text !== NOT_REPORTED_YET) f.push(`reported figure "${r.text}" on a draft plan (want exactly "${NOT_REPORTED_YET}")`); }
+  else if (r.text !== NOT_REPORTED_YET && !REPORTED_FIGURE.test(r.text)) f.push(`reported figure "${r.text}" (want "${NOT_REPORTED_YET}" before the first report, or "Reported <qty> <unit> · <MH> MH" after it)`);
   return f;
 }
 
@@ -814,8 +875,10 @@ export function evaluatePlanCards(r) {
   if (d.past) f.push(`${at(r)}: ${d.past} element(s) past clientWidth`);
   if (d.scrollers) f.push(`${at(r)}: ${d.scrollers} element(s) in main scroll sideways`);
   if (!d.lines?.length) f.push(`${at(r)}: no visible plan-detail-line`);
+  // The Cedar tomorrow plan (25-031) is a draft (#78/#86); a plan page whose status reads draft is one too.
+  const draft = /^\/app\/jobs\/25-031\b/.test(String(r.path)) || /draft/i.test(d.planStatus ?? "");
   for (const [i, l] of (d.lines ?? []).entries()) {
-    const miss = planLineFailures(l);
+    const miss = planLineFailures(l, { draft });
     if (miss.length) f.push(`${at(r)}: plan line ${i + 1} lacks visible ${miss.join(", ")} (figures: ${l.figures.map((g) => `${g.label}|${g.text}`).join("; ")})`);
   }
   return f;

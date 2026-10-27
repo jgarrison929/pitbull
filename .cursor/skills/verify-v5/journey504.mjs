@@ -61,6 +61,51 @@ export const DEAD_END = () => {
   return { nextStep, done, forward, path: here };
 };
 
+/**
+ * S8, one-tap hook (Planner ruling 2026-10-27, #86): the hook is `data-role` set to the signed-in role. In-page, for
+ * the element `el` the journey is about to tap: the visible elements carrying `data-role="<role>"`, any other visible
+ * `data-role` values, and whether `el` is the hook. Visible: a box, not display:none / visibility:hidden, and not
+ * inside a closed <details> (outside its summary).
+ */
+export const HOOK_PROBE = (el, role) => {
+  const vis = (e) => {
+    if (!e || e.getClientRects().length === 0) return false;
+    for (let a = e; a && a.nodeType === 1; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      if (cs.display === "none" || cs.visibility === "hidden") return false;
+      if (a.tagName === "DETAILS" && !a.open && !(e.closest("summary") && e.closest("summary").parentElement === a)) return false;
+    }
+    return true;
+  };
+  const all = [...document.querySelectorAll("[data-role]")].filter(vis);
+  const mine = all.filter((e) => e.getAttribute("data-role") === role);
+  const label = (e) => `${e.tagName.toLowerCase()}${e.getAttribute("data-testid") ? `[data-testid="${e.getAttribute("data-testid")}"]` : ""} "${(e.innerText ?? "").replace(/\s+/g, " ").trim().slice(0, 40)}"`;
+  const firstStep = [...document.querySelectorAll('[data-testid="next-step"]')].find(vis) ?? null;
+  return {
+    path: location.pathname,
+    count: mine.length,
+    firstStepIsHook: firstStep ? mine.includes(firstStep) : null,
+    hooks: mine.slice(0, 6).map(label),
+    others: all.filter((e) => e.getAttribute("data-role") !== role).slice(0, 6).map((e) => `${label(e)} data-role="${e.getAttribute("data-role")}"`),
+    isTarget: el ? mine.includes(el) : false,
+    targetRole: el ? el.getAttribute("data-role") : null,
+    target: el ? label(el) : null,
+  };
+};
+
+/**
+ * S7: count the app's writes (POST with a Next-Action header) between start and stop only. The old counter stayed
+ * attached for the rest of the run, so the cleanup Reset demo (and the foreman-submit superintendent sign-in) were
+ * counted as the action's posts.
+ */
+export function countWrites(page) {
+  const urls = [];
+  const on = (r) => { if (r.method() === "POST" && r.headers()["next-action"]) urls.push(r.url()); };
+  page.on("request", on);
+  let stopped = false;
+  return { urls, stop() { if (!stopped) { page.off("request", on); stopped = true; } return urls.length; } };
+}
+
 export async function runJourney504(browser, base, key, { width, height }) {
   const J = JOURNEYS504[key];
   const out = { key, name: J.name, role: J.role, width, height, limit: J.limit, entries: [], bad: [], posts: 0 };
@@ -83,7 +128,10 @@ export async function runJourney504(browser, base, key, { width, height }) {
     if (key === "pm-co") { await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" }).catch(() => {}); c.before = { cb: await cents(page, "job-budget"), eac: await cents(page, "job-eac") }; await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
     if (key === "super-approve") { await page.goto(`${base}/app/jobs/24-118`, { waitUntil: "networkidle" }).catch(() => {}); c.before = { ac: await cents(page, "job-actual") }; await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
     const tapsBefore = out.entries.filter((e) => e.kind === "tap").length;
-    await tap(page.locator('[data-testid="next-step"]:visible').nth(idx), `next step "${steps[idx].label.slice(0, 60)}"`);
+    const stepLoc = page.locator('[data-testid="next-step"]:visible').nth(idx);
+    // S8: the /app screen's hook, read on the next-step this journey taps.
+    out.appHook = { ...(await stepLoc.evaluate(HOOK_PROBE, J.role)), tappedIndex: idx };
+    await tap(stepLoc, `next step "${steps[idx].label.slice(0, 60)}"`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(300);
     out.landed = page.url().replace(base, "");
@@ -94,13 +142,23 @@ export async function runJourney504(browser, base, key, { width, height }) {
       out.targetFound = (await loc.count()) > 0;
       if (!out.targetFound) { out.error = `action control not found on ${out.landed}`; return out; }
       out.scrollNeed = await loc.evaluate(SCROLL_NEED);
-      page.on("request", (r) => { if (r.method() === "POST" && r.headers()["next-action"]) out.posts++; });
-      await tap(loc, "action");
-      const r = await confirmIfDialog(page, { settled: J.settled(page, c), timeout: T });
-      if (r.dialog) out.entries.push({ kind: "confirm", action: key, sawOpen: true, role: r.role ?? "alertdialog", label: `confirm ${key}` });
-      await J.settled(page, c).waitFor({ timeout: T });
-      out.settled = true;
-      await page.waitForLoadState("networkidle");
+      // S8: the action screen's hook, read on the control the tap limit counts.
+      out.actionHook = await loc.evaluate(HOOK_PROBE, J.role);
+      const writes = countWrites(page);
+      try {
+        await tap(loc, "action");
+        const r = await confirmIfDialog(page, { settled: J.settled(page, c), timeout: T });
+        if (r.dialog) out.entries.push({ kind: "confirm", action: key, sawOpen: true, role: r.role ?? "alertdialog", label: `confirm ${key}` });
+        await J.settled(page, c).waitFor({ timeout: T });
+        out.settled = true;
+        await page.waitForLoadState("networkidle");
+      } finally {
+        out.posts = writes.stop();
+        out.postUrls = writes.urls.map((u) => u.replace(base, ""));
+      }
+    } else {
+      // S8: read-only end screens (executive, PM forecast) carry no hook.
+      out.endHook = await page.evaluate(HOOK_PROBE, J.role).catch(() => null);
     }
     // Done states
     if (key === "pm-forecast") out.doneState = { costItemPage: /\/cost-items\//.test(out.landed), cb: await page.getByTestId("cost-item-cb").first().isVisible().catch(() => false) };
@@ -129,6 +187,37 @@ export async function runJourney504(browser, base, key, { width, height }) {
 
 export const CO_DELTA_CENTS = 6_000_000;
 
+/**
+ * S8 (#86 "carry the one-tap primary action hook"): on /app exactly one visible `data-role="<role>"`, on the first
+ * next-step, and when this journey taps the first next-step that hook is the tapped element. On the action screen
+ * exactly one visible `data-role="<role>"`, and it is the control the tap limit counts. Read-only end screens carry none.
+ */
+export function hookFailures(r) {
+  const f = [];
+  const desc = (h) => [h.hooks?.length ? `hooks: ${h.hooks.join(", ")}` : "", h.others?.length ? `other data-role: ${h.others.join(", ")}` : ""].filter(Boolean).join("; ");
+  const a = r.appHook;
+  if (!a) f.push("one-tap hook on /app not read");
+  else {
+    if (a.count !== 1) f.push(`/app has ${a.count} visible data-role="${r.role}" element(s) (want exactly 1, on the first next-step)${desc(a) ? ` (${desc(a)})` : ""}`);
+    if (a.count === 1 && a.firstStepIsHook === false) f.push(`/app: the data-role="${r.role}" hook ${a.hooks?.[0] ?? ""} is not the first next-step`);
+    // #86: on /app the first next-step's hook "is the only visible [data-role] element", so any other value fails too.
+    if (a.others?.length) f.push(`/app has other visible data-role element(s) besides the data-role="${r.role}" hook: ${a.others.join(", ")}`);
+    // #86: the PM estimate journey taps the "Approve the estimate" next-step, which carries no data-role.
+    if (r.key === "pm-estimate") { if (a.targetRole != null) f.push(`/app: the "Approve the estimate" next-step carries data-role="${a.targetRole}" (#86: it carries none)`); }
+    else if (a.tappedIndex === 0 && !a.isTarget) f.push(`/app: the tapped first next-step ${a.target} is not the data-role="${r.role}" hook (it has data-role=${a.targetRole == null ? "none" : `"${a.targetRole}"`})`);
+  }
+  if (r.targetFound) {
+    const h = r.actionHook;
+    if (!h) f.push("one-tap hook on the action screen not read");
+    else {
+      if (h.count !== 1) f.push(`action screen ${h.path} has ${h.count} visible data-role="${r.role}" element(s) (want exactly 1, on the measured action)${desc(h) ? ` (${desc(h)})` : ""}`);
+      if (!h.isTarget) f.push(`action screen ${h.path}: the measured action ${h.target} is not the data-role="${r.role}" hook (it has data-role=${h.targetRole == null ? "none" : `"${h.targetRole}"`})`);
+    }
+  }
+  if (r.endHook && r.endHook.count > 0) f.push(`read-only end screen ${r.endHook.path} carries ${r.endHook.count} data-role="${r.role}" element(s) (want none): ${r.endHook.hooks.join(", ")}`);
+  return f;
+}
+
 export function evaluateJourney504(r) {
   const w = `${r.name} @${r.width}x${r.height}`;
   const f = [];
@@ -138,6 +227,7 @@ export function evaluateJourney504(r) {
   if (r.firstActionTaps !== 1) f.push(`${w}: first real action is ${r.firstActionTaps} taps from /app (want exactly 1)`);
   if (r.scrollNeed != null && r.scrollNeed !== 0) f.push(`${w}: scroll to action ${r.scrollNeed} px (want 0 px) on ${r.landed}`);
   if (r.bad.length) f.push(`${w}: ${r.bad.length} response(s) with 4xx/5xx: ${r.bad.slice(0, 3).join("; ")}`);
+  f.push(...hookFailures(r).map((x) => `${w}: ${x}`));
   const d = r.deadEnd;
   if (!d || !(d.nextStep || d.done || d.forward)) f.push(`${w}: dead end on ${d?.path ?? r.landed} (no next-step link, no forward link, no [data-testid$="-done"])`);
   const s = r.doneState ?? {};

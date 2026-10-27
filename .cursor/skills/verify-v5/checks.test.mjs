@@ -2155,10 +2155,15 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.deepEqual([r.dialog, r.outcome, f.calls.confirm, f.calls.waitHidden], [false, "settled", 0, 0]);
   assert.equal(r.waitedMs, 400);
 
-  // #65: the dialog opens, confirm is clicked exactly once, then the dialog must hide.
-  f = fake({ dialogAt: 200 });
+  // #65: the dialog opens, confirm is clicked exactly once, then the dialog must hide and (S10) the posted state show.
+  f = fake({ dialogAt: 200, settledAt: 250 });
   r = await confirmIfDialog(f.page, opts(f, { settled: f.settled }));
   assert.deepEqual([r.dialog, f.calls.confirm, f.calls.cancel, f.calls.waitHidden], [true, 1, 0, 1]);
+  assert.ok(f.at() >= 250, `S10: confirmIfDialog returned at ${f.at()} ms, before the posted state at 250 ms`);
+
+  // S10 must-fail: confirmed and hidden, but the posted state never shows (an aborted or failed save): throw.
+  f = fake({ dialogAt: 200 });
+  await assert.rejects(confirmIfDialog(f.page, opts(f, { settled: f.settled, timeout: 1500 })), /ConfirmDialog confirmed, but the posted state did not appear within 1500 ms/);
 
   // Both visible on the same poll (dialog over an already-updated card): still confirm.
   f = fake({ dialogAt: 100, settledAt: 100 });
@@ -2189,7 +2194,7 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.deepEqual([r.dialog, f.calls.confirm], [true, 1], "a dialog inside the grace window is confirmed");
 
   // A read that throws mid-navigation is one not-visible poll; a strict-mode violation is rethrown.
-  f = fake({ dialogAt: 0, visibleThrows: ["Execution context was destroyed"] });
+  f = fake({ dialogAt: 0, settledAt: 50, visibleThrows: ["Execution context was destroyed"] });
   r = await confirmIfDialog(f.page, opts(f, { settled: f.settled }));
   assert.deepEqual([r.dialog, f.calls.confirm], [true, 1]);
   f = fake({ dialogAt: 0, visibleThrows: ["strict mode violation: getByRole('alertdialog') resolved to 2 elements"] });

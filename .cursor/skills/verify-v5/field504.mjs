@@ -9,13 +9,17 @@
 // - Live gain/loss is `report-gl-04-210`: "Earned 19.2 MH", "Actual 22.0 MH" and "−2.8 MH" (U+2212 or "-").
 // - The posted quantity is `cost-item-installed` on /app/jobs/25-031/cost-items/04-210: after approval it reads 12 more
 //   than before the report.
-// - A reported submission on the server is an `li` in `job-changes-full` on /app/jobs/25-031/changes matching
-//   /Reported day's work/ (the dailyReport.post label), counted against the count before the submit.
+// - d-4 (Planner ruling 2026-10-27, #86): as the foreman on /app/jobs/24-077. A report row is an `li` in
+//   `job-changes-full` on /app/jobs/24-077/changes matching /Reported Culvert Crew A's work on I-5 Culverts for /
+//   (the dailyReport.post summary in server/assistant/actions.ts). S11: the old /Reported day's work/ is the
+//   assistant's action label, not the /changes wording, so it always counted 0.
 // - Demo path steps are the `li` elements in `[data-testid="demo-path"]`, in order. A step is done when the li (or a
 //   descendant) has data-done="true", data-state="done" or data-status="done", or contains a visible element whose
 //   data-testid ends in "-done". Step text is never judged: copy like "Done when 26-010 is approved" is not a done mark.
-// - d-4 counts reported rows three times: before the offline submit, after reconnecting and waiting (before any replay
-//   of ours), and after the 2 replays. The app's own retry must add exactly 1; our replays must add 0.
+// - d-4: a manual Retry is acceptable and an automatic resend is not required. Offline, Report day's work must leave a
+//   visible `report-unsent` holding a `report-retry` "Retry" button; it survives a reload once back online; a
+//   double-click on Retry gives exactly 1 post and 1 report row. An automatic resend that gives exactly 1 post and 1
+//   report row with no Retry press also passes. A post is a POST with a Next-Action header that got a response.
 import { changesPath, contextFor, signInRole } from "./crawl.mjs";
 import { resetDemo } from "./numbers.mjs";
 import { confirmIfDialog } from "./confirm-dialog.mjs";
@@ -26,7 +30,13 @@ export const FIELD_CODE = "04-210";
 export const FIELD_QTY = "12";
 export const FIELD_MH = "22.0";
 export const FIELD_GL = { earned: "19.2", actual: "22.0", gl: "2.8" };
-export const REPORTED_ROW = /Reported day's work/;
+export const OFFLINE_JOB = "24-077";
+/** S11 / #86: the /changes summary the app writes for dailyReport.post ("Reported <crew>'s work on <job> for <date>: …"). */
+export const REPORTED_ROW = /Reported Culvert Crew A's work on I-5 Culverts for /;
+/** Rows (li texts) on /changes that are a report of the d-4 plan. */
+export function countReportRows(texts, re = REPORTED_ROW) {
+  return (texts ?? []).filter((t) => re.test(String(t ?? ""))).length;
+}
 const SIZE = { width: 390, height: 844 };
 
 const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
@@ -41,9 +51,10 @@ async function planStatus(page, id) {
   const c = card(page, id);
   return (await c.count()) ? { visible: true, status: await c.getAttribute("data-status") } : { visible: false, status: null };
 }
-async function reportedRows(page, base) {
-  await open(page, base, changesPath(FIELD_JOB));
-  return page.evaluate((src) => [...document.querySelectorAll('[data-testid="job-changes-full"] li')].filter((li) => new RegExp(src).test(li.innerText ?? "")).length, REPORTED_ROW.source);
+async function reportedRows(page, base, job = OFFLINE_JOB) {
+  await open(page, base, changesPath(job));
+  const texts = await page.evaluate(() => [...document.querySelectorAll('[data-testid="job-changes-full"] li')].map((li) => li.innerText ?? ""));
+  return countReportRows(texts);
 }
 async function installed(page, base) {
   await open(page, base, `/app/jobs/${FIELD_JOB}/cost-items/${FIELD_CODE}`);
@@ -97,7 +108,6 @@ export async function issueReportApproveFlow(browser, base) {
     const gl = card(page, out.planId).getByTestId(`report-gl-${FIELD_CODE}`).first();
     out.liveGl = (await gl.count()) ? oneLine(await gl.innerText()) : null;
     out.steps.push("live G/L");
-    out.reportedBefore = await reportedRows(page, base);
     await open(page, base, `/app/jobs/${FIELD_JOB}`);
     await fillReport(page, out.planId);
     await card(page, out.planId).getByTestId("report-work").first().click({ timeout: T });
@@ -120,45 +130,76 @@ export async function issueReportApproveFlow(browser, base) {
   return out;
 }
 
-/** d-4: offline submit, back online, replay the same request; exactly one reported submission. */
-export async function offlineReplayFlow(browser, base) {
-  const out = { steps: [], replays: [] };
+/** d-4 (#86): foreman on 24-077, offline Report day's work, then an automatic resend or reload + one Retry. */
+export async function offlineRetryFlow(browser, base) {
+  const out = { steps: [], job: OFFLINE_JOB };
   const { ctx, page } = await newSandbox(browser, base, "foreman");
+  // Every write, with whether it reached the server (got a response) or failed (offline / aborted).
   const posts = [];
-  page.on("request", (r) => { if (r.method() === "POST" && r.headers()["next-action"]) posts.push(r); });
+  page.on("request", (r) => {
+    if (r.method() !== "POST" || !r.headers()["next-action"]) return;
+    const p = { url: r.url().replace(base, ""), reached: null };
+    posts.push(p);
+    r.response().then((res) => { p.reached = !!res; p.status = res?.status() ?? null; }, () => { p.reached = false; });
+  });
+  const reachedSince = (mark) => posts.slice(mark).filter((p) => p.reached === true && p.status < 400).length;
+  const unsent = async () => page.evaluate(() => {
+    const vis = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden";
+    const u = [...document.querySelectorAll('[data-testid="report-unsent"]')].find(vis) ?? null;
+    const retry = u ? [...u.querySelectorAll('[data-testid="report-retry"]')].find(vis) ?? null : null;
+    return { unsent: !!u, retry: !!retry, retryTag: retry?.tagName ?? null, retryText: retry ? (retry.innerText ?? "").replace(/\s+/g, " ").trim() : null };
+  });
   try {
-    out.planId = await draftPlanId(page, base);
-    if (!out.planId) { out.error = "no draft plan-card with a visible submit-plan on 25-031"; return out; }
-    await submitPlan(page, out.planId);
-    out.reportedBefore = await reportedRows(page, base);
-    await open(page, base, `/app/jobs/${FIELD_JOB}`);
-    await fillReport(page, out.planId);
+    await open(page, base, `/app/jobs/${OFFLINE_JOB}`);
+    out.planId = await page.evaluate(() => {
+      const vis = (e) => e && e.getClientRects().length > 0;
+      const c = [...document.querySelectorAll('[data-testid="plan-card"]')].find((x) => vis(x) && vis(x.querySelector('[data-testid="report-work"]')));
+      return c?.getAttribute("data-plan-id") ?? null;
+    });
+    if (!out.planId) { out.error = `no plan-card with a visible report-work on ${OFFLINE_JOB}`; return out; }
+    out.rowsBefore = await reportedRows(page, base);
+    await open(page, base, `/app/jobs/${OFFLINE_JOB}`);
+    const c = card(page, out.planId);
+    for (const loc of await c.locator('[data-testid^="report-qty-"]:visible').all()) await loc.fill(FIELD_QTY);
+    for (const loc of await c.locator('[data-testid^="report-mh-"]:visible').all()) await loc.fill(FIELD_MH);
     const mark = posts.length;
     await ctx.setOffline(true);
-    await card(page, out.planId).getByTestId("report-work").first().click({ timeout: T });
+    await c.getByTestId("report-work").first().click({ timeout: T });
     await page.waitForTimeout(2000);
-    out.offlinePosts = posts.length - mark;
+    out.queued = await unsent();
+    out.offlineReached = reachedSince(mark);
     out.steps.push("offline submit");
     await ctx.setOffline(false);
     await page.waitForTimeout(3000);
-    const req = posts[mark];
-    const headers = req ? Object.fromEntries(Object.entries(await req.allHeaders()).filter(([k]) => !/^(content-length|host|connection|:)/i.test(k))) : null;
-    const data = req?.postDataBuffer();
-    // The app's own retry, counted before any replay of ours so our replay can't stand in for missing offline handling.
-    out.reportedOnline = await reportedRows(page, base);
-    out.steps.push("online count");
-    if (!req) { out.error = "no report request was made while offline or after reconnecting, so there is nothing to replay"; return out; }
-    for (let i = 0; i < 2; i++) {
-      const r = await page.request.fetch(req.url(), { method: "POST", headers, data, maxRedirects: 0 }).catch((e) => ({ status: () => String(e.message).split("\n")[0] }));
-      out.replays.push(r.status());
+    out.autoPosts = reachedSince(mark);
+    out.steps.push("back online");
+    if (out.autoPosts > 0) {
+      // An automatic resend: judged on its own posts and rows; the reload and Retry steps are skipped.
+      out.mode = "auto";
+    } else {
+      out.mode = "retry";
+      await page.reload({ waitUntil: "load" });
+      await page.waitForLoadState("networkidle").catch(() => {});
+      out.afterReload = { ...(await unsent()), status: (await planStatus(page, out.planId)).status };
+      out.steps.push("reload");
+      const retry = page.locator('[data-testid="report-unsent"]:visible [data-testid="report-retry"]:visible').first();
+      if (await retry.count()) {
+        const rmark = posts.length;
+        await retry.dblclick({ timeout: T });
+        await page.locator(`[data-testid="plan-card"][data-plan-id="${out.planId}"][data-status="reported"]:visible`).first().waitFor({ timeout: T }).catch(() => {});
+        await page.waitForLoadState("networkidle").catch(() => {});
+        await page.waitForTimeout(1000);
+        out.retryPosts = reachedSince(rmark);
+        out.afterRetry = { ...(await unsent()), status: (await planStatus(page, out.planId)).status };
+        out.steps.push("retry");
+      }
     }
-    out.steps.push("replay");
-    out.reportedAfter = await reportedRows(page, base);
-    await open(page, base, `/app/jobs/${FIELD_JOB}`);
-    out.after = await planStatus(page, out.planId);
+    out.rowsAfter = await reportedRows(page, base);
+    out.steps.push("rows");
   } catch (error) {
     out.error = String(error?.message ?? error).split("\n")[0];
   } finally {
+    out.posts = posts.map((p) => ({ ...p }));
     await ctx.setOffline(false).catch(() => {});
     await resetDemo(page, base).catch(() => {});
     await ctx.close();
@@ -224,20 +265,37 @@ export function evaluateIssueReportApprove(r) {
   return { "d-3": f3, "d-5": f5 };
 }
 
-/** d-4 (field intel check 10). */
-export function evaluateOfflineReplay(r) {
+/** d-4 (field intel check 10, Planner ruling 2026-10-27 #86). */
+export function evaluateOfflineRetry(r) {
   const f = [];
   if (r.error) f.push(`${r.error} (after ${r.steps.join(", ") || "nothing"})`);
   const isCount = (x) => typeof x === "number" && Number.isFinite(x);
-  if (r.steps.includes("online count")) {
-    if (!isCount(r.reportedBefore) || !isCount(r.reportedOnline)) f.push(`reported count before ("${r.reportedBefore}") or after reconnecting ("${r.reportedOnline}") not recorded`);
-    else if (r.reportedOnline - r.reportedBefore !== 1) f.push(`${r.reportedOnline - r.reportedBefore} reported submission(s) after reconnecting, before any replay (want exactly 1 from the app's own retry)`);
-  } else if (!r.error) f.push("online count (after reconnecting, before replay) not recorded");
-  if (!r.steps.includes("replay")) { if (!r.error) f.push("replay not run"); return f; }
-  if (r.replays.length !== 2) f.push(`${r.replays.length} replays (want 2)`);
-  if (!isCount(r.reportedAfter)) f.push(`reported count after the replays ("${r.reportedAfter}") not recorded`);
-  else if (isCount(r.reportedOnline) && r.reportedAfter !== r.reportedOnline) f.push(`${r.reportedAfter - r.reportedOnline} reported submission(s) added by the 2 replays (want 0: ${r.reportedOnline} after reconnecting, ${r.reportedAfter} after replay)`);
-  if (r.after?.status !== "reported") f.push(`plan ${r.planId} is "${r.after?.status}" after the replay (want reported)`);
+  // #86 (59cbf2da): "the page has exactly 1 report row", an absolute count after reset (rowsBefore is evidence only).
+  const rows = isCount(r.rowsAfter) ? r.rowsAfter : null;
+  const rowsText = () => `${rows ?? "unreadable"} report row(s) on /app/jobs/24-077/changes (want exactly 1; ${r.rowsBefore ?? "?"} before the offline submit)`;
+  if (r.steps.includes("offline submit") && r.offlineReached > 0) f.push(`${r.offlineReached} post(s) reached the server while offline (want 0)`);
+  if (r.mode === "auto") {
+    if (r.autoPosts !== 1) f.push(`automatic resend: ${r.autoPosts} post(s) (want exactly 1)`);
+  } else if (r.mode === "retry") {
+    const q = r.queued ?? {};
+    if (!q.unsent) f.push("offline: no visible report-unsent (no visible unsent state)");
+    else if (!q.retry) f.push("offline: report-unsent holds no visible report-retry");
+    else if (q.retryText !== "Retry" || q.retryTag !== "BUTTON") f.push(`offline: report-retry is ${q.retryTag} "${q.retryText}" (want a button "Retry")`);
+    const a = r.afterReload;
+    if (!r.steps.includes("reload")) { if (!r.error) f.push("reload not run"); }
+    else {
+      if (!a?.unsent || !a?.retry) f.push(`after reload: the queued report is lost (report-unsent ${a?.unsent ? "visible" : "gone"}, report-retry ${a?.retry ? "visible" : "gone"})`);
+      if (a?.status !== "issued") f.push(`after reload: plan ${r.planId} is "${a?.status}" (want issued)`);
+    }
+    if (!r.steps.includes("retry")) { if (!r.error && r.steps.includes("reload")) f.push("Retry not pressed: no visible report-retry after the reload"); }
+    else {
+      if (r.retryPosts !== 1) f.push(`a double-click on Retry: ${r.retryPosts} post(s) (want exactly 1)`);
+      if (r.afterRetry?.status !== "reported") f.push(`after Retry plan ${r.planId} is "${r.afterRetry?.status}" (want reported)`);
+      if (r.afterRetry?.unsent) f.push("after Retry: report-unsent is still visible");
+    }
+  } else if (!r.error) f.push("back-online step not run");
+  if (!r.steps.includes("rows")) { if (!r.error) f.push("report rows not counted"); }
+  else if (rows !== 1) f.push(rowsText());
   return f;
 }
 
@@ -263,14 +321,14 @@ export function evaluateDemoState(r) {
 }
 
 export async function runField504(browser, base) {
-  return { flow: await issueReportApproveFlow(browser, base), offline: await offlineReplayFlow(browser, base), demo: await demoStateFlow(browser, base) };
+  return { flow: await issueReportApproveFlow(browser, base), offline: await offlineRetryFlow(browser, base), demo: await demoStateFlow(browser, base) };
 }
 
 export function evaluateField504(o) {
   const ira = evaluateIssueReportApprove(o.flow);
   return {
     "5.0.4-d check 3 (field intel check 2): superintendent issues, foreman sees it issued at 390×844": ira["d-3"],
-    "5.0.4-d check 4 (field intel check 10): offline submit, replay, exactly one reported submission": evaluateOfflineReplay(o.offline),
+    "5.0.4-d check 4 (field intel check 10): offline report survives a reload, one Retry (or one automatic resend) posts exactly once": evaluateOfflineRetry(o.offline),
     "5.0.4-d check 5 (field intel checks 3 and 11): live G/L 19.2 / 22.0 / −2.8 MH and posted quantity": ira["d-5"],
     "5.0.4-g check 3: State is real (26-010 approved → demo-path steps 1 and 2 done)": evaluateDemoState(o.demo),
   };
