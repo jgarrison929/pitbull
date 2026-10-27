@@ -1,9 +1,22 @@
 import { expect, test, type Page } from "@playwright/test";
+import { THEME_COOKIE } from "@/lib/theme";
 
 async function signIn(page: Page, role: string) {
   await page.goto("/login");
   await page.getByTestId(`role-${role}`).click();
   await expect(page).toHaveURL(/\/app$/);
+}
+
+async function seedDarkTheme(page: Page, baseURL: string | undefined) {
+  await page.context().addCookies([
+    {
+      name: THEME_COOKIE,
+      value: "dark",
+      url: baseURL ?? "http://localhost:3100",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
 }
 
 async function cents(page: Page, testId: string) {
@@ -146,22 +159,33 @@ test("EV path draws on job S-curve (not a lone M / 0×0 bbox)", async ({
   await expectEarnedPathDrawn(page, "s-curve");
 });
 
-test("axis tick labels stay inside the svg viewport (desktop + phone)", async ({
+test("axis tick labels stay inside the svg viewport (light + dark, 1440→320)", async ({
   page,
+  baseURL,
 }) => {
-  await signIn(page, "pm");
-  for (const width of [1440, 1280, 768, 390, 320] as const) {
-    await page.setViewportSize({ width, height: width <= 390 ? 844 : 900 });
-    await page.goto("/app/jobs/25-031");
-    await expect(page.getByTestId("s-curve")).toBeVisible();
-    await expectTicksInsideSvg(page, "s-curve");
-  }
-  await signIn(page, "executive");
-  for (const width of [1440, 390, 320] as const) {
-    await page.setViewportSize({ width, height: width <= 390 ? 844 : 900 });
-    await page.goto("/app");
-    await expect(page.getByTestId("portfolio-s-curve")).toBeVisible();
-    await expectTicksInsideSvg(page, "portfolio-s-curve");
+  const widths = [1440, 1280, 768, 390, 320] as const;
+  for (const theme of ["light", "dark"] as const) {
+    await page.context().clearCookies();
+    if (theme === "dark") await seedDarkTheme(page, baseURL);
+    await signIn(page, "pm");
+    if (theme === "dark") {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    }
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: width <= 390 ? 844 : 900 });
+      await page.goto("/app/jobs/25-031");
+      await expect(page.getByTestId("s-curve")).toBeVisible();
+      await expectTicksInsideSvg(page, "s-curve");
+    }
+    await page.goto("/login");
+    await page.getByTestId("role-executive").click();
+    await expect(page).toHaveURL(/\/app$/);
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: width <= 390 ? 844 : 900 });
+      await page.goto("/app");
+      await expect(page.getByTestId("portfolio-s-curve")).toBeVisible();
+      await expectTicksInsideSvg(page, "portfolio-s-curve");
+    }
   }
 });
 
@@ -174,7 +198,7 @@ test("phone axis ticks are readable at 320 and 390", async ({ page }) => {
     await expect(tick).toBeVisible();
     const box = await tick.boundingBox();
     expect(box, `${width}px tick bbox`).toBeTruthy();
-    // Floor: TICK_FONT=22 in the 720 viewBox → ~9px at 320, ~11px at 390.
+    // Floor: TICK_FONT=24 in the 720 viewBox → ≥9px at 320/390.
     expect(box!.height, `${width}px tick height`).toBeGreaterThanOrEqual(9);
     expect(box!.width, `${width}px tick width`).toBeGreaterThan(0);
     await expectTicksInsideSvg(page, "s-curve");
