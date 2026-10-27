@@ -82,11 +82,13 @@ export async function runJourney504(browser, base, key, { width, height }) {
     c.planId = planIdOf(c.href);
     if (key === "pm-co") { await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" }).catch(() => {}); c.before = { cb: await cents(page, "job-budget"), eac: await cents(page, "job-eac") }; await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
     if (key === "super-approve") { await page.goto(`${base}/app/jobs/24-118`, { waitUntil: "networkidle" }).catch(() => {}); c.before = { ac: await cents(page, "job-actual") }; await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
+    const tapsBefore = out.entries.filter((e) => e.kind === "tap").length;
     await tap(page.locator('[data-testid="next-step"]:visible').nth(idx), `next step "${steps[idx].label.slice(0, 60)}"`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(300);
     out.landed = page.url().replace(base, "");
-    out.firstActionTaps = 1; // the next-step link is the only tap between /app and the action page
+    // Measured: taps recorded from /app until the action control is on the landed page (checked below).
+    out.firstActionTaps = out.entries.filter((e) => e.kind === "tap").length - tapsBefore;
     if (J.target) {
       const loc = J.target(page, c).first();
       out.targetFound = (await loc.count()) > 0;

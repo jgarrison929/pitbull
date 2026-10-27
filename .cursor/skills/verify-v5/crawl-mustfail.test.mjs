@@ -95,6 +95,13 @@ const PAGES = {
   // 5.0.4-c check 2 (main 4c9d3539): text ≥ 14 px, p/li/td/button ≥ 16 px unless data-text="label".
   "/phone/text-13": () => bare(`<span style="font-size:13px">Thirteen px label</span>`),
   "/phone/body-15": () => bare(`<p style="font-size:15px">Fifteen px paragraph</p>`),
+  // c-2 exemption is the element's own data-text="label", not a labelled wrapper: a 14 px li inside one still fails.
+  // Whole-page right edge (lead review of #84): a 420 px row inside an overflow:hidden box keeps document scrollWidth at
+  // the viewport, but its own right edge is past clientWidth. A [data-scroll-x] scroller is skipped by that scan and
+  // fails on its own.
+  "/phone/past-right": () => bare(`<h1 style="font-size:20px">Edge</h1><p data-testid="page-purpose" style="font-size:16px">A row past the right edge.</p><div style="overflow:hidden"><div data-testid="wide-row" style="width:420px;font-size:16px">Wide KPI row</div></div>`),
+  "/phone/scroll-x": () => bare(`<h1 style="font-size:20px">Scroll</h1><p data-testid="page-purpose" style="font-size:16px">A sideways scroller on a phone.</p><div data-scroll-x data-testid="wide-table" style="overflow-x:auto"><div style="width:600px;font-size:16px">Wide table</div></div>`),
+  "/phone/li-in-label": () => bare(`<div data-text="label"><ul><li style="font-size:14px">Fourteen px list item</li></ul></div>`),
   "/phone/body-ok": () => bare(`<h1 style="font-size:20px">Body text</h1><p data-testid="page-purpose" style="font-size:16px">Body text sizes on a phone screen.</p><span style="font-size:14px">Fourteen px label</span><p style="font-size:16px">Sixteen px paragraph</p><p data-text="label" style="font-size:14px">Labelled fourteen px meta</p>`),
   // 5.0.4 theme pass: the page reads the theme cookie like the app's layout (cookie → <html class="dark">).
   "/theme/honors": (req) => {
@@ -281,6 +288,7 @@ let evRows;
 let phoneBadRows;
 let phonePassRows;
 let textRows;
+let edgeRows;
 let themeRows;
 let foldRows;
 let cnRows;
@@ -334,7 +342,8 @@ try {
     h844: await crawl(browser, base, { pages: ["/app"], roles: ["pm"], widths: [320], phoneChecks: true }),
   };
   await fetch(`${base}/__landing?mode=good`);
-  textRows = await crawl(browser, base, { pages: ["/phone/text-13", "/phone/body-15", "/phone/body-ok"], roles: ["pm"], widths: [320, 390], phoneChecks: true });
+  edgeRows = await crawl(browser, base, { pages: ["/phone/past-right", "/phone/scroll-x", "/phone/body-ok"], roles: ["pm"], widths: [320, 390], phoneChecks: true });
+  textRows = await crawl(browser, base, { pages: ["/phone/text-13", "/phone/body-15", "/phone/li-in-label", "/phone/body-ok"], roles: ["pm"], widths: [320, 390], phoneChecks: true });
   phonePassRows = await crawl(browser, base, { pages: ["/phone/secondary-title", "/phone/expand-real", "/phone/aria-label", "/phone/money-fits"], roles: ["pm"], widths: [320], phoneChecks: true });
   phoneRuleRows = await crawl(browser, base, {
     pages: ["/phone/nine", "/phone/money-in-secondary", "/phone/status-in-secondary", "/phone/th-in-secondary", "/phone/hard-clip", "/phone/link-reach", "/phone/h1", "/phone/ancestor-title", "/phone/title-contains", "/phone/expand-fake", "/phone/money-beside-label", "/phone/budget-money"],
@@ -449,6 +458,18 @@ for (const width of [390, 1280]) {
     const b15 = evaluatePhoneUx(textRows.find((r) => r.path === "/phone/body-15" && r.width === width));
     assert.ok(b15.some((x) => /body text p 15px < 16px/.test(x)), `15 px paragraph must fail the 16 px body rule at ${width}; got ${JSON.stringify(b15)}`);
     lines.push(`FAILS as expected: /phone/body-15@${width} → ${b15.find((x) => /body text/.test(x))}`);
+    const pr = evaluatePhoneUx(edgeRows.find((r) => r.path === "/phone/past-right" && r.width === width));
+    assert.ok(pr.some((x) => new RegExp(`div\\[data-testid="wide-row"\\] "Wide KPI row" right 420 > clientWidth ${width}`).test(x)), `a 420 px row must fail the right-edge scan at ${width}; got ${JSON.stringify(pr)}`);
+    lines.push(`FAILS as expected: /phone/past-right@${width} → ${pr.find((x) => /wide-row/.test(x))}`);
+    const sx = evaluatePhoneUx(edgeRows.find((r) => r.path === "/phone/scroll-x" && r.width === width));
+    assert.ok(sx.some((x) => /visible \[data-scroll-x\] div\[data-testid="wide-table"\]/.test(x)), `a visible [data-scroll-x] must fail at ${width}; got ${JSON.stringify(sx)}`);
+    assert.ok(!sx.some((x) => /right 600/.test(x)), `the right-edge scan must skip inside [data-scroll-x]; got ${JSON.stringify(sx)}`);
+    lines.push(`FAILS as expected: /phone/scroll-x@${width} → ${sx.find((x) => /data-scroll-x/.test(x))}`);
+    const edgeOk = evaluatePhoneUx(edgeRows.find((r) => r.path === "/phone/body-ok" && r.width === width));
+    assert.deepEqual(edgeOk, [], `body-ok must pass the right-edge scan at ${width}; got ${JSON.stringify(edgeOk)}`);
+    const li = evaluatePhoneUx(textRows.find((r) => r.path === "/phone/li-in-label" && r.width === width));
+    assert.ok(li.some((x) => /body text li 14px < 16px/.test(x)), `a 14 px li inside a data-text="label" wrapper must fail at ${width}; got ${JSON.stringify(li)}`);
+    lines.push(`FAILS as expected: /phone/li-in-label@${width} → ${li.find((x) => /body text li/.test(x))}`);
     const ok = evaluatePhoneUx(textRows.find((r) => r.path === "/phone/body-ok" && r.width === width));
     assert.deepEqual(ok, [], `14 px label, 16 px paragraph and a data-text="label" paragraph must pass at ${width}; got ${JSON.stringify(ok)}`);
     lines.push(`passes: /phone/body-ok@${width} (14 px label, 16 px p, data-text="label" p at 14 px)`);

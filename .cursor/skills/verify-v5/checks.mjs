@@ -171,8 +171,8 @@ export const NEXT_STEP_LABEL_WIDTHS = [390, 1280];
 
 /**
  * 5.0.4-a checks 1, 5, 9 on one /app row (row.nextSteps from measurePage with phone checks on).
- * Check 1 here is the count clause (≥ 1 next step whose top is above the viewport height); the href HTTP 200 clause
- * is not read from the crawl row.
+ * Check 1: the count clause (≥ 1 next step whose top is above the viewport height) and the href clause (every next-step
+ * href answers HTTP 200, row.nextStepHrefStatus from measurePage; a next step with no href or an unchecked href FAILS).
  */
 export function evaluateNextSteps(row) {
   if (row.path !== "/app" || !Array.isArray(row.nextSteps)) return [];
@@ -183,6 +183,11 @@ export function evaluateNextSteps(row) {
   for (const s of row.nextSteps) {
     const label = String(s.label ?? "");
     const first = label.trim().split(/\s+/)[0] ?? "";
+    // Check 1, href clause.
+    const st = row.nextStepHrefStatus;
+    if (!s.href) f.push(`${where}: 5.0.4-a check 1: next-step "${clipLabel(label)}" has no href`);
+    else if (!st || !(s.href in st)) f.push(`${where}: 5.0.4-a check 1: next-step "${clipLabel(label)}" href ${s.href} not requested`);
+    else if (st[s.href] !== 200) f.push(`${where}: 5.0.4-a check 1: next-step "${clipLabel(label)}" href ${s.href} answered ${st[s.href]} (want 200)`);
     if (!NEXT_STEP_VERBS.includes(first)) f.push(`${where}: 5.0.4-a check 5: next-step "${clipLabel(label)}" starts with "${first}", not one of ${NEXT_STEP_VERBS.join(", ")}`);
     if (NEXT_STEP_LABEL_WIDTHS.includes(row.width)) {
       if (!NEXT_STEP_JOB_NUMBER.test(label)) f.push(`${where}: 5.0.4-a check 9: next-step "${clipLabel(label)}" has no job number`);
@@ -380,6 +385,19 @@ export function evaluatePhoneUx(row) {
       }
       f.push(`${where}: job-strip element "${clipLabel(hit.text)}" right ${px(hit.right)} > clientWidth ${px(hit.clientWidth)}`);
     }
+  }
+  // 5.0.4-0 right edge, whole page (lead review of #84): at 320 and 390 every visible element under body ends at or
+  // before clientWidth, outside [data-scroll-x]; and no visible [data-scroll-x] on a phone. Not recorded is a FAIL.
+  if (PHONE_OVERFLOW_WIDTHS.includes(width)) {
+    if (!row.pastRight || !Array.isArray(row.pastRight.items)) f.push(`${where}: right-edge scan not recorded`);
+    else {
+      for (const hit of row.pastRight.items) {
+        f.push(`${where}: ${hit.tag}${hit.testid ? `[data-testid="${hit.testid}"]` : ""} "${clipLabel(hit.text)}" right ${px(hit.right)} > clientWidth ${px(hit.clientWidth)}`);
+      }
+      if (row.pastRight.count > row.pastRight.items.length) f.push(`${where}: ${row.pastRight.count} elements past the right edge, ${row.pastRight.items.length} listed`);
+    }
+    if (!Array.isArray(row.scrollX)) f.push(`${where}: [data-scroll-x] scan not recorded`);
+    else for (const s of row.scrollX) f.push(`${where}: visible [data-scroll-x] ${s.tag}${s.testid ? `[data-testid="${s.testid}"]` : ""} "${clipLabel(s.text)}" (no sideways scrolling on phones)`);
   }
   if (Number.isFinite(width) && width <= PHONE_MAX_PX) {
     for (const t of row.tapMisses ?? []) {

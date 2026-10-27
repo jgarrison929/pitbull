@@ -36,10 +36,11 @@ import {
 } from "./checks.mjs";
 import { evaluateSpeedRows, SPEED_PASSES, speedPass } from "./speed.mjs";
 import { evaluateConfirm504, runConfirm504 } from "./confirm504.mjs";
+import { evaluateField504, runField504 } from "./field504.mjs";
 import { evaluateJourney504, runJourneys504 } from "./journey504.mjs";
 import { demoPathPass, evaluateDemoPath, doneStatePass, evaluateDoneState, evaluatePassRows, pagePass, PASSES as SPEC504_PASSES } from "./spec504.mjs";
 import { AXE_PASSES, AXE_THEMES, axePass, C4_OPTIONS, evaluateAxeRows, loadAxeSource } from "./axe.mjs";
-import { crawl, navCrawlPages, CRAWL_ROLES, SPEC_504_SIZES, SPEC_504_THEMES, spec504LoadCount, themeFailures, CRAWL_WIDTHS, expectedNavLoads, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_PATH, SCHEDULE_ROLE_ACCESS, SCHEDULE_ROUTE_FILE, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, scheduleRouteAtCommit, scheduleWidths } from "./crawl.mjs";
+import { crawl, navCrawlPages, CRAWL_ROLES, SPEC_504_SIZES, SPEC_504_THEMES, spec504LoadCount, crawl504Want, E1_EXTRA, e1ExtraCoverageFailures, themeFailures, CRAWL_WIDTHS, expectedNavLoads, navCrawlPlan, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_PATH, SCHEDULE_ROLE_ACCESS, SCHEDULE_ROUTE_FILE, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, scheduleRouteAtCommit, scheduleWidths } from "./crawl.mjs";
 import { DRILL_ROLE_ACCESS, drillItemList, drillCoverageFailures, drillDiscoveryFailures, drillItemCount, drillLoadPlan, expectedDrillLoads, loadSeedCrawlTargets, PART_C_CHECK_4, partCFailures, seedChildEnv } from "./drill.mjs";
 import { resolveDefaultCommit } from "./default-commit.mjs";
 import { readMainCi, readRelease, resolvePrefix } from "./main-ci.mjs";
@@ -547,10 +548,12 @@ async function navCrawl(browser) {
       const rows = [];
       for (const theme of SPEC_504_THEMES) {
         rows.push(...(await crawl(browser, base, { pages, widths: SPEC_504_SIZES.map((s) => s.width), heights, theme, shotDir: path.join(shotDir, "crawl504"), phoneChecks: true, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
+        // 5.0.4-e check 1: the 04-210 cost item page, PM and executive, 320×568 and 390×844.
+        rows.push(...(await crawl(browser, base, { pages: [E1_EXTRA.path], roles: E1_EXTRA.roles, widths: E1_EXTRA.sizes.map((s) => s.width), heights, theme, shotDir: path.join(shotDir, "crawl504"), phoneChecks: true, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
       }
-      const failures = [...themeFailures(rows), ...rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks: true }).map((f) => `${r.theme}: ${f}`))];
+      const failures = [...themeFailures(rows), ...e1ExtraCoverageFailures(rows), ...rows.flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks: true }).map((f) => `${r.theme}: ${f}`))];
       rcSignals.crawlFailures = [...(rcSignals.crawlFailures ?? []), ...failures];
-      const want = spec504LoadCount(pages) * SPEC_504_THEMES.length;
+      const want = crawl504Want(pages);
       writeFileSync(path.join(outDir, "crawl504.json"), safeJson({ sizes: SPEC_504_SIZES, themes: SPEC_504_THEMES, pages, failures, rows: rows.map((r) => ({ ...r, text: undefined, textChars: r.text.length })) }, SECRETS));
       check(
         "5.0.4 crawl: 4 roles × 320×568/390×844/1280×800 × light/dark",
@@ -622,6 +625,14 @@ async function navCrawl(browser) {
       const byCheck = evaluateConfirm504(o);
       writeFileSync(path.join(outDir, "spec504-h.json"), safeJson({ name: H, byCheck, o }, SECRETS));
       for (const [k, failures] of Object.entries(byCheck)) check(`5.0.4-h ${k}`, failures.length === 0, failures.length ? failures.slice(0, 8).join("; ") : "OK");
+    });
+    // 5.0.4-d checks 3, 4, 5 (field intel checks 2, 10, 3 and 11) and 5.0.4-g check 3, driven at 390×844.
+    const FD = "5.0.4-d checks 3-5 and 5.0.4-g check 3: issue → foreman sees, offline replay, live G/L and posted quantity, demo-path state";
+    await step(FD, async () => {
+      const o = await runField504(browser, base);
+      const byCheck = evaluateField504(o);
+      writeFileSync(path.join(outDir, "spec504-field.json"), safeJson({ name: FD, byCheck, o }, SECRETS));
+      for (const [k, failures] of Object.entries(byCheck)) check(k, failures.length === 0, failures.length ? failures.slice(0, 8).join("; ") : "OK");
     });
     rcSignals.executed504 = true; // every 5.0.4 step above ran (each reports its own PASS/FAIL)
   }

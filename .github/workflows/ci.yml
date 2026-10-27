@@ -190,6 +190,7 @@ jobs:
           node .cursor/skills/verify-v5/speed-eval.test.mjs
           node .cursor/skills/verify-v5/confirm504-eval.test.mjs
           node .cursor/skills/verify-v5/journey504-eval.test.mjs
+          node .cursor/skills/verify-v5/field504-eval.test.mjs
           node .cursor/skills/verify-v5/confirm504-mustfail.test.mjs
           node .cursor/skills/verify-v5/spec504-probes-mustfail.test.mjs
 

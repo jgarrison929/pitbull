@@ -387,17 +387,16 @@ export function evaluateRcAcceptance(items, executed) {
   return (items ?? []).filter((item) => !done.has(item.section) && !done.has(`${item.section}: ${item.title}`)).map((item) => `${item.section}: "${item.title}" is not executed`);
 }
 
-/** The 5.0.4 acceptance items (spec at main 05cd947c, #80) that verify.mjs runs with the 5.0.4 phone checks on. Not here,
- * so still "not executed": 5.0.4-d "Must still pass: field intel check 2", "… check 10", "… checks 3 and 11" (v5 e2e
- * tests, not Verify) and 5.0.4-g "State is real.". */
+/** The 5.0.4 acceptance items (spec at main 05cd947c, #80) that verify.mjs runs with the 5.0.4 phone checks on: all of
+ * them, including 5.0.4-d field intel checks 2, 10, 3 and 11 and 5.0.4-g "State is real." (field504.mjs). */
 export const SPEC504_EXECUTED_ITEMS = [
   ...["At least one next step above the fold.", "One tap to the first action.", "Foreman home order.", "Done state.", "Verb-first labels.", "Seeded count.", "Labels wrap.", "Collapsed assistant.", "Job number and amount in labels."].map((t) => `5.0.4-a: ${t}`),
   ...["Title and purpose on every page.", "Foreman sees no cost indexes.", "Superintendent sees cost index values on the job page only.", "Plain words on first use.", "At-risk summary.", "Purpose line fits.", "Job pill shows the number.", "Company name readable."].map((t) => `5.0.4-b: ${t}`),
   ...["Figures per card.", "Text size.", "Tap targets.", "Contrast.", "No hard-coded status colors.", "Color is never the only signal.", "Tabular figures.", "Full axe on the pages 5.0.4-e touches."].map((t) => `5.0.4-c: ${t}`),
-  ...["No required field behind a tap.", "One figure per plan card.", "Primary button full width."].map((t) => `5.0.4-d: ${t}`),
+  ...["No required field behind a tap.", "One figure per plan card.", "Must still pass: field intel check 2.", "Must still pass: field intel check 10.", "Must still pass: field intel checks 3 and 11.", "Primary button full width."].map((t) => `5.0.4-d: ${t}`),
   ...["Figures per card", "No table on phones.", "Numbers unchanged.", "Phone cost rows fit.", "Phone KPI fold."].map((t) => `5.0.4-e: ${t}`),
   "5.0.4-f: Plan lines as cards on phones.",
-  ...["Links work.", "Dismiss persists.", "Banned strings."].map((t) => `5.0.4-g: ${t}`),
+  ...["Links work.", "Dismiss persists.", "State is real.", "Banned strings."].map((t) => `5.0.4-g: ${t}`),
   ...["Confirm step before Lock Period.", "Cancel writes nothing.", "Confirm writes once.", "Approve estimate, cancel then confirm.", "Keyboard.", "Phones.", "Roles.", "Verify drives."].map((t) => `5.0.4-h: ${t}`),
   ...["Chips stay on screen.", "Cost-item KPI cards fit.", "Toggle names.", "List markup.", "Shell targets.", "Words next to color."].map((t) => `5.0.4-i: ${t}`),
 ];

@@ -10,6 +10,8 @@ const taps = (k) => [{ kind: "tap", label: "role card" }, { kind: "tap", label: 
 const row = (key, o = {}) => ({ key, name: JOURNEYS504[key].name, role: JOURNEYS504[key].role, width: 390, height: 844, limit: JOURNEYS504[key].limit, entries: taps(!!JOURNEYS504[key].target), bad: [], posts: 1, firstActionTaps: 1, scrollNeed: JOURNEYS504[key].target ? 0 : undefined, landed: "/app/jobs/25-031#plan-41", deadEnd: { nextStep: false, done: false, forward: true, path: "/app/jobs/25-031" }, doneState: { itemLeft: [] }, ...o });
 
 ok("super-submit control", evaluateJourney504(row("super-submit")));
+bad("first action 2 taps from /app (measured)", evaluateJourney504(row("super-submit", { firstActionTaps: 2 })), /first real action is 2 taps from \/app/);
+bad("first action not measured", evaluateJourney504(row("super-submit", { firstActionTaps: undefined })), /first real action is undefined taps/);
 ok("confirm click is not a tap", evaluateJourney504(row("pm-estimate", { entries: [...taps(true), { kind: "confirm", action: "pm-estimate", sawOpen: true, role: "alertdialog", label: "confirm" }], doneState: {} })));
 bad("4 taps (extra tap)", evaluateJourney504(row("super-submit", { entries: [...taps(true), { kind: "tap", label: "user menu" }] })), /4 counted taps > 3/);
 bad("double confirm counts", evaluateJourney504(row("pm-estimate", { entries: [...taps(true), { kind: "confirm", action: "pm-estimate", sawOpen: true, role: "alertdialog", label: "c1" }, { kind: "confirm", action: "pm-estimate", sawOpen: true, role: "alertdialog", label: "c2" }], doneState: {} })), /4 counted taps > 3/);
@@ -29,3 +31,7 @@ bad("super-approve posts twice", evaluateJourney504(row("super-approve", { posts
 bad("super-approve AC flat", evaluateJourney504(row("super-approve", { doneState: { before: { ac: 5 }, after: { ac: 5 } } })), /job-actual 5 → 5/);
 console.log(lines.join("\n"));
 console.log(`journey504-eval: ${n} cases OK`);
+{
+  const src = (await import("node:fs")).readFileSync(new URL("./journey504.mjs", import.meta.url), "utf8");
+  if (/firstActionTaps\s*=\s*1\b/.test(src)) throw new Error("firstActionTaps must be measured, not hard-coded");
+}

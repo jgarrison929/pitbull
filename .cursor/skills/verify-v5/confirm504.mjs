@@ -141,15 +141,16 @@ export async function confirmFlow(browser, base, role, size, theme) {
       await settle(page);
       out.h2 = { cancel: { ...(await dialogState(page)), posts: posts.since(m) } };
       m = posts.mark();
-      await openDialog(page, L.trigger);
+      // Esc and overlay only prove something when the dialog really reopened first.
+      const escOpen = await openDialog(page, L.trigger);
       await page.keyboard.press("Escape");
       await settle(page);
-      out.h2.esc = { ...(await dialogState(page)), posts: posts.since(m) };
+      out.h2.esc = { ...(await dialogState(page)), posts: posts.since(m), reopened: escOpen.shown === true };
       m = posts.mark();
-      await openDialog(page, L.trigger);
+      const overlayOpen = await openDialog(page, L.trigger);
       await page.mouse.click(OVERLAY_POINT.x, OVERLAY_POINT.y);
       await settle(page);
-      out.h2.overlay = { ...(await dialogState(page)), posts: posts.since(m) };
+      out.h2.overlay = { ...(await dialogState(page)), posts: posts.since(m), reopened: overlayOpen.shown === true };
       if (out.h2.overlay.shown) await page.getByTestId("confirm-dialog-cancel").click();
       await settle(page);
       out.h2.after = { trigger: await triggerText(page, base, L.job, L.trigger), ev: await cents(page, "job-earned"), ac: await cents(page, "job-actual"), lockRows: await changeRows(page, base, L.job, LOCK_ROW) };
@@ -336,6 +337,8 @@ export function evaluateConfirmFlow(r) {
     else {
       if (h.cancel.shown) f.push(`${w} h-2: dialog still visible after Cancel`);
       if (h.cancel.posts !== 0) f.push(`${w} h-2: Cancel posted ${h.cancel.posts} time(s)`);
+      if (h.esc.reopened !== true) f.push(`${w} h-2: the dialog did not reopen before Esc, so Esc proves nothing`);
+      if (h.overlay.reopened !== true) f.push(`${w} h-2: the dialog did not reopen before the overlay click`);
       if (h.esc.shown) f.push(`${w} h-2: dialog still visible after Esc`);
       if (h.esc.posts !== 0) f.push(`${w} h-2: Esc posted ${h.esc.posts} time(s)`);
       if (!h.overlay.shown) f.push(`${w} h-2: overlay click at (${OVERLAY_POINT.x}, ${OVERLAY_POINT.y}) closed the dialog`);

@@ -16,7 +16,7 @@ const flow = (o = {}) => ({
   role: "pm", width: 390, height: 844, theme: "light", steps: ["h-1", "h-2", "h-3", "h-4"],
   before: { ev: 100, ac: 90, trigger: "Lock Period 2" },
   h1: { ...dlg(L), posts: 0 },
-  h2: { cancel: closed(), esc: closed(), overlay: { ...dlg(L), posts: 0 }, after: { trigger: "Lock Period 2", ev: 100, ac: 90, lockRows: 0 } },
+  h2: { cancel: closed(), esc: { ...closed(), reopened: true }, overlay: { ...dlg(L), posts: 0, reopened: true }, after: { trigger: "Lock Period 2", ev: 100, ac: 90, lockRows: 0 } },
   h3: { posts: 1, trigger: "Lock Period 3", lockRows: 1 },
   h4: { open: dlg(E), cancel: { posts: 0, status: "draft", approveRows: 0 }, confirm: { posts: 1, status: "approved", approveRows: 1 } },
   ...o,
@@ -33,7 +33,9 @@ bad("h copy: destructive variant", evaluateConfirmFlow(flow({ h1: { ...dlg(L, { 
 bad("h-1 two alertdialogs", evaluateConfirmFlow(flow({ h1: { ...dlg(L, { visibleAlertdialogs: 2, isConfirmDialog: false }), posts: 0 } })), /2 visible \[role="alertdialog"\]/);
 bad("h focus opens on confirm", evaluateConfirmFlow(flow({ h1: { ...dlg(L, { focus: "confirm-dialog-confirm" }), posts: 0 } })), /focus on open is confirm-dialog-confirm/);
 bad("h-2 cancel posts", evaluateConfirmFlow(flow({ h2: { ...flow().h2, cancel: closed({ posts: 1 }) } })), /Cancel posted 1/);
-bad("h-2 Esc leaves dialog open", evaluateConfirmFlow(flow({ h2: { ...flow().h2, esc: { ...dlg(L), posts: 0 } } })), /still visible after Esc/);
+bad("h-2 Esc leaves dialog open", evaluateConfirmFlow(flow({ h2: { ...flow().h2, esc: { ...dlg(L), posts: 0, reopened: true } } })), /still visible after Esc/);
+bad("h-2 Esc pressed with no reopened dialog", evaluateConfirmFlow(flow({ h2: { ...flow().h2, esc: { ...closed(), reopened: false } } })), /did not reopen before Esc/);
+bad("h-2 overlay click with no reopened dialog", evaluateConfirmFlow(flow({ h2: { ...flow().h2, overlay: { ...dlg(L), posts: 0, reopened: false } } })), /did not reopen before the overlay/);
 bad("h-2 overlay closes", evaluateConfirmFlow(flow({ h2: { ...flow().h2, overlay: closed() } })), /overlay click at \(8, 8\) closed the dialog/);
 bad("h-2 overlay posts", evaluateConfirmFlow(flow({ h2: { ...flow().h2, overlay: { ...dlg(L), posts: 1 } } })), /overlay click posted 1/);
 bad("h-2 locked anyway", evaluateConfirmFlow(flow({ h2: { ...flow().h2, after: { trigger: "Lock Period 3", ev: 100, ac: 90, lockRows: 1 } } })), /after reload lock-claim reads "Lock Period 3"/);

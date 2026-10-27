@@ -202,6 +202,23 @@ export function spec504LoadCount(pages, { roles = CRAWL_ROLES, sizes = SPEC_504_
   return roles.length * sizes.length * pages.length;
 }
 
+/**
+ * 5.0.4-e check 1 names `/app/jobs/25-031/cost-items/04-210` for the PM and the executive at 320×568 and 390×844, light
+ * and dark. The nav crawl has no cost-item pages, so crawl504 adds these loads and counts them in its total.
+ */
+export const E1_EXTRA = { path: "/app/jobs/25-031/cost-items/04-210", roles: ["pm", "executive"], sizes: [{ width: 320, height: 568 }, { width: 390, height: 844 }] };
+export function crawl504Want(pages, { themes = SPEC_504_THEMES } = {}) {
+  return (spec504LoadCount(pages) + E1_EXTRA.roles.length * E1_EXTRA.sizes.length) * themes.length;
+}
+/** Every E1_EXTRA role × size × theme load is in the crawl504 rows. */
+export function e1ExtraCoverageFailures(rows, { themes = SPEC_504_THEMES } = {}) {
+  const f = [];
+  for (const theme of themes) for (const role of E1_EXTRA.roles) for (const { width } of E1_EXTRA.sizes) {
+    if (!rows.some((r) => r.path === E1_EXTRA.path && r.role === role && r.width === width && r.theme === theme)) f.push(`5.0.4-e check 1: no ${theme} ${role}@${width} load of ${E1_EXTRA.path}`);
+  }
+  return f;
+}
+
 /** A dark pass that did not render dark (no `dark` class on <html>) proves nothing; same for a light pass. */
 export function themeFailures(rows) {
   const f = [];
@@ -329,9 +346,10 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
       const px = parseFloat(getComputedStyle(el).fontSize);
       if (px < minSecondary) pushText("secondary", px, direct);
     }
-    // 5.0.4-c check 2: p, li, td and button ≥ 16 px unless data-text="label".
+    // 5.0.4-c check 2: p, li, td and button ≥ 16 px unless the element itself is data-text="label". A labelled wrapper
+    // does not exempt the p / li / td / button inside it.
     for (const el of document.querySelectorAll(bodySel)) {
-      if (!shown(el) || el.closest('[data-text="label"]')) continue;
+      if (!shown(el) || el.matches('[data-text="label"]')) continue;
       const text = oneLine(el.innerText || el.getAttribute("aria-label") || "");
       if (!text) continue;
       const px = parseFloat(getComputedStyle(el).fontSize);
@@ -554,6 +572,32 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
     }
     // if (strip) alone would record [] when the element is absent and the row would pass.
     out.stripPastRight = jobStripHits(path, !!strip, stripPastRight);
+    // Whole page, not only job-strip: every visible element under body whose right edge is past clientWidth. A region
+    // the app marks as a horizontal scroller ([data-scroll-x]) is skipped here, and any visible [data-scroll-x] is
+    // recorded on its own (a phone may not scroll sideways at all).
+    const pastRight = [];
+    let pastRightCount = 0;
+    for (const el of document.body.querySelectorAll("*")) {
+      if (el.closest("[data-scroll-x]") || !shown(el)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.right > clientWidth) {
+        pastRightCount += 1;
+        if (pastRight.length < 12) {
+          pastRight.push({
+            tag: el.tagName.toLowerCase(),
+            testid: el.getAttribute("data-testid"),
+            text: oneLine(el.innerText || el.getAttribute("aria-label") || el.textContent).slice(0, 60),
+            right: rect.right,
+            clientWidth,
+          });
+        }
+      }
+    }
+    out.pastRight = { count: pastRightCount, items: pastRight };
+    out.scrollX = [...document.querySelectorAll("[data-scroll-x]")]
+      .filter((el) => shown(el))
+      .slice(0, 8)
+      .map((el) => ({ tag: el.tagName.toLowerCase(), testid: el.getAttribute("data-testid"), text: oneLine(el.innerText || el.textContent).slice(0, 60) }));
   }
   return out;
 }
@@ -596,6 +640,21 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
     nameSelector: NAME_SELECTOR,
     path: p,
   });
+  // 5.0.4-a check 1, href clause: every next-step href on /app answers HTTP 200 (page.request in the signed-in context,
+  // no redirect followed, so a bounce to /login is a 3xx and fails).
+  if (phoneChecks === true && Array.isArray(dom.nextSteps)) {
+    const statuses = {};
+    for (const s of dom.nextSteps) {
+      if (!s.href || s.href in statuses) continue;
+      try {
+        const r = await page.request.get(new URL(s.href, base + p).toString(), { maxRedirects: 0 });
+        statuses[s.href] = r.status();
+      } catch (error) {
+        statuses[s.href] = String(error?.message ?? error).split("\n")[0].slice(0, 80);
+      }
+    }
+    dom.nextStepHrefStatus = statuses;
+  }
   if (shotDir) {
     await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });
   }

@@ -60,6 +60,8 @@ ok("d-6 control", evaluateFullWidth(row({ path: "/app/jobs/25-031", data: fw }))
 bad("d-6 narrow", evaluateFullWidth(row({ path: "/app/jobs/25-031", data: { buttons: [{ label: "submit-plan", w: 120, h: 44, cardContent: 342 }] } })), /width 120\.0 ≠ card content box 342\.0/);
 bad("d-6 short", evaluateFullWidth(row({ path: "/app/jobs/25-031", data: { buttons: [{ label: "submit-plan", w: 342, h: 40, cardContent: 342 }] } })), /40 px tall < 44/);
 bad("d-6 report missing on 24-077", evaluateFullWidth(row({ path: "/app/jobs/24-077", data: { buttons: [] } })), /Report day's work not visible/);
+ok("d-6 superintendent on 24-077 is not in #80 d-6", evaluateFullWidth(row({ role: "superintendent", path: "/app/jobs/24-077", data: { buttons: [] } })));
+bad("d-6 superintendent on 25-031 still checked", evaluateFullWidth(row({ role: "superintendent", path: "/app/jobs/25-031", data: { buttons: [] } })), /submit-plan not visible/);
 
 // e-2
 const pt = { tables: 0, past: 0, clientWidth: 390, entryCards: true, entries: [{ amountPrimary: true, labor: true, mh: true, rate: true }, { amountPrimary: true, labor: false, mh: false, rate: false }] };

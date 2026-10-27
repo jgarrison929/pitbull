@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { crawl } from "./crawl.mjs";
 import { evaluateFigures, FIGURE_EXCEPTIONS } from "./checks.mjs";
-import { D1_TABLE, evaluateNameHooks, evaluateFirstTarget, evaluateRequiredFields, evaluateTabular, PROBES } from "./spec504.mjs";
+import { D1_TABLE, evaluateKpiCards, KPI_CARDS, evaluateNameHooks, evaluateFirstTarget, evaluateRequiredFields, evaluateTabular, PROBES } from "./spec504.mjs";
 import { DEAD_END, SCROLL_NEED } from "./journey504.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -109,6 +109,17 @@ try {
   bad("d-1 submit text", evaluateRequiredFields(R(await probe('<form><button data-testid="submit-plan">Submit</button></form>', "requiredFields", D1_TABLE))), /reads "Submit" \(want "Submit plan"\)/);
   bad("d-1 line-form field behind details", evaluateRequiredFields(R(await probe('<form data-testid="line-form"><details><summary>More</summary><input name="hours" required></details><button type="submit">Save</button></form>', "requiredFields", D1_TABLE))), /PlanLineEditor .*required field hours is inside a closed details/);
   ok("d-1 submit hidden → form not judged", evaluateRequiredFields(R(await probe('<details><summary>x</summary><form><textarea data-testid="return-reason" required></textarea><button data-testid="return-report">Return to foreman</button></form></details>', "requiredFields", D1_TABLE))));
+  // i-2 kpiCards probe is scoped to the KPI strip (lead review of #84): a plan card elsewhere is not a KPI card.
+  {
+    const kpi = (id, prim = 1) => `<div data-card><span data-testid="${id}" data-figure="primary">$12K</span>${prim > 1 ? '<span data-figure="primary">$1K</span>' : ""}</div>`;
+    const plan = '<div data-card data-testid="plan-card"><span data-figure="primary">1</span><span data-figure="primary">2</span><span data-figure="primary">3</span></div>';
+    const scoped = await probe(`<main>${kpi("cost-item-eac")}${plan}</main>`, "kpiCards", KPI_CARDS);
+    assert.deepEqual(scoped.cards.map((c) => c.testid), ["cost-item-eac"], `only KPI cards are read; got ${JSON.stringify(scoped.cards)}`);
+    assert.ok(!evaluateKpiCards(R(scoped)).some((x) => /plan-card|3 primary/.test(x)), "a plan card is not judged as a KPI card");
+    lines.push("passes: i-2 kpiCards reads only the KPI cards (a 3-figure plan card beside them is ignored)");
+    bad("i-2 KPI card with 2 primary figures", evaluateKpiCards(R(await probe(`<main>${kpi("cost-item-cb", 2)}${plan}</main>`, "kpiCards", KPI_CARDS))), /cost-item-cb has 2 primary figures/);
+    bad("i-2 no KPI strip (only a plan card)", evaluateKpiCards(R(await probe(`<main>${plan}</main>`, "kpiCards", KPI_CARDS))), /no KPI \[data-card\]/);
+  }
   // journeys
   await page.setContent(doc('<div style="height:2000px"><button id="t" style="margin-top:1500px">Go</button></div>'));
   assert.ok((await page.locator("#t").evaluate(SCROLL_NEED)) > 0, "scroll need > 0 for a control below the fold");

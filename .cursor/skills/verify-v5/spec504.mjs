@@ -68,8 +68,11 @@ export const PROBES = {
     const chips = [...row.querySelectorAll("button")].map((b) => ({ text: (b.innerText ?? "").trim().slice(0, 40), right: b.getBoundingClientRect().right }));
     return { clientWidth: cw, rowScrollWidth: row.scrollWidth, rowClientWidth: row.clientWidth, chips };
   },
-  kpiCards: () => {
-    const cards = [...document.querySelectorAll("main [data-card]")].filter((c) => c.getClientRects().length > 0);
+  // Scoped to the KPI strip: a KPI [data-card] is one that holds one of the 7 KPI test ids (#80: the id sits on the
+  // card's primary figure). Plan or entry cards elsewhere on the page are not KPI cards.
+  kpiCards: (ids) => {
+    const sel = (ids ?? []).map((id) => `[data-testid="${id}"]`).join(", ");
+    const cards = sel ? [...document.querySelectorAll("main [data-card]")].filter((c) => c.getClientRects().length > 0 && (c.matches(sel) || c.querySelector(sel))) : [];
     return {
       cards: cards.map((c) => ({
         testid: c.getAttribute("data-testid") ?? c.querySelector("[data-testid]")?.getAttribute("data-testid") ?? null,
@@ -512,6 +515,7 @@ export async function pagePass(browser, base, pass) {
               row.htmlTheme = await page.evaluate(() => (document.documentElement.classList.contains("dark") ? "dark" : "light"));
               const arg = pass.probe === "firstTarget" ? { role, href: row.clicked?.href ?? null }
                 : pass.probe === "requiredFields" ? D1_TABLE
+                : pass.probe === "kpiCards" ? KPI_CARDS
                 : pass.probeArg === "EXCEPTIONS" ? FIGURE_EXCEPTIONS.map((re) => re.source)
                 : pass.probeArg ?? null;
               row.data = await page.evaluate(PROBES[pass.probe], arg);
@@ -736,6 +740,8 @@ export function evaluateAtRisk(r) {
 
 export function evaluateFullWidth(r) {
   const f = [];
+  // #80 d-6 names 25-031 for the foreman and the superintendent and 24-077 for the foreman only.
+  if (r.role === "superintendent" && r.path.endsWith("/24-077")) return f;
   const btns = r.data?.buttons ?? [];
   const want = r.path.endsWith("/24-077") ? ["Report day's work"] : ["submit-plan"];
   for (const k of want) if (!btns.some((b) => b.label === k)) f.push(`${at(r)}: ${k} not visible`);
