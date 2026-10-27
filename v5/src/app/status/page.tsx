@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 import { MetricCard } from "@/components/app/metric-card";
 import { PageHeader } from "@/components/app/page";
@@ -27,19 +26,19 @@ export default function StatusPage() {
         <StatusDetails />
       </Suspense>
       <p className="text-body text-muted-foreground">
-        <Link
+        <a
           href="/roadmap"
           className="tap-target inline-flex items-center underline hover:no-underline"
         >
           Roadmap
-        </Link>
+        </a>
         {" · "}
-        <Link
+        <a
           href="/changelog"
           className="tap-target inline-flex items-center underline hover:no-underline"
         >
           Changelog
-        </Link>
+        </a>
       </p>
     </main>
   );

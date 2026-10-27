@@ -10,7 +10,7 @@ import { ciGateIsPass } from "./status-ci-gate.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 assert.equal(ciGateIsPass("pass"), true);
-for (const bad of ["fail", "pending", "unknown", "", undefined, null, "Pass", "PASS"]) {
+for (const bad of ["fail", "pending", "unknown", "", undefined, null, "Pass", "PASS", "pass (stale 30s)", "pass (stale)", "pass (stale 0s)"]) {
   assert.equal(ciGateIsPass(bad), false, `must reject ${JSON.stringify(bad)}`);
 }
 
@@ -28,4 +28,8 @@ assert.doesNotMatch(
   "regression: old field-exists includes check must not remain",
 );
 
-console.log("ok: /status ci-gate must be pass (rejects fail/pending/unknown)");
+const skill = readFileSync(path.join(here, "SKILL.md"), "utf8");
+assert.match(skill, /pass \(stale Ns\)/, "SKILL.md must say pass (stale Ns) is not a pass");
+assert.match(skill, /pass \(stale\)/);
+
+console.log("ok: /status ci-gate must be pass (rejects fail/pending/unknown and pass (stale Ns))");

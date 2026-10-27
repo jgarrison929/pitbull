@@ -13,6 +13,7 @@ Pitbull is a construction project controls platform. The scope, the trust bar, a
 - **The 5.2 Contracts and subs PRD is written** ([PRD](v5/prd/5.2-contracts-and-subs.md)), with build-ready specs for [5.2.0](v5/specs/5.2.0-subcontracts-and-commitments.md) and [5.2.1](v5/specs/5.2.1-committed-cost-forecast.md). All of 5.1 is in build, so 5.2 has to be ready to start.
 - **5.2 dates move in.** 5.2.0 moves from 2026-11-24 to 2026-11-13. 5.1 slices are already in PRs and observed pace is close to one increment a day.
 - **5.2 migrations start at `0024`.** `0021` to `0023` are taken by 5.1 (see [migration numbers](#migration-numbers)).
+- **Expired sub insurance prompts, it does not block.** Joshua decided that a sub pay application can still be submitted with an expired liability certificate. The submit flow asks for a current certificate right then, and the reviewer sees the state. Approval is not blocked. This is 5.2.5 on 2026-12-03 ([spec](v5/specs/5.2.5-insurance-expiry-prompt.md)).
 
 ## How versions work
 
@@ -22,6 +23,7 @@ Public versions are `5.<feature>.<increment>`.
 - The increment number counts demo-able releases inside that module. 5.0.1 is the first increment after 5.0.0.
 - Each increment fits in one cloud-agent PR or a few parallel ones. It merges through `ci-gate`, deploys to staging, and passes Pitbull Verify on staging before release.
 - A release moves `v5/package.json` and root `VERSION` to the new version and adds the matching entry to `v5/src/content/changelog.ts`. The `/changelog` and `/status` pages read those. The tag `v5.x.y` goes on the release commit after staging verify passes.
+- **Release status.** A version's row in `shipped` in `v5/src/content/roadmap.ts` may land in the release commit, because the `v5.<x>.<y>` tag is cut from that commit. In this file, the version's status column reads "Tagged, awaiting production verify" from the tag until the production verify passes. Only then does it read "Released". Verify accepts a `shipped` row in `roadmap.ts` when the version's tag points at the commit that added the row, or at a commit that descends from it. A `shipped` row with no tag, or with a tag on a commit that does not contain the row, fails.
 - From 5.0.4, slices merge into an `rc/<version>` branch first. Staging gets one handover of the RC head, and `verify-v5 --rc <sha>` proves that exact commit (merged in [#31](https://github.com/jgarrison929/pitbull/pull/31); `ci-gate` runs on `rc/**` since [#30](https://github.com/jgarrison929/pitbull/pull/30)).
 
 **Evidence of pace.** On the public history, 19 PRs merged to `main` between 2026-10-25 at 4:55 PM and 2026-10-26 at 10:31 AM PT, plus 5.0.4-c into `rc/5.0.4`. 5.0.1 and 5.0.2 landed one day apart. More than ten feature slices are open at once when file ownership does not collide.
@@ -35,7 +37,7 @@ Public versions are `5.<feature>.<increment>`.
 | 5.0.0 | Old history | Passed 2026-10-24 | `v5.0.0` on the old history only | Superseded by 5.0.1 | **Shipped** |
 | 5.0.1 | Old history | Production verify 37/37 on 2026-10-25 | `v5.0.1` on the old history only | `demo.pcserp.app` and `app.pcserp.app` serve 5.0.1 at `05246e2e` | **Shipped** |
 | 5.0.2 | On `main`, version stamped | Passed 41/41 on `3d53c3f6`, 2026-10-26 at 9:12 AM PT | None | Not promoted | **Verified on staging, awaiting tag and production** |
-| 5.0.3 | Parts B to F on `main`; Part A open | Not run as a release | None | No | **Merged in part, awaiting Part A and verify** |
+| 5.0.3 | On main (Parts B to F, #29, #16) | Pending staging verify on the tagged sha | v5.0.3 | Not yet promoted | **In release** |
 | 5.0.4 | 5.0.4-0 on `main`, 5.0.4-c on `rc/5.0.4`; a, b, d, e, f open; g not started | Not run | None | No | **In build** |
 | 5.1.0 | 5.1.0-a on `main`; b, c, d open | 0020 applied on staging | None | No | **Merged in part, awaiting verify** |
 
@@ -100,7 +102,7 @@ State on 2026-10-26 at 10:40 AM PT. "Verify" is the latest Pitbull Verify verdic
 
 | PR | Slice | Target branch | State |
 |---|---|---|---|
-| [#12](https://github.com/jgarrison929/pitbull/pull/12) | 5.0.3 Part A, the S-curve | `main` | ci-gate green. Verify FAIL on an older head; current head waiting |
+| [#12](https://github.com/jgarrison929/pitbull/pull/12) | 5.0.5 (was 5.0.3 Part A), the S-curve | `main` | ci-gate green. Verify FAIL on an older head; current head waiting |
 | [#26](https://github.com/jgarrison929/pitbull/pull/26) | 5.0.4-a, "What needs you today" | `rc/5.0.4` | ci-gate green. Verify FAIL on an older head; current head waiting |
 | [#27](https://github.com/jgarrison929/pitbull/pull/27) | 5.0.4-b, page purpose lines and role-fit metrics | `rc/5.0.4` | ci-gate green. Verify FAIL on an older head; current head waiting |
 | [#32](https://github.com/jgarrison929/pitbull/pull/32) | 5.0.4-d, plan and report on phones | `rc/5.0.4` | ci-gate green, waiting for Verify |
@@ -126,8 +128,9 @@ Not started: 5.0.4-g (guided demo path), 5.1.1 wire-up (links table, link action
 | Version | Target (PT) | Increment | Spec | What is left |
 |---|---|---|---|---|
 | 5.0.2 | 2026-10-26 | Crew rates, field history, cost drill-down | [5.0.2](v5/specs/5.0.2-crew-rates-and-field-history.md) | Tag `v5.0.2`, promote production, production verify |
-| 5.0.3 | 2026-10-28 | The S-curve for each job and the portfolio, Average Performance selectable per cost item, and the dark theme | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) | Part A ([#12](https://github.com/jgarrison929/pitbull/pull/12)) passes Verify and merges. Then version stamp, changelog, staging verify of Parts A to F, tag |
+| 5.0.3 | 2026-10-26 | Average Performance per cost item, dark theme, plan history, faster job pages | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) (Parts B to F) | Staging verify on the tagged sha, tag, production verify |
 | 5.0.4 | 2026-10-30 | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) | Slices a, b, d, e, f pass Verify into `rc/5.0.4`. Slice g gets built. One RC handover with phone checks, then merge to `main` and tag |
+| 5.0.5 | 2026-11-02 | The S-curve for each job and the portfolio | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) | #12 passes Verify and merges to main, then stamp, staging verify, tag |
 
 5.0.4 is a 5.0 increment because the app did not show what to do next and was crowded on phones (Joshua's review, 2026-10-25). That misses trust bar item 5. It adds no migration, so it runs beside 5.1.0.
 
@@ -135,12 +138,12 @@ Gaps still open in the 5.0 story:
 
 | Gap on `main` | Promised for 5.0? | Placed in |
 |---|---|---|
-| No S-curve | Yes, section 4 step 5 and M4 | 5.0.3 Part A ([#12](https://github.com/jgarrison929/pitbull/pull/12)) |
+| No S-curve | Yes, section 4 step 5 and M4 | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) ([#12](https://github.com/jgarrison929/pitbull/pull/12)) |
 | No page says what to do next. Phone pages were wider than the screen | Yes, trust bar item 5 | 5.0.4 (5.0.4-0 merged; the rest in build) |
 | Equipment hours on a plan cost nothing | Section 4 step 5 said "+ equipment". Decision 2026-10-24 | 5.6+ cost depth |
 | The foreman reports total man-hours per line, not hours per worker | Section 4 step 4. Decision 2026-10-24 | 5.6+ payroll export |
 
-Closed since the last refresh: plan history by role and time (5.0.3 Part D, `0018`), the crews contract (5.0.3 Part F, `0019`), Average Performance (Part B, `0017`), the dark theme (Part C), and the rail unknown-job refusal (Part E). All are on `main` and ship with the 5.0.3 tag.
+Closed since the last refresh: plan history by role and time (5.0.3 Part D, `0018`), the crews contract (5.0.3 Part F, `0019`), Average Performance (Part B, `0017`), the dark theme (Part C), and the rail unknown-job refusal (Part E). All are on `main` and ship with the 5.0.3 tag, together with the speed fixes [#29](https://github.com/jgarrison929/pitbull/pull/29) and [#16](https://github.com/jgarrison929/pitbull/pull/16). 5.0.3 is **Average Performance selectable per cost item, the dark theme, plan history by role and time, and faster job pages**. The S-curve moves to 5.0.5.
 
 ## Then: 5.1 Schedule
 
@@ -163,7 +166,7 @@ Locked rules for every 5.1 increment:
 
 ## Then: 5.2 Contracts and subs
 
-5.2 adds subcontracts, commitments, the committed-cost forecast method, minimal sub pay applications with retention, and sub change orders. It builds on M5 change orders. The [5.2 PRD](v5/prd/5.2-contracts-and-subs.md) is the source of scope. The [contracts intel](v5/intel/contracts.md) is the source of claim IDs.
+5.2 adds subcontracts, commitments, the committed-cost forecast method, minimal sub pay applications with retention, sub change orders, and an insurance expiry prompt on sub pay applications. It builds on M5 change orders. The [5.2 PRD](v5/prd/5.2-contracts-and-subs.md) is the source of scope. The [contracts intel](v5/intel/contracts.md) is the source of claim IDs.
 
 | Version | Target (PT) | Increment | Spec | Migration |
 |---|---|---|---|---|
@@ -172,10 +175,11 @@ Locked rules for every 5.1 increment:
 | 5.2.2 | 2026-11-20 | Sub pay applications with retention. Approval posts gross earned to AC once and lowers open commitment | Spec next | `0026` (claim) |
 | 5.2.3 | 2026-11-24 | Sub change orders that reference owner change-order lines. Pending sub exposure shows next to EAC | Spec next | `0027` (claim) |
 | 5.2.4 | 2026-12-01 | Retention release capped at retention held, and subcontract close-out | Spec next | `0028` (claim, if needed) |
+| 5.2.5 | 2026-12-03 | Insurance expiry prompt on sub pay applications. When the sub's liability certificate has expired, submit asks for a current certificate in the same flow. The reviewer sees current, renewed, or expired. Submit and approval are not blocked | [5.2.5](v5/specs/5.2.5-insurance-expiry-prompt.md) | `0029` (claim) |
 
-5.2.3 lands before Thanksgiving Day (2026-11-26). 5.2.4 lands the Tuesday after. Specs for 5.2.2 to 5.2.4 are due by 2026-11-13, when 5.2.0 enters verify.
+5.2.3 lands before Thanksgiving Day (2026-11-26). 5.2.4 lands the Tuesday after, and 5.2.5 that Thursday. Specs for 5.2.2 to 5.2.4 are due by 2026-11-13, when 5.2.0 enters verify. 5.2.5 needs 5.2.2 on `main`.
 
-The insurance-expiry hold on pay applications (contracts intel recommendation 5) stays out of 5.2 until Joshua decides. The PRD lists it as the open question.
+Joshua decided the insurance question on 2026-10-26: no hold on pay applications. Contracts intel recommendation 5 proposed refusing approval after expiry. 5.2.5 prompts for a current certificate at submit instead, and shows the state to the reviewer. See the [PRD decision](v5/prd/5.2-contracts-and-subs.md#insurance-decision-2026-10-26).
 
 ## Later releases
 
@@ -220,5 +224,6 @@ Drizzle's journal is contiguous. A number is a claim, not a file. A migration me
 | `0024` | 5.2.0-a | Claimed by the [5.2.0 spec](v5/specs/5.2.0-subcontracts-and-commitments.md) |
 | `0025` | 5.2.1-a | Claimed by the [5.2.1 spec](v5/specs/5.2.1-committed-cost-forecast.md) |
 | `0026` to `0028` | 5.2.2 to 5.2.4 | Claimed by the [5.2 PRD](v5/prd/5.2-contracts-and-subs.md) |
+| `0029` | 5.2.5-a | Claimed by the [5.2.5 spec](v5/specs/5.2.5-insurance-expiry-prompt.md) |
 
 5.1.3 adds no migration (none of [#35](https://github.com/jgarrison929/pitbull/pull/35), [#38](https://github.com/jgarrison929/pitbull/pull/38), or [#39](https://github.com/jgarrison929/pitbull/pull/39) has one). If it needs an import audit table later, it takes the next free number then.

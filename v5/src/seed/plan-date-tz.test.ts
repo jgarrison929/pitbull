@@ -136,17 +136,21 @@ describe("seed plan dates use job time zone", () => {
     }
   });
 
-  it("M1b: Cedar createdAt is on LA-tomorrow, not UTC-tomorrow", () => {
+  it("M1b: Cedar createdAt is before seed now (not tomorrow@06:00Z)", () => {
+    // Evening PT: tomorrow@06:00Z is still in the future and sorted after live Approves.
     const now = new Date("2026-10-27T00:30:00.000Z");
     const rows = seed(company, now);
     const cedar = rows.dailyPlans.find(
       (p) => p.id === seedId(company, "plan:cedar:tomorrow"),
     )!;
-    expect(cedar.createdAt!.toISOString().slice(0, 10)).toBe(
-      assistantTomorrow(now),
-    );
-    expect(cedar.createdAt!.toISOString().slice(0, 10)).not.toBe(
-      utcTomorrow(now),
+    const createdEvt = rows.dailyPlanEvents.find(
+      (e) => e.planId === cedar.id && e.kind === "created",
+    )!;
+    expect(cedar.planDate).toBe(assistantTomorrow(now));
+    expect(cedar.createdAt!.getTime()).toBeLessThan(now.getTime());
+    expect(createdEvt.at!.getTime()).toBe(cedar.createdAt!.getTime());
+    expect(cedar.createdAt!.getTime()).not.toBe(
+      new Date(`${assistantTomorrow(now)}T06:00:00.000Z`).getTime(),
     );
   });
 
@@ -188,17 +192,25 @@ describe("seed plan dates use job time zone", () => {
   });
 
   it("M8 page wiring: job page mounts JobNewPlanSlot (lint-style; output test is authoritative)", () => {
-    const src = readFileSync(
+    const page = readFileSync(
       join(process.cwd(), "src/app/app/jobs/[number]/page.tsx"),
       "utf8",
     );
-    expect(src).toMatch(/jobPagePlanSurface\s*\(\s*plans\s*\)/);
+    // Surface call lives in the job-page data loader (TTFB refactor) — same
+    // `jobPagePlanSurface(plans)` contract; page still mounts the slot.
+    const loader = readFileSync(
+      join(process.cwd(), "src/server/job-page.ts"),
+      "utf8",
+    );
+    expect(loader).toMatch(/jobPagePlanSurface\s*\(\s*plans\s*\)/);
     // JSX mount — unused import alone must not satisfy this.
-    expect(src).toMatch(/<JobNewPlanSlot\b/);
-    expect(src).not.toMatch(/\bNewPlanForm\b/);
-    expect(src).not.toMatch(/splitPlansByPlanToday\s*\(/);
-    expect(src).not.toMatch(/jobPagePlans\s*\(/);
+    expect(page).toMatch(/<JobNewPlanSlot\b/);
+    expect(page).not.toMatch(/\bNewPlanForm\b/);
+    expect(page).not.toMatch(/splitPlansByPlanToday\s*\(/);
+    expect(page).not.toMatch(/jobPagePlans\s*\(/);
+    expect(loader).not.toMatch(/splitPlansByPlanToday\s*\(/);
+    expect(loader).not.toMatch(/jobPagePlans\s*\(/);
     // Any UTC calendar-day spelling on the page (slice / split / toJSON).
-    expect(src).not.toMatch(/toISOString\s*\(/);
+    expect(page).not.toMatch(/toISOString\s*\(/);
   });
 });

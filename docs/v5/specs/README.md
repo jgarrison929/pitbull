@@ -30,7 +30,7 @@ Next after those: 5.2.0-b (stack on 5.2.0-a), 5.2.0-d (after 5.2.0-c), then 5.2.
 
 | Slice ID | PR | Migration | Notes |
 |---|---|---|---|
-| 5.0.3 Part A | [#12](https://github.com/jgarrison929/pitbull/pull/12) | none | S-curve. Last Verify FAIL was on an older head |
+| 5.0.5 (was 5.0.3 Part A) | [#12](https://github.com/jgarrison929/pitbull/pull/12) | none | [S-curve](5.0.5-s-curve.md). Last Verify FAIL was on an older head |
 | 5.0.4-a, b | [#26](https://github.com/jgarrison929/pitbull/pull/26), [#27](https://github.com/jgarrison929/pitbull/pull/27) | none | Into `rc/5.0.4`. Last Verify FAIL was on older heads |
 | 5.0.4-d, e, f | [#32](https://github.com/jgarrison929/pitbull/pull/32), [#33](https://github.com/jgarrison929/pitbull/pull/33), [#34](https://github.com/jgarrison929/pitbull/pull/34) | none | Into `rc/5.0.4`. Merge order a → b → d → e → f |
 | 5.1.0-b | [#37](https://github.com/jgarrison929/pitbull/pull/37) | none | Schedule server module and typed actions |
@@ -54,6 +54,7 @@ Drizzle's journal is contiguous. A number is a claim, not a file. A migration me
 | `0024` | 5.2.0-a | Claimed |
 | `0025` | 5.2.1-a | Claimed |
 | `0026`, `0027`, `0028` | 5.2.2, 5.2.3, 5.2.4 (if needed) | Claimed by the [5.2 PRD](../prd/5.2-contracts-and-subs.md) |
+| `0029` | 5.2.5-a | Claimed by the [5.2.5 spec](5.2.5-insurance-expiry-prompt.md) |
 
 5.1.3 adds no migration. The earlier `0024` reservation for a 5.1.3 import audit table is released. If 5.1.3 needs one later, it takes the next free number then.
 
@@ -63,14 +64,16 @@ Drizzle's journal is contiguous. A number is a claim, not a file. A migration me
 |---|---|---|---|
 | 5.0.1 | [The superintendent plans the day, and a public roadmap page](5.0.1-superintendent-plans-the-day.md) | 2026-10-25 | Shipped |
 | 5.0.2 | [Crew rates, field history, and the cost drill-down](5.0.2-crew-rates-and-field-history.md) | 2026-10-26 | Verified on staging, awaiting tag and production |
-| 5.0.3 | [The S-curve, Average Performance, and the dark theme](5.0.3-s-curve-and-forecast-methods.md) | 2026-10-28 | Parts B to F on `main`, Part A open |
+| 5.0.3 | [A second forecast method, the dark theme, and plan history](5.0.3-s-curve-and-forecast-methods.md) | 2026-10-28 | Parts B to F on `main`. Part A moved to 5.0.5 |
 | 5.0.4 | [Clear next steps and mobile polish](5.0.4-clear-next-steps-and-mobile-polish.md) | 2026-10-30 | In build on `rc/5.0.4` |
+| 5.0.5 | [The S-curve](5.0.5-s-curve.md) (was 5.0.3 Part A) | 2026-11-02 | In build in [#12](https://github.com/jgarrison929/pitbull/pull/12) |
 | 5.1.0 | [Activities, calendar, Gantt, and plan-line links](5.1.0-activities-and-gantt.md) | 2026-10-29 | a merged, b to d open |
 | 5.1.1 | [Dependencies, float, and the critical path](5.1.1-dependencies-and-cpm.md) | 2026-11-03 | Library on `main`, wire-up ready to build |
 | 5.1.2 | [Baseline and PV from baseline dates](5.1.2-baseline-and-pv.md) | 2026-11-06 | a open |
 | 5.1.3 | [XER and Microsoft Project XML import](5.1.3-schedule-import.md) | 2026-11-10 | a to c open |
 | 5.2.0 | [Subcontracts and commitments](5.2.0-subcontracts-and-commitments.md) | 2026-11-13 | Ready to build |
 | 5.2.1 | [The Committed Cost forecast method](5.2.1-committed-cost-forecast.md) | 2026-11-17 | Ready after 5.2.0-b |
+| 5.2.5 | [Insurance expiry prompt on sub pay applications](5.2.5-insurance-expiry-prompt.md) | 2026-12-03 | Ready after 5.2.2 is on `main` |
 
 Spec rules:
 

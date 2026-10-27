@@ -41,6 +41,8 @@ const db = getDb();
 const SAMPLES = 20;
 /** Acceptance p95 for SSR data path (ms). Below crawl 1.5 s after client quiet. */
 const ROUTE_P95_MS = 1200;
+/** Plan route product target — browser idle aims under 800 ms. */
+const PLAN_ROUTE_P95_MS = 800;
 /** Login / sandbox create must land under this every sample. */
 const LOGIN_MAX_MS = 2000;
 /** Rebuild the pool every N samples → cold-ish, not fully warm forever. */
@@ -223,10 +225,12 @@ describe.skipIf(!db)("cold-route latency acceptance (staging FAIL routes)", () =
         maxMs: Math.round(sorted.at(-1)!),
         samplesMs: samples.map((ms) => Math.round(ms)),
       };
+      const budget =
+        route.name.startsWith("plan/") ? PLAN_ROUTE_P95_MS : ROUTE_P95_MS;
       expect(
         p95,
-        `${route.name} p95 ${p95.toFixed(1)}ms exceeds ${ROUTE_P95_MS}ms`,
-      ).toBeLessThan(ROUTE_P95_MS);
+        `${route.name} p95 ${p95.toFixed(1)}ms exceeds ${budget}ms`,
+      ).toBeLessThan(budget);
     }
 
     console.log(JSON.stringify({ note: "cold-route acceptance", report }, null, 2));
