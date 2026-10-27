@@ -19,11 +19,17 @@ import { coLabel } from "@/lib/change-order";
 import { snapshotClaimPercent } from "@/lib/ev";
 import {
   addCalendarDays,
+  instantAtLocal,
   planDateToday,
+  seedAuditSpread,
   timeZoneForJob,
 } from "@/lib/plan-date";
 import { seedId } from "./ids";
 import type { SeedRows } from "./index";
+
+/** I-5 today's plan return reason — stamps + daily_plan_events must agree. */
+export const I5_RETURN_REASON =
+  "Catch basin invert elevations don't match the mark-out";
 
 type Insert<T extends { $inferInsert: unknown }> = T["$inferInsert"];
 
@@ -657,12 +663,61 @@ export function finalizeSeedWithHistory(
 
   const i5Plan = out.dailyPlans.find((p) => p.id === id("plan:i5:today"));
   if (i5Plan) {
+    // Plan page history reads daily_plan_events — stamp columns alone leave
+    // History empty while the job card shows issued + returned. Seed both.
+    const day = i5Plan.planDate!;
+    const tz = timeZoneForJob();
+    const foremanId = id("user:foreman");
+    const superintendentId = id("user:superintendent");
+    // Pacific workday arc on the plan date; fall back to a spread ≤ seed now.
+    const wall = [
+      instantAtLocal(day, 6, 15, 0, tz),
+      instantAtLocal(day, 6, 45, 0, tz),
+      instantAtLocal(day, 15, 20, 0, tz),
+      instantAtLocal(day, 16, 5, 0, tz),
+    ];
+    const wallOk =
+      wall.every((t) => t.getTime() <= today.getTime()) &&
+      wall.every((t, i) => i === 0 || t.getTime() > wall[i - 1]!.getTime());
+    const [created, submitted, reported, returned] = (
+      wallOk ? wall : seedAuditSpread(today, 4)
+    ) as [Date, Date, Date, Date];
+
     i5Plan.status = "issued";
-    i5Plan.submittedAt = today;
-    i5Plan.reportedAt = today;
-    i5Plan.returnedAt = today;
-    i5Plan.returnReason =
-      "Catch basin invert elevations don't match the mark-out";
+    i5Plan.createdAt = created;
+    i5Plan.submittedAt = submitted;
+    i5Plan.reportedAt = reported;
+    i5Plan.returnedAt = returned;
+    i5Plan.returnReason = I5_RETURN_REASON;
+
+    const pushEvent = (
+      kind: "created" | "submitted" | "reported" | "returned",
+      actorRole: "superintendent" | "foreman",
+      actorId: string,
+      at: Date,
+      detail = "",
+    ) => {
+      out.dailyPlanEvents.push({
+        id: id(`plan-event:i5:today:${kind}`),
+        companyId,
+        planId: i5Plan.id!,
+        kind,
+        actorRole,
+        actorId,
+        detail,
+        at,
+      });
+    };
+    pushEvent("created", "superintendent", superintendentId, created);
+    pushEvent("submitted", "superintendent", superintendentId, submitted);
+    pushEvent("reported", "foreman", foremanId, reported);
+    pushEvent(
+      "returned",
+      "superintendent",
+      superintendentId,
+      returned,
+      I5_RETURN_REASON,
+    );
   }
   const i5Actuals: [string, number, number][] = [
     ["plan-line:i5:0", 420, 175_000],
@@ -721,6 +776,7 @@ export function finalizeSeedWithHistory(
       } satisfies Insert<typeof changeOrderLines>);
     }
 
+    const coAts = seedAuditSpread(today, spec.events.length);
     spec.events.forEach((ev, i) => {
       out.changeOrderEvents.push({
         id: id(`co-event:${spec.key}:${ev.command}:${i}`),
@@ -736,7 +792,7 @@ export function finalizeSeedWithHistory(
         totalCents: ev.totalCents,
         cbDeltaCents: ev.cbDeltaCents,
         eacDeltaCents: ev.eacDeltaCents,
-        at: new Date(today.getTime() + i),
+        at: coAts[i]!,
       } satisfies Insert<typeof changeOrderEvents>);
     });
   }
@@ -910,7 +966,10 @@ export function finalizeSeedWithHistory(
   }
 
   // —— action_runs (same content as live seedActionHistory) ——
-  actionRunSpecs(today, id).forEach((run, i) => {
+  // PT workday spread — never `today + i` ms (every LocalTime read 8:05 PM).
+  const runs = actionRunSpecs(today, id);
+  const runAts = seedAuditSpread(today, runs.length);
+  runs.forEach((run, i) => {
     out.actionRuns.push({
       id: id(`action-run:${i}`),
       companyId,
@@ -919,7 +978,7 @@ export function finalizeSeedWithHistory(
       action: run.action,
       args: run.args,
       summary: run.summary,
-      createdAt: new Date(today.getTime() + i),
+      createdAt: runAts[i]!,
     } satisfies Insert<typeof actionRuns>);
   });
 

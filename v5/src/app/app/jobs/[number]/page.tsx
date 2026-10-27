@@ -60,6 +60,7 @@ export async function Job({
 }) {
   const { number } = await params;
   const user = userOverride ?? (await requireUser());
+  // #62 path: overlapped fetches + WRITES-filtered jobChanges via job-page.ts
   const { data, timing: timingPayload } = await timedLoadJobPage(
     user.companyId,
     number,
@@ -583,7 +584,9 @@ export async function Job({
           "Lump budget — each cost item is one seeded total, with no labor, material, equipment, or subcontract split."
         )}
       </p>
-      {canEvEdit ? (
+      {/* Hide when EvMethodControls would render null — no empty section shell. */}
+      {canEvEdit &&
+      (evControls.milestones.length > 0 || evControls.pmItems.length > 0) ? (
         <Section
           title="Field measurement methods"
           meta="PM percent (with who/why) and weighted milestones — enterable on screen and via the assistant."

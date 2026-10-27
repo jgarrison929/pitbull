@@ -1,5 +1,6 @@
 // ConfirmDialog (PR #65) for the drives that click a confirmed action: change-order approve, reject
-// and void, plan-line remove, and plan approve and return. With #65 the click opens an alertdialog
+// and void, plan-line remove, and plan approve and return; PR #71 adds Approve estimate
+// (approve-estimate) and Lock Period (lock-claim) on the job page. With #65 the click opens an alertdialog
 // and nothing posts until its confirm button is clicked. Before #65 the click posts at once.
 // confirmIfDialog confirms the dialog only when it is present, so one skill works on main both
 // before and after #65. A dialog that appears but cannot be confirmed always throws.
@@ -70,6 +71,8 @@ export async function confirmIfDialog(page, { settled = null, timeout = 30000, g
   }
   if (w.outcome !== "dialog") return { dialog: false, outcome: w.outcome, waitedMs: w.waitedMs };
   const dialog = page.getByRole(CONFIRM_DIALOG_ROLE);
+  // The dialog's words, for evidence only (never part of a pass rule).
+  const text = typeof dialog.innerText === "function" ? await dialog.innerText().then((t) => t.replace(/\s+/g, " ").trim(), () => null) : null;
   try {
     await dialog.getByTestId(CONFIRM_DIALOG_CONFIRM).click({ timeout });
   } catch (e) {
@@ -80,5 +83,5 @@ export async function confirmIfDialog(page, { settled = null, timeout = 30000, g
   } catch (e) {
     throw new Error(`ConfirmDialog appeared and confirm was clicked, but the dialog did not hide: ${firstLine(e)}`);
   }
-  return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs };
+  return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE };
 }

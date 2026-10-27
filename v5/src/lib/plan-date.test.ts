@@ -3,9 +3,11 @@ import {
   JOB_TIME_ZONE,
   addCalendarDays,
   calendarDateInTz,
+  instantAtLocal,
   jobPagePlans,
   planDateInWindow,
   planDateToday,
+  seedAuditSpread,
   splitPlansByPlanToday,
   timeZoneForJob,
 } from "./plan-date";
@@ -83,5 +85,33 @@ describe("plan-date", () => {
     expect(today).not.toBe(now.toISOString().slice(0, 10));
     expect(open.map((p) => p.id)).toEqual(["today", "tomorrow"]);
     expect(history.map((p) => p.id)).toEqual(["hist"]);
+  });
+
+  it("instantAtLocal maps PT wall clock to the matching UTC instant", () => {
+    // 2026-10-20 is PDT (UTC-7): 16:05 PT = 23:05Z.
+    const t = instantAtLocal("2026-10-20", 16, 5);
+    expect(t.toISOString()).toBe("2026-10-20T23:05:00.000Z");
+    const label = new Intl.DateTimeFormat("en-US", {
+      timeZone: JOB_TIME_ZONE,
+      hour: "numeric",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(t);
+    expect(label).toMatch(/16:05/);
+  });
+
+  it("seedAuditSpread yields strictly increasing stamps ≤ now", () => {
+    const now = new Date("2026-10-20T17:00:00.000Z"); // 10:00 AM PDT
+    const stamps = seedAuditSpread(now, 24);
+    expect(stamps).toHaveLength(24);
+    for (let i = 1; i < stamps.length; i++) {
+      expect(stamps[i]!.getTime()).toBeGreaterThan(stamps[i - 1]!.getTime());
+      expect(stamps[i]!.getTime() - stamps[i - 1]!.getTime()).toBeGreaterThanOrEqual(
+        60_000,
+      );
+    }
+    expect(stamps[stamps.length - 1]!.getTime()).toBeLessThanOrEqual(
+      now.getTime(),
+    );
   });
 });

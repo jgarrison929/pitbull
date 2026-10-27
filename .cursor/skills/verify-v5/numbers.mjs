@@ -65,6 +65,8 @@ export async function runM2(browser, base, { csv, shotDir, job = "26-010" }) {
     await page.getByTestId("import-estimate-summary").waitFor({ timeout: T });
     const summary = await visible(page, "import-estimate-summary");
     await page.getByTestId("approve-estimate").click();
+    // PR #71 ConfirmDialog on Approve estimate: confirm it only when it opens (rc/5.0.4 before #71 posts on the click).
+    await confirmIfDialog(page, { settled: page.locator('[data-testid="estimate-status"][data-status="approved"]'), timeout: T });
     await page.waitForFunction(
       () => document.querySelector('[data-testid="estimate-status"]')?.getAttribute("data-status") === "approved",
       null,
