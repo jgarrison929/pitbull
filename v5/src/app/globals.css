@@ -59,6 +59,17 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    /* 5.0.4-c type scale — nothing visible below 14 px */
+    --text-figure-primary: 1.75rem;
+    --text-figure-primary--line-height: 2rem;
+    --text-title: 1.25rem;
+    --text-title--line-height: 1.75rem;
+    --text-section: 1.125rem;
+    --text-section--line-height: 1.5rem;
+    --text-body: 1rem;
+    --text-body--line-height: 1.5rem;
+    --text-label: 0.875rem;
+    --text-label--line-height: 1.25rem;
 }
 
 :root {
@@ -67,7 +78,9 @@
     --brand-foreground: oklch(0.2 0.02 260);
     --positive: oklch(0.52 0.13 155);
     --positive-soft: oklch(0.96 0.04 155);
-    --caution: oklch(0.6 0.14 70);
+    /* Light caution and muted-foreground clear WCAG 2.2 AA (4.5:1) on white,
+       muted, and the status tints. Hue stays amber. Dark overrides are below. */
+    --caution: oklch(0.532 0.115 70);
     --caution-soft: oklch(0.97 0.05 85);
     --negative: oklch(0.55 0.2 20);
     --negative-soft: oklch(0.96 0.03 15);
@@ -88,7 +101,7 @@
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
+    --muted-foreground: oklch(0.525 0 0);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
@@ -163,9 +176,46 @@
         @apply border-border outline-ring/50;
     }
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground text-body;
     }
     html {
         @apply font-sans;
+    }
+    /* Body controls stay ≥ 16 px so iOS Safari does not zoom on focus. */
+    input,
+    select,
+    textarea,
+    button {
+        font-size: var(--text-body);
+        line-height: var(--text-body--line-height);
+    }
+    /*
+     * Phone tap targets: every control outside running text is ≥ 44×44.
+     * Checkbox/radio keep their native size; hit area is padded by the label.
+     */
+    @media (max-width: 640px) {
+        input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+        select,
+        textarea,
+        button,
+        summary {
+            min-height: 2.75rem;
+        }
+    }
+}
+
+@layer utilities {
+    /* Card stack gaps: 12 px phone, 16 px desktop (spacing scale 4/8/12/16/24/32). */
+    .card-stack {
+        gap: 0.75rem;
+    }
+    @media (min-width: 1024px) {
+        .card-stack {
+            gap: 1rem;
+        }
+    }
+    .tap-target {
+        min-height: 2.75rem;
+        min-width: 2.75rem;
     }
 }

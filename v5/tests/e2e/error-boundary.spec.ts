@@ -18,13 +18,22 @@ async function signIn(page: Page, role: (typeof roles)[number]) {
   await expect(page).toHaveURL(/\/app/);
 }
 
-async function assertShellKept(page: Page, width: number) {
+async function assertShellKept(
+  page: Page,
+  width: number,
+  role: (typeof roles)[number],
+) {
   await expect(page.getByTestId("route-error")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Page load failed" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Demo login" })).toBeVisible();
   await expect(page.getByTestId("user-menu")).toBeVisible();
-  await expect(page.getByTestId("job-strip")).toBeVisible();
+  // Foreman phone hides the job strip (field chrome); desktop still shows it.
+  if (role === "foreman" && width < 768) {
+    await expect(page.getByTestId("job-strip")).toBeHidden();
+  } else {
+    await expect(page.getByTestId("job-strip")).toBeVisible();
+  }
   // `signed-in-as` is `hidden sm:block` — open the menu on phone to prove identity chrome.
   if (width < 640) {
     await page.getByTestId("user-menu").click();
@@ -48,7 +57,7 @@ for (const role of roles) {
       });
       await signIn(page, role);
       await page.goto("/app/error-probe");
-      await assertShellKept(page, width);
+      await assertShellKept(page, width, role);
     });
   }
 }

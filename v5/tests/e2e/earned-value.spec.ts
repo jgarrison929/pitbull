@@ -62,8 +62,9 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await signIn(page, "foreman");
   await page.goto("/app/jobs/25-031");
 
+  // Foreman job page hides CPI (5.0.4-b); EV tile stays for the earned check.
   const earnedBefore = (await page.getByTestId("job-earned").textContent())!;
-  const cpiBefore = (await page.getByTestId("job-cpi").textContent())!;
+  await expect(page.getByTestId("job-cpi")).toHaveCount(0);
   const actualBefore = await actualCents(page);
 
   await expect(page.getByTestId("report-work")).toHaveCount(0);
@@ -74,7 +75,7 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
 
   // Pending approval — AC and installed unchanged.
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("38");
   expect(await actualCents(page)).toBe(actualBefore);
   await expect(page.getByTestId("job-earned")).toHaveText(earnedBefore);
@@ -85,7 +86,7 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await page.getByTestId("report-work").click();
   await expect(page.getByTestId("report-summary")).toContainText(/80/);
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("40");
   expect(await actualCents(page)).toBe(actualBefore);
 
@@ -94,6 +95,8 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await expect(page.getByTestId("report-qty-04-210")).toHaveValue("40");
 
   await approveAsSuperintendent(page);
+  // Superintendent keeps CPI on the job page — baseline before PM lock.
+  const cpiBefore = (await page.getByTestId("job-cpi").textContent())!;
   // One cutoff: tile AC stays at last lock; approved cost shows as since-lock.
   expect(await actualCents(page)).toBe(actualBefore);
   const sinceAfterApprove = await sinceLockActualCents(page);
@@ -102,7 +105,7 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   expect(sinceAfterApprove).toBeGreaterThanOrEqual(
     80 * CREW_LABOR_RATE_CENTS["Bridge Crew 2"],
   );
-  await expect(page.getByTestId("pending-04-210").first()).toContainText("40");
+  await expect(page.locator('[data-testid="pending-04-210"]:visible')).toContainText("40");
 
   // Switch to PM and lock so claimed installed moves and EV/AC update at the new cutoff.
   await signIn(page, "pm");
@@ -149,7 +152,7 @@ test("assistant reports actuals that differ from the plan (pending until approve
   await expect(run.getByTestId("action-summary")).toContainText(/38/);
   await expect(pourLine(page).getByTestId("line-mh")).toHaveText("60");
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("38");
   expect(await actualCents(page)).toBe(actualBefore);
 
@@ -162,7 +165,7 @@ test("assistant reports actuals that differ from the plan (pending until approve
   await expect(run2).toHaveAttribute("data-action", "dailyReport.post");
   await expect(run2.getByTestId("action-summary")).toContainText(/80/);
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("40");
   expect(await actualCents(page)).toBe(actualBefore);
 });
@@ -237,7 +240,7 @@ test("blank or non-finite report fields are rejected, not replaced by the plan",
   // AC must not move until approve.
   expect(await actualCents(page)).toBe(actualBefore80);
   await expect(
-    page.getByTestId("approval-pending-04-210").first(),
+    page.locator('[data-testid="approval-pending-04-210"]:visible'),
   ).toContainText("38");
 
   await page.getByTestId("report-work-form").evaluate((form) => {

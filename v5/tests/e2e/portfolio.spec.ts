@@ -4,13 +4,27 @@ async function signIn(page: Page, role = "executive") {
   await page.goto("/login");
   await page.getByTestId(`role-${role}`).click();
   await expect(page).toHaveURL(/\/app/);
+  // Hard nav after role card — login page (and its purpose) must leave the DOM.
+  await expect(page.locator('[data-testid="page-purpose"]')).toHaveCount(1);
+  await expect(
+    page.getByText("Each card signs you in to your own demo sandbox."),
+  ).toHaveCount(0);
 }
 
 test("portfolio reads the visitor's sandbox from Postgres", async ({
   page,
 }) => {
   await signIn(page);
-  await expect(page.getByRole("heading", { name: "Portfolio" })).toBeVisible();
+  const main = page.locator("main");
+  // One page h1 (PageHeader); NextSteps is untitled so this is not strict-mode 2.
+  await expect(
+    main.getByRole("heading", { level: 1, name: "What needs you today" }),
+  ).toHaveCount(1);
+  await expect(main.getByTestId("page-purpose")).toHaveCount(1);
+  await expect(main.getByTestId("page-purpose")).toContainText(
+    /next tasks across every job/i,
+  );
+  await expect(main.getByTestId("next-steps")).toBeVisible();
   const table = page.getByTestId("portfolio-table");
   for (const name of [
     "SR-99 / Airport Way Interchange",

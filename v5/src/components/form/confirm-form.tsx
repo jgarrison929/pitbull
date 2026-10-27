@@ -20,6 +20,7 @@ export function ConfirmForm({
   triggerClassName,
   triggerTestId,
   triggerAriaLabel,
+  triggerDataText,
   title,
   description,
   confirmLabel,
@@ -36,6 +37,8 @@ export function ConfirmForm({
   triggerClassName: string;
   triggerTestId: string;
   triggerAriaLabel?: string;
+  /** RC marks 12px labels so the phone crawl treats them as labels. */
+  triggerDataText?: "label";
   title: string;
   description: string;
   confirmLabel: string;
@@ -80,6 +83,7 @@ export function ConfirmForm({
           className={triggerClassName}
           testId={triggerTestId}
           ariaLabel={triggerAriaLabel}
+          dataText={triggerDataText}
         />
         {footer}
       </form>
@@ -119,6 +123,7 @@ function ConfirmTrigger({
   className,
   testId,
   ariaLabel,
+  dataText,
 }: {
   triggerRef: RefObject<HTMLButtonElement | null>;
   label: string;
@@ -126,6 +131,7 @@ function ConfirmTrigger({
   className: string;
   testId: string;
   ariaLabel?: string;
+  dataText?: "label";
 }) {
   const { pending } = useFormStatus();
   return (
@@ -135,6 +141,7 @@ function ConfirmTrigger({
       disabled={pending}
       className={className}
       data-testid={testId}
+      data-text={dataText}
       aria-label={ariaLabel}
       aria-haspopup="dialog"
     >

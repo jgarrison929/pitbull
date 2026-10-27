@@ -1,19 +1,111 @@
-# Pitbull v5 design system
+# Design system
 
-Pitbull is a construction project controls platform. This page lists the UI kit the live app in `v5/` shares. Color and radius tokens live in `v5/src/app/globals.css` (light and `.dark`). The theme is the `pcs_theme` cookie, read on the server so the first paint matches the choice. There is no type, spacing, or elevation scale yet: screens use Tailwind utilities on top of the color tokens.
+Color tokens for the v5 app. They live in [`v5/src/app/globals.css`](../../v5/src/app/globals.css) and map into Tailwind through `@theme inline`. Light values are on `:root`. Dark values are on `.dark`. The theme is the `pcs_theme` cookie. With no cookie the app is light.
 
-## Tokens
+Status is a color plus a word or a dollar variance. The color never stands alone.
 
-| Token | Use |
-|---|---|
-| `--background`, `--foreground`, `--card`, `--popover`, `--muted`, `--border`, `--ring` | Page, cards, dialogs, secondary text, focus |
-| `--primary`, `--primary-foreground` | Primary actions (approve) |
-| `--destructive` | Destructive confirm (void, reject, remove) |
-| `--brand` | Safety amber mark |
-| `--positive`, `--caution`, `--negative` and each `-soft` | Status, always with a text label |
-| `--chrome` | Always-dark icon rail, and the confirm dialog scrim |
+Hex values below are the sRGB color Chromium paints for the `oklch()` token. Contrast is WCAG relative luminance on those painted colors. Normal text needs **4.5:1**. Large text (18pt regular, or 14pt bold) and non-text UI need **3:1**. Status pills are 12px, and the index figures axe treats as normal-weight text, so the text bar is 4.5:1.
 
-Do not put raw palette classes (`text-red-600`, `bg-white`) or hex colors in product UI. `v5/src/lib/no-raw-colors.test.ts` checks `src/components` and `src/app`.
+## Color tokens
+
+### Light (`:root`)
+
+| Token | oklch | Hex | Role |
+|---|---|---|---|
+| `--background`, `--card`, `--popover` | `oklch(1 0 0)` | `#ffffff` | Page and card surface |
+| `--foreground`, `--card-foreground` | `oklch(0.145 0 0)` | `#0a0a0a` | Body text |
+| `--muted` | `oklch(0.97 0 0)` | `#f5f5f5` | Quiet surface, draft pill |
+| `--muted-foreground` | `oklch(0.525 0 0)` | `#6a6a6a` | Secondary text |
+| `--primary` | `oklch(0.22 0.02 260)` | `#151b24` | Primary fill |
+| `--primary-foreground` | `oklch(0.985 0 0)` | `#fafafa` | Text on primary |
+| `--brand` | `oklch(0.82 0.16 80)` | `#fab72a` | Safety amber mark |
+| `--brand-foreground` | `oklch(0.2 0.02 260)` | `#11161f` | Text on the brand mark |
+| `--positive` | `oklch(0.52 0.13 155)` | `#007e46` | On track |
+| `--positive-soft` | `oklch(0.96 0.04 155)` | `#defae6` | On-track tint |
+| `--caution` | `oklch(0.532 0.115 70)` | `#965e01` | Watch (amber) |
+| `--caution-soft` | `oklch(0.97 0.05 85)` | `#fff3d0` | Watch tint |
+| `--negative` | `oklch(0.55 0.2 20)` | `#cc243d` | At risk |
+| `--negative-soft` | `oklch(0.96 0.03 15)` | `#ffeaeb` | At-risk tint |
+| `--destructive` | `oklch(0.577 0.245 27.325)` | `#e7000b` | Destructive action |
+| `--chrome` | `oklch(0.18 0.02 260)` | `#0c121a` | Icon rail (always dark) |
+| `--chrome-foreground` | `oklch(0.75 0.02 260)` | `#a7aebb` | Rail icon |
+| `--border`, `--input` | `oklch(0.922 0 0)` | `#e5e5e5` | Hairline |
+
+`--chart-2` stays `oklch(0.556 0 0)` (`#737373`). It is a chart swatch, not text.
+
+### Dark (`.dark`)
+
+| Token | oklch | Hex | Role |
+|---|---|---|---|
+| `--background` | `oklch(0.145 0 0)` | `#0a0a0a` | Page |
+| `--foreground` | `oklch(0.985 0 0)` | `#fafafa` | Body text |
+| `--card`, `--popover` | `oklch(0.205 0 0)` | `#171717` | Card |
+| `--muted` | `oklch(0.269 0 0)` | `#262626` | Quiet surface |
+| `--muted-foreground` | `oklch(0.708 0 0)` | `#a1a1a1` | Secondary text |
+| `--positive` | `oklch(0.72 0.14 155)` | `#4ebe7d` | On track |
+| `--positive-soft` | `oklch(0.3 0.05 155)` | `#173523` | On-track tint |
+| `--caution` | `oklch(0.8 0.14 80)` | `#edb345` | Watch |
+| `--caution-soft` | `oklch(0.32 0.05 80)` | `#403012` | Watch tint |
+| `--negative` | `oklch(0.72 0.17 20)` | `#fd7277` | At risk |
+| `--negative-soft` | `oklch(0.32 0.06 20)` | `#4d2526` | At-risk tint |
+| `--chrome` | `oklch(0.12 0.01 260)` | `#040609` | Icon rail |
+| `--chrome-foreground` | `oklch(0.7 0.02 260)` | `#979fab` | Rail icon |
+
+Dark `--brand` and `--brand-foreground` match light.
+
+## Contrast
+
+Ratios are for the foreground token on the background token. Soft-tint rows also use those tokens at 60% or 80% over white; those blends are lighter than the full tint, so the full tint is the harder case.
+
+### Light
+
+| Foreground | Background | Ratio |
+|---|---|---|
+| `--foreground` `#0a0a0a` | `--background` `#ffffff` | 19.80:1 |
+| `--muted-foreground` `#6a6a6a` | `--background` `#ffffff` | 5.41:1 |
+| `--muted-foreground` `#6a6a6a` | `--muted` `#f5f5f5` | 4.96:1 |
+| `--muted-foreground` `#6a6a6a` | `--caution-soft` `#fff3d0` | 4.89:1 |
+| `--muted-foreground` `#6a6a6a` | `--positive-soft` `#defae6` | 4.87:1 |
+| `--muted-foreground` `#6a6a6a` | `--negative-soft` `#ffeaeb` | 4.69:1 |
+| `--caution` `#965e01` | `--background` `#ffffff` | 5.39:1 |
+| `--caution` `#965e01` | `--caution-soft` `#fff3d0` | 4.87:1 |
+| `--caution` `#965e01` | `--muted` `#f5f5f5` | 4.94:1 |
+| `--caution` `#965e01` | `--negative-soft` `#ffeaeb` | 4.67:1 |
+| `--positive` `#007e46` | `--positive-soft` `#defae6` | 4.65:1 |
+| `--positive` `#007e46` | `--background` `#ffffff` | 5.16:1 |
+| `--negative` `#cc243d` | `--negative-soft` `#ffeaeb` | 4.69:1 |
+| `--negative` `#cc243d` | `--background` `#ffffff` | 5.40:1 |
+| `--brand-foreground` `#11161f` | `--brand` `#fab72a` | 10.25:1 |
+| `--destructive` `#e7000b` | `--background` `#ffffff` | 4.77:1 |
+
+### Dark
+
+| Foreground | Background | Ratio |
+|---|---|---|
+| `--foreground` `#fafafa` | `--background` `#0a0a0a` | 18.97:1 |
+| `--muted-foreground` `#a1a1a1` | `--muted` `#262626` | 5.86:1 |
+| `--muted-foreground` `#a1a1a1` | `--background` `#0a0a0a` | 7.66:1 |
+| `--muted-foreground` `#a1a1a1` | `--card` `#171717` | 6.94:1 |
+| `--caution` `#edb345` | `--caution-soft` `#403012` | 6.75:1 |
+| `--caution` `#edb345` | `--background` `#0a0a0a` | 10.50:1 |
+| `--positive` `#4ebe7d` | `--positive-soft` `#173523` | 5.72:1 |
+| `--positive` `#4ebe7d` | `--background` `#0a0a0a` | 8.47:1 |
+| `--negative` `#fd7277` | `--negative-soft` `#4d2526` | 4.88:1 |
+| `--negative` `#fd7277` | `--background` `#0a0a0a` | 7.40:1 |
+
+### What changed (light only)
+
+Dark tokens are unchanged.
+
+| Token | Old oklch | Old hex | New oklch | New hex | Hard pairing | Old | New |
+|---|---|---|---|---|---|---|---|
+| `--caution` | `oklch(0.6 0.14 70)` | `#b46e00` | `oklch(0.532 0.115 70)` | `#965e01` | on `--caution-soft` `#fff3d0` | 3.67:1 | 4.87:1 |
+| `--caution` | `oklch(0.6 0.14 70)` | `#b46e00` | `oklch(0.532 0.115 70)` | `#965e01` | on white `#ffffff` | 4.06:1 | 5.39:1 |
+| `--muted-foreground` | `oklch(0.556 0 0)` | `#737373` | `oklch(0.525 0 0)` | `#6a6a6a` | on `--muted` `#f5f5f5` | 4.34:1 | 4.96:1 |
+| `--muted-foreground` | `oklch(0.556 0 0)` | `#737373` | `oklch(0.525 0 0)` | `#6a6a6a` | on `--negative-soft` `#ffeaeb` | 4.11:1 | 4.69:1 |
+| `--muted-foreground` | `oklch(0.556 0 0)` | `#737373` | `oklch(0.525 0 0)` | `#6a6a6a` | on `--caution-soft` `#fff3d0` | 4.29:1 | 4.89:1 |
+
+`--positive` and `--negative` already cleared 4.5:1 on white and on their soft tints, so they stayed put. Watch amber is darker and still amber (hue 70), separate from at-risk red `#cc243d` and on-track green `#007e46`.
 
 ## Components
 
