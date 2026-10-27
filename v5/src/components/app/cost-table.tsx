@@ -62,7 +62,7 @@ function BudgetCell({
   exact?: boolean;
 }) {
   return (
-    <div className="whitespace-nowrap text-right">
+    <div className="text-right md:whitespace-nowrap">
       <Money cents={centsOf(money, set)} exact={exact} />
       {money.mhMilli > 0 ? (
         <div
@@ -78,14 +78,6 @@ function BudgetCell({
 
 const hot = (l: CostLine) =>
   varianceStatus(l.cpi, l.varianceCents) === "at-risk";
-
-/** Exact dollars for approval-pending (not usdShort's $2K rounding). */
-function usdExact(cents: number) {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-}
 
 /** Claimed installed drives the number; live above that is pending until lock. */
 function InstalledCell({ l }: { l: CostLine }) {
@@ -106,9 +98,14 @@ function InstalledCell({ l }: { l: CostLine }) {
           data-cents={approvalCents}
         >
           +{qty(approvalQty)} {l.unit}
-          {approvalCents > 0
-            ? ` · ${usdExact(approvalCents)} pending`
-            : " pending approval"}
+          {approvalCents > 0 ? (
+            <>
+              {" · "}
+              <Money cents={approvalCents} exact /> pending
+            </>
+          ) : (
+            " pending approval"
+          )}
         </div>
       ) : null}
       {pending > 0 && (
@@ -566,14 +563,14 @@ function VirtualTreeDesktop({
                     ) : (
                       <BudgetCell money={n.money} set={valueSet} exact />
                     )}
-                    <div className="whitespace-nowrap text-right">
+                    <div className="text-right md:whitespace-nowrap">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
                         <Money cents={l.earnedCents} exact />
                       )}
                     </div>
-                    <div className="whitespace-nowrap text-right">
+                    <div className="text-right md:whitespace-nowrap">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
@@ -581,7 +578,7 @@ function VirtualTreeDesktop({
                       )}
                     </div>
                     {showCostIndexes ? (
-                      <div className="whitespace-nowrap text-right">
+                      <div className="text-right md:whitespace-nowrap">
                         {estimateDraft ? (
                           <MetricDash />
                         ) : (
@@ -751,9 +748,18 @@ function VirtualTreeMobile({
                           data-cents={l.approvalPendingCents ?? 0}
                         >
                           +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
-                          {(l.approvalPendingCents ?? 0) > 0
-                            ? ` · ${usdExact(l.approvalPendingCents!)} pending`
-                            : " pending approval"}
+                          {(l.approvalPendingCents ?? 0) > 0 ? (
+                            <>
+                              {" · "}
+                              <Money
+                                cents={l.approvalPendingCents!}
+                                exact
+                              />{" "}
+                              pending
+                            </>
+                          ) : (
+                            " pending approval"
+                          )}
                         </div>
                       ) : null}
                       {!estimateDraft && pendingInstalledQtyMilli(l) > 0 ? (

@@ -133,12 +133,18 @@ export function AppShell({
 
 async function CompanyBadge() {
   const user = await requireUser();
+  // Wrap — truncate + title fails the strict own-text scan (titles don't count).
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
-      <span className="truncate font-medium">{user.companyName}</span>
+      <span
+        data-testid="company-name"
+        className="min-w-0 font-medium text-pretty break-words whitespace-normal"
+      >
+        {user.companyName}
+      </span>
       <span
         data-text="label"
-        className="hidden rounded bg-brand/25 px-1.5 py-0.5 text-label font-medium sm:inline"
+        className="hidden shrink-0 rounded bg-brand/25 px-1.5 py-0.5 text-label font-medium sm:inline"
       >
         Demo sandbox
       </span>
@@ -215,24 +221,30 @@ async function JobStrip() {
   // Wrap + max-w-full (not overflow-x scroll): shrink-0 pills in a row were the
   // 422 px sideways spill at 390 — document grew and clipped SR-99 off the edge.
   // Spec 5.0.4-0: every visible job-strip child.right ≤ clientWidth.
+  // Strict scan: no truncate/ellipsis — wrap labels; short CPI/SPI like the table.
+  // Foreman phone: hide the strip (field home is next-steps / plan, not chrome pills).
   const costIndexes = showsCostIndexes(user.role);
   const statusBadge = showsStatusRiskBadge(user.role);
   const todayLabels =
     user.role === "foreman"
       ? await getTodayPlanLabelsByJob(user.companyId)
       : null;
+  const foremanPhoneHide = user.role === "foreman";
   return (
     <nav
       aria-label="Jobs"
       data-testid="job-strip"
-      className="flex min-w-0 max-w-full flex-wrap gap-2 border-b px-4 py-2"
+      className={cn(
+        "min-w-0 max-w-full flex-wrap gap-2 border-b px-4 py-2",
+        foremanPhoneHide ? "hidden md:flex" : "flex",
+      )}
     >
       {jobs.map((p) => {
         const foremanLabel = todayLabels?.get(p.job.id) ?? "No plan today";
         const meta = p.estimateDraft
           ? "Estimate draft"
           : costIndexes
-            ? `Cost performance (CPI) ${idx(p.cpi)} · Schedule performance (SPI) ${idx(p.spi)}`
+            ? `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`
             : user.role === "foreman"
               ? foremanLabel
               : null;
@@ -241,11 +253,14 @@ async function JobStrip() {
             key={p.job.id}
             href={`/app/jobs/${p.job.number}`}
             label={p.job.name}
-            className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 sm:gap-3"
+            className="flex min-w-0 max-w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 sm:gap-3"
             activeClassName="border-foreground bg-muted/50 text-foreground"
           >
-            <span className="min-w-0 flex-1 overflow-hidden">
-              <span className="block truncate font-medium text-foreground">
+            <span className="min-w-0 flex-1">
+              <span
+                className="block font-medium text-pretty break-words whitespace-normal text-foreground"
+                data-testid="job-strip-label"
+              >
                 {p.job.shortName}{" "}
                 <span className="font-normal text-muted-foreground">
                   {p.job.number}
@@ -253,13 +268,13 @@ async function JobStrip() {
               </span>
               {meta ? (
                 <span
-                  className="block truncate tabular-nums"
+                  className="block text-pretty break-words whitespace-normal tabular-nums"
                   data-testid={
                     p.estimateDraft
                       ? "strip-estimate-draft"
                       : user.role === "foreman"
                         ? "strip-plan-state"
-                        : undefined
+                        : "strip-cost-indexes"
                   }
                 >
                   {meta}
