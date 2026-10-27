@@ -1,5 +1,7 @@
 # Workflow Evaluation Matrix
 
+> Historical rubric for the removed 3.8.2 workflows. Those test projects are gone.
+
 > **Rubric:** PASS = canonical construction workflow stages enforced server-side with audit logging and matching UI actions. FAIL = missing stages, ad-hoc jumps, or dead-end navigation. PARTIAL = core path works; compliance/GL/cash gaps remain.
 >
 > **Baseline:** domain services + `e2e/fixtures/ROLE-PERSONA-MAP.md` + role home docs in `docs/ROLE-EXPERIENCE.md`.
@@ -103,12 +105,12 @@ Detailed findings: `<temp-dir>\grok-goal-eaf1b63e9147\implementer\workflow-revie
 
 | Area | Test file |
 |------|-----------|
-| Transition graphs | `tests/Pitbull.Tests.Unit/Workflow/WorkflowTransitionGraphTests.cs` (incl. `PaymentApplicationStatusTransitions`) |
-| Sub pay app PUT bypass | `tests/Pitbull.Tests.Unit/Modules/Contracts/ContractsServiceTests.cs` |
-| Change orders | `tests/Pitbull.Tests.Unit/Modules/Contracts/ContractsServiceTests.cs` |
-| Billing workflow | `tests/Pitbull.Tests.Unit/Billing/BillingApplicationServiceTests.cs` |
-| WIP source | `tests/Pitbull.Tests.Unit/Services/WipCalculationServiceTests.cs` |
-| Workflow audit | `tests/Pitbull.Tests.Unit/Features/Workflow/WorkflowTransitionServiceTests.cs` |
+| Transition graphs | WorkflowTransitionGraphTests (removed unit project) |
+| Sub pay app PUT bypass | ContractsServiceTests (removed unit project) |
+| Change orders | ContractsServiceTests (removed unit project) |
+| Billing workflow | BillingApplicationServiceTests (removed unit project) |
+| WIP source | WipCalculationServiceTests (removed unit project) |
+| Workflow audit | WorkflowTransitionServiceTests (removed unit project) |
 
 | Suite | Result | Log |
 |-------|--------|-----|
@@ -124,7 +126,7 @@ Detailed findings: `<temp-dir>\grok-goal-eaf1b63e9147\implementer\workflow-revie
 
 ## Frontend alignment (G5)
 
-Shared transition helpers: `Pitbull.Web/pitbull-web/src/lib/workflow-transitions.ts` (mirrors C# `*StatusTransitions`).
+Shared transition helpers lived in the removed web app and mirrored the server status transitions.
 
 | Page | Verdict | Pattern |
 |------|---------|---------|

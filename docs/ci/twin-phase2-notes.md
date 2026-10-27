@@ -85,7 +85,7 @@
 | unset / empty | **ON** (production default) |
 | `false` / `0` / `off` / `no` | OFF — hide twin nav |
 
-See `Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
+See `the removed web app/src/lib/feature-flags.ts`.
 
 ## Model sample (2.16.6)
 
@@ -137,13 +137,13 @@ npx playwright test --project=twin-zone-roundtrip
 
 ```powershell
 # Arc D spatial suite
-dotnet test tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj --filter "FullyQualifiedName~SpatialEndpoints"
+the removed test runner tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration project file --filter "FullyQualifiedName~SpatialEndpoints"
 
 # Unit slices
-dotnet test tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj --filter "FullyQualifiedName~TwinPhotoPinAggregation|SpatialCaptureQuality|ModelAsset|SpatialCost"
+the removed test runner tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit project file --filter "FullyQualifiedName~TwinPhotoPinAggregation|SpatialCaptureQuality|ModelAsset|SpatialCost"
 
 # Web
-cd Pitbull.Web/pitbull-web
+cd the removed web app
 npm test -- --run twin-photo-pins overlay-formula help-twin-overlays help-zone-picker-twin spatial-context twin-surface
 ```
 

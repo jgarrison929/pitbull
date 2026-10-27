@@ -1,6 +1,6 @@
 # Arc: Financial math integrity (WIP-first)
 
-**Status:** Planned (inventory + first continuous review workflow shipped)  
+**Status:** Historical inventory of the removed 3.8.2 billing code. Not a v5 plan.  
 **Problem:** Demo/live WIP lines show calculation errors — wrong % complete scale, incomplete cost/billing sources, and seed data that does not join real contracts/billings/costs.  
 **Mandate:** Truth over polish. Label proxies honestly. Do not invent executive KPIs.
 
@@ -12,12 +12,12 @@
 
 | Surface | Path | What it does today | Math risk |
 |---------|------|--------------------|-----------|
-| Line calc | `src/Modules/Pitbull.Billing/Services/WipCalculationService.cs` | Cost-to-cost %; earned = revised × %; over/under = earned − billed | Source gaps (below) |
-| Report generate/update | `src/Modules/Pitbull.Billing/Services/WipReportService.cs` | Calls calc; writes EV fields; surety export | Inherits calc; CPI = earned/cost (nonstandard vs BCWP/ACWP) |
-| Contracts/DTOs | `src/Modules/Pitbull.Billing/Features/Wip/WipContracts.cs` | Line + surety DTOs | % assumed unit fraction |
-| GL post | `src/Modules/Pitbull.Billing/Features/Wip/WipGlPostingService.cs` | JE for over/under | Posts wrong AR/revenue if over/under wrong |
-| UI | `Pitbull.Web/.../accounting/wip/[id]/page.tsx` | `formatPercent(v) => (v * 100)%` | Double-scales if value is already 0–100 |
-| Unit tests | `tests/Pitbull.Tests.Unit/Services/WipCalculationServiceTests.cs` | Happy path only | Does not lock owner CO / full job cost / gross billings |
+| Line calc | billing WipCalculationService | Cost-to-cost %; earned = revised × %; over/under = earned − billed | Source gaps (below) |
+| Report generate/update | billing WipReportService | Calls calc; writes EV fields; surety export | Inherits calc; CPI = earned/cost (nonstandard vs BCWP/ACWP) |
+| Contracts/DTOs | billing Wip contracts | Line + surety DTOs | % assumed unit fraction |
+| GL post | billing Wip GL posting | JE for over/under | Posts wrong AR/revenue if over/under wrong |
+| UI | accounting WIP page on the removed web app | `formatPercent(v) => (v * 100)%` | Double-scales if value is already 0–100 |
+| Unit tests | WipCalculationServiceTests (removed unit project) | Happy path only | Does not lock owner CO / full job cost / gross billings |
 | Seed WIP | `SeedDataService.CreateWipReports` | Fabricates lines from schedule EV profiles | Not derived from TimeEntry / BillingApplication / real COs |
 
 ### Formula (service) — intended cost-to-cost

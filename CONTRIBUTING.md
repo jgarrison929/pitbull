@@ -27,7 +27,6 @@ Thanks for your interest in contributing to Pitbull! This guide will get you up 
 | PostgreSQL | 17+ | Database |
 | Git | Latest | Version control |
 | GitHub CLI (`gh`) | Latest | PR workflow |
-| .NET SDK | 10.0+ | **Legacy only** — frozen `src/` |
 
 ### Setup (live — v5)
 
@@ -137,8 +136,6 @@ Feature branches are created from `main` and merge via PR. The `production` bran
    npm run build && npm run e2e
    ```
 
-   Legacy `src/` builds are optional and only when that tree is intentionally touched.
-
 4. **Push and open a PR:**
 
    ```bash
@@ -186,7 +183,7 @@ Commands/queries separated via `ICommand`/`IQuery` + handlers, but controllers u
 
 ### Feature + Service Pattern
 
-Some features use dedicated folders (e.g. Projects/Features/CreateProject/*Command.cs), but most modules use service interfaces + impls (e.g. IProjectService / ProjectService). Controllers inject services directly. No repositories. See actual code in Modules/ for patterns.
+Some features used a dedicated folder per command. Most modules used a service interface and an implementation. Controllers injected services directly. There were no repositories.
 
 ### Multi-Tenancy
 
@@ -202,7 +199,7 @@ Shared database, shared schema model with two enforcement layers:
 - **Tailwind CSS** for styling
 - Mobile-first responsive design
 
-For deeper architecture details, see `docs/BEST-PRACTICES.md` and `docs/ADDING-A-MODULE.md`.
+Live layout and demo rules are in [`AGENTS.md`](AGENTS.md). The removed 3.8.2 host is described in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 

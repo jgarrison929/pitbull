@@ -7,12 +7,12 @@
 
 ```powershell
 # Web unit (field/mobile helpers)
-cd Pitbull.Web/pitbull-web
+cd the removed web app
 npm test -- --run help-field-workflows field-report-analytics list-virtualization offline-store mobile-shell posthog-viewport
 
 # API unit (slim mobile projects list)
 cd ../../../
-dotnet test tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj --filter "FullyQualifiedName~ProjectMobileListViewTests"
+the removed test runner tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit project file --filter "FullyQualifiedName~ProjectMobileListViewTests"
 
 # E2E field report (requires API + web + Demo)
 cd e2e

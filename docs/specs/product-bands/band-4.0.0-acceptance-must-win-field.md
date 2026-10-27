@@ -112,10 +112,10 @@ Persona resolution is **title / `role_profile` first** (not Identity role alone)
 
 | Area | Paths |
 |------|--------|
-| API | `Pitbull.Api/Controllers/ProjectManagementControllers.cs` (`ProjectJobCostController`, route `api/projects/{projectId}/job-cost`), `CostCodesController.cs` |
+| API | `the removed API host/Controllers/ProjectManagementControllers` (`ProjectJobCostController`, route `api/projects/{projectId}/job-cost`), `CostCodesController` |
 | Domain / services | `src/Modules/Pitbull.ProjectManagement/` (`IJobCostService` / `ListBudgetsAsync` / `ListActualsAsync`), `Pitbull.Core` cost-code features, `PaginationQuery` (max page size 100) |
-| Web | `Pitbull.Web/pitbull-web/src/app/(dashboard)/projects/[id]/job-cost/page.tsx`, `components/layout/workspaces.ts` (pm + field `mobileTabs` / project workspace), optional `lib/*job-cost-mobile*` helpers |
-| Help | `Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx` |
+| Web | `the removed web app/src/app/(dashboard)/projects/[id]/job-cost/page.tsx`, `components/layout/workspaces.ts` (pm + field `mobileTabs` / project workspace), optional `lib/*job-cost-mobile*` helpers |
+| Help | `the removed web app/src/app/(dashboard)/help/page.tsx` |
 | Tests | API unit/mapper tests for mobile DTOs; vitest for empty honesty / URL builders; e2e notes for Qa-Gate |
 | E2E map | `e2e/fixtures/ROLE-PERSONA-MAP.md` - gate **pm** + **field-eng** (and superintendent Explore-as-role when used) |
 

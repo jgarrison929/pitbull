@@ -112,8 +112,8 @@ Implementers **must** satisfy before push/merge. Churn on failed Railway deploys
 | Surface | Action |
 |---------|--------|
 | root `VERSION` | Exactly one step forward; never skip |
-| `Pitbull.Web/pitbull-web/package.json` `version` | Match |
-| `Pitbull.Api/Pitbull.Api.csproj` Version / AssemblyVersion / FileVersion / InformationalVersion | Match |
+| `the removed web app/package.json` `version` | Match |
+| removed API host version props | Match |
 | Docker `ARG` defaults (API/web Dockerfiles) | Match when present |
 | `CHANGELOG.md` | Keep a Changelog entry + ISO published timestamp on release header |
 

@@ -18,7 +18,7 @@ This is not a claim that every listed file was edited in the same PR. It is a ma
 | `docs/specs/product-bands/*` | 3.x band specs |
 | `docs/specs/*.md` (non–product-bands) | Legacy feature specs for frozen `src/` |
 | `docs/architecture/*` | Early design notes |
-| `docs/ARCHITECTURE.md`, `BEST-PRACTICES.md`, `ADDING-A-MODULE.md` | Describe the .NET modular monolith |
+| `docs/ARCHITECTURE.md` | Legacy banner; describes the removed .NET monolith. `BEST-PRACTICES.md` and `ADDING-A-MODULE.md` were deleted |
 | `docs/ROLE-EXPERIENCE.md` | Title-first personas for legacy Explore-as-role |
 | `docs/DEMO-COMPANY-PROFILES.md`, `mobile3.md`, `pitbull-digital-twin-spec.md`, `WORKFLOW-EVALUATION-MATRIX.md`, `ROADMAP-2.1.md` | Pre-v5 or out-of-5.0 spine |
 | `docs/deployment/*` | Superseded by root `deploy/` |

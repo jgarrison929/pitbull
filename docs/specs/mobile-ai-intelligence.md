@@ -24,7 +24,7 @@ Superintendent (field report), PM (optional summary).
 | Area | Paths |
 |------|-------|
 | Field report | `daily-reports/mobile/page.tsx` |
-| AI API | `Pitbull.Api/Controllers/AiChatController.cs` + AI services/modules |
+| AI API | `the removed API host/Controllers/AiChatController` + AI services/modules |
 | Usage tracking | existing AI usage entities/services |
 | PostHog | `lib/posthog.ts` |
 | Help | `help/page.tsx` |

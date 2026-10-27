@@ -22,7 +22,7 @@
 ## Test commands
 
 ```powershell
-cd Pitbull.Web/pitbull-web
+cd the removed web app
 npm test -- --run offline-photo plan-binary-cache plan-pin-draft field-quick-log help-field-workflows
 ```
 

@@ -1,7 +1,8 @@
 # Demo Company Profiles
 
-**Status:** Seed data version 11+  
-**Source of truth:** `DemoBootstrapper.cs` (company names/codes) + `SeedDataService.cs` (domain rows)
+> Historical 3.8.2 demo companies. The v5 sandbox is the seeded Summit Highway & Bridge company on `/login`. Recover the old seed from tag `legacy-3.8.2-final`.
+
+**Status:** Seed data version 11+ on the removed host.
 
 These four companies share one demo tenant. Switch companies in the header to change the “business world.”
 
@@ -59,4 +60,4 @@ Bump `SeedDataVersion` in `SeedDataService` when content changes. With `Demo__Se
 ## Related
 
 - Role accounts and home UX: `docs/ROLE-EXPERIENCE.md`
-- Demo bootstrap: `Pitbull.Api/Demo/DemoBootstrapper.cs`
+- Demo bootstrap lived on the removed API host. Recover it from tag `legacy-3.8.2-final`.

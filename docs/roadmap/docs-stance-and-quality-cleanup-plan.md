@@ -186,7 +186,7 @@ Tracker: #522. **Do not add a Dependabot ignore without an issue + review date.*
 ## 5. Next.js 16.3 upgrade plan
 
 **Upstream:** [Next.js 16.3](https://nextjs.org/blog/next-16-3) (stable 2026-08-03).  
-**Current app:** `Pitbull.Web/pitbull-web` → `"next": "^16.2.11"`, React 19.2.x, product version 3.7.7.
+**Then:** the removed 3.8.2 web at product version 3.7.7 (Next 16.2.11, React 19.2.x). The live app is `v5/`.
 
 ### 5.1 Goals
 

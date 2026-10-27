@@ -34,11 +34,11 @@ Required Role E2E already covers demo login shells. Manual / optional smoke for 
 ## Test commands
 
 ```powershell
-cd Pitbull.Web/pitbull-web
+cd the removed web app
 npm test -- --run today-on-site site-walk-today-on-site help-today-on-site
 
 # API unit (when present)
-dotnet test tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~TodayOnSite"
+the removed test runner tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~TodayOnSite"
 ```
 
 ## CI policy (merge gate)

@@ -45,8 +45,7 @@ You should receive a response within 48 hours. If the issue is confirmed, we wil
 
 ## Security Documentation
 
-- [Row-Level Security Implementation](docs/security/RLS-IMPLEMENTATION.md)
-- [Best Practices](docs/BEST-PRACTICES.md)
+- [Row-Level Security Implementation](docs/security/RLS-IMPLEMENTATION.md) (historical 3.8.2 notes)
 
 ## Contact
 

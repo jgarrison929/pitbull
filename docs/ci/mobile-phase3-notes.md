@@ -6,7 +6,7 @@
 ## Test commands
 
 ```powershell
-cd Pitbull.Web/pitbull-web
+cd the removed web app
 npm test -- --run site-walk-entry site-walk-analytics site-walk-twin-link schedule-critical-filter schedule-empty-copy progress-deep-link rfi-sub-link field-report-schedule-link
 ```
 

@@ -1,5 +1,7 @@
 # Role experience map (v2.12)
 
+> Historical map of the removed 3.8.2 web. Live demo roles are the four cards in [`AGENTS.md`](../AGENTS.md).
+
 How demo and real users land in the product after login. All personas use shell route **`/`**; content differs by **role profile**.
 
 ## Workspace map (2.12.0)
@@ -67,10 +69,10 @@ AP/AR clerks, field engineer, payroll — full seed exists (`DemoBootstrapper`);
 
 | Concern | Path |
 |---------|------|
-| Profile resolver | `Pitbull.Api/Services/RoleProfileResolver.cs` |
-| Briefing | `BriefingService.cs` |
-| Role summary API | `RoleDashboardSummaryService.cs` → `GET /api/dashboard/role-summary` |
-| Role views | `Pitbull.Web/.../components/dashboard/role-views/` |
+| Profile resolver | role profile resolver on the removed API host |
+| Briefing | briefing service on that host |
+| Role summary API | role dashboard summary → `GET /api/dashboard/role-summary` |
+| Role views | dashboard role views in the removed web app |
 | Login catalog | `AuthController` demo roles + `login/page.tsx` |
 
 ## Jobsite Digital Twin (field + PM)

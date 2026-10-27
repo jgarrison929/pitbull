@@ -16,8 +16,8 @@ AI may **suggest** narratives and summaries. Humans **confirm** before fields ar
 
 ## Related code
 
-- `Pitbull.Api/Controllers/AiFieldVoiceController.cs`  
-- `Pitbull.Api/Validation/AiInputSanitizer.cs`  
-- `Pitbull.Api/Configuration/AiRateLimitPolicy.cs`  
-- `Pitbull.Web/pitbull-web/src/lib/field-ai-suggestion.ts`  
-- `Pitbull.Web/pitbull-web/src/lib/voice-ai-merge.ts`  
+- `the removed API host/Controllers/AiFieldVoiceController`  
+- `the removed API host/Validation/AiInputSanitizer`  
+- `the removed API host/Configuration/AiRateLimitPolicy`  
+- `the removed web app/src/lib/field-ai-suggestion.ts`  
+- `the removed web app/src/lib/voice-ai-merge.ts`  

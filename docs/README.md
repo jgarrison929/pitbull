@@ -25,7 +25,7 @@ Prefer **truth over polish**. Root agent entrypoints: [`../AGENTS.md`](../AGENTS
 | `DEMO-COMPANY-PROFILES.md` | Multi-company demo archetypes (legacy-oriented) |
 | `mobile3.md` | Field mobile capture plan (historical fuel) |
 | `pitbull-digital-twin-spec.md` | Digital twin design (not in v5 5.0 spine) |
-| `BEST-PRACTICES.md` / `ADDING-A-MODULE.md` | Legacy .NET module patterns |
+| (removed) `BEST-PRACTICES.md` / `ADDING-A-MODULE.md` | .NET module guides; live patterns are [`../AGENTS.md`](../AGENTS.md) |
 | `WORKFLOW-EVALUATION-MATRIX.md` | Lifecycle / E2E evidence (legacy era) |
 | `architecture/` | Early design notes — see `architecture/README.md` (**archive**) |
 | `deployment/` | Older Railway notes — **live setup is `deploy/` at repo root** |

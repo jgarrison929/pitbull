@@ -39,10 +39,10 @@
 ## Tests
 
 ```powershell
-cd Pitbull.Web/pitbull-web
+cd the removed web app
 npm test -- --run field-ai-suggestion field-eod-summary field-photo-safety feature-flags ai-suggestion-label
 
-dotnet test tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~AiFieldVoice|AiUsage"
+the removed test runner tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~AiFieldVoice|AiUsage"
 ```
 
 ## Remainder shipped (2.20.3 → 2.21.2)

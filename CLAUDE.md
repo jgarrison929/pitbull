@@ -98,7 +98,7 @@ The 3.8.2 modules (Projects, Billing, TimeTracking, and the rest) are on tag `le
 
 - Controllers: `I*Service` injection; **do not add MediatR**.
 - Multi-tenancy: JWT tenant + PostgreSQL RLS `app.current_tenant`; company scoping via `ICompanyScoped`.
-- Soft-delete and `AsNoTracking()` conventions as in historical BEST-PRACTICES / ARCHITECTURE docs.
+- Soft-delete and no-tracking query conventions as in the historical ARCHITECTURE notes.
 
 ---
 
