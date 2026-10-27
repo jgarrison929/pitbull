@@ -239,6 +239,13 @@ jobs:
         run: npm run db:prepare
 
       - name: Unit tests
+        env:
+          TZ: UTC
+        run: npm test
+
+      - name: Unit tests (America/Los_Angeles)
+        env:
+          TZ: America/Los_Angeles
         run: npm test
 
       - name: Build
