@@ -31,6 +31,9 @@ import {
   resolveTarget,
   PAGE_BUDGET_MS,
   runStep,
+  notExecutedChecks,
+  bannedStringsCheck,
+  targetLabel,
   shaMatches,
   slowestRow,
 } from "./checks.mjs";
@@ -141,11 +144,8 @@ if (rcError) {
   process.exit(1);
 }
 if (!args["self-check"]) {
-  console.log(
-    rc
-      ? `target ${target} (RC ${rc.branch} head ${rc.sha})`
-      : `target ${target} (${production ? "expects the newest v5 release tag" : "expects the last green main commit"})`,
-  );
+  // S12: a loopback run says so and names its URL (it used to print "target staging" for localhost).
+  console.log(targetLabel({ baseUrl, isLocal, target, production, rc }));
 }
 const mainCiOn = production || args["main-ci"] === "on" || (args["main-ci"] === "auto" && !isLocal && !args["self-check"]);
 
@@ -291,12 +291,27 @@ const expectedJobCount = seedJobNumbers.length;
 const PHONE_W = 390;
 const PHONE_H = 844;
 const PHONE_ROLES = ["pm", "foreman", "executive", "superintendent"];
+/** S2: every check the nav crawl step records. */
+const NAV_CRAWL_CHECKS = [
+  "nav crawl: 4 roles × pages × 320/390/768/1280",
+  "nav crawl includes /schedule",
+  "nav crawl includes /roadmap",
+  "nav crawl discovers every seeded cost-item drill-down",
+  "nav crawl loads every seeded cost-item drill-down",
+  `${PART_C_CHECK_4}: one cost item page + one plan page per active job, 4 roles × 4 viewports`,
+];
+
 /** Visible-text banned hits across crawled pages (label: "matched"). */
 const bannedHitList = [];
+/** S3: every page label scanBannedVisible actually read, so the banned check names its coverage. */
+const bannedScanned = [];
+/** S3: the nav-crawl rows, null until the nav crawl returns them. */
+let navRowsForBanned = null;
 
 /** Scan document.body.innerText only — ignores HTML attributes like input placeholder=. */
 async function scanBannedVisible(page, label) {
   const visible = await page.evaluate(() => document.body?.innerText ?? "");
+  bannedScanned.push(label);
   for (const h of bannedHits(visible)) bannedHitList.push(`${label}: "${h.match}" (${h.id})`);
 }
 
@@ -427,11 +442,14 @@ try {
   await browser?.close();
 }
 
-check(
-  "no banned visible strings on crawled pages",
-  bannedHitList.length === 0,
-  bannedHitList.length === 0 ? "clean" : bannedHitList.slice(0, 8).join("; "),
-);
+// S2: the checks recorded only inside the nav crawl step. If the step died (or never ran), each one is a FAIL marked
+// NOT EXECUTED instead of vanishing from the results.
+checks.push(...notExecutedChecks(checks, NAV_CRAWL_CHECKS, rcSignals.crawlRan ? "nav crawl step ended before recording it" : "the nav crawl did not finish, so this check produced no evidence"));
+{
+  // S3: names exactly what was scanned; the nav-crawl rows are scanned here too, and nothing unscanned is "clean".
+  const b = bannedStringsCheck({ scanned: bannedScanned, hits: bannedHitList, navRows: navRowsForBanned });
+  check(b.name, b.ok, b.detail);
+}
 
 /**
  * 4 roles × every page (incl. /roadmap) × 320/390/768/1280, plus /roadmap × 375/1440. Fails on 4xx/5xx,
@@ -462,6 +480,7 @@ async function navCrawl(browser) {
     const rows = [];
     for (const [i, pass] of plan.entries()) rows.push(...(await crawl(browser, base, { pages: pass.pages, widths: pass.widths, shotDir: crawlShots, drill: i === 0 ? drill : undefined, schedule, phoneChecks, evidence: { dir: failureDir, budgetMs, secrets: SECRETS } })));
     const failures = rows.filter((r) => !r.scheduleDenial).flatMap((r) => evaluateCrawlRow(r, { budgetMs, phoneChecks }));
+    navRowsForBanned = rows;
     rcSignals.crawlRan = true;
     rcSignals.crawlFailures = failures;
     const slow = slowestRow(rows);

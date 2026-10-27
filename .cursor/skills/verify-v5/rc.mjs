@@ -401,6 +401,11 @@ export const SPEC504_EXECUTED_ITEMS = [
   ...["Chips stay on screen.", "Cost-item KPI cards fit.", "Toggle names.", "List markup.", "Shell targets.", "Words next to color."].map((t) => `5.0.4-i: ${t}`),
 ];
 
+/** S1/S2: crawl failure lines for loads that threw (nothing on them was measured). */
+export function crawlLoadFailures(crawlFailures) {
+  return (crawlFailures ?? []).filter((f) => /: (load threw|sign-in as \S+ threw):/.test(f)).map((f) => `NOT EXECUTED (load threw): ${f}`);
+}
+
 /**
  * Extra RC checks. The trust bar (banned words, crawl, reset, /status, M2/M4/M5, phone layout)
  * is the existing verify run; this does not repeat it or relax it.
@@ -410,6 +415,7 @@ export const SPEC504_EXECUTED_ITEMS = [
 export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, migrationsLabel, healthOk, executedItems = [] }) {
   const checks = [];
   const add = (name, ok, detail) => checks.push({ name, ok: Boolean(ok), detail });
+  const unmeasured = crawlLoadFailures(crawlFailures);
   const merges = history?.merges ?? [];
   const added = history?.added ?? [];
   const prList = merges.map((m) => `#${m.number}`).join(", ") || "none";
@@ -446,7 +452,8 @@ export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, 
     for (const [section, lines] of groups) add(`acceptance ${section}`, false, lines.join("; "));
     if (crawlRan) {
       // Both clauses of the 5.0.4-0 acceptance sentence. Clause 2 is the job-strip right edge.
-      const overflowFails = (crawlFailures ?? []).filter((f) => /document scrollWidth|job-strip element |job-strip missing/.test(f));
+      // S1/S2: a load that threw measured nothing, so it can't pass 5.0.4-0.
+      const overflowFails = [...unmeasured, ...(crawlFailures ?? []).filter((f) => /document scrollWidth|job-strip element |job-strip missing/.test(f))];
       add(
         "acceptance 5.0.4-0",
         overflowFails.length === 0,
@@ -460,7 +467,7 @@ export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, 
   const sc = statusColorCheck(history?.statusColorHits ?? null, history ? history.statusColorError : historyError);
   add(sc.name, sc.ok, sc.detail);
 
-  const clipFails = (crawlFailures ?? []).filter((f) => /clipped /.test(f) && /@(320|375|390)\b/.test(f));
+  const clipFails = [...unmeasured, ...(crawlFailures ?? []).filter((f) => /clipped /.test(f) && /@(320|375|390)\b/.test(f))];
   add(
     "ellipsis/clipping at ≤480",
     Boolean(crawlRan) && clipFails.length === 0,

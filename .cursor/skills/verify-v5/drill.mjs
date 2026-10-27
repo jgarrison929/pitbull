@@ -249,6 +249,8 @@ export function drillCoverageFailures(rows, seedItems, { roles, access = DRILL_R
       }
       if (access[role] === false) {
         for (const r of mine) {
+          // S1: a load that threw proves no refusal.
+          if (r.loadFailed) { f.push(`${role}@${r.width} ${it.path}: ${r.error ?? "load failed"} (refusal not proven)`); continue; }
           if (r.status === 200 && (r.seededCounts?.costItemTiles ?? 0) > 0) f.push(`${role}@${r.width} ${it.path}: role without drill-down access was shown the cost item`);
         }
       }

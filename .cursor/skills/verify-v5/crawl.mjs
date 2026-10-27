@@ -253,12 +253,24 @@ export function jobStripHits(path, hasStrip, hits) {
 }
 
 /**
+ * S6: true when el sits inside a closed <details> and is not part of that details' own <summary>. Runs in the page
+ * (measureDom injects it) and in Node tests against any element-like object with closest/parentElement.
+ */
+export function closedDetails(el) {
+  for (let d = el?.closest?.("details:not([open])"); d; d = d.parentElement?.closest?.("details:not([open])")) {
+    const summary = el.closest("summary");
+    if (!(summary && summary.parentElement === d)) return true;
+  }
+  return false;
+}
+
+/**
  * DOM scan passed to page.evaluate. classifyClip, secondaryReachable, textHasMoney and jobStripHits
  * are arguments so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
  * Phone observations are recorded only when phoneChecks is true. Otherwise those fields are omitted,
  * and evaluateCrawlRow's default (phoneChecks false) does not read them.
  */
-function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits) {
+function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits, closedDetails) {
   const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, minBody, bodySel, phoneChecks, phoneOverflowWidths, figureGuard, figureExceptions, nameSelector, path } = arg;
   const FIGURE_GUARD_RE = new RegExp(figureGuard);
   const FIGURE_EXCEPTION_RES = (figureExceptions ?? []).map((src) => new RegExp(src, "g"));
@@ -277,10 +289,15 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
         coStatus: card?.getAttribute("data-status") ?? null,
       };
     });
+  // S6: content inside a closed <details> (outside its own summary) is not visible, even when Chromium gives it real
+  // rects (::details-content, content-visibility: hidden). checkVisibility() also catches a content-visibility: hidden
+  // ancestor. Truly visible small text and small targets are still measured.
   const shown = (el) => {
     if (!el || el.nodeType !== 1) return false;
     const cs = getComputedStyle(el);
     if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return false;
+    if (closedDetails(el)) return false;
+    if (typeof el.checkVisibility === "function" && !el.checkVisibility()) return false;
     const r = el.getClientRects();
     return r.length > 0 && r[0].width > 0 && r[0].height > 0;
   };
@@ -609,7 +626,8 @@ const measureDom = new Function(
     "const secondaryReachable = (" + secondaryReachable.toString() + ");\n" +
     "const textHasMoney = (" + textHasMoney.toString() + ");\n" +
     "const jobStripHits = (" + jobStripHits.toString() + ");\n" +
-    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits);",
+    "const closedDetails = (" + closedDetails.toString() + ");\n" +
+    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits, closedDetails);",
 );
 
 /** Full navigation to base+p; time is wall clock from goto until network idle (includes Playwright's 500 ms idle window). */
@@ -655,10 +673,18 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
     }
     dom.nextStepHrefStatus = statuses;
   }
+  // S1: a screenshot that throws (a 30 s timeout during a box stall) is recorded on this row, which then fails in
+  // evaluateCrawlRow. It no longer throws out of crawl() and drops every row collected so far.
+  let shotError = null;
   if (shotDir) {
-    await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });
+    try {
+      await page.screenshot({ path: path.join(shotDir, `crawl-${role}-w${width}-${p.replace(/[^a-z0-9]+/gi, "_")}.png`), fullPage: true });
+    } catch (error) {
+      shotError = `screenshot failed: ${String(error?.message ?? error).split("\n")[0]}`;
+    }
   }
   return {
+    ...(shotError ? { error: shotError } : {}),
     role,
     width,
     path: p,
@@ -671,6 +697,14 @@ export async function measurePage(page, base, p, sink, { width, role, shotDir, p
     pageErrors: [...sink.page],
     ...dom,
   };
+}
+
+/**
+ * S1: the row for a load that threw. Every measured field is absent, `error` says why, and evaluateCrawlRow fails it.
+ * It is never a pass: no status 200, no seeded counts, no timings.
+ */
+export function failedRow({ role, width, path: p, error, extra = {}, theme = null, height = null }) {
+  return { role, width, path: p, status: 0, loadFailed: true, error: String(error ?? "load failed"), ...extra, ...(theme ? { theme, height } : {}), text: "" };
 }
 
 /**
@@ -714,8 +748,11 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
           row = { ...(await measurePage(page, base, href, sink, { width, role, shotDir: shotDir && theme ? path.join(shotDir, theme) : shotDir, phoneChecks })), ...extra };
           if (theme) Object.assign(row, { theme, height: page.viewportSize()?.height ?? height });
         } catch (error) {
-          if (evidence) await capture(extra.drill ? "drill" : extra.partC ? `partc-${extra.partC}` : "crawl", href, `load threw: ${String(error?.message ?? error).split("\n")[0]}`);
-          throw error;
+          // S1: one load that throws is one FAIL row (with its error); the crawl goes on to the next load.
+          const message = `load threw: ${String(error?.message ?? error).split("\n")[0]}`;
+          if (evidence) await capture(extra.drill ? "drill" : extra.partC ? `partc-${extra.partC}` : "crawl", href, message);
+          row = failedRow({ role, width, path: href, error: message, extra, theme, height: page.viewportSize()?.height ?? height });
+          return row;
         }
         if (evidence) {
           const f = row.scheduleDenial
@@ -729,14 +766,26 @@ export async function crawl(browser, base, { pages, roles = CRAWL_ROLES, widths 
         return row;
       };
       try {
-        await signInRole(page, base, role);
+        try {
+          await signInRole(page, base, role);
+        } catch (error) {
+          // S1: a failed sign-in is a FAIL row for every page this role × width would have loaded; the crawl goes on.
+          const message = `sign-in as ${role} threw: ${String(error?.message ?? error).split("\n")[0]}`;
+          if (evidence) await capture("crawl", "/login", message);
+          for (const p of pages) {
+            const row = failedRow({ role, width, path: p, error: message, theme, height });
+            rows.push(row);
+            onRow?.(row);
+          }
+          continue;
+        }
         const found = new Set();
         const planCards = {};
         for (const p of pages) {
           const row = await load(p);
           rows.push(row);
           onRow?.(row);
-          const job = drill && p.match(/^\/app\/jobs\/([^/]+)$/)?.[1];
+          const job = drill && !row.loadFailed && p.match(/^\/app\/jobs\/([^/]+)$/)?.[1];
           if (job && drill.seedItems[job]) {
             const d = await discoverDrillLinks(page);
             const record = { role, width, job, containers: d.containers, hrefs: d.hrefs, estimateStatus: d.estimateStatus, planCardHrefs: d.planCardHrefs };

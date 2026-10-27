@@ -73,15 +73,80 @@ export async function confirmIfDialog(page, { settled = null, timeout = 30000, g
   const dialog = page.getByRole(CONFIRM_DIALOG_ROLE);
   // The dialog's words, for evidence only (never part of a pass rule).
   const text = typeof dialog.innerText === "function" ? await dialog.innerText().then((t) => t.replace(/\s+/g, " ").trim(), () => null) : null;
+  // S10: the write the confirm click starts is watched from the click on, so the caller never navigates away (and
+  // aborts it, status -1) before it finishes.
+  const writes = watchWrites(page);
   try {
-    await dialog.getByTestId(CONFIRM_DIALOG_CONFIRM).click({ timeout });
-  } catch (e) {
-    throw new Error(`ConfirmDialog appeared but its confirm click failed: ${firstLine(e)}`);
+    try {
+      await dialog.getByTestId(CONFIRM_DIALOG_CONFIRM).click({ timeout });
+    } catch (e) {
+      throw new Error(`ConfirmDialog appeared but its confirm click failed: ${firstLine(e)}`);
+    }
+    try {
+      await dialog.waitFor({ state: "hidden", timeout });
+    } catch (e) {
+      throw new Error(`ConfirmDialog appeared and confirm was clicked, but the dialog did not hide: ${firstLine(e)}`);
+    }
+    // S10: wait for each confirmed write's response (status line and headers). A Next.js Server Action answers only
+    // after the action has run, so a 2xx status means the write is committed; an abort before it, or a 4xx/5xx, throws.
+    // The response body is NOT awaited: the action's RSC payload is streamed and may stay open well after the UI has
+    // updated (PR #87 CI: the 26-010 approve body was still open after 30 s, so response.finished() hung).
+    writes.stop();
+    const saved = await writes.responses(timeout);
+    // S10: then the posted state. A save that answered but never shows its result is not a save. The body may still
+    // fail after the 2xx: Next's client cancels the action stream itself (PR #87 CI: net::ERR_ABORTED on the 26-010
+    // approve, which had committed). That alone is not a failed save; it is reported if the posted state never shows.
+    if (settled) {
+      const t0 = now();
+      while (!(await shown(settled))) {
+        if (now() - t0 >= timeout) {
+          const cut = writes.summary().filter((x) => x.body === "failed").map((x) => `${x.url} body ${x.error}`);
+          throw new Error(`ConfirmDialog confirmed${saved.length ? ` and the save answered (${saved.map((x) => `HTTP ${x.status}`).join(", ")})` : ""}, but the posted state did not appear within ${timeout} ms${cut.length ? ` (${cut.join("; ")})` : ""}`);
+        }
+        await sleep(pollMs);
+      }
+    }
+    return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE, writes: writes.summary() };
+  } finally {
+    writes.close();
   }
-  try {
-    await dialog.waitFor({ state: "hidden", timeout });
-  } catch (e) {
-    throw new Error(`ConfirmDialog appeared and confirm was clicked, but the dialog did not hide: ${firstLine(e)}`);
-  }
-  return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE };
+}
+
+/**
+ * S10: the app's writes (POST with a Next-Action header) seen from now until stop(). responses(timeout) waits for each
+ * one's response status: no response (aborted before it answered, net::ERR_*), a 4xx/5xx, or no answer within the
+ * timeout throws. The body is never awaited, and a body that fails after a 2xx is only recorded in summary() (see
+ * confirmIfDialog). close() detaches everything. A page without request events (the
+ * unit-test fakes) has nothing to watch.
+ */
+export function watchWrites(page) {
+  const pending = [];
+  const live = typeof page?.on === "function";
+  const find = (r) => pending.find((p) => p.request === r);
+  const onRequest = (r) => {
+    if (r.method() === "POST" && r.headers()["next-action"]) pending.push({ request: r, url: r.url().replace(/^https?:\/\/[^/]+/, ""), status: null, failed: null, finished: false });
+  };
+  const onFailed = (r) => { const p = find(r); if (p) p.failed = r.failure()?.errorText ?? "request failed"; };
+  const onFinished = (r) => { const p = find(r); if (p) p.finished = true; };
+  if (live) { page.on("request", onRequest); page.on("requestfailed", onFailed); page.on("requestfinished", onFinished); }
+  let collecting = live;
+  let attached = live;
+  const stop = () => { if (collecting) { page.off("request", onRequest); collecting = false; } };
+  return {
+    stop,
+    close() { stop(); if (attached) { page.off("requestfailed", onFailed); page.off("requestfinished", onFinished); attached = false; } },
+    summary: () => pending.map((p) => ({ url: p.url, status: p.status, body: p.finished ? "complete" : p.failed ? "failed" : "streaming", ...(p.failed ? { error: p.failed } : {}) })),
+    async responses(timeout = 30000) {
+      for (const p of pending) {
+        let timer;
+        const late = new Promise((resolve) => { timer = setTimeout(() => resolve("timeout"), timeout); });
+        const got = await Promise.race([p.request.response().catch(() => null), late]).finally(() => clearTimeout(timer));
+        if (got === "timeout") throw new Error(`the save ${p.url} got no response within ${timeout} ms`);
+        if (!got) throw new Error(`the save ${p.url} failed: ${p.failed ?? p.request.failure()?.errorText ?? "no response"}`);
+        p.status = got.status();
+        if (p.status >= 400) throw new Error(`the save ${p.url} answered HTTP ${p.status}`);
+      }
+      return pending.map((p) => ({ url: p.url, status: p.status }));
+    },
+  };
 }
