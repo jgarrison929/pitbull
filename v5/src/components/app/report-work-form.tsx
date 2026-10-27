@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useMemo, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
 import { runActionState, type ActionState } from "@/app/app/assistant/actions";
 import { Figure } from "@/components/app/format";
 import { qty } from "@/lib/ev";
@@ -83,7 +82,6 @@ export function ReportWorkForm({
   planId: string;
   lines: ReportLine[];
 }) {
-  const router = useRouter();
   const [state, action, pending] = useActionState<ActionState, FormData>(
     runActionState,
     {},
@@ -140,7 +138,7 @@ export function ReportWorkForm({
         return;
       }
       clearQueuedReport(planId, sessionStorage);
-      router.refresh();
+      window.location.reload();
     } catch {
       releaseReportSend(planId);
       setSending(false);
