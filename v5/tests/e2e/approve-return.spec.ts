@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { confirmDialog } from "./confirm-dialog";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
 import { usdCents, usdShort } from "@/lib/ev";
 
@@ -93,7 +94,7 @@ test.describe("superintendent approve / return", () => {
     await page.goto("/app/jobs/25-031");
     await expect(workingPlan(page)).toHaveAttribute("data-status", "reported");
     await page.getByTestId("return-reason").fill("Recount pour 3");
-    await page.getByTestId("return-report").click();
+    await confirmDialog(page, page.getByTestId("return-report"));
     await expect(workingPlan(page)).toHaveAttribute("data-status", "issued");
     await expect(page.getByTestId("return-reason-banner")).toContainText(
       "Recount pour 3",
@@ -118,7 +119,7 @@ test.describe("superintendent approve / return", () => {
     // Approve on screen — cost posts once into since-lock (cutoff AC stays put).
     await signIn(page, "superintendent");
     await page.goto("/app/jobs/25-031");
-    await workingPlan(page).getByTestId("approve-report").click();
+    await confirmDialog(page, workingPlan(page).getByTestId("approve-report"));
     await expect(workingPlan(page)).toHaveAttribute("data-status", "approved");
 
     expect(await actualCents(page)).toBe(actualBefore);
