@@ -13,7 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateCrawlRow, evaluatePhoneUx } from "./checks.mjs";
 import { captureFailure, REDACTED, redactedDocumentHtml, redactText, startFailureRecorder } from "./evidence.mjs";
-import { crawl, CRAWL_ROLES, CRAWL_WIDTHS, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_ROLE_ACCESS, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, schedulePath, scheduleWidths } from "./crawl.mjs";
+import { crawl, themeFailures, CRAWL_ROLES, CRAWL_WIDTHS, ROADMAP_EXTRA_WIDTHS, roadmapCoverageFailures, SCHEDULE_ROLE_ACCESS, scheduleCoverageFailures, scheduleDenialFailures, scheduleNavFailures, schedulePath, scheduleWidths } from "./crawl.mjs";
 import { drillCoverageFailures, drillDiscoveryFailures, drillLoadPlan, drillPath, loadSeedCrawlTargets, partCFailures } from "./drill.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -27,21 +27,28 @@ const SLOW_MS = 1050;
 // Good pages have to satisfy the phone checks: 16px text, 44px controls, no clipped money/status/header.
 const PHONE_OK_CSS = `<style>html,body{margin:0;font-size:16px}a,button,input,select,textarea,summary{font-size:16px;display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;box-sizing:border-box}</style>`;
 const JOB_STRIP = `<nav data-testid="job-strip"><a href="/app/jobs/good">25-031</a></nav>`;
-const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}${extra}</head><body>${JOB_STRIP}<main>${body}</main></body></html>`;
+const COMPANY = `<span data-testid="company-name">Summit Highway &amp; Bridge</span>`;
+// 5.0.4-b check 1 (exactly 1 h1 and 1 page-purpose of 10 to 90 characters) holds on every phone page, so a page that
+// must pass gets a default h1 and page-purpose when its body has none of its own.
+const titled = (body) => `${/<h1[\s>]/.test(body) ? "" : '<h1 style="font-size:20px">Fixture</h1>'}${/page-purpose/.test(body) ? "" : '<p data-testid="page-purpose" style="font-size:16px">Fixture page for the crawl checks.</p>'}${body}`;
+const shell = (body, extra = "") => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}${extra}</head><body><header>${COMPANY}</header>${JOB_STRIP}<main>${titled(body)}</main></body></html>`;
 // Bad phone fixtures opt out of the 44px floor so a 20px control stays 20px.
-const bare = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-size:16px}</style></head><body><main>${body}</main></body></html>`;
+const bare = (body) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;font-size:16px}</style></head><body><main>${titled(body)}</main></body></html>`;
 const stripPill = (label, extra = "") => `<a href="/app/jobs/24-077" style="flex:0 0 auto;min-width:44px;min-height:44px;display:inline-flex;align-items:center;font-size:16px;line-height:20px;white-space:nowrap;padding:0 8px;box-sizing:border-box;${extra}">${label}</a>`;
 const changesList = (items) => `<h1 style="font-size:16px">Changes</h1><ul data-testid="job-changes-full">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
 const clip = (css, text, attrs = "") => `<span ${attrs} style="display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${css}">${text}</span>`;
+// 5.0.4-a checks 1, 5, 7 and 9 hold on a passing /app: next-step links, verb first, with a job number (and the exact
+// amount on a CO label), at least 44×44 px.
 const ACTIONS = [
-  ["executive", "Open the at-risk job"],
-  ["pm", "Approve CO-001"],
-  ["superintendent", "Submit the plan"],
-  ["foreman", "Report today's quantities"],
-].map(([role, label]) => `<a data-testid="role-primary-action" data-role="${role}" href="/app/jobs/good">${label}</a>`).join("");
+  ["executive", "Open I-5 Culverts (24-077): over cost by $255K"],
+  ["pm", "Approve CO-001 on 25-031: $60,000.00"],
+  ["superintendent", "Submit tomorrow's plan: Bridge Crew 2 on 25-031"],
+  ["foreman", "Report today's quantities for Culvert Crew A (24-077)"],
+].map(([role, label]) => `<a data-testid="next-step" data-role="${role}" href="/app/jobs/good" style="display:block;min-height:44px;font-size:16px">${label}</a>`).join("");
 const JOB_LINK = `<a data-testid="job-link" href="/app/jobs/good">25-031</a>`;
 let appMode = "good";
 const appBody = () => {
+  if (appMode === "fold") return `<div style="height:600px"></div><a data-testid="next-step" href="/app/jobs/good">Submit tomorrow's plan: Bridge Crew 2 on 25-031</a>`;
   if (appMode === "missing") return JOB_LINK;
   if (appMode === "buried") return `${JOB_LINK}<details><summary>More</summary>${ACTIONS}</details>`;
   return `${JOB_LINK}${ACTIONS}`;
@@ -85,6 +92,24 @@ const PAGES = {
   "/phone/overflow": () => bare(`<div style="width:422px;height:12px">spill</div>`),
   "/phone/tap": () => bare(`<button type="button" style="width:20px;height:20px;min-width:0;min-height:0;font-size:16px;padding:0;border:0;box-sizing:border-box;overflow:visible">Go</button>`),
   "/phone/text": () => bare(`<span style="font-size:10px">Tiny label</span><input aria-label="Hours" style="width:44px;height:44px;font-size:14px;box-sizing:border-box">`),
+  // 5.0.4-c check 2 (main 4c9d3539): text ≥ 14 px, p/li/td/button ≥ 16 px unless data-text="label".
+  "/phone/text-13": () => bare(`<span style="font-size:13px">Thirteen px label</span>`),
+  "/phone/body-15": () => bare(`<p style="font-size:15px">Fifteen px paragraph</p>`),
+  "/phone/body-ok": () => bare(`<h1 style="font-size:20px">Body text</h1><p data-testid="page-purpose" style="font-size:16px">Body text sizes on a phone screen.</p><span style="font-size:14px">Fourteen px label</span><p style="font-size:16px">Sixteen px paragraph</p><p data-text="label" style="font-size:14px">Labelled fourteen px meta</p>`),
+  // 5.0.4 theme pass: the page reads the theme cookie like the app's layout (cookie → <html class="dark">).
+  "/theme/honors": (req) => {
+    const dark = /(?:^|;\s*)pcs_theme=dark(?:;|$)/.test(req?.headers?.cookie ?? "");
+    return `<!doctype html><html class="${dark ? "dark" : ""}"><head><meta name="viewport" content="width=device-width,initial-scale=1">${PHONE_OK_CSS}</head><body><header>${COMPANY}</header>${JOB_STRIP}<main><h1>Theme</h1></main></body></html>`;
+  },
+  "/theme/ignores": () => shell("<h1>Theme</h1>"),
+  // 5.0.4-b check 8 (main 1381687f, #78): header company-name in full, no ellipsis, not aria-hidden.
+  "/app/cn-ok": () => bare(`<header><span data-testid="company-name" style="display:block;font-size:16px;white-space:normal">Summit Highway &amp; Bridge</span></header>`),
+  "/app/cn-ellipsis": () => bare(`<header><span data-testid="company-name" title="Summit Highway &amp; Bridge" style="display:inline-block;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px">Summit Highway &amp; Bridge</span></header>`),
+  "/app/cn-short": () => bare(`<header><span data-testid="company-name" aria-label="Summit Highway &amp; Bridge" style="font-size:16px">Summit Highway</span></header>`),
+  "/app/cn-hidden": () => bare(`<header><div aria-hidden="true"><span data-testid="company-name" style="display:block;font-size:16px">Summit Highway &amp; Bridge</span></div></header>`),
+  "/app/cn-ellipsis-fits": () => bare(`<header><span data-testid="company-name" style="display:block;overflow:hidden;text-overflow:ellipsis;font-size:16px">Summit Highway &amp; Bridge</span></header>`),
+  "/app/cn-outside": () => bare(`<header><span>Pitbull</span></header><span data-testid="company-name" style="display:block;font-size:16px">Summit Highway &amp; Bridge</span>`),
+  "/app/cn-missing": () => bare(`<p>No header here</p>`),
   "/phone/money": () => bare(clip("max-width:36px", "$1,234.56", 'data-cents="123456"')),
   "/phone/status": () => bare(clip("max-width:32px", "At risk", 'data-status="at-risk"')),
   "/phone/header": () => bare(`<table><tr><th style="display:inline-block;max-width:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Actual</th></tr></table>`),
@@ -202,7 +227,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(p === "/api/broken" ? 500 : 404, { "content-type": "text/plain" });
     return res.end("no");
   }
-  const out = route();
+  const out = route(req);
   const [status, body, delay = 0, loc] = Array.isArray(out) ? out : [200, out];
   setTimeout(() => {
     res.writeHead(status, { "content-type": "text/html", ...(loc ? { location: loc } : {}) });
@@ -255,6 +280,10 @@ let partCRows;
 let evRows;
 let phoneBadRows;
 let phonePassRows;
+let textRows;
+let themeRows;
+let foldRows;
+let cnRows;
 let phoneRuleRows;
 let phoneGatedRows;
 let overflowWideRows;
@@ -294,6 +323,18 @@ try {
     widths: [320],
     phoneChecks: true,
   });
+  cnRows = await crawl(browser, base, { pages: ["/app/cn-ok", "/app/cn-ellipsis", "/app/cn-short", "/app/cn-hidden", "/app/cn-ellipsis-fits", "/app/cn-outside", "/app/cn-missing"], roles: ["pm"], widths: [320], phoneChecks: true });
+  themeRows = {
+    dark: await crawl(browser, base, { pages: ["/theme/honors", "/theme/ignores"], roles: ["pm"], widths: [390, 1280], heights: { 390: 844, 1280: 800 }, theme: "dark" }),
+    light: await crawl(browser, base, { pages: ["/theme/honors", "/theme/ignores"], roles: ["pm"], widths: [320], heights: { 320: 568 }, theme: "light" }),
+  };
+  await fetch(`${base}/__landing?mode=fold`);
+  foldRows = {
+    h568: await crawl(browser, base, { pages: ["/app"], roles: ["pm"], widths: [320], heights: { 320: 568 }, theme: "light", phoneChecks: true }),
+    h844: await crawl(browser, base, { pages: ["/app"], roles: ["pm"], widths: [320], phoneChecks: true }),
+  };
+  await fetch(`${base}/__landing?mode=good`);
+  textRows = await crawl(browser, base, { pages: ["/phone/text-13", "/phone/body-15", "/phone/body-ok"], roles: ["pm"], widths: [320, 390], phoneChecks: true });
   phonePassRows = await crawl(browser, base, { pages: ["/phone/secondary-title", "/phone/expand-real", "/phone/aria-label", "/phone/money-fits"], roles: ["pm"], widths: [320], phoneChecks: true });
   phoneRuleRows = await crawl(browser, base, {
     pages: ["/phone/nine", "/phone/money-in-secondary", "/phone/status-in-secondary", "/phone/th-in-secondary", "/phone/hard-clip", "/phone/link-reach", "/phone/h1", "/phone/ancestor-title", "/phone/title-contains", "/phone/expand-fake", "/phone/money-beside-label", "/phone/budget-money"],
@@ -365,7 +406,7 @@ for (const width of [390, 1280]) {
   const bad = {
     "/phone/overflow": /document scrollWidth 422px > viewport 320px/,
     "/phone/tap": /tap target button 20×20px < 44×44/,
-    "/phone/text": /secondary text 10px < 12px/,
+    "/phone/text": /secondary text 10px < 14px/,
     "/phone/money": /clipped money "\$1,234\.56"/,
     "/phone/status": /clipped status pill "At risk"/,
     "/phone/header": /clipped table header "Actual"/,
@@ -381,6 +422,55 @@ for (const width of [390, 1280]) {
   const textFails = evaluatePhoneUx(textRow);
   assert.ok(textFails.some((x) => /input text 14px < 16px/.test(x)), `input under 16px must fail; got ${JSON.stringify(textFails)}`);
   lines.push(`FAILS as expected: /phone/text@320 → ${textFails.find((x) => /input text/.test(x))}`);
+  {
+    const d = themeRows.dark;
+    const honors = d.filter((r) => r.path === "/theme/honors");
+    assert.deepEqual(honors.map((r) => [r.width, r.height, r.theme, r.htmlTheme]), [[390, 844, "dark", "dark"], [1280, 800, "dark", "dark"]], `dark pass sizes and theme; got ${JSON.stringify(honors.map((r) => [r.width, r.height, r.theme, r.htmlTheme]))}`);
+    assert.deepEqual(themeFailures(honors), []);
+    lines.push("passes: dark pass at 390×844 and 1280×800 renders <html class=dark> from the pcs_theme cookie");
+    const ignores = themeFailures(d.filter((r) => r.path === "/theme/ignores"));
+    assert.ok(ignores.length === 2 && ignores.every((x) => /page rendered light, pass is dark/.test(x)), `a page that ignores the theme cookie must FAIL the dark pass; got ${JSON.stringify(ignores)}`);
+    lines.push(`FAILS as expected: /theme/ignores dark → ${ignores[0]}`);
+    const l = themeRows.light;
+    assert.deepEqual(l.map((r) => [r.width, r.height, r.htmlTheme]), [[320, 568, "light"], [320, 568, "light"]]);
+    assert.deepEqual(themeFailures(l), []);
+    lines.push("passes: light pass at 320×568");
+    const f568 = evaluatePhoneUx(foldRows.h568[0]);
+    assert.ok(f568.some((x) => /check 1: 0 next-step above the fold/.test(x)), `next step at ~650 px must FAIL a-1 at 320×568; got ${JSON.stringify(f568)}`);
+    lines.push(`FAILS as expected: /app (next step at ~650 px) @320×568 → ${f568.find((x) => /check 1/.test(x))}`);
+    const f844 = evaluatePhoneUx(foldRows.h844[0]).filter((x) => /5\.0\.4-a/.test(x));
+    assert.deepEqual(f844, [], `the same next step is above the fold at 320×844; got ${JSON.stringify(f844)}`);
+    lines.push("passes: same /app @320×844 (a-1 count clause), so the 568 px height is what catches it");
+  }
+  for (const width of [320, 390]) {
+    const t13 = evaluatePhoneUx(textRows.find((r) => r.path === "/phone/text-13" && r.width === width));
+    assert.ok(t13.some((x) => /secondary text 13px < 14px/.test(x)), `13 px text must fail the 14 px floor at ${width}; got ${JSON.stringify(t13)}`);
+    lines.push(`FAILS as expected: /phone/text-13@${width} → ${t13.find((x) => /secondary text/.test(x))}`);
+    const b15 = evaluatePhoneUx(textRows.find((r) => r.path === "/phone/body-15" && r.width === width));
+    assert.ok(b15.some((x) => /body text p 15px < 16px/.test(x)), `15 px paragraph must fail the 16 px body rule at ${width}; got ${JSON.stringify(b15)}`);
+    lines.push(`FAILS as expected: /phone/body-15@${width} → ${b15.find((x) => /body text/.test(x))}`);
+    const ok = evaluatePhoneUx(textRows.find((r) => r.path === "/phone/body-ok" && r.width === width));
+    assert.deepEqual(ok, [], `14 px label, 16 px paragraph and a data-text="label" paragraph must pass at ${width}; got ${JSON.stringify(ok)}`);
+    lines.push(`passes: /phone/body-ok@${width} (14 px label, 16 px p, data-text="label" p at 14 px)`);
+  }
+  {
+    const ok = evaluatePhoneUx(cnRows.find((r) => r.path === "/app/cn-ok"));
+    assert.deepEqual(ok, [], `full wrapping company name must pass; got ${JSON.stringify(ok)}`);
+    lines.push("passes: /app/cn-ok@320 company name in full, wrapping");
+    const want = {
+      "/app/cn-ellipsis": [/company name scrollWidth \d+ > clientWidth 60/, /company name text-overflow is ellipsis/],
+      "/app/cn-short": [/company name innerText "Summit Highway" ≠ "Summit Highway & Bridge"/, /header has no visible exact/],
+      "/app/cn-hidden": [/company name \(or an ancestor\) is aria-hidden/],
+      "/app/cn-ellipsis-fits": [/company name text-overflow is ellipsis/],
+      "/app/cn-outside": [/header company-name missing/],
+      "/app/cn-missing": [/header company-name missing/],
+    };
+    for (const [p, res] of Object.entries(want)) {
+      const f = evaluatePhoneUx(cnRows.find((r) => r.path === p));
+      for (const re of res) assert.ok(f.some((x) => re.test(x)), `${p}@320 must fail with ${re}; got ${JSON.stringify(f)}`);
+      lines.push(`FAILS as expected: ${p}@320 → ${res.map((re) => f.find((x) => re.test(x))).join(" | ")}`);
+    }
+  }
   const overflow = phoneBadRows.find((r) => r.path === "/phone/overflow");
   assert.equal(overflow.docScrollWidth, 422, `overflow fixture document scrollWidth must be 422, got ${overflow.docScrollWidth}`);
   assert.equal(overflow.viewportWidth, 320);

@@ -380,11 +380,27 @@ export function acceptanceItems(markdown) {
   return items;
 }
 
-/** One failure per acceptance item whose section this run did not execute. */
-export function evaluateRcAcceptance(items, executedSections) {
-  const done = new Set(executedSections ?? []);
-  return (items ?? []).filter((item) => !done.has(item.section)).map((item) => `${item.section}: "${item.title}" is not executed`);
+/** One failure per acceptance item this run did not execute. `executed` holds whole sections ("5.0.4-0") or single
+ * items ("5.0.4-a: Seeded count."); an executed item's verdict is its own check line, not this list. */
+export function evaluateRcAcceptance(items, executed) {
+  const done = new Set(executed ?? []);
+  return (items ?? []).filter((item) => !done.has(item.section) && !done.has(`${item.section}: ${item.title}`)).map((item) => `${item.section}: "${item.title}" is not executed`);
 }
+
+/** The 5.0.4 acceptance items (spec at main 05cd947c, #80) that verify.mjs runs with the 5.0.4 phone checks on. Not here,
+ * so still "not executed": 5.0.4-d "Must still pass: field intel check 2", "… check 10", "… checks 3 and 11" (v5 e2e
+ * tests, not Verify) and 5.0.4-g "State is real.". */
+export const SPEC504_EXECUTED_ITEMS = [
+  ...["At least one next step above the fold.", "One tap to the first action.", "Foreman home order.", "Done state.", "Verb-first labels.", "Seeded count.", "Labels wrap.", "Collapsed assistant.", "Job number and amount in labels."].map((t) => `5.0.4-a: ${t}`),
+  ...["Title and purpose on every page.", "Foreman sees no cost indexes.", "Superintendent sees cost index values on the job page only.", "Plain words on first use.", "At-risk summary.", "Purpose line fits.", "Job pill shows the number.", "Company name readable."].map((t) => `5.0.4-b: ${t}`),
+  ...["Figures per card.", "Text size.", "Tap targets.", "Contrast.", "No hard-coded status colors.", "Color is never the only signal.", "Tabular figures.", "Full axe on the pages 5.0.4-e touches."].map((t) => `5.0.4-c: ${t}`),
+  ...["No required field behind a tap.", "One figure per plan card.", "Primary button full width."].map((t) => `5.0.4-d: ${t}`),
+  ...["Figures per card", "No table on phones.", "Numbers unchanged.", "Phone cost rows fit.", "Phone KPI fold."].map((t) => `5.0.4-e: ${t}`),
+  "5.0.4-f: Plan lines as cards on phones.",
+  ...["Links work.", "Dismiss persists.", "Banned strings."].map((t) => `5.0.4-g: ${t}`),
+  ...["Confirm step before Lock Period.", "Cancel writes nothing.", "Confirm writes once.", "Approve estimate, cancel then confirm.", "Keyboard.", "Phones.", "Roles.", "Verify drives."].map((t) => `5.0.4-h: ${t}`),
+  ...["Chips stay on screen.", "Cost-item KPI cards fit.", "Toggle names.", "List markup.", "Shell targets.", "Words next to color."].map((t) => `5.0.4-i: ${t}`),
+];
 
 /**
  * Extra RC checks. The trust bar (banned words, crawl, reset, /status, M2/M4/M5, phone layout)
@@ -392,7 +408,7 @@ export function evaluateRcAcceptance(items, executedSections) {
  * `history` null means git failed. `crawlRan` false means the nav crawl never recorded rows.
  * 5.0.4-0 is executed only when the crawl ran (document scrollWidth, and the job-strip right edge). a–g stay "not executed".
  */
-export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, migrationsLabel, healthOk }) {
+export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, migrationsLabel, healthOk, executedItems = [] }) {
   const checks = [];
   const add = (name, ok, detail) => checks.push({ name, ok: Boolean(ok), detail });
   const merges = history?.merges ?? [];
@@ -421,7 +437,7 @@ export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, 
   if (!history) add("rc acceptance items", false, "spec was not read from the rc SHA");
   else if (!items.length) add("rc acceptance items", false, `no acceptance items in ${history.specPath ?? "(no spec at this SHA)"}`);
   else {
-    const executed = crawlRan ? ["5.0.4-0"] : [];
+    const executed = [...(crawlRan ? ["5.0.4-0"] : []), ...executedItems];
     const groups = new Map();
     for (const line of evaluateRcAcceptance(items, executed)) {
       const section = line.split(":")[0];
@@ -442,6 +458,9 @@ export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, 
     }
   }
 
+  const sc = statusColorCheck(history?.statusColorHits ?? null, history ? history.statusColorError : historyError);
+  add(sc.name, sc.ok, sc.detail);
+
   const clipFails = (crawlFailures ?? []).filter((f) => /clipped /.test(f) && /@(320|375|390)\b/.test(f));
   add(
     "ellipsis/clipping at ≤480",
@@ -453,6 +472,41 @@ export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, 
         : "no clipped money, status pill, table header, or unreachable secondary label at ≤480",
   );
   return checks;
+}
+
+/**
+ * 5.0.4-c check 5 (main 4c9d3539): "CI grep: no `text-amber-`, `text-red-`, `text-green-`, or `bg-amber-` class
+ * under `v5/src/components` or `v5/src/app`." Read with `git grep` at the rc SHA, so the working tree does not matter.
+ */
+export const STATUS_COLOR_PATTERN = "text-(amber|red|green)-|bg-amber-";
+export const STATUS_COLOR_DIRS = ["v5/src/components", "v5/src/app"];
+
+/** `git grep -n -E` hits as "path:line: text" (the `<sha>:` prefix removed). Exit 1 (no match) is an empty list. */
+export function readStatusColorHits({ sha, git }) {
+  let out = "";
+  try {
+    out = git(["grep", "-n", "-E", STATUS_COLOR_PATTERN, sha, "--", ...STATUS_COLOR_DIRS]);
+  } catch (error) {
+    if (error?.status === 1) return [];
+    throw error;
+  }
+  return String(out ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => (l.startsWith(`${sha}:`) ? l.slice(sha.length + 1) : l));
+}
+
+/** The check row for 5.0.4-c check 5. `hits` null means the grep did not run. */
+export function statusColorCheck(hits, error) {
+  if (!Array.isArray(hits)) return { name: "5.0.4-c check 5: no hard-coded status colors", ok: false, detail: `grep did not run: ${error ?? "no rc history"}` };
+  return {
+    name: "5.0.4-c check 5: no hard-coded status colors",
+    ok: hits.length === 0,
+    detail: hits.length
+      ? `${hits.length} hit(s) for /${STATUS_COLOR_PATTERN}/ under ${STATUS_COLOR_DIRS.join(", ")}: ${hits.slice(0, 6).map((h) => h.slice(0, 140)).join("; ")}`
+      : `0 hits for /${STATUS_COLOR_PATTERN}/ under ${STATUS_COLOR_DIRS.join(", ")}`,
+  };
 }
 
 /**
@@ -475,8 +529,17 @@ export function readRcHistory({ version = RC_VERSION, sha, git, mainRef = "origi
   const specList = String(git(["ls-tree", "-r", "--name-only", sha, "docs/v5/specs/"]) ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
   const specPath = specList.find((name) => name.startsWith(`docs/v5/specs/${version}-`) && name.endsWith(".md"));
   const spec = specPath ? git(["show", `${sha}:${specPath}`]) : "";
+  let statusColorHits = null;
+  let statusColorError = null;
+  try {
+    statusColorHits = readStatusColorHits({ sha, git });
+  } catch (error) {
+    statusColorError = String(error?.message ?? error).split("\n")[0];
+  }
   return {
     branch,
+    statusColorHits,
+    statusColorError,
     merges,
     added: migrationsAdded(mainJournal.entries, rcJournal.entries),
     journal: rcJournal.entries ?? [],
