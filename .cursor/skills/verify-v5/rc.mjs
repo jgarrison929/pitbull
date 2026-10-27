@@ -394,7 +394,8 @@ export const SPEC504_EXECUTED_ITEMS = [
   ...["Title and purpose on every page.", "Foreman sees no cost indexes.", "Superintendent sees cost index values on the job page only.", "Plain words on first use.", "At-risk summary.", "Purpose line fits.", "Job pill shows the number.", "Company name readable."].map((t) => `5.0.4-b: ${t}`),
   ...["Figures per card.", "Text size.", "Tap targets.", "Contrast.", "No hard-coded status colors.", "Color is never the only signal.", "Tabular figures.", "Full axe on the pages 5.0.4-e touches."].map((t) => `5.0.4-c: ${t}`),
   ...["No required field behind a tap.", "One figure per plan card.", "Must still pass: field intel check 2.", "Must still pass: field intel check 10.", "Must still pass: field intel checks 3 and 11.", "Primary button full width."].map((t) => `5.0.4-d: ${t}`),
-  ...["Figures per card", "No table on phones.", "Numbers unchanged.", "Phone cost rows fit.", "Phone KPI fold."].map((t) => `5.0.4-e: ${t}`),
+  // e-6 (spec #89, main 9497f7e9) is e6.mjs: runE6 + evaluateE6, a step in verify.mjs's 5.0.4 block.
+  ...["Figures per card", "No table on phones.", "Numbers unchanged.", "Phone cost rows fit.", "Phone KPI fold.", "AC stays at the cutoff after an approval."].map((t) => `5.0.4-e: ${t}`),
   "5.0.4-f: Plan lines as cards on phones.",
   ...["Links work.", "Dismiss persists.", "State is real.", "Banned strings."].map((t) => `5.0.4-g: ${t}`),
   ...["Confirm step before Lock Period.", "Cancel writes nothing.", "Confirm writes once.", "Approve estimate, cancel then confirm.", "Keyboard.", "Phones.", "Roles.", "Verify drives."].map((t) => `5.0.4-h: ${t}`),
