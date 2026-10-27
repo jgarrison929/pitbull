@@ -27,6 +27,21 @@ describe("job page TTFB guards", () => {
     expect(src).toMatch(/\bjobChanges\s*\(/);
     expect(src).toMatch(/timedLoadJobPage/);
     expect(src).toMatch(/getReportedActualsForPlans/);
+    // Reuse getJob row + money + lockAt for CO ledger — skip jobs/sum/lastLockDate.
+    expect(src).toMatch(/listChangeOrders\(companyId, p\.job\.number,/);
+    expect(src).toMatch(/ledgerSums:/);
+    expect(src).toMatch(/job:\s*p\.job/);
+    expect(src).toMatch(/lockAt:\s*p\.lockAt/);
+  });
+
+  it("must-fail: getJobPagePlans overlaps open-lines with history aggregates", () => {
+    const src = readFileSync(join(process.cwd(), "src/server/data.ts"), "utf8");
+    expect(src).toMatch(/async function historyPlanTotals/);
+    expect(src).toMatch(
+      /const \[linesByPlan, totals\] = await Promise\.all\(\[/,
+    );
+    expect(src).toMatch(/loadPlanLinesByPlanId/);
+    expect(src).toMatch(/historyPlanTotals\(/);
   });
 
   it("must-fail: proxy Server-Timing is only v5proxy", () => {

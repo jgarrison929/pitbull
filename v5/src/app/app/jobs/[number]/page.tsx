@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ApproveReportForm,
@@ -555,13 +554,13 @@ export async function Job({
         title="Changes on this job"
         meta="Every edit, report, approve, return, and change order, by anyone on this job"
         actions={
-          <Link
+          <a
             href={`/app/jobs/${p.job.number}/changes`}
             className="text-xs font-medium underline hover:no-underline"
             data-testid="job-changes-full-link"
           >
             Full change list
-          </Link>
+          </a>
         }
       >
         {changes.length === 0 ? (
