@@ -16,8 +16,8 @@ import { createSandbox } from "@/server/sandbox";
 
 const db = getDb();
 
-/** job⋈item + lock + rollup + entries + MH split — fixed, not per-entry. */
-const COST_ITEM_QUERY_BUDGET = 5;
+/** job⋈item⋈lock + entries — rollup/MH derived in JS (Verify #60 pool tail). */
+const COST_ITEM_QUERY_BUDGET = 2;
 
 describe.skipIf(!db)("cost item page query budget", () => {
   const created: string[] = [];
@@ -47,8 +47,8 @@ describe.skipIf(!db)("cost item page query budget", () => {
     await resetDbClient();
   });
 
-  it("must-fail: getCostItemPage stays ≤5 queries with many history entries", async () => {
-    // 25-031 / 04-210 has 30 days of labor rows — N+1 would be ≫ 5.
+  it("must-fail: getCostItemPage stays ≤2 queries with many history entries", async () => {
+    // 25-031 / 04-210 has 30 days of labor rows — N+1 would be ≫ 2.
     await getCostItemPage(companyId, "25-031", "04-210");
     resetDbQueryCount();
     const page = await getCostItemPage(companyId, "25-031", "04-210");
@@ -58,6 +58,18 @@ describe.skipIf(!db)("cost item page query budget", () => {
     expect(page!.entries.length).toBeGreaterThan(10);
     expect(queries).toBeLessThanOrEqual(COST_ITEM_QUERY_BUDGET);
     expect(queries).toBeLessThan(page!.entries.length);
+  });
+
+  it("must-fail: cost-item-page must not call pathRollupSql / laborMhMilliByLock", () => {
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    const { join } = require("node:path") as typeof import("node:path");
+    const src = readFileSync(
+      join(process.cwd(), "src/server/cost-item-page.ts"),
+      "utf8",
+    );
+    // entryInLockSnapshot from cost-rollups is fine; the two extra DB round-trips are not.
+    expect(src).not.toMatch(/\bpathRollupSql\b/);
+    expect(src).not.toMatch(/\blaborMhMilliByLock\b/);
   });
 
   it("server data load under 500ms at 3ms RTT for 24-077 / 09-100", async () => {

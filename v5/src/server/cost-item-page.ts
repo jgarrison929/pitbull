@@ -1,6 +1,7 @@
 import "server-only";
+import { cache } from "react";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
-import { requireDb } from "@/db";
+import { getDbQueryCount, requireDb } from "@/db";
 import {
   costEntries,
   costItems,
@@ -13,16 +14,13 @@ import {
 } from "@/db/schema";
 import { currentBudgetCents } from "@/lib/budget";
 import {
+  earnedCentsOf,
   earnedMhMilliOf,
   itemForecast,
+  plannedValueCents,
   type ForecastMethod,
 } from "@/lib/ev";
-import {
-  entryInLockSnapshot,
-  laborMhMilliByLock,
-  pathRollupSql,
-} from "@/server/cost-rollups";
-import { getDbQueryCount } from "@/db";
+import { entryInLockSnapshot } from "@/server/cost-rollups";
 import { seedNow } from "@/server/seed-clock";
 
 export type CostEntryRow =
@@ -63,30 +61,37 @@ function isApprovedQtyMarker(entry: {
 }
 
 /**
- * Cost item drill-down. Posted dollars are the rollup lock snapshot
+ * Cost item drill-down. Posted dollars are the lock snapshot
  * (`locked_actual_cents`). A row is pending only when `entryInLockSnapshot`
  * says it was not stamped into that snapshot — never by comparing its date.
  * Actual MH uses the same predicate.
  *
- * Query shape (fixed count, independent reads overlapped after job+item):
- *   1) job ⋈ leaf item
- *   2) last lock (period label + cutoff)
- *   3) path rollup ∥ cost entries ∥ labor MH-by-lock
+ * Query shape (leaf only — proxy already requires is_leaf):
+ *   1) job ⋈ leaf item ⋈ latest lock
+ *   2) cost entries (+ plan/crew/approver)
+ * Leaf rollup + MH are derived in JS from the item row and entries so a
+ * 24-wide crawl does not hold two extra pool connections per document
+ * (Verify #60: Phase A tails on light items like 02-220 / 91-300 were
+ * pool-queue, not query weight).
  */
-export async function getCostItemPage(
+export const getCostItemPage = cache(async function getCostItemPage(
   companyId: string,
   jobNumber: string,
   code: string,
   asOf = seedNow(),
 ) {
   const db = requireDb();
-  // Job ⋈ leaf + last lock in one round-trip (was job+item then serial lock).
+  // Two round-trips (was 4): job⋈item⋈lock, then entries by item id.
+  // Leaf rollup + MH derived in JS — halves pool occupancy under a 24-wide
+  // Phase A stampede (Verify #60 tails on light items were queueing, not SQL).
   const [row] = await db
     .select({
       job: jobs,
       item: costItems,
       periodLabel: progressClaims.periodLabel,
-      lockedOn: sql<string | null>`(${progressClaims.lockedAt} at time zone 'UTC')::date::text`,
+      lockedOn: sql<
+        string | null
+      >`(${progressClaims.lockedAt} at time zone 'UTC')::date::text`,
     })
     .from(jobs)
     .innerJoin(
@@ -104,7 +109,6 @@ export async function getCostItemPage(
         eq(progressClaims.jobId, jobs.id),
         eq(progressClaims.companyId, companyId),
         eq(progressClaims.status, "locked"),
-        // Distinct-on style: only the latest lock — correlated via subquery.
         sql`${progressClaims.id} = (
           select pc.id from progress_claims pc
           where pc.job_id = ${jobs.id}
@@ -123,7 +127,9 @@ export async function getCostItemPage(
   const cutoffIso = row.lockedOn ?? null;
 
   const budgetCents = currentBudgetCents(item);
-  const earnedMhMilli = earnedMhMilliOf({
+  const forecastMethod = (item.forecastMethod ??
+    "current_budget") as ForecastMethod;
+  const lineInput = {
     code: item.code,
     description: item.description,
     unit: item.unit,
@@ -136,66 +142,89 @@ export async function getCostItemPage(
     claimedInstalledQtyMilli: item.claimedInstalledQtyMilli ?? 0,
     claimedPercentMilli: item.claimedPercentMilli ?? 0,
     budgetMhPerUnitMilli: item.budgetMhPerUnitMilli,
-    forecastMethod: (item.forecastMethod ??
-      "current_budget") as ForecastMethod,
+    forecastMethod,
     earnDerivation: item.earnDerivation,
+  };
+  const earnedMhMilli = earnedMhMilliOf(lineInput);
+  const earnedCents = earnedCentsOf(lineInput);
+  const actualCents = item.lockedActualCents;
+  const pvAsOf = cutoffIso
+    ? new Date(`${cutoffIso}T00:00:00.000Z`)
+    : asOf;
+  const plannedCents = plannedValueCents(
+    budgetCents,
+    item.plannedStartOn,
+    item.plannedFinishOn,
+    pvAsOf,
+  );
+  const forecast = itemForecast({
+    forecastMethod,
+    budgetCents,
+    earnedCents,
+    actualCents,
   });
+  const rollup = {
+    budgetCents,
+    earnedCents,
+    actualCents,
+    plannedCents,
+    eacCents: forecast.eacCents,
+    etcCents: forecast.etcCents,
+  };
 
-  // Rollup / entries / MH split are independent once we have item + cutoff.
-  const [rollup, entryRows, mhSplit] = await Promise.all([
-    pathRollupSql(companyId, job.id, item.path, asOf, cutoffIso),
-    db
-      .select({
-        entry: costEntries,
-        planId: dailyPlans.id,
-        crew: crews.name,
-        approverName: users.name,
-      })
-      .from(costEntries)
-      .leftJoin(
-        dailyPlanLines,
-        and(
-          eq(dailyPlanLines.id, costEntries.sourcePlanLineId),
-          eq(dailyPlanLines.companyId, companyId),
-        ),
-      )
-      .leftJoin(
-        dailyPlans,
-        and(
-          eq(dailyPlans.id, dailyPlanLines.planId),
-          eq(dailyPlans.companyId, companyId),
-        ),
-      )
-      .leftJoin(crews, eq(crews.id, dailyPlans.crewId))
-      .leftJoin(
-        users,
-        and(
-          eq(users.id, dailyPlans.approvedById),
-          eq(users.companyId, companyId),
-        ),
-      )
-      .where(
-        and(
-          eq(costEntries.companyId, companyId),
-          eq(costEntries.costItemId, item.id),
-        ),
-      )
-      .orderBy(desc(costEntries.at), desc(costEntries.id)),
-    laborMhMilliByLock(companyId, item.id),
-  ]);
-
-  const entries: CostEntryRow[] = [];
+  const entryRows = await db
+    .select({
+      entry: costEntries,
+      planId: dailyPlans.id,
+      crew: crews.name,
+      approverName: users.name,
+    })
+    .from(costEntries)
+    .leftJoin(
+      dailyPlanLines,
+      and(
+        eq(dailyPlanLines.id, costEntries.sourcePlanLineId),
+        eq(dailyPlanLines.companyId, companyId),
+      ),
+    )
+    .leftJoin(
+      dailyPlans,
+      and(
+        eq(dailyPlans.id, dailyPlanLines.planId),
+        eq(dailyPlans.companyId, companyId),
+      ),
+    )
+    .leftJoin(crews, eq(crews.id, dailyPlans.crewId))
+    .leftJoin(
+      users,
+      and(
+        eq(users.id, dailyPlans.approvedById),
+        eq(users.companyId, companyId),
+      ),
+    )
+    .where(
+      and(
+        eq(costEntries.companyId, companyId),
+        eq(costEntries.costItemId, item.id),
+      ),
+    )
+    .orderBy(desc(costEntries.at), desc(costEntries.id));  const entries: CostEntryRow[] = [];
+  let lockedTenths = 0;
+  let pendingTenths = 0;
   for (const { entry, planId, crew, approverName } of entryRows) {
     if (isApprovedQtyMarker(entry)) continue;
     const atIso = entry.at.toISOString();
     const sinceLock = !entryInLockSnapshot(entry.lockedInAt);
     if (entry.kind === "labor") {
+      const tenths = entry.hoursTenths ?? 0;
+      if (sinceLock) pendingTenths += tenths;
+      else lockedTenths += tenths;
       entries.push({
         id: entry.id,
         kind: "labor",
         at: atIso,
         crew: crew ?? null,
-        manHours: (entry.hoursTenths ?? 0) / 10,
+        manHours: tenths / 10,
         rateCents: entry.rateCents,
         amountCents: entry.amountCents,
         approverName: approverName ?? null,
@@ -215,22 +244,13 @@ export async function getCostItemPage(
     }
   }
 
-  /** Posted MH uses the lock-snapshot predicate in cost-rollups (not entry dates). */
-  const actualMhMilli = mhSplit.lockedMhMilli;
-  const pendingMhMilli = mhSplit.pendingMhMilli;
+  /** Posted MH — same lock-snapshot predicate as the former MH-by-lock SQL. */
+  const actualMhMilli = lockedTenths * 100;
+  const pendingMhMilli = pendingTenths * 100;
 
-  /** Posted total — rollup AC (locked snapshot). Pending dollars are live − locked. */
+  /** Posted total — lock snapshot AC. Pending dollars are live − locked. */
   const postedTotalCents = rollup.actualCents;
   const sinceLockCents = Math.max(0, item.actualCents - rollup.actualCents);
-
-  const forecastMethod = (item.forecastMethod ??
-    "current_budget") as ForecastMethod;
-  const forecast = itemForecast({
-    forecastMethod,
-    budgetCents: rollup.budgetCents,
-    earnedCents: rollup.earnedCents,
-    actualCents: rollup.actualCents,
-  });
 
   return {
     job: {
@@ -267,7 +287,7 @@ export async function getCostItemPage(
     ),
     hasLaborEntries: entries.some((e) => e.kind === "labor"),
   };
-}
+});
 
 export type CostItemPage = NonNullable<
   Awaited<ReturnType<typeof getCostItemPage>>

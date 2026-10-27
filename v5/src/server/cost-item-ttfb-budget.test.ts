@@ -65,12 +65,12 @@ describe.skipIf(!db)("cost-item TTFB budget", () => {
     expect(DEFAULT_DB_POOL_MAX + PROXY_DB_POOL_MAX).toBe(28);
   });
 
-  it("getCostItemPage stays ≤5 queries on 07-150", async () => {
+  it("getCostItemPage stays ≤2 queries on 07-150", async () => {
     await getCostItemPage(companyId, COST.job, COST.code);
     resetDbQueryCount();
     const page = await getCostItemPage(companyId, COST.job, COST.code);
     expect(page).not.toBeNull();
-    expect(getDbQueryCount()).toBeLessThanOrEqual(5);
+    expect(getDbQueryCount()).toBeLessThanOrEqual(2);
   });
 
   it(`shell+cost-item+rail p50 < ${ROUTE_P50_MS}ms at ${LATENCY_MS}ms RTT`, async () => {
