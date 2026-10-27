@@ -174,7 +174,10 @@ export function PortfolioTable({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-body font-medium whitespace-normal">
+                  <div
+                    className="text-body font-medium whitespace-normal"
+                    data-testid="job-name"
+                  >
                     {p.job.name}
                   </div>
                   <div

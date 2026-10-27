@@ -6,6 +6,8 @@ import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
 import { seedId } from "@/seed";
 import { jobChanges, jobChangesCount } from "./assistant/actions";
 import { getCostItemPage } from "./cost-item-page";
+import { lockedActualMhMilliByCostItem } from "./cost-rollups";
+import { getJob } from "./data";
 import { getPlanPage } from "./plan-page";
 import {
   approveDailyReport,
@@ -246,6 +248,27 @@ describe.skipIf(!db)("Part C drill-down loaders", () => {
       expect(relocked!.entries.every((e) => !e.sinceLock)).toBe(true);
       const throughAfter = relocked!.entries.reduce((s, e) => s + e.amountCents, 0);
       expect(throughAfter).toBe(relocked!.postedTotalCents);
+    },
+    60_000,
+  );
+
+  it(
+    "locked MH on 24-077 matches the cost-item page for 07-300 and 03-210",
+    async () => {
+      const companyId = await createSandbox();
+      created.push(companyId);
+      const job = await getJob(companyId, "24-077");
+      expect(job).not.toBeNull();
+      const byItem = await lockedActualMhMilliByCostItem(
+        companyId,
+        job!.job.id,
+      );
+      for (const code of ["07-300", "03-210"]) {
+        const page = await getCostItemPage(companyId, "24-077", code);
+        expect(page, code).not.toBeNull();
+        expect(byItem.get(page!.item.id) ?? 0, code).toBe(page!.actualMhMilli);
+        expect(page!.actualMhMilli, code).toBeGreaterThan(0);
+      }
     },
     60_000,
   );

@@ -83,6 +83,7 @@ export async function Job({
     coData,
     crewRows,
     reportedByPlan,
+    lockedMhByItem,
   } = data;
   const {
     canEdit,
@@ -157,6 +158,7 @@ export async function Job({
     path: i.path,
     line: i.isLeaf ? byId.get(i.id) : undefined,
     money: p.money.byId[i.id]!,
+    actualMhMilli: i.isLeaf ? (lockedMhByItem.get(i.id) ?? 0) : undefined,
   }));
   return (
     <>

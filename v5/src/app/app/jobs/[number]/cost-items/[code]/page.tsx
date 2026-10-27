@@ -50,6 +50,13 @@ function EntryDetail({
   withTestIds?: boolean;
 }) {
   if (e.kind === "labor") {
+    // `crew-name` holds only the crew name. The plan link stays `cost-entry-plan-link`
+    // because its fallback text is "Daily report". `contents` adds no box, so the
+    // link's pixels stay the text node they were.
+    const crewName =
+      e.crew != null ? (
+        <span data-testid="crew-name" className="contents">{e.crew}</span>
+      ) : null;
     return (
       <>
         {e.planId ? (
@@ -58,10 +65,10 @@ function EntryDetail({
             className="tap-target inline-flex items-center font-medium underline hover:no-underline"
             data-testid="cost-entry-plan-link"
           >
-            {e.crew ?? "Daily report"}
+            {crewName ?? "Daily report"}
           </a>
         ) : (
-          <span>{e.crew ?? (e.note || "Labor")}</span>
+          <span data-testid={e.crew != null ? "crew-name" : undefined}>{e.crew ?? (e.note || "Labor")}</span>
         )}
         {e.sinceLock ? (
           <span

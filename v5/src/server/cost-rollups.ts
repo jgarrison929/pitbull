@@ -283,6 +283,40 @@ export function entryInLockSnapshot(
 
 const entryInLockSnapshotSql = sql`${costEntries.lockedInAt} is not null`;
 
+/**
+ * Locked actual labor MH for every cost item on a job, in milli-MH.
+ * Same snapshot and tenths→milli conversion as `laborMhMilliByLock`
+ * (`locked_in_at` is set, kind = labor, hours_tenths × 100).
+ * Items with no labor row are absent; callers treat that as 0.
+ */
+export async function lockedActualMhMilliByCostItem(
+  companyId: string,
+  jobId: string,
+): Promise<Map<string, number>> {
+  const db = requireDb();
+  const rows = await db.execute<{
+    cost_item_id: string;
+    locked_tenths: number;
+  }>(sql`
+    select
+      ${costEntries.costItemId} as cost_item_id,
+      coalesce(sum(${costEntries.hoursTenths}) filter (where ${entryInLockSnapshotSql}), 0)::bigint
+        as locked_tenths
+    from ${costEntries}
+    inner join ${costItems}
+      on ${costItems.id} = ${costEntries.costItemId}
+     and ${costItems.companyId} = ${companyId}
+     and ${costItems.jobId} = ${jobId}
+    where ${costEntries.companyId} = ${companyId}
+      and ${costEntries.kind} = 'labor'
+    group by ${costEntries.costItemId}`);
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    out.set(r.cost_item_id, Number(r.locked_tenths) * 100);
+  }
+  return out;
+}
+
 /** Labor MH (milli) split by the lock snapshot. Same predicate as locked actual. */
 export async function laborMhMilliByLock(
   companyId: string,
