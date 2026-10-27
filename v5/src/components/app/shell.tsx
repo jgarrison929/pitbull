@@ -161,10 +161,10 @@ async function UserMenu() {
   return (
     <details className="group relative">
       <summary
-        className="flex shrink-0 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted max-[640px]:min-h-[44px] max-[640px]:min-w-[44px] [&::-webkit-details-marker]:hidden"
+        className="flex shrink-0 cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted max-[640px]:min-h-11 max-[640px]:min-w-11 [&::-webkit-details-marker]:hidden"
         data-testid="user-menu"
       >
-        <span className="grid size-7 place-items-center rounded-full bg-muted text-xs font-medium">
+        <span className="grid size-7 place-items-center rounded-full bg-muted text-xs font-medium max-[640px]:text-sm">
           {user.name
             .split(" ")
             .map((p) => p[0])
@@ -193,13 +193,17 @@ async function UserMenu() {
         </div>
         <ThemeSwitch current={theme} />
         <div className="mt-3 flex flex-col gap-1">
-          <a href="/login" className="rounded-md px-2 py-1.5 hover:bg-muted">
+          <a
+            href="/login"
+            aria-label="Switch role"
+            className="flex min-h-11 items-center rounded-md px-2 py-1.5 hover:bg-muted"
+          >
             Switch role
           </a>
           <form action={resetDemo}>
             <button
               type="submit"
-              className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted"
+              className="flex min-h-11 w-full items-center rounded-md px-2 py-1.5 text-left hover:bg-muted"
             >
               Reset demo
             </button>
@@ -207,7 +211,7 @@ async function UserMenu() {
           <form action={signOut}>
             <button
               type="submit"
-              className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted"
+              className="flex min-h-11 w-full items-center rounded-md px-2 py-1.5 text-left hover:bg-muted"
             >
               Sign out
             </button>
@@ -225,14 +229,13 @@ async function JobStrip() {
   // 422 px sideways spill at 390 — document grew and clipped SR-99 off the edge.
   // Spec 5.0.4-0: every visible job-strip child.right ≤ clientWidth.
   // Strict scan: no truncate/ellipsis — wrap labels; short CPI/SPI like the table.
-  // Foreman phone: hide the strip (field home is next-steps / plan, not chrome pills).
+  // Foreman keeps the strip: the job pill carries Report due / Reported / No plan today.
   const costIndexes = showsCostIndexes(user.role);
   const statusBadge = showsStatusRiskBadge(user.role);
   const todayLabels =
     user.role === "foreman"
       ? await getTodayPlanLabelsByJob(user.companyId)
       : null;
-  const foremanPhoneHide = user.role === "foreman";
   const spelledJobId = costIndexes
     ? jobs.find((p) => !p.estimateDraft)?.job.id
     : undefined;
@@ -240,10 +243,7 @@ async function JobStrip() {
     <nav
       aria-label="Jobs"
       data-testid="job-strip"
-      className={cn(
-        "min-w-0 max-w-full flex-wrap gap-2 border-b px-4 py-2",
-        foremanPhoneHide ? "hidden md:flex" : "flex",
-      )}
+      className="flex min-w-0 max-w-full flex-wrap gap-2 border-b px-4 py-2"
     >
       {jobs.map((p) => {
         const foremanLabel = todayLabels?.get(p.job.id) ?? "No plan today";
@@ -261,7 +261,7 @@ async function JobStrip() {
             key={p.job.id}
             href={`/app/jobs/${p.job.number}`}
             label={p.job.name}
-            className="flex min-w-0 max-w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 sm:gap-3"
+            className="flex min-w-0 max-w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 max-sm:min-h-11 max-sm:text-sm sm:gap-3"
             activeClassName="border-foreground bg-muted/50 text-foreground"
           >
             <span className="min-w-0 flex-1">

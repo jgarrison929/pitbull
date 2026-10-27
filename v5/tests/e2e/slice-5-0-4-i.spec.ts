@@ -239,22 +239,23 @@ test.describe("5.0.4-i phone fit and a11y", () => {
       const summary = page.getByTestId("at-risk-summary");
       await expect(summary).toBeVisible();
       const line = summary.getByRole("link", { name: /24-077/ });
-      await expect(line).toContainText("behind schedule");
+      await expect(line).toContainText("over cost");
+      await expect(line).toContainText("$255K");
       const amount = line.locator("[data-cents]");
       const cents = Number(await amount.getAttribute("data-cents"));
       const title = (await amount.getAttribute("title")) ?? "";
       expect(title).toMatch(/[−-]\$\d{1,3}(,\d{3})*\.\d{2}/);
-      expect(cents).toBeLessThan(0);
+      expect(cents).toBe(-25_466_400);
       const cedar = summary.getByRole("link", { name: /25-031/ });
       await expect(cedar).toContainText("over cost");
       const cedarCents = Number(await cedar.locator("[data-cents]").getAttribute("data-cents"));
       await page.goto("/app/jobs/24-077");
-      const schedule = Number(
+      const cost077 = Number(
         await page
-          .locator("[data-testid='job-spi'] [data-variance-cents]")
+          .locator("[data-testid='job-cpi'] [data-variance-cents]")
           .getAttribute("data-variance-cents"),
       );
-      expect(cents, mode).toBe(schedule);
+      expect(cents, mode).toBe(cost077);
       await page.goto("/app/jobs/25-031");
       const cost = Number(
         await page
@@ -799,8 +800,16 @@ test.describe("5.0.4-i phone fit and a11y", () => {
           for (let i = 0; i < n; i++) {
             const text = (await lines.nth(i).innerText()).replace(/\s+/g, " ");
             expect(text, `${role} line ${i}`).toMatch(/Planned /);
-            expect(text).toMatch(/Reported /);
             expect(text).toMatch(/MH/);
+            const reported = lines
+              .nth(i)
+              .getByTestId("plan-detail-line-reported");
+            const reportedText = (await reported.innerText())
+              .replace(/\s+/g, " ")
+              .trim();
+            expect(reportedText).toMatch(
+              /^(?:Not reported yet|Reported \d[\d,]*(?:\.\d+)? \S+ · \d[\d,]*\.\d MH)$/,
+            );
           }
           const wide = await page.evaluate(() => {
             const w = document.documentElement.clientWidth;

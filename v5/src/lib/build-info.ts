@@ -17,6 +17,15 @@ export function changelogVersion(): string {
   return changelog[0]?.version ?? pkg.version;
 }
 
+/**
+ * Visible /status commit. A hex sha of 7 or more characters shows its first
+ * 12; anything else (including "unknown") is left whole. The sr-only line
+ * and the title keep the full value.
+ */
+export function shortCommitSha(commit: string): string {
+  return /^[0-9a-f]{7,}$/i.test(commit) ? commit.slice(0, 12) : commit;
+}
+
 /** Version comes from package.json, build time is stamped by next build, commit comes from the deploy environment. */
 export function getBuildInfo(
   env: Record<string, string | undefined> = process.env,

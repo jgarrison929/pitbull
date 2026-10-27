@@ -7,6 +7,7 @@ import {
   costItemMilestones,
   costItems,
   crews,
+  dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
   milestoneLogs,
@@ -21,6 +22,7 @@ import {
   snapshotClaimPercent,
   type EvMethod,
 } from "@/lib/ev";
+import { validReportIdempotencyKey } from "@/lib/report-queue";
 import {
   recordPlanEvent,
   type PlanActor,
@@ -134,22 +136,50 @@ export async function submitDailyReport(
   actuals: Record<string, ReportLineActual> = {},
   actor: PlanActor,
   now = getSeedClock(),
+  idempotencyKey?: string,
 ) {
   const db = requireDb();
   const namedIds = Object.keys(actuals);
   if (!namedIds.length) {
     return { ok: false as const, reason: "no-lines" as const };
   }
+  const replayKey = validReportIdempotencyKey(idempotencyKey);
   return db.transaction(async (tx) => {
     const [plan] = await tx
       .select()
       .from(dailyPlans)
       .where(
         and(eq(dailyPlans.id, planId), eq(dailyPlans.companyId, companyId)),
-      );
+      )
+      .for("update");
     if (!plan) return { ok: false as const, reason: "not-found" as const };
     if (plan.status !== "issued" && plan.status !== "reported") {
       return { ok: false as const, reason: "wrong-status" as const, status: plan.status };
+    }
+    // Same client key is one report. The plan row lock makes a concurrent
+    // replay wait, then see the event this transaction already wrote.
+    if (replayKey) {
+      const [prior] = await tx
+        .select({ id: dailyPlanEvents.id })
+        .from(dailyPlanEvents)
+        .where(
+          and(
+            eq(dailyPlanEvents.companyId, companyId),
+            eq(dailyPlanEvents.planId, planId),
+            eq(dailyPlanEvents.kind, "reported"),
+            eq(dailyPlanEvents.detail, replayKey),
+          ),
+        )
+        .limit(1);
+      if (prior) {
+        return {
+          ok: true as const,
+          already: true as const,
+          reportedMh: 0,
+          reportedQtyLines: 0,
+          lines: 0,
+        };
+      }
     }
 
     const lines = await tx
@@ -202,6 +232,9 @@ export async function submitDailyReport(
       kind: "reported",
       actor,
       at: now,
+      // Reported events do not show detail in the UI. The key lives here so
+      // a replay can find this row without a new column.
+      detail: replayKey ?? "",
     });
 
     return {
@@ -223,10 +256,27 @@ export async function postDailyReport(
   actuals: Record<string, ReportLineActual> = {},
   actor: PlanActor,
   now = getSeedClock(),
+  idempotencyKey?: string,
 ) {
-  const result = await submitDailyReport(companyId, planId, actuals, actor, now);
+  const result = await submitDailyReport(
+    companyId,
+    planId,
+    actuals,
+    actor,
+    now,
+    idempotencyKey,
+  );
   if (!result.ok) {
     return { postedMh: 0, postedQtyLines: 0, lines: 0, ...result };
+  }
+  if ("already" in result && result.already) {
+    return {
+      postedMh: 0,
+      postedQtyLines: 0,
+      lines: 0,
+      ok: true as const,
+      already: true as const,
+    };
   }
   return {
     postedMh: result.reportedMh,

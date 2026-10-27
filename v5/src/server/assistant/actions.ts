@@ -47,6 +47,7 @@ import {
   planDateToday,
   timeZoneForJob,
 } from "@/lib/plan-date";
+import { validReportIdempotencyKey } from "@/lib/report-queue";
 import {
   changeOrderCommand,
   listChangeOrders,
@@ -598,14 +599,26 @@ export const actions: Record<ActionName, ActionDef> = {
       const risky = all.filter(
         (j) => !j.estimateDraft && j.status !== "on-track",
       );
-      const flags = risky.map((j) =>
-        (j.cpi ?? Infinity) < (j.spi ?? Infinity)
+      const field = user.role === "superintendent";
+      const flags = risky.map((j) => {
+        const costWorse = (j.cpi ?? Infinity) < (j.spi ?? Infinity);
+        if (field) {
+          return costWorse
+            ? `${j.job.shortName} (over cost)`
+            : `${j.job.shortName} (behind schedule)`;
+        }
+        return costWorse
           ? `${j.job.shortName} (CPI ${idx(j.cpi)})`
-          : `${j.job.shortName} (SPI ${idx(j.spi)})`,
-      );
+          : `${j.job.shortName} (SPI ${idx(j.spi)})`;
+      });
+      // Superintendent summaries name the condition. CPI and SPI stay on the
+      // PM and executive summary, where those roles already see the indexes.
+      const head = field
+        ? `${activeJobCount} active jobs. `
+        : `${activeJobCount} active jobs. Portfolio CPI ${idx(totals.cpi)}, SPI ${idx(totals.spi)}. `;
       return {
         summary:
-          `${activeJobCount} active jobs. Portfolio CPI ${idx(totals.cpi)}, SPI ${idx(totals.spi)}. ` +
+          head +
           (flags.length
             ? `Needs attention: ${flags.join(", ")}.`
             : "Every job is on track."),
@@ -626,9 +639,11 @@ export const actions: Record<ActionName, ActionDef> = {
         .sort((a, b) => a.varianceCents - b.varianceCents)
         .slice(0, 3);
       const net = j.costVarianceCents;
+      const indexBit =
+        user.role === "superintendent" ? "" : ` (CPI ${idx(j.cpi)})`;
       return {
         summary:
-          `${j.job.shortName} is ${usdShort(Math.abs(net))} ${net < 0 ? "over" : "under"} on earned vs actual cost (CPI ${idx(j.cpi)}). ` +
+          `${j.job.shortName} is ${usdShort(Math.abs(net))} ${net < 0 ? "over" : "under"} on earned vs actual cost${indexBit}. ` +
           (worst.length
             ? `Largest overruns: ${worst.map((l) => `${l.code} ${l.description} ${usdShort(l.varianceCents)}`).join("; ")}.`
             : "No cost code is over."),
@@ -1175,7 +1190,7 @@ export const actions: Record<ActionName, ActionDef> = {
     title: "Report a day's work",
     writes: true,
     roles: ["foreman", "superintendent"],
-    async run(user, { job, planId, date, crew, crewId, actuals, lineRef }) {
+    async run(user, { job, planId, date, crew, crewId, actuals, lineRef, idempotencyKey }) {
       const found = await scopedPlan(user, { planId, job, date, crew, crewId });
       const scoped = writeScope(found, {
         planId,
@@ -1290,13 +1305,27 @@ export const actions: Record<ActionName, ActionDef> = {
           qtyMilli: Math.round(qtyVal * 1000),
         };
       }
-      const result = await postDailyReport(user.companyId, plan.id, byLineId, {
-        userId: user.userId,
-        role: user.role,
-      });
+      const result = await postDailyReport(
+        user.companyId,
+        plan.id,
+        byLineId,
+        {
+          userId: user.userId,
+          role: user.role,
+        },
+        undefined,
+        validReportIdempotencyKey(idempotencyKey),
+      );
       if (!("ok" in result) || !result.ok) {
         return {
           summary: `Could not save ${plan.crew}'s report on ${j.job.shortName}.`,
+          href: jobHref(j),
+          job: j.job.number,
+        };
+      }
+      if ("already" in result && result.already) {
+        return {
+          summary: `${plan.crew}'s report for ${day(plan.planDate)} on ${j.job.shortName} was already saved.`,
           href: jobHref(j),
           job: j.job.number,
         };

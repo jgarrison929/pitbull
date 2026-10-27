@@ -24,11 +24,17 @@ export default function RoadmapPage() {
           Dates appear only after a release passes the gate.
         </p>
         <p className="mt-2 text-body">
-          <a href="/changelog" className="underline hover:no-underline">
+          <a
+            href="/changelog"
+            className="tap-target inline-flex min-h-11 items-center underline hover:no-underline"
+          >
             Changelog
           </a>
           {" · "}
-          <a href="/status" className="underline hover:no-underline">
+          <a
+            href="/status"
+            className="tap-target inline-flex min-h-11 items-center underline hover:no-underline"
+          >
             Status
           </a>
         </p>

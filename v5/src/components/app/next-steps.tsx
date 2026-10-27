@@ -9,9 +9,12 @@ import type { NextStepsResult } from "@/server/next-steps";
 export function NextSteps({
   data,
   titled = true,
+  role,
 }: {
   data: NextStepsResult;
   titled?: boolean;
+  /** Signed-in role. The first next step carries data-role for the one-tap check. */
+  role?: string;
 }) {
   const { items, moreCount, doneMessage } = data;
   return (
@@ -37,13 +40,20 @@ export function NextSteps({
         </p>
       ) : (
         <ul className="divide-y">
-          {items.map((step) => (
+          {items.map((step, index) => (
             <li key={step.id}>
               <Link
                 href={step.href}
                 className="tap-target flex min-h-11 items-center px-4 py-3 text-body font-medium hover:bg-muted/60 lg:px-6"
                 data-testid="next-step"
                 data-step-id={step.id}
+                data-role={
+                  index === 0 &&
+                  role &&
+                  !step.label.startsWith("Approve the estimate")
+                    ? role
+                    : undefined
+                }
               >
                 {step.label}
               </Link>

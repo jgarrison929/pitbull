@@ -119,6 +119,7 @@ function argsFromForm(formData: FormData): JobArgs {
     crew: str("crew"),
     crewId: str("crewId"),
     planId: str("planId"),
+    idempotencyKey: str("idempotencyKey"),
     activity: str("activity"),
     location: str("location"),
     qty: str("qty"),

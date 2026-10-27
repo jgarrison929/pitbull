@@ -30,7 +30,9 @@ async function Portfolio() {
       getNextSteps(user),
     ]);
   // PageHeader owns the page title + purpose (5.0.4-b); NextSteps is untitled.
-  const next = <NextSteps data={nextSteps} titled={false} />;
+  const next = (
+    <NextSteps data={nextSteps} titled={false} role={user.role} />
+  );
   const costIndexes = showsCostIndexes(user.role);
   const atRiskLines =
     user.role === "executive"

@@ -5,6 +5,7 @@ import { MetricCard } from "@/components/app/metric-card";
 import { PageHeader } from "@/components/app/page";
 import { dbPing } from "@/db";
 import { formatMigrationsLabel } from "@/lib/applied-migrations";
+import { shortCommitSha } from "@/lib/build-info";
 import { getDeployStatus } from "@/lib/deploy-status";
 import { checkHealth } from "@/lib/health";
 import { formatLastVerify } from "@/lib/last-verify-format";
@@ -28,14 +29,14 @@ export default function StatusPage() {
       <p className="text-body text-muted-foreground">
         <a
           href="/roadmap"
-          className="tap-target inline-flex items-center underline hover:no-underline"
+          className="tap-target inline-flex min-h-11 min-w-11 items-center underline hover:no-underline"
         >
           Roadmap
         </a>
         {" · "}
         <a
           href="/changelog"
-          className="tap-target inline-flex items-center underline hover:no-underline"
+          className="tap-target inline-flex min-h-11 min-w-11 items-center underline hover:no-underline"
         >
           Changelog
         </a>
@@ -92,8 +93,13 @@ async function StatusDetails() {
         label="Version"
         value={deploy.version}
         secondary={[
-          <span key="commit" className="break-all">
-            Commit {deploy.commit}
+          <span
+            key="commit"
+            data-testid="status-commit-visible"
+            title={`Commit ${deploy.commit}`}
+            className="block max-w-full break-all"
+          >
+            Commit {shortCommitSha(deploy.commit)}
           </span>,
           `CI gate ${ciGateValue}`,
         ]}

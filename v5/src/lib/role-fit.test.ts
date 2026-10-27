@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   atRiskSummaryLine,
+  atRiskSummaryParts,
   todayPlanLabel,
 } from "./role-fit";
 
@@ -34,6 +35,22 @@ describe("atRiskSummaryLine", () => {
     expect(line).toMatch(/24-077/);
     expect(line).toMatch(/over cost/);
     expect(line).toMatch(/\$255K/);
+  });
+
+  it("uses cost variance when schedule is the redder index (24-077)", () => {
+    const parts = atRiskSummaryParts({
+      shortName: "I-5 Culverts",
+      number: "24-077",
+      cpi: 0.97,
+      spi: 0.8,
+      costVarianceCents: -25_466_400,
+      scheduleVarianceCents: -71_140_886,
+    });
+    expect(parts?.text).toMatch(/24-077/);
+    expect(parts?.text).toMatch(/over cost/);
+    expect(parts?.text).toMatch(/\$255K/);
+    expect(parts?.text).not.toMatch(/behind schedule/);
+    expect(parts?.cents).toBe(-25_466_400);
   });
 
   it("names behind-schedule jobs when cost is fine", () => {

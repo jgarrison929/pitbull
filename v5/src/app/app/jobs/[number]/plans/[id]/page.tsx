@@ -238,14 +238,21 @@ async function Plan({
                     Planned {qty(l.qtyMilli)} {l.unit} · {formatMh(l.manHours)}{" "}
                     MH
                   </Figure>
-                  <Figure variant="secondary">
-                    {l.reportedQtyMilli == null
-                      ? "Reported —"
-                      : `Reported ${qty(l.reportedQtyMilli)} ${l.unit}`}
-                    {" · "}
-                    {l.reportedManHours == null
-                      ? "— MH"
-                      : `${formatMh(l.reportedManHours)} MH`}
+                  <Figure
+                    variant="secondary"
+                    data-testid="plan-detail-line-reported"
+                  >
+                    {l.reportedQtyMilli == null && l.reportedManHours == null
+                      ? "Not reported yet"
+                      : `Reported ${
+                          l.reportedQtyMilli == null
+                            ? "—"
+                            : `${qty(l.reportedQtyMilli)} ${l.unit}`
+                        } · ${
+                          l.reportedManHours == null
+                            ? "— MH"
+                            : `${formatMh(l.reportedManHours)} MH`
+                        }`}
                   </Figure>
                 </div>
                 <details className="mt-2">

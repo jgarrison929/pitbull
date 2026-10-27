@@ -87,7 +87,7 @@ for (const viewport of VIEWPORTS) {
 
         for (const path of NAV_PAGES) {
           await page.goto(path);
-          // Prefer visible chrome: foreman phone hides job-strip (hidden md:flex).
+          // Prefer visible chrome. Foreman phone keeps job-strip (5.0.4-b).
           await expect(
             page
               .locator(

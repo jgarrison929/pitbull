@@ -1,15 +1,18 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
 import {
   companies,
   costEntries,
   costItems,
+  dailyPlanEvents,
   dailyPlanLines,
   dailyPlans,
 } from "@/db/schema";
-import { seedId } from "@/seed";
+import { SEED_COMPANY_NAME, seedId } from "@/seed";
+import { run } from "@/server/assistant/actions";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
+import { jobRollupSql } from "./cost-rollups";
 import { createSandbox } from "./sandbox";
 import {
   approveDailyReport,
@@ -301,5 +304,83 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
     expect(itemAfter.actualCents).toBe(
       itemBefore.actualCents + 50 * CULVERT_RATE,
     );
+  });
+
+  it("approving the seeded 24-118 report raises live AC and leaves locked AC and CPI", async () => {
+    const companyId = await createSandbox();
+    created.push(companyId);
+    const jobId = seedId(companyId, "job:sr99");
+    const planId = seedId(companyId, "plan:sr99:today");
+    const before = await jobRollupSql(companyId, jobId);
+    const result = await approveDailyReport(
+      companyId,
+      planId,
+      superActor(companyId),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.already) throw new Error("expected a first approve");
+    expect(result.postedCents).toBeGreaterThan(0);
+
+    const after = await jobRollupSql(companyId, jobId);
+    expect(after.actualCents).toBe(before.actualCents);
+    expect(after.cpi).toBe(before.cpi);
+    expect(after.sinceLockActualCents - before.sinceLockActualCents).toBe(
+      result.postedCents,
+    );
+    const live = (cents: { actualCents: number; sinceLockActualCents: number }) =>
+      cents.actualCents + cents.sinceLockActualCents;
+    expect(live(after)).toBe(live(before) + result.postedCents);
+  });
+
+  it("a second post with the same idempotency key does not add a row", async () => {
+    const companyId = await createSandbox();
+    created.push(companyId);
+    const planId = seedId(companyId, "plan:cedar:tomorrow");
+    const pourLineId = seedId(companyId, "plan-line:cedar:0");
+    await db!
+      .update(dailyPlans)
+      .set({ status: "issued" })
+      .where(eq(dailyPlans.id, planId));
+    const key = "replay-key-01";
+    const user = {
+      userId: seedId(companyId, "user:foreman"),
+      companyId,
+      name: "Luis Ortega",
+      title: "Foreman, Bridge Crew 2",
+      role: "foreman" as const,
+      companyName: SEED_COMPANY_NAME,
+      seededAt: new Date("2026-10-20T17:00:00.000Z"),
+      expiresAt: null,
+    };
+    const args = {
+      job: "25-031",
+      planId,
+      idempotencyKey: key,
+      actuals: [{ lineId: pourLineId, manHours: 22, qty: 12 }],
+    };
+    const first = await run(user, "Report day's work", "dailyReport.post", args);
+    expect(first.result.summary).toMatch(/pending/i);
+    const second = await run(user, "Report day's work", "dailyReport.post", {
+      ...args,
+      actuals: [{ lineId: pourLineId, manHours: 99, qty: 1 }],
+    });
+    expect(second.result.summary).toMatch(/already saved/i);
+    const events = await db!
+      .select()
+      .from(dailyPlanEvents)
+      .where(
+        and(
+          eq(dailyPlanEvents.planId, planId),
+          eq(dailyPlanEvents.kind, "reported"),
+          eq(dailyPlanEvents.detail, key),
+        ),
+      );
+    expect(events).toHaveLength(1);
+    const [line] = await db!
+      .select()
+      .from(dailyPlanLines)
+      .where(eq(dailyPlanLines.id, pourLineId));
+    expect(line.reportedHoursTenths).toBe(220);
+    expect(line.reportedQtyMilli).toBe(12_000);
   });
 });

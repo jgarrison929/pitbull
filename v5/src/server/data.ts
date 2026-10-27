@@ -288,7 +288,10 @@ export async function getJob(
       )
       .orderBy(asc(costItems.path)),
     db
-      .select({ lockedAt: progressClaims.lockedAt })
+      .select({
+        lockedAt: progressClaims.lockedAt,
+        periodLabel: progressClaims.periodLabel,
+      })
       .from(progressClaims)
       .innerJoin(
         jobs,
@@ -308,6 +311,7 @@ export async function getJob(
   if (!job) return null;
   const items = itemRows.map((r) => r.item);
   const lockAt = lockRows[0]?.lockedAt ?? null;
+  const lockPeriodLabel = lockRows[0]?.periodLabel ?? null;
   const cutoff = lockAt ?? asOf;
   const lines = leafLines(items, cutoff, asOf);
   // Prefer JS leaf rollup so claimed-installed / as-of PV match costLine exactly.
@@ -320,6 +324,8 @@ export async function getJob(
     /** Original, Current, and Estimate per WBS node and for the job, summed from leaves. */
     money: buildWbsMoney(items),
     lockAt,
+    /** Latest locked period label, e.g. "Period 1". Null when never locked. */
+    lockPeriodLabel,
     cutoff,
     ...r,
     ...(draft

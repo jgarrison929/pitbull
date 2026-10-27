@@ -33,7 +33,7 @@ async function actualCents(page: Page) {
 
 /** Cost posted since last lock (approve lands here until the PM locks). */
 async function sinceLockActualCents(page: Page) {
-  const el = page.getByTestId("job-actual-since-lock").locator("[data-cents]");
+  const el = page.getByTestId("job-ac-since-lock");
   if ((await el.count()) === 0) return 0;
   return Number(await el.getAttribute("data-cents"));
 }
@@ -79,7 +79,10 @@ test.describe("superintendent approve / return", () => {
     await expect(pending).toBeVisible();
     await expect(pending).toContainText("12");
     const pendingCents = 22 * BRIDGE_RATE_CENTS;
-    await expect(pending).toHaveAttribute("data-cents", String(pendingCents));
+    await expect(pending.locator("[data-cents]")).toHaveAttribute(
+      "data-cents",
+      String(pendingCents),
+    );
     // Phone Money(exact): one compact figure; tap swaps to exact (no dual mount).
     await expect(pending).toContainText(usdShort(pendingCents));
     const moneyToggle = pending.getByTestId("money-exact-toggle");

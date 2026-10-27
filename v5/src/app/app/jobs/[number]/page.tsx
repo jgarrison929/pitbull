@@ -19,10 +19,11 @@ import { EvMethodControls } from "@/components/app/ev-method-controls";
 import { ConfirmForm } from "@/components/form/confirm-form";
 import { ImportEstimateForm } from "@/components/app/import-estimate-form";
 import { JobNewPlanSlot } from "@/components/app/job-new-plan-slot";
+import { JourneyHook } from "@/components/app/journey-hook";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { approveEstimateCopy, lockPeriodCopy } from "@/lib/confirm-copy";
-import { mh, pct, usdShort } from "@/lib/ev";
+import { mh, pct, usdCents, usdShort } from "@/lib/ev";
 import {
   showsCostIndexes,
   showsJobPageCostIndexes,
@@ -111,6 +112,29 @@ export async function Job({
   // PM and executive: phone fold leads with EAC and CPI (5.0.4-e). Field roles
   // keep plans first so Submit stays in the first screen.
   const phoneKpiFirst = showsCostIndexes(user.role);
+  // Executive: status and the EAC card share the first screen at 390 and 1280.
+  // PM keeps that order on phones only, so the desktop job layout stays put.
+  const executiveFold = user.role === "executive";
+  const headerOrder = executiveFold
+    ? "order-2"
+    : phoneKpiFirst
+      ? "max-md:order-2"
+      : undefined;
+  const plansOrder = executiveFold
+    ? "order-3 flex flex-col gap-5"
+    : phoneKpiFirst
+      ? "flex max-md:order-3 flex-col gap-5"
+      : "flex flex-col gap-5";
+  const kpiOrder = executiveFold
+    ? "order-1"
+    : phoneKpiFirst
+      ? "max-md:order-1"
+      : undefined;
+  const restOrder = executiveFold
+    ? "order-4 flex flex-col gap-5"
+    : phoneKpiFirst
+      ? "flex max-md:order-4 flex-col gap-5"
+      : "flex flex-col gap-5";
   const statusBadge = showsStatusRiskBadge(user.role);
   const jobMoney = p.money.job;
   const approveCopy = approveEstimateCopy({
@@ -171,7 +195,7 @@ export async function Job({
         data-queries={timingPayload.queries}
         data-total-ms={timingPayload.totalMs}
       />
-      <div id="estimate" className={phoneKpiFirst ? "max-md:order-2" : undefined}>
+      <div id="estimate" className={headerOrder}>
         <PageHeader
           title={p.job.name}
           purpose="Plan field work, track cost against budget, and decide on changes for this job."
@@ -274,7 +298,7 @@ export async function Job({
         sit above 568px. Desktop and field roles keep plans after the title
         so Submit stays where it is (#662).
       */}
-      <div className={phoneKpiFirst ? "flex max-md:order-3 flex-col gap-5" : "flex flex-col gap-5"}>
+      <div className={plansOrder}>
       {/* Plans lead so Submit + crew footer stay reachable after KPI growth (#662). */}
       {canCreatePlan && !estimateDraft ? (
         <div className="contents" data-plan-today={today}>
@@ -402,7 +426,7 @@ export async function Job({
         sees cost indexes (5.0.4-b). EAC carries cost variance; CPI carries
         earned and actual as its two secondaries. Foreman omits both.
       */}
-      <div className={phoneKpiFirst ? "max-md:order-1" : undefined}>
+      <div className={kpiOrder}>
       <KpiStrip>
         {costIndexes ? (
           <>
@@ -444,6 +468,7 @@ export async function Job({
                   <StatusIndex
                     index={p.cpi}
                     varianceCents={p.costVarianceCents}
+                    indexTestId="job-cpi-index"
                   />
                 )
               }
@@ -527,12 +552,15 @@ export async function Job({
           sub={
             estimateDraft
               ? "After estimate approval"
-              : p.sinceLockActualCents !== 0 ? (
+              : user.role !== "foreman" &&
+                  p.sinceLockActualCents > 0 &&
+                  p.lockPeriodLabel ? (
                   <>
                     vs {usdShort(p.earnedCents)} earned ·{" "}
-                    <span data-testid="job-actual-since-lock">
-                      <Money cents={p.sinceLockActualCents} /> since lock
-                    </span>
+                    <span
+                      data-testid="job-ac-since-lock"
+                      data-cents={p.sinceLockActualCents}
+                    >{`+${usdCents(p.sinceLockActualCents)} posted since ${p.lockPeriodLabel} lock`}</span>
                   </>
                 ) : (
                   `vs ${usdShort(p.earnedCents)} earned`
@@ -570,7 +598,7 @@ export async function Job({
         ) : null}
       </KpiStrip>
       </div>
-      <div className={phoneKpiFirst ? "flex max-md:order-4 flex-col gap-5" : "flex flex-col gap-5"}>
+      <div className={restOrder}>
       <p
         className="mt-2 text-xs text-muted-foreground max-[640px]:text-body"
         data-testid="estimate-categories"
@@ -677,6 +705,7 @@ export async function Job({
         )}
       </Section>
       </div>
+      <JourneyHook role={user.role} />
     </>
   );
 }

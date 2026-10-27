@@ -290,11 +290,17 @@ for (const viewport of LAYOUT_VIEWPORTS) {
           await signIn(page, role);
           await page.goto(`/app/jobs/${job}`);
           await expect(coLedger(page, job)).toBeVisible();
-          // Foreman phone hides the job strip; other roles keep it.
-          if (role === "foreman" && viewport.phone) {
-            await expect(page.getByTestId("job-strip")).toBeHidden();
-          } else {
-            await expect(page.getByTestId("job-strip")).toBeVisible();
+          // 5.0.4-b: foreman phone keeps the strip so the plan-state pill is on the job.
+          await expect(page.getByTestId("job-strip")).toBeVisible();
+          if (role === "foreman" && viewport.phone && job === "24-077") {
+            const pill = page
+              .getByTestId("job-strip")
+              .locator("a")
+              .filter({ hasText: "24-077" });
+            await expect(pill).toContainText("I-5 Culvert");
+            await expect(pill).toContainText(
+              /Report due|Reported|No plan today/,
+            );
           }
           if (viewport.phone) {
             // 5.0.4-e: L/M/E/S stack sits behind details; open it to assert spacing.

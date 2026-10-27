@@ -1,10 +1,28 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { runActionState, type ActionState } from "@/app/app/assistant/actions";
 import { Figure } from "@/components/app/format";
 import { qty } from "@/lib/ev";
 import { REPORT_LIMITS } from "@/lib/plan-line";
+import {
+  claimReportSend,
+  clearQueuedReport,
+  clearReportIdempotencyKey,
+  queuedReportRaw,
+  readQueuedReport,
+  releaseReportSend,
+  reportIdempotencyKey,
+  subscribeReportQueue,
+  writeQueuedReport,
+  type QueuedReport,
+} from "@/lib/report-queue";
 import { cn } from "@/lib/utils";
 
 export type ReportLine = {
@@ -76,32 +94,130 @@ export function ReportWorkForm({
     runActionState,
     {},
   );
+  const [sending, setSending] = useState(false);
+  const queuedRaw = useSyncExternalStore(
+    subscribeReportQueue,
+    () => queuedReportRaw(planId),
+    () => null,
+  );
+  useEffect(() => {
+    if (!state.summary || state.errors) return;
+    clearReportIdempotencyKey(planId, sessionStorage);
+  }, [state.summary, state.errors, planId]);
+
+  const queued = useMemo((): QueuedReport | null => {
+    if (!queuedRaw) return null;
+    try {
+      const parsed = JSON.parse(queuedRaw) as QueuedReport;
+      if (parsed?.planId !== planId || parsed.fields == null) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, [queuedRaw, planId]);
   // Remount after report so defaultValues pick up server-rendered reported values.
-  const formKey = lines
+  const formKey = `${lines
     .map(
       (l) =>
         `${l.id}:${l.reportedManHours ?? ""}:${l.reportedQtyMilli ?? ""}`,
     )
-    .join("|");
+    .join("|")}|${queued ? "queued" : "live"}`;
+
+  function queueFromForm(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    const fields: Record<string, string> = {};
+    for (const [key, value] of fd.entries()) {
+      if (typeof value === "string") fields[key] = value;
+    }
+    writeQueuedReport(
+      { planId, jobNumber, fields },
+      sessionStorage,
+    );
+  }
+
+  async function retry() {
+    const pendingReport = readQueuedReport(planId, sessionStorage);
+    if (!pendingReport || !claimReportSend(planId)) return;
+    setSending(true);
+    const fd = new FormData();
+    for (const [key, value] of Object.entries(pendingReport.fields)) {
+      fd.set(key, value);
+    }
+    try {
+      const next = await runActionState({}, fd);
+      if (next.errors) {
+        releaseReportSend(planId);
+        setSending(false);
+        return;
+      }
+      clearQueuedReport(planId, sessionStorage);
+      clearReportIdempotencyKey(planId, sessionStorage);
+      window.location.reload();
+    } catch {
+      releaseReportSend(planId);
+      setSending(false);
+    }
+  }
+
   return (
     <form
       key={formKey}
       action={action}
       className="flex w-full flex-col gap-3"
       data-testid="report-work-form"
+      onSubmit={(event) => {
+        const keyInput = event.currentTarget.elements.namedItem(
+          "idempotencyKey",
+        );
+        if (keyInput instanceof HTMLInputElement) {
+          keyInput.value = reportIdempotencyKey(planId, sessionStorage);
+        }
+        const offline =
+          typeof navigator !== "undefined" && navigator.onLine === false;
+        if (!offline && !queued) return;
+        event.preventDefault();
+        if (!queued) queueFromForm(event.currentTarget);
+      }}
     >
       <input type="hidden" name="action" value="dailyReport.post" />
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="planId" value={planId} />
+      <input type="hidden" name="idempotencyKey" defaultValue="" />
       <input type="hidden" name="label" value="Report day's work" />
       <ul className="flex flex-col gap-3">
         {lines.map((l) => (
-          <ReportLineRow key={l.id} line={l} />
+          <ReportLineRow
+            key={l.id}
+            line={l}
+            initialMh={queued?.fields[`actualMh[${l.id}]`]}
+            initialQty={queued?.fields[`actualQty[${l.id}]`]}
+          />
         ))}
       </ul>
+      {queued ? (
+        <div
+          className="flex flex-col gap-2 rounded-md border border-caution bg-caution-soft px-3 py-3"
+          data-testid="report-unsent"
+        >
+          <p className="text-body text-foreground">
+            Not sent yet. This report stays on this phone until you retry.
+          </p>
+          <button
+            type="button"
+            className="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-60 sm:w-auto sm:self-end"
+            data-testid="report-retry"
+            aria-busy={sending}
+            onClick={() => {
+              void retry();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || queued !== null || sending}
         className="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-60 max-sm:-mx-4 max-sm:w-[calc(100%+2rem)] sm:mx-0 sm:w-auto sm:self-end"
         data-testid="report-work"
       >
@@ -120,12 +236,20 @@ export function ReportWorkForm({
   );
 }
 
-function ReportLineRow({ line: l }: { line: ReportLine }) {
+function ReportLineRow({
+  line: l,
+  initialMh,
+  initialQty,
+}: {
+  line: ReportLine;
+  initialMh?: string;
+  initialQty?: string;
+}) {
   const defaultMh = l.reportedManHours ?? l.manHours;
   const defaultQty = (l.reportedQtyMilli ?? l.qtyMilli) / 1000;
   const hasReport = l.reportedManHours != null || l.reportedQtyMilli != null;
-  const [actualMh, setActualMh] = useState(String(defaultMh));
-  const [actualQty, setActualQty] = useState(String(defaultQty));
+  const [actualMh, setActualMh] = useState(initialMh ?? String(defaultMh));
+  const [actualQty, setActualQty] = useState(initialQty ?? String(defaultQty));
 
   const live = useMemo(() => {
     const mhN = Number(actualMh);

@@ -1,5 +1,5 @@
 import { usdShort } from "@/lib/ev";
-import { overallStatus, varianceStatus, type Status } from "@/lib/status";
+import { overallStatus } from "@/lib/status";
 
 /** Foreman JobStrip labels for today's plan on a job. */
 export type TodayPlanLabel = "Report due" | "Reported" | "No plan today";
@@ -66,14 +66,11 @@ export function atRiskSummaryParts(
   };
   if (overallStatus(roll) !== "at-risk") return null;
 
-  const cost = varianceStatus(job.cpi, job.costVarianceCents);
-  const sched = varianceStatus(job.spi, job.scheduleVarianceCents);
-  const overCost =
-    cost === "at-risk" ||
-    (job.costVarianceCents < 0 && statusRank(cost) >= statusRank(sched));
-
   const name = `${job.shortName} (${job.number})`;
-  if (overCost) {
+  // A negative cost variance is the money this line reports. Comparing index
+  // ranks let a redder SPI replace that variance with schedule dollars
+  // (24-077: watch CPI, at-risk SPI, cost variance still negative).
+  if (job.costVarianceCents < 0) {
     const spent = usdShort(Math.abs(job.costVarianceCents));
     return {
       text: `${name} is over cost: it has spent ${spent} more than the work it has done is worth`,
@@ -91,8 +88,3 @@ export function atRiskSummaryLine(job: AtRiskJob): string | null {
   return atRiskSummaryParts(job)?.text ?? null;
 }
 
-const statusRank = (s: Status | null): number => {
-  if (s === "at-risk") return 2;
-  if (s === "watch") return 1;
-  return 0;
-};
