@@ -507,9 +507,11 @@ mustFail("M5 reset did not restore", evaluateM5({ ...m5good, afterReset: { ...m5
   mustFail("schedule page ERP", evaluateCrawlRow({ ...sched, text: "Export to ERP" }));
   mustFail("schedule page error boundary", evaluateCrawlRow({ ...sched, text: "Application error: a client-side exception has occurred" }));
   mustFail("job page still needs cost rows", evaluateCrawlRow({ ...good, seededCounts: { costRows: 0, activityRows: 5 } }));
-  const clipped = { ...sched, width: 320, clips: [{ kind: "money", text: "$1,234.56", ellipsis: true, reachable: false }], clipCount: 1 };
+  const clipped = { ...sched, width: 320, clips: [{ kind: "money", text: "$1,234.56", ellipsis: true, reachable: false }], clipCount: 1, pastRight: { count: 0, items: [] }, scrollX: [] };
   mustPass("schedule clip ignored when phone checks are off", evaluateCrawlRow(clipped));
-  mustFail("schedule clip fails when phone checks are on", evaluateCrawlRow(clipped, { phoneChecks: true }));
+  const schedClip = evaluateCrawlRow(clipped, { phoneChecks: true });
+  mustFail("schedule clip fails when phone checks are on", schedClip);
+  assert.ok(schedClip.some((x) => /\$1,234\.56/.test(x)), `the money clip itself must be the failure; got ${JSON.stringify(schedClip)}`);
 
   const jobRow = (job, links, role = "pm", width = 390) => ({
     role, width, path: `/app/jobs/${job}`, scheduleLinks: links,
