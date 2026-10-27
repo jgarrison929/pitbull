@@ -37,7 +37,7 @@ import { CONFIRM_DIALOG_CANCEL, CONFIRM_DIALOG_CONFIRM, CONFIRM_DIALOG_ROLE, con
 import { changesPath, signInRole } from "./crawl.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
 import { jobState, resetDemo, runM2 } from "./numbers.mjs";
-import { isLocalUrl, isLocalDbUrl } from "./target-guard.mjs";
+import { isLocalUrl, localDbGate } from "./target-guard.mjs";
 
 for (const ev of ["uncaughtException", "unhandledRejection"]) {
   process.on(ev, (error) => {
@@ -86,8 +86,9 @@ if (!isLocalUrl(args.url)) {
   console.error(`refused: ${args.url} is not localhost; this tool runs only against a local app`);
   process.exit(2);
 }
-if (process.env.DATABASE_URL && !isLocalDbUrl(process.env.DATABASE_URL)) {
-  console.error("refused: DATABASE_URL is not a local database (host not shown); this tool runs only against a local DB");
+const dbGate = process.env.DATABASE_URL ? await localDbGate(process.env.DATABASE_URL, { env: process.env }) : { ok: true };
+if (!dbGate.ok) {
+  console.error(`refused: ${dbGate.reason} (host not shown); this tool runs only against a local DB`);
   process.exit(2);
 }
 const base = args.url.replace(/\/$/, "");

@@ -8,7 +8,7 @@ import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { isLocalDbUrl, isLocalHost, isLocalUrl, remoteTargetGate, REMOTE_REFUSED_EXIT, TARGET_ENV } from "./target-guard.mjs";
+import { isLocalDbUrl, isLocalHost, isLocalUrl, isPrivateAddress, localDbGate, LOCAL_DB_HOSTS_ENV, remoteTargetGate, REMOTE_REFUSED_EXIT, TARGET_ENV } from "./target-guard.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const verify = path.resolve(process.env.PV_GUARD_VERIFY ?? path.join(here, "verify.mjs"));
@@ -33,9 +33,42 @@ assert.deepEqual(remoteTargetGate({ url: S, selfCheck: true }), { ok: true, flag
 pass("remoteTargetGate: remote needs --target or PV_VERIFY_TARGET; local and --self-check pass; conflicts refused");
 
 assert.ok(isLocalDbUrl("postgres://u:p@127.0.0.1:5432/db") && isLocalDbUrl("postgresql://u@localhost/db"));
-assert.ok(!isLocalDbUrl("postgres://u@/db?host=/var/run/postgresql"), "a URL the WHATWG parser rejects is not local (strict)");
-assert.ok(!isLocalDbUrl("postgres://u:p@db.railway.internal:5432/db") && !isLocalDbUrl("postgres://u:p@10.1.2.3/db") && !isLocalDbUrl("mysql://u@localhost/db") && !isLocalDbUrl("nope"));
-pass("isLocalDbUrl: local host only; unparseable is refused");
+assert.ok(isLocalDbUrl("postgres://pvskill_user:ab/cd@127.0.0.1:5/pv") && isLocalDbUrl("postgres://u:Zq:/?#@%x@127.0.0.1:5/pv"), "a password with / ? # @ % parses (db-url.mjs), CI stress-seed must-fail regression");
+assert.ok(!isLocalDbUrl("postgres://u@/db?host=/var/run/postgresql"), "no host is not local (strict)");
+assert.ok(!isLocalDbUrl("postgres://u:p@db.railway.internal:5432/db") && !isLocalDbUrl("postgres://u:p@10.1.2.3/db") && !isLocalDbUrl("postgres://u:p@postgres:5432/db") && !isLocalDbUrl("mysql://u@localhost/db") && !isLocalDbUrl("nope"));
+pass("isLocalDbUrl (sync): loopback only; passwords with / ? # @ % parse; postgres / private / internal hosts are not loopback");
+for (const a of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "172.17.0.2", "172.31.255.255", "192.168.1.5", "::1", "fd00::1", "fc12::1", "::ffff:172.18.0.3"]) assert.ok(isPrivateAddress(a), a);
+for (const a of ["93.184.216.34", "172.15.0.1", "172.32.0.1", "8.8.8.8", "100.64.0.1", "169.254.1.1", "0.0.0.0", "2606:4700::1111", "fe80::1", ""]) assert.ok(!isPrivateAddress(a), a);
+pass("isPrivateAddress: loopback, 10/8, 172.16/12 (docker bridges), 192.168/16, ::1, fc00::/7 only");
+{
+  const PG = "postgres://pcs:madeup-pw@postgres:5432/pcs_v5_verify";
+  const PUB = "postgres://pcs:madeup-pw@db.example.com:5432/pv";
+  const AL = { [LOCAL_DB_HOSTS_ENV]: "postgres" };
+  const look = (map) => async (h) => { if (!(h in map)) throw Object.assign(new Error("ENOTFOUND"), { code: "ENOTFOUND" }); return map[h].map((address) => ({ address })); };
+  const dns = look({ postgres: ["172.18.0.2"], "db.example.com": ["93.184.216.34"], "evil-pg": ["10.0.0.5", "93.184.216.34"] });
+  const reasonClean = (r) => assert.ok(!/madeup|pcs:|db\.example\.com|postgres:5432/.test(r.reason ?? ""), `reason leaks: ${r.reason}`);
+  // control
+  assert.deepEqual(await localDbGate(PG, { env: AL, lookup: dns }), { ok: true }, "postgres + allowlist + 172.18.0.2 passes");
+  assert.deepEqual(await localDbGate("postgres://u:p@localhost:5432/db", { env: {}, lookup: dns }), { ok: true }, "localhost passes with no allowlist");
+  assert.deepEqual(await localDbGate("postgres://u:ab/cd@127.0.0.1:5/pv", { env: {} }), { ok: true }, "127.0.0.1 with a / in the password passes");
+  // must-fail
+  let r = await localDbGate(PG, { env: {}, lookup: dns }); assert.equal(r.ok, false, "postgres with no allowlist env"); assert.match(r.reason, /not in VERIFY_LOCAL_DB_HOSTS/); reasonClean(r);
+  r = await localDbGate(PG, { env: { CI: "true" }, lookup: dns }); assert.equal(r.ok, false, "CI=true is not a bypass");
+  r = await localDbGate(PUB, { env: {}, lookup: dns }); assert.equal(r.ok, false, "public DB host, no allowlist"); reasonClean(r);
+  r = await localDbGate(PUB, { env: { [LOCAL_DB_HOSTS_ENV]: "postgres,db.example.com" }, lookup: dns }); assert.equal(r.ok, false, "public DB host on the allowlist (resolves public)"); assert.match(r.reason, /non-private/); reasonClean(r);
+  r = await localDbGate("postgres://u:p@evil-pg:5432/db", { env: { [LOCAL_DB_HOSTS_ENV]: "evil-pg" }, lookup: dns }); assert.equal(r.ok, false, "allowlisted name with one public address among private ones");
+  r = await localDbGate("postgres://u:p@postgres:5432/db", { env: AL, lookup: look({ postgres: ["93.184.216.34"] }) }); assert.equal(r.ok, false, "allowlisted postgres that resolves public"); assert.match(r.reason, /non-private/);
+  r = await localDbGate("postgres://u:p@postgres:5432/db", { env: AL, lookup: look({}) }); assert.equal(r.ok, false, "allowlisted name that does not resolve"); assert.match(r.reason, /does not resolve/);
+  r = await localDbGate("postgres://u:p@93.184.216.34:5432/db", { env: { [LOCAL_DB_HOSTS_ENV]: "93.184.216.34" }, lookup: async (h) => [{ address: h }] }); assert.equal(r.ok, false, "a public IP literal on the allowlist");
+  r = await localDbGate("postgres://u:p@pg2:5432/db", { env: { [LOCAL_DB_HOSTS_ENV]: "postgres" }, lookup: look({ pg2: ["172.18.0.9"] }) }); assert.equal(r.ok, false, "a private name not on the allowlist (no single-label wildcard)");
+  r = await localDbGate("mysql://u@postgres/db", { env: AL, lookup: dns }); assert.equal(r.ok, false, "not postgres://");
+  pass("localDbGate: control postgres+allowlist(172.18.0.2), localhost, 127.0.0.1 pass; FAIL as required: postgres without allowlist, CI=true, public host with and without allowlist, allowlisted name resolving public (also mixed), unresolvable, public IP literal, unlisted private name, non-postgres; reasons never show the host or userinfo");
+}
+// The base-URL gate takes no allowlist: a public base URL stays refused whatever VERIFY_LOCAL_DB_HOSTS says.
+assert.match(remoteTargetGate({ url: "https://db.example.com", env: { [LOCAL_DB_HOSTS_ENV]: "db.example.com" } }).error, /refused/);
+assert.match(remoteTargetGate({ url: "http://postgres:3100", env: { [LOCAL_DB_HOSTS_ENV]: "postgres" } }).error, /refused/);
+assert.match(remoteTargetGate({ url: "https://db.example.com" }).error, /refused/);
+pass("remoteTargetGate ignores VERIFY_LOCAL_DB_HOSTS: public base URL refused with and without it; the app base URL stays loopback-only");
 
 // --- processes under the blocker
 const tmp = mkdtempSync(path.join(os.tmpdir(), "pv-guard-"));
@@ -125,9 +158,29 @@ for (const [f, extra] of TOOLS) {
 for (const [f, extra] of TOOLS.filter(([f]) => /job-confirm|stress-seed/.test(f))) {
   const r = spawnSync(process.execPath, ["--require", preload, tool(f), "--url", "http://127.0.0.1:1", ...extra], { env: { ...process.env, PV_NETLOG: path.join(tmp, `tooldb-${++n}.jsonl`), DATABASE_URL: "postgres://pv:madeup@db.example.invalid:5432/pv" }, encoding: "utf8", timeout: 60000 });
   assert.equal(r.status, 2, `${f} remote DB: exit ${r.status} ${r.stderr.slice(0, 200)}`);
-  assert.match(r.stderr, /DATABASE_URL is not a local database/);
+  assert.match(r.stderr, /refused: DATABASE_URL host is not loopback and not in VERIFY_LOCAL_DB_HOSTS .*only against a local DB/);
   assert.doesNotMatch(r.stderr, /db\.example\.invalid|madeup/, "the DB host/password is not printed");
   pass(`${f} with a remote DATABASE_URL: refused (exit 2), host not printed`);
+}
+// The CI shape: DATABASE_URL on the service hostname `postgres`. No allowlist → refused with 0 network events; with
+// VERIFY_LOCAL_DB_HOSTS=postgres under the blocker the only event is the blocked DNS lookup of that name (it cannot
+// resolve here), so it is refused too and nothing connects.
+for (const [f, extra] of TOOLS.filter(([f]) => /job-confirm|stress-seed/.test(f))) {
+  const DBU = "postgres://pcs:madeup-pw@postgres:5432/pcs_v5_verify";
+  const log1 = path.join(tmp, `toolpg-${++n}.jsonl`);
+  const env1 = { ...process.env, PV_NETLOG: log1, DATABASE_URL: DBU };
+  delete env1[LOCAL_DB_HOSTS_ENV];
+  const r1 = spawnSync(process.execPath, ["--require", preload, tool(f), "--url", "http://127.0.0.1:1", ...extra], { env: env1, encoding: "utf8", timeout: 60000 });
+  assert.equal(r1.status, 2, `${f} postgres host, no allowlist: exit ${r1.status} ${r1.stderr.slice(0, 200)}`);
+  assert.match(r1.stderr, /not in VERIFY_LOCAL_DB_HOSTS/);
+  assert.equal(existsSync(log1) ? readFileSync(log1, "utf8").trim() : "", "", `${f}: network events with no allowlist`);
+  const log2 = path.join(tmp, `toolpg-${++n}.jsonl`);
+  const r2 = spawnSync(process.execPath, ["--require", preload, tool(f), "--url", "http://127.0.0.1:1", ...extra], { env: { ...process.env, PV_NETLOG: log2, DATABASE_URL: "postgres://pcs:madeup-pw@db.example.invalid:5432/pv", [LOCAL_DB_HOSTS_ENV]: "db.example.invalid" }, encoding: "utf8", timeout: 60000 });
+  assert.equal(r2.status, 2, `${f} allowlisted public-or-unresolvable host: exit ${r2.status} ${r2.stderr.slice(0, 200)}`);
+  const ev2 = existsSync(log2) ? readFileSync(log2, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+  assert.ok(ev2.every((e) => e.kind === "dns" || /lookup/.test(String(e.kind))), `${f}: only a DNS lookup may be attempted: ${JSON.stringify(ev2)}`);
+  assert.doesNotMatch(r2.stderr, /db\.example\.invalid|madeup/);
+  pass(`${f}: DATABASE_URL on host postgres with no allowlist → exit 2, 0 network events; an allowlisted name that does not resolve to a private address → exit 2, nothing connects`);
 }
 rmSync(tmp, { recursive: true, force: true });
 console.log(lines.join("\n"));
