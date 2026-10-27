@@ -83,5 +83,5 @@ export async function confirmIfDialog(page, { settled = null, timeout = 30000, g
   } catch (e) {
     throw new Error(`ConfirmDialog appeared and confirm was clicked, but the dialog did not hide: ${firstLine(e)}`);
   }
-  return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text };
+  return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE };
 }

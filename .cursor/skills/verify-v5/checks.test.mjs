@@ -35,6 +35,7 @@ import {
 } from "./checks.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
 import { CONFIRM_DIALOG_CANCEL, CONFIRM_DIALOG_CONFIRM, CONFIRM_DIALOG_ROLE, CONFIRM_GRACE_MS, confirmDecision, confirmIfDialog, watchForDialog } from "./confirm-dialog.mjs";
+import { countJourneyTaps, evaluateJourneyTaps, JOURNEY_TAP_LIMIT } from "./journeys.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
 import { capRawText, captureFailure, RAW_TEXT_CAP, redactHeaders, redactText, redactUrl, safeJson, secretValues, startFailureRecorder } from "./evidence.mjs";
 import { evaluateResetTimes, RESET_BUDGET_MS, RESET_IDLE_CAP_MS, RESET_IDLE_MS, RESET_SAMPLES, RESET_TIMEOUT_MS, runResetTimeStep } from "./reset-time.mjs";
@@ -2206,6 +2207,38 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     /await page\.getByTestId\("approve-estimate"\)\.click\(\);\n.*\n    await confirmIfDialog\(page, \{ settled: page\.locator\('\[data-testid="estimate-status"\]\[data-status="approved"\]'\), timeout: T \}\);\n    await page\.waitForFunction\(\n      \(\) => document\.querySelector\('\[data-testid="estimate-status"\]'\)\?\.getAttribute\("data-status"\) === "approved",/,
   );
   results.push(`passes: confirmIfDialog confirms only a present ConfirmDialog, throws when confirm fails or the dialog stays, ${triggers} confirmed-action click(s) in the drives call it (incl. M2 Approve estimate), the scan flags ${twins.length} Approve estimate / Lock Period bypass twins`);
+}
+
+// ---- journey tap rule: a ConfirmDialog confirm click confirmIfDialog saw open is not a tap (once per action) ----
+{
+  assert.equal(JOURNEY_TAP_LIMIT, 3);
+  const tap = (label) => ({ kind: "tap", label });
+  const conf = (action, o = {}) => ({ kind: "confirm", action, sawOpen: true, role: "alertdialog", label: `confirm ${action}`, ...o });
+  const real = [tap("role card pm"), tap("25-031"), tap("co-approve CO-001")];
+  // control: 3 real taps + the one confirm of a dialog that was seen open → 3 counted, 1 excluded
+  let c = countJourneyTaps([...real, conf("co-approve CO-001")]);
+  assert.deepEqual([c.counted, c.excluded.map((e) => e.label)], [3, ["confirm co-approve CO-001"]]);
+  assert.deepEqual(evaluateJourneyTaps([...real, conf("co-approve CO-001")]), []);
+  assert.deepEqual(evaluateJourneyTaps(real), [], "no dialog (before #65/#71): 3 taps pass");
+  assert.equal(countJourneyTaps([...real, conf("x", { role: "dialog" })]).counted, 3, "role=dialog is a dialog too");
+  // (e) one extra non-confirm tap still FAILs, with or without the excluded confirm (no blanket +1)
+  assert.match(evaluateJourneyTaps([real[0], tap("user menu (extra)"), ...real.slice(1)]).join(), /4 counted taps > 3/);
+  assert.match(evaluateJourneyTaps([real[0], tap("user menu (extra)"), ...real.slice(1), conf("co-approve CO-001")]).join(), /4 counted taps > 3/);
+  // (f) a second confirm click on the same action is counted
+  c = countJourneyTaps([...real, conf("co-approve CO-001"), conf("co-approve CO-001", { label: "confirm again" })]);
+  assert.deepEqual([c.counted, c.excluded.length], [4, 1]);
+  assert.match(evaluateJourneyTaps([...real, conf("a"), conf("a")]).join(), /4 counted taps > 3 .*confirm a/);
+  // a confirm the helper did not see open, or not on a dialog role, or with no action id, is an ordinary tap
+  for (const bad of [conf("a", { sawOpen: false }), conf("a", { role: "button" }), conf("a", { role: undefined }), conf("", {}), { kind: "tap", label: "confirm-looking tap", action: "a", sawOpen: true, role: "alertdialog" }]) {
+    assert.equal(countJourneyTaps([...real, bad]).counted, 4, `not exempt: ${JSON.stringify(bad)}`);
+  }
+  // one exemption per action, not per journey: two different confirmed actions each drop one click
+  assert.equal(countJourneyTaps([tap("a"), conf("x"), conf("y")]).counted, 1);
+  // journeys.mjs: the real path routes the trigger through confirmIfDialog and logs only what it saw open
+  const js = readFileSync(path.join(here, "journeys.mjs"), "utf8");
+  assert.match(js, /await log\.tap\(t\.locator, t\.action\);[\s\S]{0,1200}const r = await confirmIfDialog\(page, \{ settled: t\.settled, timeout: T \}\);\n\s*dialog = r\.dialog;\n\s*log\.confirmed\(t\.action, r\);/);
+  assert.match(js, /if \(r\.dialog\) entries\.push\(\{ kind: "confirm", action, sawOpen: true/);
+  results.push("passes: journey taps exclude only one seen-open ConfirmDialog confirm per action; FAILS as expected: one extra tap (4 > 3), a second confirm on the same action (4 > 3), unseen/non-dialog confirms counted");
 }
 
 // ---- every skill test is named in the Run-it block and in a ci.yml job ----
