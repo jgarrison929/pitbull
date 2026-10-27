@@ -37,6 +37,7 @@ import { CONFIRM_DIALOG_CANCEL, CONFIRM_DIALOG_CONFIRM, CONFIRM_DIALOG_ROLE, con
 import { changesPath, signInRole } from "./crawl.mjs";
 import { parsePostgresUrl } from "./db-url.mjs";
 import { jobState, resetDemo, runM2 } from "./numbers.mjs";
+import { isLocalUrl, localDbGate } from "./target-guard.mjs";
 
 for (const ev of ["uncaughtException", "unhandledRejection"]) {
   process.on(ev, (error) => {
@@ -78,6 +79,16 @@ const { values: args } = parseArgs({
 });
 if (!args.url || !MODES.includes(args.mode) || !TARGETS[args.target]) {
   console.error(`usage: --url URL --target ${Object.keys(TARGETS).join("|")} --mode ${MODES.join("|")} [--db] [--timeout ms] [--hold-ms ms] [--out file]`);
+  process.exit(2);
+}
+// Local only (target-guard.mjs): this tool never runs against staging or production.
+if (!isLocalUrl(args.url)) {
+  console.error(`refused: ${args.url} is not localhost; this tool runs only against a local app`);
+  process.exit(2);
+}
+const dbGate = process.env.DATABASE_URL ? await localDbGate(process.env.DATABASE_URL, { env: process.env }) : { ok: true };
+if (!dbGate.ok) {
+  console.error(`refused: ${dbGate.reason} (host not shown); this tool runs only against a local DB`);
   process.exit(2);
 }
 const base = args.url.replace(/\/$/, "");

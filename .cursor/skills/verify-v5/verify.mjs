@@ -7,13 +7,16 @@
 // (last green commit, red main HEAD) — see SKILL.md.
 // Usage: node .cursor/skills/verify-v5/verify.mjs [--url URL] [--commit SHA] [--wait SECONDS] [--shots DIR]
 //        [--main-ci auto|on|off] [--max-green-age-hours 24] [--page-budget-ms 1500] [--self-check]
-//        [--rc SHA] [--rc-version 5.0.4] [--phone-checks]
+//        [--rc SHA] [--rc-version 5.0.4] [--phone-checks] [--target staging|production]
+// A non-localhost --url (including the staging default) is refused unless --target staging|production or
+// PV_VERIFY_TARGET names the target explicitly (target-guard.mjs).
 // Writes evidence to .cursor/skills/verify-v5/evidence/<timestamp>/ and exits 1 on any failed check.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 import { parseArgs } from "node:util";
 import {
   bannedHits,
@@ -53,6 +56,22 @@ import {
   resolveRcMode,
 } from "./rc.mjs";
 
+import { REMOTE_REFUSED_EXIT, remoteTargetGate } from "./target-guard.mjs";
+
+// CLI only. Importing this file (or `node --check`) runs nothing: no network, no browser, no process handlers.
+// The whole run is main(), called only when this file is the entrypoint. The body below is not re-indented so the
+// diff stays reviewable.
+const selfPath = fileURLToPath(import.meta.url);
+const isEntrypoint = (() => {
+  try {
+    return Boolean(process.argv[1]) && realpathSync(path.resolve(process.argv[1])) === realpathSync(selfPath);
+  } catch {
+    return false;
+  }
+})();
+if (isEntrypoint) await main();
+
+async function main() {
 // Any crash prints one redacted line: never a DATABASE_URL, password or VERIFY_TOKEN from an error message.
 for (const ev of ["uncaughtException", "unhandledRejection"]) {
   process.on(ev, (error) => {
@@ -87,6 +106,14 @@ const { values: args } = parseArgs({
 
 const FULL_SHA = /^[0-9a-f]{40}$/;
 const baseUrl = args.url.replace(/\/$/, "");
+// Remote gate, before anything else can touch the network: a non-localhost URL needs --target staging|production
+// (or PV_VERIFY_TARGET). See target-guard.mjs.
+const gate = remoteTargetGate({ url: baseUrl, flag: args.target, env: process.env, selfCheck: args["self-check"] });
+if (!gate.ok) {
+  console.error(gate.error);
+  process.exit(REMOTE_REFUSED_EXIT);
+}
+args.target = gate.flag;
 const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(baseUrl);
 if (!["auto", "on", "off"].includes(args["main-ci"])) {
   console.error(`--main-ci must be auto, on or off (got ${args["main-ci"]})`);
@@ -943,3 +970,4 @@ console.log(`evidence: ${path.relative(repo, outDir)}`);
 if (existsSync(failureDir)) console.log(`failure evidence: ${path.relative(repo, failureDir)} (${readdirSync(failureDir).filter((f) => f.endsWith(".json")).length} captures)`);
 if (shotDir !== outDir) console.log(`screenshots: ${shotDir}`);
 process.exit(verified ? 0 : 1);
+}

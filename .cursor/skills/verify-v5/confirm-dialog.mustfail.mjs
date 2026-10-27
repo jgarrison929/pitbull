@@ -27,6 +27,7 @@ import { evaluateM5, M5_CO_CENTS } from "./checks.mjs";
 import { CONFIRM_DIALOG_CANCEL, CONFIRM_DIALOG_ROLE, watchForDialog } from "./confirm-dialog.mjs";
 import { changesPath, signInRole } from "./crawl.mjs";
 import { jobState, resetDemo, runM4M5 } from "./numbers.mjs";
+import { isLocalUrl } from "./target-guard.mjs";
 
 for (const ev of ["uncaughtException", "unhandledRejection"]) {
   process.on(ev, (error) => {
@@ -50,6 +51,11 @@ const { values: args } = parseArgs({
 });
 if (!args.url || !MODES.includes(args.mode)) {
   console.error(`usage: --url URL --mode ${MODES.join("|")} [--timeout ms] [--hold-ms ms] [--out file]`);
+  process.exit(2);
+}
+// Local only (target-guard.mjs): this tool never runs against staging or production.
+if (!isLocalUrl(args.url)) {
+  console.error(`refused: ${args.url} is not localhost; this tool runs only against a local app`);
   process.exit(2);
 }
 const base = args.url.replace(/\/$/, "");

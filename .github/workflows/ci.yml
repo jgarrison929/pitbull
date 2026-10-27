@@ -83,6 +83,9 @@ jobs:
           --health-retries 5
 
     env:
+      # verify-v5 local-DB guard (target-guard.mjs localDbGate): the service hostname is allowed only by this explicit
+      # list, and only while it resolves to a loopback / RFC 1918 / docker-bridge address. Public stays refused.
+      VERIFY_LOCAL_DB_HOSTS: postgres
       # Job container + service: reach Postgres by service hostname (not localhost).
       DATABASE_URL: postgres://pcs:pcs_ci@postgres:5432/pcs_v5_verify
       GIT_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -117,6 +120,7 @@ jobs:
           node .cursor/skills/verify-v5/default-commit.test.mjs
           node .cursor/skills/verify-v5/status-ci-gate.test.mjs
           node .cursor/skills/verify-v5/checks.test.mjs
+          node .cursor/skills/verify-v5/target-guard.test.mjs
           node .cursor/skills/verify-v5/verify.mjs --self-check
 
       - name: Install v5 dependencies

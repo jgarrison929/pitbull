@@ -56,20 +56,23 @@ Each run signs in as a new visitor, so it gets its own sandbox and never touches
 
 ## Run it
 
+**Remote targets are explicit.** `verify.mjs` refuses any non-localhost `--url` (the staging default included) with exit 2, before any network call, unless `--target staging|production` or `PV_VERIFY_TARGET=staging|production` names the target. Importing `verify.mjs` runs nothing (the run is `main()`, called only when it is the entrypoint). The must-fail tools (`confirm-dialog.mustfail.mjs`, `job-confirm.mustfail.mjs`, `journeys.mustfail.mjs`, `stress-seed.mjs`) are local only: a remote `--url` or a non-local `DATABASE_URL` exits 2. `target-guard.test.mjs` proves all of this under `fixtures/net-block.cjs`, which blocks and records any non-local connection or browser launch.
+
 Prerequisites: Node 24 and `npm ci` in `v5/` (the script loads Playwright from `v5/node_modules`). Install the browser once with `npx playwright install chromium` from `v5/`.
 
 ```sh
 git fetch origin
-node .cursor/skills/verify-v5/verify.mjs                  # staging; expects last origin/main commit that touches v5/
-node .cursor/skills/verify-v5/verify.mjs --wait 1800      # poll up to 30 min for the deploy to land
-node .cursor/skills/verify-v5/verify.mjs --url https://demo.pcserp.app   # production: expects the newest v5 release tag
+node .cursor/skills/verify-v5/verify.mjs --target staging  # staging; expects last origin/main commit that touches v5/
+node .cursor/skills/verify-v5/verify.mjs --target staging --wait 1800  # poll up to 30 min for the deploy to land
+node .cursor/skills/verify-v5/verify.mjs --url https://demo.pcserp.app --target production   # production: expects the newest v5 release tag
 node .cursor/skills/verify-v5/verify.mjs --url http://localhost:3100 --commit "$(git rev-parse HEAD)"
-node .cursor/skills/verify-v5/verify.mjs --shots /tmp/m1-screens  # also copy the screenshots somewhere handy
+node .cursor/skills/verify-v5/verify.mjs --target staging --shots /tmp/m1-screens  # also copy the screenshots somewhere handy
 node .cursor/skills/verify-v5/verify.mjs --self-check     # no network/Playwright; CI unit smoke for imports + default commit
-node .cursor/skills/verify-v5/verify.mjs --rc <40-char SHA>   # 5.0.4 RC handover: staging must serve this rc/5.0.4 head
+node .cursor/skills/verify-v5/verify.mjs --target staging --rc <40-char SHA>   # 5.0.4 RC handover: staging must serve this rc/5.0.4 head
 node .cursor/skills/verify-v5/default-commit.test.mjs     # scripted check (includes --self-check)
 node .cursor/skills/verify-v5/status-ci-gate.test.mjs     # /status ci-gate must be pass
 node .cursor/skills/verify-v5/checks.test.mjs             # must-fail self-tests for every check below (no network)
+node .cursor/skills/verify-v5/target-guard.test.mjs       # remote gate: importing verify.mjs runs nothing; no --target on a remote URL exits 2 with 0 network calls; the local-only tools refuse remote URLs/DBs (all under a blocker)
 node .cursor/skills/verify-v5/crawl-mustfail.test.mjs     # real crawl vs a fake localhost site: 500s (incl. a Part C plan page, a /changes page and a /schedule page), ~1.6 s pages, a /changes page with 0 items, coming soon on /schedule, a schedule missing at one width, an excluded role's schedule link, stub, short drill-down discovery, … must fail; seed child env has no VERIFY_TOKEN
 node .cursor/skills/verify-v5/reset-mustfail.test.mjs     # reset timing in Chromium: stale seeded-at, no <main>, 0/5 rows, wrong/no redirect, slow must fail
 node .cursor/skills/verify-v5/portfolio-mustfail.test.mjs # portfolio step: late rows pass; 0, 3, 5, hidden, 0→4→5, 0→4→0 must fail
@@ -147,8 +150,8 @@ Two ways a version is verified. The checks themselves do not get looser in eithe
 
 ```sh
 git fetch origin
-node .cursor/skills/verify-v5/verify.mjs --rc <40-char SHA>
-node .cursor/skills/verify-v5/verify.mjs --rc <40-char SHA> --rc-version 5.0.4
+node .cursor/skills/verify-v5/verify.mjs --target staging --rc <40-char SHA>
+node .cursor/skills/verify-v5/verify.mjs --target staging --rc <40-char SHA> --rc-version 5.0.4
 ```
 
 The verdict is for that SHA. The run still does the trust bar: every check in the table above (banned words, the nav crawl and its 1.5 s budget, reset median ≤ 1.5 s, `/status`, M2/M4/M5). It also runs the phone layout checks, including the clipping rule, which a per-PR verify does not. This mode does not skip or relax any trust-bar check. The one comparison it does not apply is **staging serves the last green main commit**, because the deploy is the rc head, not main. Production is refused (`RC handover is staging; production keeps the release-tag rule`). A `--commit` that disagrees with `--rc`, or a SHA that is not 40 hex characters, exits 1 before the browser starts. If the browser cannot reach `/status`, the run writes `rc.json` and prints `FAIL /status unreachable` instead of only `verify-v5 crashed`.
