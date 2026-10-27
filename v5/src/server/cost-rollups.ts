@@ -283,63 +283,76 @@ export function entryInLockSnapshot(
 
 const entryInLockSnapshotSql = sql`${costEntries.lockedInAt} is not null`;
 
+/** Locked vs unlocked labor MH, in milli-MH. Unlocked hours are pending the next lock. */
+export type LaborMhMilliSplit = {
+  lockedMhMilli: number;
+  pendingMhMilli: number;
+};
+
+const ZERO_LABOR_MH: LaborMhMilliSplit = {
+  lockedMhMilli: 0,
+  pendingMhMilli: 0,
+};
+
 /**
- * Locked actual labor MH for every cost item on a job, in milli-MH.
- * Same snapshot and tenths→milli conversion as `laborMhMilliByLock`
- * (`locked_in_at` is set, kind = labor, hours_tenths × 100).
- * Items with no labor row are absent; callers treat that as 0.
+ * One grouped read of labor MH per cost item.
+ * Predicate is `entryInLockSnapshotSql`, kind is labor, and tenths × 100 is milli-MH.
+ * Pass `jobId` for every item on a job, or `costItemId` for the single-item path.
+ * Items with no labor row are absent; callers treat that as zero.
  */
-export async function lockedActualMhMilliByCostItem(
+async function laborMhMilliGrouped(
   companyId: string,
-  jobId: string,
-): Promise<Map<string, number>> {
+  scope: { jobId: string } | { costItemId: string },
+): Promise<Map<string, LaborMhMilliSplit>> {
   const db = requireDb();
+  const scopeSql =
+    "jobId" in scope
+      ? sql`and ${costItems.jobId} = ${scope.jobId}`
+      : sql`and ${costEntries.costItemId} = ${scope.costItemId}`;
   const rows = await db.execute<{
     cost_item_id: string;
-    locked_tenths: number;
-  }>(sql`
-    select
-      ${costEntries.costItemId} as cost_item_id,
-      coalesce(sum(${costEntries.hoursTenths}) filter (where ${entryInLockSnapshotSql}), 0)::bigint
-        as locked_tenths
-    from ${costEntries}
-    inner join ${costItems}
-      on ${costItems.id} = ${costEntries.costItemId}
-     and ${costItems.companyId} = ${companyId}
-     and ${costItems.jobId} = ${jobId}
-    where ${costEntries.companyId} = ${companyId}
-      and ${costEntries.kind} = 'labor'
-    group by ${costEntries.costItemId}`);
-  const out = new Map<string, number>();
-  for (const r of rows) {
-    out.set(r.cost_item_id, Number(r.locked_tenths) * 100);
-  }
-  return out;
-}
-
-/** Labor MH (milli) split by the lock snapshot. Same predicate as locked actual. */
-export async function laborMhMilliByLock(
-  companyId: string,
-  costItemId: string,
-): Promise<{ lockedMhMilli: number; pendingMhMilli: number }> {
-  const db = requireDb();
-  const [r] = await db.execute<{
     locked_tenths: number;
     pending_tenths: number;
   }>(sql`
     select
+      ${costEntries.costItemId} as cost_item_id,
       coalesce(sum(${costEntries.hoursTenths}) filter (where ${entryInLockSnapshotSql}), 0)::bigint
         as locked_tenths,
       coalesce(sum(${costEntries.hoursTenths}) filter (where not (${entryInLockSnapshotSql})), 0)::bigint
         as pending_tenths
     from ${costEntries}
+    inner join ${costItems}
+      on ${costItems.id} = ${costEntries.costItemId}
+     and ${costItems.companyId} = ${companyId}
     where ${costEntries.companyId} = ${companyId}
-      and ${costEntries.costItemId} = ${costItemId}
-      and ${costEntries.kind} = 'labor'`);
-  return {
-    lockedMhMilli: Number(r.locked_tenths) * 100,
-    pendingMhMilli: Number(r.pending_tenths) * 100,
-  };
+      and ${costEntries.kind} = 'labor'
+      ${scopeSql}
+    group by ${costEntries.costItemId}`);
+  const out = new Map<string, LaborMhMilliSplit>();
+  for (const r of rows) {
+    out.set(r.cost_item_id, {
+      lockedMhMilli: Number(r.locked_tenths) * 100,
+      pendingMhMilli: Number(r.pending_tenths) * 100,
+    });
+  }
+  return out;
+}
+
+/** Locked and unlocked labor MH for every cost item on a job. */
+export function laborMhMilliByCostItem(companyId: string, jobId: string) {
+  return laborMhMilliGrouped(companyId, { jobId });
+}
+
+/**
+ * Labor MH (milli) split by the lock snapshot for one cost item.
+ * Same query as `laborMhMilliByCostItem`, filtered to this item.
+ */
+export async function laborMhMilliByLock(
+  companyId: string,
+  costItemId: string,
+): Promise<LaborMhMilliSplit> {
+  const rows = await laborMhMilliGrouped(companyId, { costItemId });
+  return rows.get(costItemId) ?? ZERO_LABOR_MH;
 }
 
 /** Server-side cost-code search for comboboxes. Leaves only; trigram-friendly ILIKE. */
