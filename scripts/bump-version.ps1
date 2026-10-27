@@ -12,24 +12,17 @@ function Replace-InFile($path, $old, $new) {
   $utf8 = New-Object System.Text.UTF8Encoding $false
   [IO.File]::WriteAllText((Resolve-Path $path), $c2, $utf8)
 }
-# root VERSION
+# root VERSION + v5 package stamps. The 3.8.2 tree is gone (tag legacy-3.8.2-final).
 [IO.File]::WriteAllText((Resolve-Path "VERSION"), "$To`n", (New-Object System.Text.UTF8Encoding $false))
-Replace-InFile "src/Pitbull.Web/pitbull-web/package.json" "`"version`": `"$From`"" "`"version`": `"$To`""
-Replace-InFile "src/Pitbull.Api/Pitbull.Api.csproj" "<Version>$From</Version>" "<Version>$To</Version>"
-Replace-InFile "src/Pitbull.Api/Pitbull.Api.csproj" "<AssemblyVersion>$From.0</AssemblyVersion>" "<AssemblyVersion>$To.0</AssemblyVersion>"
-Replace-InFile "src/Pitbull.Api/Pitbull.Api.csproj" "<FileVersion>$From.0</FileVersion>" "<FileVersion>$To.0</FileVersion>"
-Replace-InFile "src/Pitbull.Api/Pitbull.Api.csproj" "<InformationalVersion>$From</InformationalVersion>" "<InformationalVersion>$To</InformationalVersion>"
-Replace-InFile "src/Pitbull.Api/Dockerfile" "ARG VERSION=$From" "ARG VERSION=$To"
-Replace-InFile "src/Pitbull.Web/pitbull-web/Dockerfile" "ARG NEXT_PUBLIC_APP_VERSION=$From" "ARG NEXT_PUBLIC_APP_VERSION=$To"
-Replace-InFile "docker-compose.prod.yml" "APP_VERSION:-$From" "APP_VERSION:-$To"
-Replace-InFile "src/Pitbull.Web/pitbull-web/src/lib/app-version.ts" "return `"$From`"" "return `"$To`""
+Replace-InFile "v5/package.json" "`"version`": `"$From`"" "`"version`": `"$To`""
 Write-Host "Bumped $From -> $To"
 
-# package-lock product version (first pitbull-web block)
-$lock = "src/Pitbull.Web/pitbull-web/package-lock.json"
+# package-lock product version only (root metadata and packages[""], both named pcs-v5)
+$lock = "v5/package-lock.json"
 if (Test-Path $lock) {
   $lc = [IO.File]::ReadAllText((Resolve-Path $lock))
-  $lc = [regex]::Replace($lc, '("name": "pitbull-web",\r?\n\s*"version": ")' + [regex]::Escape($From) + '(")', '${1}' + $To + '${2}', 1)
-  $lc = [regex]::Replace($lc, '("name": "pitbull-web",\r?\n\s*"version": ")' + [regex]::Escape($From) + '(")', '${1}' + $To + '${2}', 1)
-  [IO.File]::WriteAllText((Resolve-Path $lock), $lc)
+  $pattern = '("name": "pcs-v5",\r?\n\s*"version": ")' + [regex]::Escape($From) + '(")'
+  $lc2 = [regex]::Replace($lc, $pattern, '${1}' + $To + '${2}')
+  if ($lc2 -eq $lc) { Write-Warning "pcs-v5 version $From not found in $lock" }
+  [IO.File]::WriteAllText((Resolve-Path $lock), $lc2)
 }

@@ -1,5 +1,8 @@
 # Spec: Product band 3.6 — Change orders + Contracts mobile
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped  
 **Version band:** `3.5.1` → `3.6.0` (10 stamps)  
 **Theme:** Mobile-friendly change orders and contract (subcontract) glance/detail  

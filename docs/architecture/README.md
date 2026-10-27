@@ -17,7 +17,6 @@ Early module design notes from initial implementation. Prefer **`docs/ARCHITECTU
 | [`docs/roadmap.md`](../roadmap.md) / [`docs/v5/`](../v5/) | **Live** product orientation |
 | [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) | Legacy stack, modules, tenancy, services-first patterns |
 | [`docs/ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md) | Legacy role home UX (v5 uses four role cards) |
-| [`docs/BEST-PRACTICES.md`](../BEST-PRACTICES.md) | Legacy coding conventions |
 | root [`CHANGELOG.md`](../../CHANGELOG.md) | Legacy 3.x shipped notes |
 | `v5/src/content/changelog.ts` | Live in-app changelog |
 | `src/Modules/*` | Frozen domain models |

@@ -12,7 +12,7 @@ Grounded guide for AI coding agents working in this repo.
 
 Construction **project controls** platform for mid-size heavy-civil and commercial contractors. The **live product** is the rebuild in **`v5/`** (Next.js + Drizzle + PostgreSQL): estimate → budget → field daily plan/report → cost and earned value → change orders, on one data model. Trust bar and spine: [`docs/v5/fresh-start-plan.md`](docs/v5/fresh-start-plan.md). Live roadmap: [`docs/roadmap.md`](docs/roadmap.md).
 
-The legacy **3.8.2** modular monolith under `src/` is **frozen** at tag `legacy-3.8.2-final` (security fixes only; no CI). Do not treat it as the shipped demo.
+The legacy **3.8.2** modular monolith was removed from this tree. Recover it from tag `legacy-3.8.2-final`. Do not treat it as the shipped demo.
 
 ---
 
@@ -36,7 +36,7 @@ Do not hardcode route/test counts or “zero issues” claims — they rot. Pref
 | Decision | Chosen | Rejected / avoid | Why |
 |----------|--------|------------------|-----|
 | Product shape | One coherent project-controls spine | Breadth without a closed loop | Trust bar; see fresh-start plan |
-| Live app | `v5/` modular Next.js app | Treat frozen `src/` monolith as live | Rebuild for demo-able truth |
+| Live app | `v5/` modular Next.js app | Treat the removed 3.8.2 tree as live | Rebuild for demo-able truth |
 | Time | UTC everywhere | Unspecified local wall-clock in DB | Avoid ambiguous timestamps |
 | Money | Integer cents in v5 math / `decimal(18,2)` where legacy remains | Narrow float money | Construction contract scale |
 | Branching | Feature branch → PR → `main` | Long-lived `develop` | Single integration branch |
@@ -44,7 +44,7 @@ Do not hardcode route/test counts or “zero issues” claims — they rot. Pref
 | Field UX | Phone = capture + glance + filtered drill | Client-side portfolio/ledger aggregation | Honest mobile |
 | Metrics | Labeled proxies / InsufficientData | Invented KPIs or default-green | Truth over polish |
 
-**Legacy-only settled decisions** (frozen `src/` — do not apply as v5 defaults): modular .NET monolith + CAP outbox, controllers inject `I*Service` (no MediatR), EF `HasConversion<string>()` for enums, Hangfire. See historical [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) if you must touch legacy code.
+**Legacy-only settled decisions** (removed 3.8.2 tree — do not apply as v5 defaults): a modular monolith with an outbox, controllers that inject a service interface (no MediatR), enums stored as strings, and background jobs. See historical [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) if you must read that era.
 
 ---
 
@@ -68,9 +68,6 @@ v5/                            # Live product (Next.js + Drizzle)
 docs/                          # Roadmap, v5 plan/specs, archives
 deploy/                        # Railway setup / demo notes
 scripts/                       # Tooling (screenshots, preflight, …)
-src/                           # Frozen legacy 3.8.2 monolith (tag legacy-3.8.2-final)
-tests/                         # Legacy .NET tests (frozen)
-e2e/                           # Legacy Playwright (frozen; no CI)
 ```
 
 ### v5 shape (orient here)
@@ -81,10 +78,10 @@ e2e/                           # Legacy Playwright (frozen; no CI)
 | `v5/src/server/` | Server actions / domain writes (plans, EV, change orders, sandboxes) |
 | `v5/src/db/` + `v5/drizzle/` | Schema and SQL migrations |
 | `v5/src/seed/` | Deterministic demo seed |
-| `v5/src/lib/` | Shared math and helpers (budget, EV, assistant routing) |
+| `v5/` shared helpers | Shared math and helpers (budget, EV, assistant routing) |
 | `v5/tests/` | Playwright e2e / visual |
 
-Legacy modules under `src/Modules/` (Projects, Billing, TimeTracking, …) describe the **frozen** app only.
+The 3.8.2 modules (Projects, Billing, TimeTracking, and the rest) are on tag `legacy-3.8.2-final` only.
 
 ---
 
@@ -96,11 +93,11 @@ Legacy modules under `src/Modules/` (Projects, Billing, TimeTracking, …) descr
 - Phone: capture + glance + filtered drill; no client-side portfolio aggregation.
 - Migrations: add carefully under `v5/drizzle/`; avoid colliding migration numbers claimed by open slices (see [`docs/v5/specs/README.md`](docs/v5/specs/README.md)).
 
-### Legacy patterns (frozen `src/` only)
+### Legacy patterns (3.8.2 tag only)
 
 - Controllers: `I*Service` injection; **do not add MediatR**.
-- Multi-tenancy: JWT tenant + PostgreSQL RLS `app.current_tenant`; company scoping via `ICompanyScoped`.
-- Soft-delete and `AsNoTracking()` conventions as in historical BEST-PRACTICES / ARCHITECTURE docs.
+- Multi-tenancy: tenant on the request plus PostgreSQL RLS `app.current_tenant`; company scoping via `ICompanyScoped`.
+- Soft-delete and no-tracking query conventions as in the historical ARCHITECTURE notes.
 
 ---
 
@@ -132,7 +129,7 @@ Agents must respect GC vocabulary:
 ## Demo & safety
 
 - **Live:** role-card login and sandboxes on `/login` (see persona table in [`AGENTS.md`](AGENTS.md)).
-- **Legacy:** `Demo:Enabled` + `demo-role-login` + `DemoRestrictionMiddleware` — historical only.
+- **Legacy:** `Demo:Enabled` plus the removed demo-role login — historical only.
 - **Never commit secrets.** Railway/env secrets stay on the platform or local untracked config.
 
 ---
@@ -157,10 +154,6 @@ npm run db:prepare          # needs DATABASE_URL
 npm run dev
 npm run lint && npm run typecheck && npm test
 npm run build && npm run e2e
-
-# Legacy (frozen — only when intentionally working in src/)
-dotnet build src/Pitbull.Api/Pitbull.Api.csproj
-dotnet test tests/Pitbull.Tests.Unit/
 ```
 
 ---
@@ -177,7 +170,7 @@ dotnet test tests/Pitbull.Tests.Unit/
 
 | Don’t | Do instead |
 |-------|------------|
-| Treat `src/` or 3.8.x stamps as the live product | Work in `v5/`; versions are **5.x** |
+| Treat the removed 3.8.2 tree or 3.8.x stamps as the live product | Work in `v5/`; versions are **5.x** |
 | Reopen `docs/340-pm-arc/*` or `docs/260712/*` as live | Live arc: `docs/roadmap.md` + `docs/v5/*` |
 | Mislabel Pitbull as a general accounting suite | Call it a **project controls** platform |
 | Invent executive KPIs or default-green status | Honest empty / InsufficientData / labeled proxies |

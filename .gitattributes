@@ -2,9 +2,6 @@
 * text=auto
 
 # Source code - always LF
-*.cs text eol=lf
-*.csproj text eol=lf
-*.sln text eol=lf
 *.ts text eol=lf
 *.tsx text eol=lf
 *.js text eol=lf

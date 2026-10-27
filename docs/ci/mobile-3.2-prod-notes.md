@@ -1,5 +1,8 @@
 ﻿# Mobile / prod 3.2.x - CI & verification notes
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** `3.2.0` -> `3.2.9`  
 **Status:** Shipped through **3.2.9**  
 **Spec:** `docs/specs/product-bands/band-3.2-security-prod.md`

@@ -1,5 +1,8 @@
 # Roadmap — v2.1.0 Role-native experience
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** **Historical / shipped** as **2.1.0** (2026-07-10). Not an active backlog. For current product truth see `CHANGELOG.md`, `docs/ROLE-EXPERIENCE.md`, and `docs/ARCHITECTURE.md`.
 
 ## Goals

@@ -18,7 +18,7 @@
 - `fix/description`
 - `hotfix/description`
 
-**main only** (no develop branch). Feature branches + PRs. User merges after review. CI must be green (dotnet build + frontend build+lint).
+**main only** (no develop branch). Feature branches + PRs. Verify/Watch merges after review. CI must be green: `ci-gate`. For `v5/`, that job runs `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and Playwright smoke.
 
 ### Review Standards
 

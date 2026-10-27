@@ -1,6 +1,6 @@
 # Pitbull API Endpoint Reference
 
-> **Historical / incomplete snapshot.** Prefer **Swagger/Scalar** on a running API or inspect `src/Pitbull.Api/Controllers/` (~99 controllers as of v2.0+). Do not treat this file as an exhaustive catalog.
+> **Historical / incomplete snapshot.** The controllers lived on the removed API host (~99 controllers as of v2.0+). Do not treat this file as an exhaustive catalog.
 
 **Ground truth:** live OpenAPI + source controllers + `CHANGELOG.md`.
 

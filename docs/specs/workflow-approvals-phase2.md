@@ -1,5 +1,8 @@
 # Spec: Workflow approvals Phase 2
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through **2.22.0** (Phase 2 complete; lifecycle Time entries)  
 **Version band:** 2.21.3 → 2.22.0 (8 PRs)  
 **Related:** [`WORKFLOW-EVALUATION-MATRIX.md`](../WORKFLOW-EVALUATION-MATRIX.md), Phase 1 CO + billing

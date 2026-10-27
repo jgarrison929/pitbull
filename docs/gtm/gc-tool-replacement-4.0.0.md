@@ -3,7 +3,7 @@
 **Status:** Working GTM claim boundary (Product-GTM)  
 **Date:** 2026-09-04  
 **Claim law:** [`docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) Keep / Cut / OBJECTIVE (Spec-Writer confirmed SA match: combined `/job-cost/glance`). Band file is on GitHub branch [`docs/4.0.0-acceptance-must-win-field`](https://github.com/jgarrison929/pitbull/blob/docs/4.0.0-acceptance-must-win-field/docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md) (PR #554) — merge **554 before 553** so the path resolves on `main`. Do **not** sell surfaces outside Keep or unshipped ladder bands without an explicit deferred note.  
-**Personas:** [`e2e/fixtures/ROLE-PERSONA-MAP.md`](../../e2e/fixtures/ROLE-PERSONA-MAP.md) + [`docs/ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md) (prefer these over README Explore-as-role copy drift).  
+**Personas:** [`docs/ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md) and the four role cards in [`AGENTS.md`](../../AGENTS.md).  
 **Rule:** If Qa-Gate cannot assert it and API RLS cannot enforce it, it is not real.
 
 > Packaging / pricing SKUs are **greenfield** — this doc is displacement honesty, not a price sheet.

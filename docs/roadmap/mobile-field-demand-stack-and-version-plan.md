@@ -1,5 +1,8 @@
 # Mobile/field demand stack → Pitbull gaps → post-3.0 version plan
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Analysis complete; **3.1.0–3.1.9 field band implemented** (see `docs/specs/product-bands/band-3.1-field-mobile.md`)  
 **Product version at writing:** was `3.0.0`; live ladder shipped as **`3.1.0`→`3.1.9`** (OBJECTIVE skipped 3.0.1–3.0.9).  
 **Related:** [`docs/mobile3.md`](../mobile3.md), phase specs under `docs/specs/mobile-phase*.md`, [`docs/roadmap/post-3.0-product-bands.md`](./post-3.0-product-bands.md), market research session (2026 field adoption / offline / field–office divide).
@@ -27,7 +30,7 @@ Market severity order for construction **mobile** (field crews and supers). Rank
 
 Statuses: **covered** (meets demand for MVP/product bar), **partial** (shipped core but market still feels a hole), **gap** (explicit non-goal or missing).
 
-Evidence is phase specs (Status: Shipped…), CI notes, or named source under `src/Pitbull.Web/pitbull-web`.
+Evidence is phase specs (Status: Shipped…), CI notes, or paths named in those notes.
 
 | Surface | Primary paths / specs | Demand fit | Status | Notes |
 |---------|----------------------|------------|--------|-------|

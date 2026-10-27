@@ -1,5 +1,8 @@
 # Plan: Docs stance, code quality residual, Dependabot, Next.js 16.3
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Plan / documentation only (no product feature stamps in this doc)  
 **Baseline product version:** `3.7.7` (root `VERSION`, 2026-08-06 inventory)  
 **Owner intent:** Plan thoroughly; ship via separate PRs. Prefer truth over polish.  
@@ -186,7 +189,7 @@ Tracker: #522. **Do not add a Dependabot ignore without an issue + review date.*
 ## 5. Next.js 16.3 upgrade plan
 
 **Upstream:** [Next.js 16.3](https://nextjs.org/blog/next-16-3) (stable 2026-08-03).  
-**Current app:** `src/Pitbull.Web/pitbull-web` → `"next": "^16.2.11"`, React 19.2.x, product version 3.7.7.
+**Then:** the removed 3.8.2 web at product version 3.7.7 (Next 16.2.11, React 19.2.x). The live app is `v5/`.
 
 ### 5.1 Goals
 

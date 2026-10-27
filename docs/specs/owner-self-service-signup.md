@@ -11,7 +11,7 @@ New owners cannot discover or complete account creation: the login page only pro
 
 1. Visit `/login` → click **Create an account** → `/signup`
 2. Complete 3-step wizard (account, company, optional invites)
-3. `POST /api/auth/register` creates tenant, default company, Admin role, `UserCompanyAccess`, JWT
+3. Registration creates the tenant, default company, Admin role, and company access
 4. Redirect to `/settings/company/setup` as authenticated owner
 5. Sign out → sign in again at `/login` with same credentials
 
@@ -27,8 +27,8 @@ Registration is blocked only when **both** `Demo.Enabled` and `DisableRegistrati
 
 ## API touchpoints
 
-- `POST /api/auth/register` — creates tenant/company/user; provisions defaults post-commit
-- `POST /api/auth/login` — re-authenticates owner
+- Register on the removed host created the tenant, company, and user, then provisioned defaults after commit
+- Login on the removed host re-authenticated the owner
 - `GET /api/users/me` — profile with Admin role and company access
 - `GET /api/admin/users` — requires `Admin.Users` policy (wildcard for Admin role)
 
@@ -45,7 +45,7 @@ Registration is blocked only when **both** `Demo.Enabled` and `DisableRegistrati
 ## Test plan
 
 - Integration: `OwnerSignupIntegrationTests` — register, wizard-equivalent payload, role count, login round-trip
-- Playwright: `owner-signup.spec.ts` — full wizard submit, `POST /api/auth/register`, cookie `pitbull_token`, `/admin/users` without login redirect
+- Playwright: `owner-signup.spec.ts` — full wizard submit, registration request, cookie `pitbull_token`, `/admin/users` without login redirect
 - Vitest: `auth.test.ts` — `buildAuthCookie` omits `Secure` on `http://localhost`
 - Regression: existing `AuthFlowTests` unchanged
 

@@ -1,5 +1,8 @@
 ﻿# Mobile Phase 2 (Arc B) — plans viewer notes
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** 2.13.3 → 2.14.2  
 **Status:** Shipped through 2.14.2  
 

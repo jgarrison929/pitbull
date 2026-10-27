@@ -1,7 +1,7 @@
 # Time Tracking Module Design
 
 > **Status:** Historical design (Alpha 0, Feb 2026) — **not current API contract**  
-> **Living truth:** `src/Modules/Pitbull.TimeTracking`, time-tracking UI under `src/Pitbull.Web`, `docs/ARCHITECTURE.md`  
+> **Was:** time-tracking module and UI on the removed 3.8.2 tree, plus `docs/ARCHITECTURE.md`  
 > See also: [`README.md`](./README.md) in this folder
 
 ## Overview

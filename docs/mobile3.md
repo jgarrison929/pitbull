@@ -1,5 +1,8 @@
 # Pitbull Mobile v3 Plan: "I Gotta Have This" Field Experience
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Date:** July 11, 2026  
 **Context:** Building on existing role-based mobile navigation (`mobileTabs`, `quickActions` for `field`/`Foreman`), the dedicated `/daily-reports/mobile` route (already seeing real PostHog usage), and project workspace items including "Plans & Specs" (`/projects/[id]/plans-specs`) and Schedule.  
 **Goal:** Create a mobile experience so useful and frictionless that field users (supers, foremen, PMs on site walks) say **"I gotta have this"** and actually use it every day on the jobsite instead of paper, texts, Excel, or switching between 3-4 other apps.

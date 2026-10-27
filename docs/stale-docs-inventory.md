@@ -18,7 +18,7 @@ This is not a claim that every listed file was edited in the same PR. It is a ma
 | `docs/specs/product-bands/*` | 3.x band specs |
 | `docs/specs/*.md` (non–product-bands) | Legacy feature specs for frozen `src/` |
 | `docs/architecture/*` | Early design notes |
-| `docs/ARCHITECTURE.md`, `BEST-PRACTICES.md`, `ADDING-A-MODULE.md` | Describe the .NET modular monolith |
+| `docs/ARCHITECTURE.md` | Legacy banner; describes the removed 3.8.2 monolith. `BEST-PRACTICES.md` and `ADDING-A-MODULE.md` were deleted |
 | `docs/ROLE-EXPERIENCE.md` | Title-first personas for legacy Explore-as-role |
 | `docs/DEMO-COMPANY-PROFILES.md`, `mobile3.md`, `pitbull-digital-twin-spec.md`, `WORKFLOW-EVALUATION-MATRIX.md`, `ROADMAP-2.1.md` | Pre-v5 or out-of-5.0 spine |
 | `docs/deployment/*` | Superseded by root `deploy/` |
@@ -30,8 +30,8 @@ This is not a claim that every listed file was edited in the same PR. It is a ma
 | Path | Gap |
 |------|-----|
 | `docs/roadmap-5.0.0.md` | Historical M2–M5 table stopped at an older SHA; superseded by `docs/roadmap.md` — do not treat status cells as current |
-| `CONTRIBUTING.md` | Getting Started / validate steps still emphasize .NET + legacy web; light v5 lead-in added — deeper rewrite optional |
-| `deploy/RAILWAY-SETUP.md`, `deploy/RAILWAY-DEMO.md` | Still show legacy Dockerfile paths in places; banner points at v5 — full rewrite follow-up |
+| `CONTRIBUTING.md` | The old backend style block is gone. Live checks are the v5 npm scripts (lint, typecheck, test, build, e2e). |
+| `deploy/RAILWAY-SETUP.md`, `deploy/RAILWAY-DEMO.md` | No legacy Dockerfile paths. SETUP is the v5 Railpack service (`pitbull-web`, root `v5/`). DEMO still names the old API hostname as history. |
 | `docs/ROLE-EXPERIENCE.md` | Still documents six legacy personas; v5 has four role cards |
 | `docs/ARCHITECTURE.md` | Still the living-looking monolith doc; treat as legacy until a v5 architecture page exists |
 | Root `README.md` Documentation links | Still lists `CHANGELOG.md` / `ARCHITECTURE.md` without saying legacy — optional polish |
@@ -48,5 +48,4 @@ This is not a claim that every listed file was edited in the same PR. It is a ma
 1. v5-oriented `docs/ARCHITECTURE.md` (or `docs/v5/architecture.md`) describing App Router + Drizzle + sandboxes  
 2. Retarget or archive `docs/ROLE-EXPERIENCE.md` to the four v5 role cards  
 3. Rewrite `CONTRIBUTING.md` Getting Started / validate around `v5/` only  
-4. Rewrite `deploy/RAILWAY-SETUP.md` Dockerfile / service roots for the current `v5/` Railway config  
-5. Mark or stub-redirect outdated links inside individual `docs/specs/*` bodies that still say “next free 3.8.1”
+4. Mark or stub-redirect outdated links inside individual `docs/specs/*` bodies that still say “next free 3.8.1”

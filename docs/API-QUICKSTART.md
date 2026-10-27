@@ -1,5 +1,8 @@
 # API Developer Quickstart Guide
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Note:** This is a general guide. API surface has expanded significantly (see CHANGELOG for 0.14–0.15 additions). For exact current endpoints/DTOs use Swagger or read controller code + corresponding DTOs. Base patterns (JWT, tenant isolation, rate limits, PagedResult) remain valid.
 
 ---

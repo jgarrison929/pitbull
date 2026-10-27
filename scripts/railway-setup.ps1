@@ -31,6 +31,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+throw "Retired with the 3.8.2 app. Legacy Railway API and web services were deleted. The live service root directory is v5. Do not run this script."
+
 function New-RandomSecret {
     param([int]$Length = 48)
     $bytes = New-Object byte[] $Length
@@ -82,7 +84,7 @@ Write-Host ""
 Write-Host "1. Create Railway project from GitHub: jgarrison929/pitbull" -ForegroundColor Yellow
 Write-Host "2. Add Postgres plugin"
 Write-Host "3. Configure pitbull-api: Root Directory = / (repo root)"
-Write-Host "4. Configure pitbull-web: Root Directory = src/Pitbull.Web/pitbull-web"
+Write-Host "4. Retired: legacy pitbull-web root directory was removed with the 3.8.2 tree. Live root directory is v5."
 Write-Host "5. Generate public domains for both services"
 Write-Host "6. Paste variables below into each service"
 Write-Host ""

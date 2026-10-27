@@ -3085,8 +3085,8 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
 - **Railway Deployment Fix**: Resolved multi-service deployment issues
  - Moved from root `railway.toml` to service-specific `railway.json` configs
  - Fixed web Dockerfile to use relative paths with Root Directory
- - API: `src/Pitbull.Api/railway.json`
- - Web: `src/Pitbull.Web/pitbull-web/railway.json`
+ - API: `Pitbull.Api/railway.json`
+ - Web: `Pitbull.Web/pitbull-web/railway.json`
  - Production deploys now working correctly
 
 - **CI Migration Safety**: Added automated checks for dangerous migration patterns

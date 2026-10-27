@@ -9,8 +9,8 @@
 | Job | Introduced | Spec / project | Status |
 |-----|------------|----------------|--------|
 | `mobile-smoke` | 2.21.5 / 2.21.7 | Playwright mobile field report path | **required** via `ci-gate` |
-| `owner-signup-smoke` | 2.21.6 | `e2e` project `owner-signup` | **required** via `ci-gate` |
-| Role L4 smoke | earlier | existing role-workflows | removed from CI (#608); local `scripts/run-role-e2e.sh` |
+| `owner-signup-smoke` | 2.21.6 | Playwright owner-signup project | **required** via `ci-gate` |
+| Role L4 smoke | earlier | existing role-workflows | removed from CI (#608) with the 3.8.2 tree |
 
 ## Required checks (2026-10-18 decision, supersedes 2.22.2)
 

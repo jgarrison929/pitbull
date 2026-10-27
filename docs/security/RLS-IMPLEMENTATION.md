@@ -1,12 +1,14 @@
 # Row-Level Security (RLS) Implementation
 
+> Historical notes for the removed 3.8.2 API. v5 tenancy lives in the Drizzle schema under `v5/`.
+
 ## Overview
 
 This implementation adds PostgreSQL Row-Level Security policies to enforce database-level multi-tenancy for the Pitbull Construction Solutions platform.
 
 ## What Was Implemented
 
-### 1. RLS Migration (`20260202085534_ImplementRLSPolicies.cs`)
+### 1. RLS Migration (ImplementRLSPolicies, 2026-02-02)
 
 Created RLS policies for all tenant-scoped tables:
 - `projects`
@@ -91,7 +93,7 @@ Run the provided test script to verify:
 The migration will automatically run when the application starts on Railway, thanks to:
 
 ```csharp
-// Auto-migrate database on startup (Program.cs)
+// Auto-migrate database on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
@@ -103,9 +105,7 @@ using (var scope = app.Services.CreateScope())
 
 If issues occur, the migration can be rolled back:
 
-```bash
-dotnet ef migrations remove
-```
+Rollback on that host was an EF migration remove, then a redeploy. The command shipped with the removed tree.
 
 The Down() method:
 1. Drops all RLS policies

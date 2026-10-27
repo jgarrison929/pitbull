@@ -1,5 +1,8 @@
 # Spec: Product band 4.0.0 - Acceptance (must-win field workflows)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Pending (acceptance contract for major **`4.0.0`**; OBJECTIVE remediation lands on free **3.x** stamps before major)  
 **Version band:** Pre-4.0.0 remediation on free stamps after product **`3.8.0`** (next free **`3.8.1`**) through runway **`3.12.9`**, then major **`4.0.0`**  
 **Theme:** Single-platform job costing + PM mobile-first - honest field/PM phone bar for major  
@@ -29,7 +32,7 @@ Without a server `?view=mobile` job-cost contract and phone glance, 4.0.0 would 
 
 ## Personas
 
-Persona resolution is **title / `role_profile` first** (not Identity role alone). E2E: [`e2e/fixtures/ROLE-PERSONA-MAP.md`](../../../e2e/fixtures/ROLE-PERSONA-MAP.md).
+Persona resolution is **title / `role_profile` first** (not Identity role alone). Personas: [`docs/ROLE-EXPERIENCE.md`](../../ROLE-EXPERIENCE.md) and the four role cards in [`AGENTS.md`](../../../AGENTS.md).
 
 | Persona | Profile / demo | 4.0.0 job-cost role |
 |---------|----------------|--------------------|

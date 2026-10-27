@@ -2,7 +2,7 @@
 
 **Status:** Shipped through **2.22.2**; both jobs required via `ci-gate` since 2026-10-18 (see notes)  
 **Version band:** 2.21.5 → 2.22.2 (subset of Arc E)  
-**Related:** `.github/workflows/ci.yml`, `e2e/tests/owner-signup.spec.ts`, `e2e/tests/mobile-field-report.spec.ts`, `docs/ci/mobile-owner-smoke-notes.md`
+**Related:** `.github/workflows/ci.yml`, `docs/ci/mobile-owner-smoke-notes.md`
 
 ## Problem
 
@@ -13,8 +13,8 @@ CI runs L4 role smoke; mobile field report and owner signup are not fully gated 
 | Area | Paths |
 |------|-------|
 | Workflow | `.github/workflows/ci.yml` |
-| Owner signup E2E | `e2e/tests/owner-signup.spec.ts` |
-| Mobile E2E | `e2e/tests/mobile-field-report.spec.ts` (from Arc A) |
+| Owner signup E2E | Playwright owner-signup project (removed with the 3.8.2 tree) |
+| Mobile E2E | Playwright mobile field-report project (removed with the 3.8.2 tree) |
 | Role smoke | existing role-workflows job |
 | Docs | `docs/ci/mobile-owner-smoke-notes.md` |
 

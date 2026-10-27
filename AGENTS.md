@@ -1,6 +1,6 @@
 # Agent instructions — Pitbull Construction Solutions
 
-Construction **project controls** platform. The live product is **`v5/`** (Next.js + Drizzle + PostgreSQL). The legacy modular monolith under `src/` (+ legacy `e2e/`) is **frozen** at tag `legacy-3.8.2-final` — no CI, no Dependabot. Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs.
+Construction **project controls** platform. The live product is **`v5/`** (Next.js + Drizzle + PostgreSQL). The legacy 3.8.2 monolith and its browser tests were removed from this tree; recover that source from tag `legacy-3.8.2-final`. Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs.
 
 Deeper orientation (settled decisions that still apply, domain glossary, anti-patterns): [`CLAUDE.md`](CLAUDE.md). Session/version rules in **this** file win on conflict.
 
@@ -14,7 +14,7 @@ Deeper orientation (settled decisions that still apply, domain glossary, anti-pa
 | Version | Root `VERSION` + `v5/package.json` (keep aligned) · in-app notes in `v5/src/content/changelog.ts` · root `CHANGELOG.md` is mostly legacy 3.x history |
 | Deploy | Railway staging tracks `main`; production via tagged promote — see `deploy/RAILWAY-*.md` and `docs/v5/fresh-start-plan.md` |
 
-**Do not** treat the frozen .NET host (`src/Pitbull.Api`, Identity JWT, MediatR rules, CAP, Hangfire) as the live app. Those patterns matter only when reading or patching legacy code.
+**Do not** treat the removed 3.8.2 host as the live app. Those patterns matter only when reading the tag `legacy-3.8.2-final`.
 
 ## Demo (v5)
 
@@ -29,7 +29,7 @@ On `/login`, pick a role card — no password. Each visitor gets a private sandb
 
 Proof after deploy: [`.cursor/skills/verify-v5/SKILL.md`](.cursor/skills/verify-v5/SKILL.md) (`verify-v5`).
 
-**Historical (legacy only):** Explore-as-role via `POST /api/auth/demo-role-login` and the six .NET personas (CEO / CFO / PM / Superintendent / Estimator / Contract Admin) lived in the frozen 3.8.2 app. Do not document them as the live demo.
+**Historical (legacy only):** Explore-as-role and the six frozen demo personas (CEO / CFO / PM / Superintendent / Estimator / Contract Admin) lived in the removed 3.8.2 app. Do not document them as the live demo.
 
 ## Docs truth
 
@@ -50,7 +50,7 @@ Proof after deploy: [`.cursor/skills/verify-v5/SKILL.md`](.cursor/skills/verify-
 | Verify a deploy | [`.cursor/skills/verify-v5/SKILL.md`](.cursor/skills/verify-v5/SKILL.md) |
 | Mobile / field UX (v5) | Increment spec + phone checks in verify-v5 (capture + glance; no client-side portfolio aggregation) |
 | CI | `.github/workflows/ci.yml` (`ci-gate`) |
-| Legacy / frozen `src/` only | Tag `legacy-3.8.2-final` · historical [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · do not reopen as live product work |
+| Legacy 3.8.2 history | Tag `legacy-3.8.2-final` · historical [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · do not reopen as live product work |
 
 ## Merging PRs (ci-gate)
 
@@ -59,7 +59,7 @@ Proof after deploy: [`.cursor/skills/verify-v5/SKILL.md`](.cursor/skills/verify-
 - `ci-gate` fails if any job in its `needs` failed or was cancelled. Its run summary lists the failing jobs and steps.
 - Required (in the gate): Detect changes and the v5 job (lint, typecheck, unit tests, build, Playwright smoke).
 - The v5 job runs on every push to `main` and on PRs that touch `v5/**` or `.github/workflows/ci.yml`. Other PRs skip it, and `ci-gate` still reports.
-- The legacy app (`src/`, `e2e/`) is frozen at tag `legacy-3.8.2-final` and has no CI and no Dependabot.
+- The legacy 3.8.2 app was removed from this tree (tag `legacy-3.8.2-final`). It has no CI. Dependabot tracks `v5/` and GitHub Actions only.
 - New required job: add it to `ci-gate.needs`. Advisory job: leave it out. Never put job names in the ruleset.
 - Dependabot opens weekly update PRs for `v5/` npm packages and GitHub Actions (`.github/dependabot.yml`). No workflow auto-merges them; they go through `ci-gate` and Verify like any other PR. Feature builders still do not turn on auto-merge themselves.
 - Emergency revert: repo admins can bypass the ruleset.

@@ -83,7 +83,7 @@ SSL on Railway becomes active after CNAME (+ verification TXT when requested) pr
 
 - Registration disabled (`Demo__DisableRegistration`)
 - Demo users restricted (admin GET-only; no destructive admin APIs)
-- Explore-as-role: `POST /api/auth/demo-role-login` when `Demo:Enabled`
+- Explore-as-role lived on the removed 3.8.2 host when demo mode was on
 - Rate limits on auth and API
 
 ## Verify

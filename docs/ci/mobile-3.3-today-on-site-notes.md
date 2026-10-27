@@ -1,5 +1,8 @@
 # Mobile / Today on site 3.3.x — CI & verification notes
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** `3.3.0` → `3.3.9`  
 **Status:** Shipped through **3.3.9**  
 **Spec:** `docs/specs/product-bands/band-3.3-today-on-site.md`

@@ -1,8 +1,10 @@
 # Workflow Evaluation Matrix
 
+> Historical rubric for the removed 3.8.2 workflows. Those test projects are gone.
+
 > **Rubric:** PASS = canonical construction workflow stages enforced server-side with audit logging and matching UI actions. FAIL = missing stages, ad-hoc jumps, or dead-end navigation. PARTIAL = core path works; compliance/GL/cash gaps remain.
 >
-> **Baseline:** domain services + `e2e/fixtures/ROLE-PERSONA-MAP.md` + role home docs in `docs/ROLE-EXPERIENCE.md`.
+> **Baseline:** domain services + role home docs in `docs/ROLE-EXPERIENCE.md`.
 
 ## Rubric (pass/fail gates)
 
@@ -103,12 +105,12 @@ Detailed findings: `<temp-dir>\grok-goal-eaf1b63e9147\implementer\workflow-revie
 
 | Area | Test file |
 |------|-----------|
-| Transition graphs | `tests/Pitbull.Tests.Unit/Workflow/WorkflowTransitionGraphTests.cs` (incl. `PaymentApplicationStatusTransitions`) |
-| Sub pay app PUT bypass | `tests/Pitbull.Tests.Unit/Modules/Contracts/ContractsServiceTests.cs` |
-| Change orders | `tests/Pitbull.Tests.Unit/Modules/Contracts/ContractsServiceTests.cs` |
-| Billing workflow | `tests/Pitbull.Tests.Unit/Billing/BillingApplicationServiceTests.cs` |
-| WIP source | `tests/Pitbull.Tests.Unit/Services/WipCalculationServiceTests.cs` |
-| Workflow audit | `tests/Pitbull.Tests.Unit/Features/Workflow/WorkflowTransitionServiceTests.cs` |
+| Transition graphs | WorkflowTransitionGraphTests (removed unit project) |
+| Sub pay app PUT bypass | ContractsServiceTests (removed unit project) |
+| Change orders | ContractsServiceTests (removed unit project) |
+| Billing workflow | BillingApplicationServiceTests (removed unit project) |
+| WIP source | WipCalculationServiceTests (removed unit project) |
+| Workflow audit | WorkflowTransitionServiceTests (removed unit project) |
 
 | Suite | Result | Log |
 |-------|--------|-----|
@@ -117,14 +119,14 @@ Detailed findings: `<temp-dir>\grok-goal-eaf1b63e9147\implementer\workflow-revie
 | Workflow gap evidence (L2/L3/L4/L6/L9) | 7 passed (unit + integration + Playwright) | `scripts/capture-workflow-evidence.ps1` → `implementer/*.log` |
 | Full unit | **3181 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
 | Daily reports integration | 4 passed (create→submit→approve→lock; PUT status rejected) | `integration-tests-full.log` |
-| Role browser E2E (11 lifecycles + L3b/L6b × 7 personas) | **18+ passed** (11 tests + setup), 2 consecutive runs locally | `implementer/role-e2e/playwright-green-runA.log`, `playwright-green-runB.log` |
-| Role E2E CI smoke | L4 owner billing grep on ubuntu | `.github/workflows/ci.yml` → `role-e2e-smoke` + `scripts/run-role-e2e.sh --smoke` |
+| Role browser E2E (11 lifecycles + L3b/L6b × 7 personas) | **18+ passed** (11 tests + setup), 2 consecutive runs locally | `implementer/playwright-green-runA.log`, `playwright-green-runB.log` |
+| Role E2E CI smoke | L4 owner billing grep on ubuntu | Removed with the 3.8.2 tree |
 
 ---
 
 ## Frontend alignment (G5)
 
-Shared transition helpers: `src/Pitbull.Web/pitbull-web/src/lib/workflow-transitions.ts` (mirrors C# `*StatusTransitions`).
+Shared transition helpers lived in the removed web app and mirrored the server status transitions.
 
 | Page | Verdict | Pattern |
 |------|---------|---------|
@@ -139,9 +141,7 @@ Shared transition helpers: `src/Pitbull.Web/pitbull-web/src/lib/workflow-transit
 
 Subagent frontend review (2026-06-25): all eight PM/finance workflow pages now match backend allowed transitions.
 
-API smoke evidence: `scripts/workflow-api-smoke.ps1` — single-admin path (`api-workflow-launch.log`) plus **role paths** (`-RoleProfile PM|AR|AP -UseDemoUsers`) logged to `%LOCALAPPDATA%\Temp\grok-goal-7bd6e34ca9b6\implementer\role-smoke.log` (6 runs, 2026-06-25). Per persona: bid, project+assignment, change order, RFI, sub pay app, owner billing, daily report, time entry, submittal; CEO bootstrap for company-scoped pay periods where persona lacks `Admin.Settings`.
-
-Role browser E2E: `e2e/tests/role-workflows.spec.ts` + `e2e/fixtures/auth-multi.setup.ts` — recordings under `%LOCALAPPDATA%\Temp\grok-goal-7bd6e34ca9b6\implementer\role-e2e\recordings\`. Requires `pitbull-web/.env.local` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:5081`. First-principles review: `%LOCALAPPDATA%\Temp\grok-goal-7bd6e34ca9b6\implementer\first-principles-review.md`.
+API smoke and the role-browser suite were removed with the 3.8.2 tree. Recordings from the 2026-06-25 runs stayed in the implementer temp logs.
 
 | Gate | Role E2E evidence (2026-06-26) |
 |------|--------------------------------|
@@ -164,4 +164,4 @@ Role browser E2E: `e2e/tests/role-workflows.spec.ts` + `e2e/fixtures/auth-multi.
 | L9 | Vendor invoice | AP Clerk (+ Field 403) | Create invoice → Match; field GET vendor-invoices | Matched row; field-eng 403 (RBAC negative only) | `[Vendor invoice] AP UI match OK, field-eng 403 OK` |
 | L10 | Daily report | Field Eng → PM | Create report → Submit → Approve → Lock | Row badges Submitted → Approved → Locked | `[Daily report] field create → PM Locked OK` |
 
-**E2E prerequisites (API helpers, not primary workflow path):** `ensureTimeTrackingPrereqs`, `ensurePmProjectAssignment`, `ensureVendorPrereqs`, `ensureBillingPrereqs`, `ensurePayAppPrereqs`, `createProjectWithPhases`, `activateProject`, `prepareLockedPayPeriod`, `runPayrollE2e`, `createOwnerChangeOrder`. L5–L8 skip when `ensurePayAppPrereqs` cannot seed executed subcontract (demo finance company). Finance company context for L4–L9; field subsidiary company for L3/L10. CI: `role-e2e-smoke` job runs L4 via `scripts/run-role-e2e.sh --smoke`.
+**Browser-suite prerequisites (helpers, not the primary workflow path):** `ensureTimeTrackingPrereqs`, `ensurePmProjectAssignment`, `ensureVendorPrereqs`, `ensureBillingPrereqs`, `ensurePayAppPrereqs`, `createProjectWithPhases`, `activateProject`, `prepareLockedPayPeriod`, `runPayrollE2e`, `createOwnerChangeOrder`. L5–L8 skip when `ensurePayAppPrereqs` cannot seed an executed subcontract (demo finance company). Finance company context for L4–L9; field subsidiary company for L3/L10. That CI smoke job was removed with the 3.8.2 tree.

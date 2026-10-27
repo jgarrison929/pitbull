@@ -94,7 +94,7 @@ These are on `main` and staging. None is part of a tagged release yet.
 | [#8](https://github.com/jgarrison929/pitbull/pull/8), [#9](https://github.com/jgarrison929/pitbull/pull/9), [#30](https://github.com/jgarrison929/pitbull/pull/30) | Test hardening, parallel must-fail job, `ci-gate` on `rc/**` | 10-25 and 10-26 | CI |
 | [#22](https://github.com/jgarrison929/pitbull/pull/22), [#23](https://github.com/jgarrison929/pitbull/pull/23) | 5.0.4 spec | 10-25 evening | Docs |
 
-5.0.3 Parts B (Average Performance, `0017`), C (dark theme), and E (rail unknown-job refusal), and the 5.1.1 CPM library (`v5/src/lib/cpm.ts`), came in with the fresh-history snapshot. They are on `main` but not in any tagged release.
+5.0.3 Parts B (Average Performance, `0017`), C (dark theme), and E (rail unknown-job refusal), and the 5.1.1 CPM library (`cpm.ts` in v5), came in with the fresh-history snapshot. They are on `main` but not in any tagged release.
 
 ## In flight
 

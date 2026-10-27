@@ -1,4 +1,7 @@
 # Incident Response Plan
+
+> **Historical — not the live product.** This policy described the retired 3.8.2 .NET app (tag `legacy-3.8.2-final`) and is superseded pending a v5 rewrite. Controls for v5 are to be documented for v5.
+
 **Pitbull Construction Solutions**
 **Effective Date:** February 25, 2026
 **Version:** 1.0
@@ -20,7 +23,6 @@ Define the process for identifying, responding to, and recovering from security 
 
 ### Automated Detection
 - **PostHog:** Exception monitoring, session analysis, error rate tracking (Project ID: 316552)
-- **Serilog:** Structured logging with real-time JSON output. Alert on: authentication failures >5/min, 500 error rate >1%, unusual API patterns
 - **Railway:** Infrastructure health monitoring, resource usage alerts
 - **Health Dashboard:** Admin-visible system health (CPU, memory, database connections, error rates)
 - **Rate Limiting:** Automatic blocking of excessive requests (configured per endpoint)

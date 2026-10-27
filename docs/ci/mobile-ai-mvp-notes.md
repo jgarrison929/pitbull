@@ -1,5 +1,8 @@
 # Mobile AI MVP core notes (2.19.3 → 2.20.2)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Intelligence band **shipped through 2.21.2**  
 **Spec:** `docs/specs/mobile-ai-intelligence.md`
 

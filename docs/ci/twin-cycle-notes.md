@@ -1,5 +1,8 @@
 # Twin cycle CI notes (2.8.4-2.10.0)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 See implementer `ci-notes.md` for session detail. Twin MVP product stamp: `VERSION` = 2.10.0 (not a major).
 
 Key CI lessons:

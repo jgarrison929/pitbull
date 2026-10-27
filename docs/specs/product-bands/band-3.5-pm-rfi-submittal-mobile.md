@@ -1,5 +1,8 @@
 # Spec: Product band 3.5 — RFI + Submittal mobile foundation
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through **3.5.0**  
 **Version band:** `3.4.1` → `3.5.0` (10 stamps)  
 **Theme:** Phone-first list/detail for RFIs and Submittals (next-gen PM arc open)  

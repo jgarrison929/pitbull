@@ -1,5 +1,8 @@
 # Spec: Mobile Phase 2 — plans & specs viewer
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through 2.14.2  
 **Version band:** 2.13.3 → 2.14.2 (10 PRs)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 2, [`pitbull-digital-twin-spec.md`](../pitbull-digital-twin-spec.md) §4

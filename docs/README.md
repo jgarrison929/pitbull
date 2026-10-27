@@ -25,7 +25,7 @@ Prefer **truth over polish**. Root agent entrypoints: [`../AGENTS.md`](../AGENTS
 | `DEMO-COMPANY-PROFILES.md` | Multi-company demo archetypes (legacy-oriented) |
 | `mobile3.md` | Field mobile capture plan (historical fuel) |
 | `pitbull-digital-twin-spec.md` | Digital twin design (not in v5 5.0 spine) |
-| `BEST-PRACTICES.md` / `ADDING-A-MODULE.md` | Legacy .NET module patterns |
+| (removed) `BEST-PRACTICES.md` / `ADDING-A-MODULE.md` | Module guides for the removed 3.8.2 app; live patterns are [`../AGENTS.md`](../AGENTS.md) |
 | `WORKFLOW-EVALUATION-MATRIX.md` | Lifecycle / E2E evidence (legacy era) |
 | `architecture/` | Early design notes — see `architecture/README.md` (**archive**) |
 | `deployment/` | Older Railway notes — **live setup is `deploy/` at repo root** |
@@ -47,7 +47,7 @@ Prefer **truth over polish**. Root agent entrypoints: [`../AGENTS.md`](../AGENTS
 | Live product | `v5/` |
 | Product version | Root `VERSION` (= `v5/package.json`, currently **5.0.x**) |
 | Live stack | Next.js 16, React 19, PostgreSQL 17, Drizzle |
-| Frozen legacy | `src/` + `e2e/` at tag `legacy-3.8.2-final` (no CI) |
+| Frozen legacy | Removed from this tree. Recover from tag `legacy-3.8.2-final` (no CI) |
 | Deploy | Railway from `main` (staging) — `deploy/RAILWAY-SETUP.md` |
 | Demo | Role cards on `/login` → per-visitor sandbox |
 

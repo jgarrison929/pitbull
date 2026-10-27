@@ -65,15 +65,15 @@ let max_rounds = 4;
 // Fixed deterministic domain shards (no discovery-agent scope leak).
 // CI / package alignment is first so fix rounds prefer red main over polish.
 let domains = [
-    "CI and failed GitHub Actions: NU1605 package downgrades across csproj (Api vs Tests.Unit/Integration), Hangfire/PostHog/IdentityModel version skew, ESLint brace-expansion/minimatch overrides, broken integration tests from security merges; inspect package.json overrides and all PackageReference pins",
-    "CodeQL log-forging and sensitive log data: LogSafe usage, raw emails/tokens in ILogger calls under src/Pitbull.Api and src/Modules",
-    "AuthN/Z and demo safety: AuthController, DemoRestrictionMiddleware, IsDemoUser, JWT claims, RBAC permissions",
-    "Multi-tenant data isolation: TenantMiddleware, RLS session config, ICompanyScoped, IgnoreQueryFilters misuse",
-    "Input validation and injection: SQL raw queries, AiInputSanitizer, open redirects, mass assignment",
-    "Dependency and supply chain: package.json, csproj PackageReference versions, obsolete packages, NU warnings — never leave sibling projects on older package versions",
-    "Data integrity: SaveChanges UTC, soft-delete filters, money decimal precision, WIP/billing consistency",
-    "API error handling quality: ExceptionMiddleware, Result failures, nullability, empty catch blocks",
-    "Frontend quality: raw fetch without api.ts, localStorage secrets, XSS sinks, dead routes, TypeScript any abuse, npm run lint must not crash",
+    "CI and failed GitHub Actions: v5 npm lint, typecheck, vitest, and the Next.js build; inspect package.json overrides",
+    "CodeQL and dependency alerts on the live v5 app. The 3.8.2 tree was removed (tag legacy-3.8.2-final). Do not file findings against that tree in this checkout.",
+    "Demo auth: role-card login, session cookie, hashed token, per-visitor sandboxes under v5/src/server/session.ts",
+    "Tenant isolation: company-scoped sandbox rows, no cross-sandbox reads",
+    "Input validation and injection: Drizzle parameterized queries, open redirects, mass assignment",
+    "Dependency and supply chain: v5 package.json and package-lock.json — do not leave the live app on a known-bad direct dependency without a note",
+    "Data integrity: UTC timestamps, money in integer cents, budget and earned-value formulas as implemented in v5",
+    "Error handling: server writes return typed failures; do not hide a failed write in an empty catch",
+    "Frontend quality: no secrets in localStorage, XSS sinks, dead routes, TypeScript any abuse, npm run lint must not crash",
 ];
 
 fn finding_key(f) {
@@ -116,7 +116,7 @@ fn build_scan_prompt(domain, focus, prior_summary) {
     p += "Use read-only tools only: read_file, grep, list_dir. Do NOT invent findings from memory. ";
     p += "MUST open real source files before reporting. ";
     p += "Prefer concrete, fixable issues with file paths. Skip pure style nits. ";
-    p += "Respect settled architecture: no MediatR in controllers, no gstack, modular monolith. ";
+    p += "Respect settled architecture: one Next.js app under v5/, server modules, Drizzle, and role-card sandboxes. Do not add gstack. ";
     p += "Prefer truth over polish; do not invent KPIs. ";
     p += "Report at most 8 findings as {file, issue, severity, domain, fix_hint, evidence}. ";
     p += "severity is critical|high|medium|low. domain is short tag (log-safe, auth, rls, validation, deps, data, api, frontend). ";
@@ -135,12 +135,12 @@ fn build_fix_prompt(findings_blob, focus) {
     p += "Use tools freely (read_file, grep, search_replace, write, run_terminal_command). ";
     p += "Apply the HIGHEST severity findings first from this list (JSON): ";
     p += findings_blob;
-    p += " Rules: (1) Prefer LogSafe.Text / LogSafe.Email for untrusted log args — never log raw emails. ";
-    p += "(2) Do not add MediatR to controllers or reintroduce gstack. ";
+    p += " Rules: (1) Never log raw emails or untrusted strings. ";
+    p += "(2) Do not reintroduce gstack. Writes stay in the v5 server modules. ";
     p += "(3) Keep changes small and correct; add/adjust unit tests when behavior changes. ";
     p += "(4) Do not commit secrets. Do not force-push. Do not amend published commits. ";
-    p += "(5) After ANY package or csproj change run: dotnet restore Pitbull.sln and ensure zero NU1605. ";
-    p += "(6) Run targeted tests: dotnet test tests/Pitbull.Tests.Unit --filter LogSafe when touching LogSafe; npm run lint for web. ";
+    p += "(5) After ANY v5 package change run npm ci in v5/ and fix lockfile drift. The 3.8.2 solution was removed. ";
+    p += "(6) Run v5 checks: npm run lint, npm run typecheck, npm test. ";
     p += "(7) If blocked (needs secrets, external systems), set blocked=true and explain. ";
     p += "Return changed_files, summary, tests_run. ";
     p
@@ -251,11 +251,8 @@ while round < max_rounds {
         let verify_prompt = "";
         verify_prompt += "Adversarially verify the latest hardening edits in the Pitbull repo. ";
         verify_prompt += "Use read_file/grep/run_terminal_command. MUST: ";
-        verify_prompt += "dotnet restore Pitbull.sln (fail if NU1605 or restore errors); ";
-        verify_prompt += "dotnet build src/Pitbull.Api/Pitbull.Api.csproj; ";
-        verify_prompt += "and targeted unit tests for touched surfaces (LogSafe/Auth/DemoRestriction as relevant). ";
-        verify_prompt += "If package.json or eslint changed, run npm run lint in src/Pitbull.Web/pitbull-web. ";
-        verify_prompt += "Set ok=true only if restore+build(+lint) are healthy. List residual_risks briefly.";
+        verify_prompt += "The 3.8.2 tree was removed. Verify the live app from v5/: npm ci, npm run lint, npm run typecheck, npm test, npm run build. ";
+        verify_prompt += "Set ok=true only if those commands are healthy. List residual_risks briefly.";
         let v = agent(verify_prompt, #{
             label: "verify-r" + round.to_string(),
             capability_mode: "execute",
@@ -330,8 +327,8 @@ if all_findings.len() == 0 {
     }
 }
 report += "\n## Notes\n\n";
-report += "- Open GitHub issues and Dependabot alerts were empty at planning time; prioritize CodeQL C# residuals and code quality.\n";
-report += "- C# CodeQL default setup is weekly; force a scan after merges that touch C#.\n";
+report += "- Open GitHub issues and Dependabot alerts were empty at planning time; prioritize code quality on the live v5 app.\n";
+report += "- Force a CodeQL scan after merges that touch the live app.\n";
 report += "- Never reintroduce gstack.\n";
 
 let path = write_scratch_file("hardening-report.md", report);

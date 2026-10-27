@@ -1,5 +1,7 @@
 # Spec: Product band 3.10 — Vendors + Procurement + Material tracking (stub)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
 **Status:** Pending (stub — expand before first `/goal`)  
 **Version band:** `3.9.1` → `3.10.0` (10 stamps)  
 **Theme:** Mobile vendor/PO glance + first-class material tracking honesty  

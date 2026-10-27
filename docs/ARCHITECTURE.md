@@ -153,17 +153,17 @@ Each feature is self-contained:
 ```
 Features/
   CreateProject/
-    CreateProjectCommand.cs    # Request DTO
-    CreateProjectHandler.cs    # Business logic
-    CreateProjectValidator.cs  # FluentValidation rules
+    CreateProjectCommand    # Request DTO
+    CreateProjectHandler    # Business logic
+    CreateProjectValidator  # FluentValidation rules
 ```
 
 ## Deployment
 
 ### Railway (Production)
 
-- **API:** Docker container from `src/Pitbull.Api/Dockerfile`
-- **Frontend:** Docker container from `src/Pitbull.Web/pitbull-web/Dockerfile`
+- **API:** Docker image from the removed API host
+- **Frontend:** Docker image from the removed web app
 - **Database:** Railway-managed PostgreSQL 17
 - **Cache:** Railway-managed Redis 7
 - Auto-deploy on push to `main`
@@ -189,8 +189,6 @@ CI runs all tests on every push/PR via GitHub Actions.
 
 ## Further Reading
 
-- [Best Practices](BEST-PRACTICES.md) — Comprehensive development patterns guide
-- [Adding a Module](ADDING-A-MODULE.md) — How to create a new module
 - [AI Architecture](architecture/AI-ARCHITECTURE-REQUIREMENTS.md) — AI integration design
 - [Cost Code Design](architecture/COST-CODE-DESIGN.md) — CSI MasterFormat implementation
 - [Time Tracking Design](architecture/TIME-TRACKING-DESIGN.md) — Labor tracking architecture

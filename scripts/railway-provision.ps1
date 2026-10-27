@@ -25,6 +25,8 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
+throw "Retired with the 3.8.2 app. Legacy Railway API and web services were deleted. The live service root directory is v5. Do not run this script."
+
 function Assert-RailwayCli {
     railway whoami 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Not logged in. Run: railway login" }
@@ -81,7 +83,6 @@ railway variables set -s pitbull --skip-deploys `
     'Jwt__Issuer=pitbull-api' `
     'Jwt__Audience=pitbull-client' `
     'ASPNETCORE_ENVIRONMENT=Production' `
-    'RAILWAY_DOCKERFILE_PATH=src/Pitbull.Api/Dockerfile' `
     "Cors__AllowedOrigins__0=$webUrl" `
     'Demo__Enabled=true' `
     'Demo__SeedOnStartup=true' `
@@ -96,7 +97,6 @@ railway variables set -s pitbull --skip-deploys 'RAILWAY_HEALTHCHECK_PATH=/healt
 
 railway variables set -s pitbull-web --skip-deploys `
     "NEXT_PUBLIC_API_BASE_URL=$apiUrl" `
-    'RAILWAY_DOCKERFILE_PATH=src/Pitbull.Web/pitbull-web/Dockerfile' `
     'RAILWAY_HEALTHCHECK_PATH=/' 2>&1 | Out-Null
 
 Write-Host "`n=== Done ===" -ForegroundColor Cyan

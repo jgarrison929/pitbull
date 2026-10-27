@@ -1,5 +1,8 @@
 # Spec: Digital Twin Phase 2 implementation
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through **2.19.2** (Arc D complete)  
 **Version band:** 2.15.3 → 2.19.2 (40 PRs)  
 **Related:** [`pitbull-digital-twin-spec.md`](../pitbull-digital-twin-spec.md) Phase 2 (authoritative for data model); notes [`docs/ci/twin-phase2-notes.md`](../ci/twin-phase2-notes.md)

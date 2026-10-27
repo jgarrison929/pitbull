@@ -2,7 +2,7 @@
 
 **Status:** Complete (2.12.7�2.12.8)  
 **Version band:** 2.12.7 → 2.12.8 (within Arc A)  
-**Related:** [`help/page.tsx`](../../src/Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx), `ROLE-EXPERIENCE.md`
+**Related:** the help page on the removed web app, `ROLE-EXPERIENCE.md`
 
 ## Problem
 
@@ -18,7 +18,7 @@ Field super opens **Help** → finds step-by-step cards → taps deep links to l
 
 ## Primary code touchpoints
 
-- `src/Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx`  
+- the help page on the removed web app  
 - Route sources of truth: `workspaces.ts`, `project-nav.ts`, `mobile-bottom-nav.tsx`  
 
 ## API

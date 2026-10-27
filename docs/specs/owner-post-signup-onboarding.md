@@ -1,5 +1,8 @@
 # Spec: Owner Post-Signup Onboarding Gate (v2.0.2)
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped (historical) — **out of 2.12→3.0 ladder**
 
 ## Problem

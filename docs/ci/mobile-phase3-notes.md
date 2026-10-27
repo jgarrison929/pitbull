@@ -1,5 +1,8 @@
 ﻿# Mobile Phase 3 (Arc C) — site walk & schedule notes
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Band:** 2.14.3 → 2.15.2  
 **Status:** Shipped through 2.15.2  
 

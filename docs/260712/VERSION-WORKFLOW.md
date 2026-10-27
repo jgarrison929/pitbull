@@ -89,8 +89,8 @@ To move from `2.12.x` to `2.13.x` you ship **ten** consecutive single-step PRs:
 Per [`CONTRIBUTING.md`](../../CONTRIBUTING.md):
 
 1. Root [`VERSION`](../../VERSION)
-2. [`src/Pitbull.Web/pitbull-web/package.json`](../../src/Pitbull.Web/pitbull-web/package.json) + lockfile if version field present
-3. [`src/Pitbull.Api/Pitbull.Api.csproj`](../../src/Pitbull.Api/Pitbull.Api.csproj) — `Version`, `AssemblyVersion`, `FileVersion`, `InformationalVersion`
+2. [`Pitbull.Web/pitbull-web/package.json`](../../Pitbull.Web/pitbull-web/package.json) + lockfile if version field present
+3. [`Pitbull.Api/Pitbull.Api.csproj`](../../Pitbull.Api/Pitbull.Api.csproj) — `Version`, `AssemblyVersion`, `FileVersion`, `InformationalVersion`
 4. Docker `ARG` defaults + `docker-compose.prod.yml` if applicable
 5. [`CHANGELOG.md`](../../CHANGELOG.md) — new `## [x.y.z] - ISO-8601-with-offset` header; move items out of `[Unreleased]`
 6. In-app version fallback if hardcoded (search `app-version`)
@@ -118,7 +118,7 @@ Template + agent-ready bar: [`docs/specs/README.md`](../specs/README.md).
 
 ## Rule 5 — Help center for user-visible flows
 
-Any ship that changes how a persona works must update [`help/page.tsx`](../../src/Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx) in the **same PR** (workflow card + FAQ entry).
+Any ship that changes how a persona works must update [`help/page.tsx`](../../Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx) in the **same PR** (workflow card + FAQ entry).
 
 ---
 

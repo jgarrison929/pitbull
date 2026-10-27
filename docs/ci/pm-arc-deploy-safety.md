@@ -1,5 +1,8 @@
 # PM next-gen arc — Railway / deploy safety
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Program:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md)  
 **Version rules:** [`docs/340-pm-arc/VERSION-WORKFLOW.md`](../340-pm-arc/VERSION-WORKFLOW.md)
 

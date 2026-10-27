@@ -14,7 +14,7 @@
 | Demo | https://demo.pcserp.app |
 | Same deploy | https://app.pcserp.app |
 
-The active app lives in [`v5/`](v5/README.md) (plan: [`docs/v5/fresh-start-plan.md`](docs/v5/fresh-start-plan.md), roadmap: [`docs/roadmap.md`](docs/roadmap.md)). The legacy modular monolith under `src/` is frozen at tag `legacy-3.8.2-final` and is not what the demo serves.
+The active app lives in [`v5/`](v5/README.md) (plan: [`docs/v5/fresh-start-plan.md`](docs/v5/fresh-start-plan.md), roadmap: [`docs/roadmap.md`](docs/roadmap.md)). The legacy 3.8.2 monolith was removed from this tree. Recover it from tag `legacy-3.8.2-final`. It is not what the demo serves.
 
 [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Vision](VISION.md) · [Security](SECURITY.md) · [Deploy / demo setup](deploy/RAILWAY-DEMO.md)
 
@@ -34,7 +34,7 @@ Pitbull v5 is a single Next.js service with Postgres (Drizzle). The closed loop 
 |-------|------------|
 | App | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui |
 | Data | PostgreSQL 17, Drizzle ORM, per-visitor demo sandboxes |
-| Auth | Role cards in demo; JWT + Identity roles in the legacy host |
+| Auth | Role cards on `/login`; per-visitor sandboxes |
 
 Persona home layouts and role UX notes: [docs/ROLE-EXPERIENCE.md](docs/ROLE-EXPERIENCE.md).
 
@@ -101,8 +101,6 @@ v5/                            # Active Pitbull app (Next.js + Drizzle)
 docs/                          # Architecture, specs, roadmap, screenshots
   images/v5/                   # README screenshots from the live demo
 scripts/                       # Capture script, preflight, deploy helpers
-src/                           # Legacy 3.8.2 modular monolith (frozen)
-tests/                         # Legacy .NET test projects (frozen)
 deploy/                        # Railway / production setup
 ```
 
@@ -112,11 +110,9 @@ deploy/                        # Railway / production setup
 
 ### Railway
 
-Staging and production run the `v5/` app. See **[deploy/RAILWAY-SETUP.md](deploy/RAILWAY-SETUP.md)** and **[deploy/RAILWAY-DEMO.md](deploy/RAILWAY-DEMO.md)**.
+Staging and production run the `v5/` app (service root directory `v5`). See **[deploy/RAILWAY-SETUP.md](deploy/RAILWAY-SETUP.md)** and **[deploy/RAILWAY-DEMO.md](deploy/RAILWAY-DEMO.md)**.
 
-### Self-hosted (legacy compose)
-
-See [docker-compose.prod.yml](docker-compose.prod.yml) and [.env.example](.env.example) for the frozen `src/` stack.
+The legacy self-hosted compose stack was removed with the 3.8.2 tree (tag `legacy-3.8.2-final`).
 
 ---
 

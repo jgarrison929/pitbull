@@ -1,5 +1,8 @@
 # Spec: Mobile Phase 1 field hardening
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through 2.13.2
 **Version band:** 2.12.2 → 2.13.2 (11 PRs from 2.12.1)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 1, [`docs/260712/goal-prompts.md`](../260712/goal-prompts.md)

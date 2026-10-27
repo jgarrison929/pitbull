@@ -1,5 +1,8 @@
 # Spec: Help Center — office personas
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Status:** Shipped through **2.22.2**  
 **Version band:** 2.22.1 → 2.22.2 (parallel with KPI + CI close)  
 **Related:** [`ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md), `help/page.tsx`, `help-office-workflows.ts`

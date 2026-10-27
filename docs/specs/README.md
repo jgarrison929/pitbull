@@ -36,7 +36,7 @@ For **v5** increments, follow the conventions in [`docs/v5/specs/README.md`](../
 1. **Problem** — what hurts today  
 2. **Personas** — who is affected (v5: executive / pm / superintendent / foreman)  
 3. **User journey** — numbered steps  
-4. **Primary code touchpoints** — concrete paths under `v5/` (legacy: `src/`, `e2e/`, `tests/`)  
+4. **Primary code touchpoints** — concrete paths under `v5/`  
 5. **API / server touchpoints** — routes, actions, DTOs (or “UI-only”)  
 6. **Version table** — one row per PR with deliverable, files, acceptance checkboxes, tests  
 7. **Non-goals**  

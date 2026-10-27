@@ -1,5 +1,8 @@
 # AI trust boundary addendum
 
+> **Historical — not the live product.** Describes the removed 3.8.2 app (tag `legacy-3.8.2-final`). Live product is `v5/`.
+
+
 **Version note:** Documented for product band 2.21.1. Canonical summary also in `docs/ARCHITECTURE.md` § AI trust boundary.
 
 ## Boundary
