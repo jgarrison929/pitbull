@@ -172,19 +172,24 @@ Exit code 0 means every check passed (and stamp succeeded when `VERIFY_TOKEN` wa
 
 Joshua's rule (2026-10-27). Every PR Verify reviews needs a `## Before / After` section in its body. `before-after.mjs` reads the body with `gh pr view <n> --json body,files` and passes only on one of:
 
-- **(a) labeled image pairs.** Each image's alt text is `Before: <label>` or `After: <label>`, and the label states the page, the viewport (`W×H` or `WxH`) and the theme (`light` or `dark`), e.g. `![Before: /app · 390×844 · light](…)` then `![After: /app · 390×844 · light](…)`. Every before has an after with the same page, viewport and theme. Both images are fetched and must be the same width and height.
-- **(b) non-UI evidence.** A fenced code block or a link (test output before and after, a log, a run).
-- **(c) `No visual change`** at the start of a line (list, quote or emphasis marks allowed), with a reason on the same line or the next one. A mid-sentence mention is not a claim. A claim next to a code block is still a claim, so the contradiction rule below still applies.
+- **(a) labeled image pairs.** Each image's alt text is `Before: <label>` or `After: <label>`, and the label states the page, the role (`superintendent`, `foreman`, `pm`, `executive` or `visitor`, read outside the page path), the viewport (`W×H` or `WxH`) and the theme (`light` or `dark`), e.g. `![Before: /app · pm · 390×844 · light](…)` then `![After: /app · pm · 390×844 · light](…)`. Every before has an after with the same page, role, viewport and theme. Both images are fetched and must be the same width and height.
+- **(b) non-UI evidence.** A fenced code block or a link (test output before and after, a log, a run). The section must name both Before and After outside code blocks. Only for PRs that touch no UI files.
+- **(c) `No visual change`** at the start of a line (list, quote or emphasis marks allowed), with a reason on the same line or the lines after it (never the line above). A mid-sentence mention is not a claim. A claim next to a code block is still a claim, so the contradiction rule below still applies.
 
 It FAILS when:
 
 - the section is missing;
 - the section is empty (an HTML comment alone counts as empty);
 - a pair is unmatched (a before without an after, or the reverse);
-- the labels within a pair differ, or a label leaves out the page, viewport or theme;
+- the labels within a pair differ, or a label leaves out the page, role, viewport or theme;
+- a placeholder: an empty code block, a block holding only TODO/TBD/FIXME/…, a link to example.com/.org/.net, or a `No visual change` reason such as TBD, TODO, n/a, none or "…";
+- non-UI evidence doesn't name both Before and After;
+- the PR touches UI files and gives only code blocks or links (including an unlabeled `[shot](….png)` link): a UI diff needs labeled image pairs, or `No visual change` confirmed by a clean 0 px visual run;
 - an image can't be fetched or isn't a PNG, JPEG, GIF or WebP;
 - the two images in a pair differ in size;
 - the PR touches UI files (`v5/src/app/**`, any `components/**`, `*.css`, the visual baselines under `v5/tests/e2e/visual.spec.ts-snapshots/`) and claims `No visual change` while the visual run at `maxDiffPixels: 0` shows a diff. The verdict is **contradicted**, and the failure line names the files and the snapshots that differ. The same claim with no visual run to check it against also FAILS, because nothing confirms it.
+
+**Sections and code fences.** The section runs to the next `#`/`##` heading outside fenced code, so a `# run` comment inside a bash fence doesn't end it, and a fenced `## Before / After` doesn't start one.
 
 **Cursor footer.** Cursor cloud-agent bodies end with `<!-- CURSOR_AGENT_PR_BODY_END -->` and a footer `<div>` holding two cursor.com badges, "Open in Web" and "Open in Cursor" (`https://cursor.com/assets/images/open-in-(web|cursor)-(dark|light).png` inside an `<a href="https://cursor.com/…"><picture>`). The section ends at the marker, and only those exact badges are removed. Any other image in the section, including a lookalike badge from another host or a bare markdown image of the same badge, is still judged.
 

@@ -3,11 +3,19 @@
  *
  * Every PR body needs a `## Before / After` section holding one of:
  *   (a) labeled image pairs: every `Before` image has an `After` image with the same label, and the label states the
- *       page, the viewport (W×H) and the theme (light or dark), e.g.
- *         ![Before: /app · 390×844 · light](https://…/before.png)
- *         ![After: /app · 390×844 · light](https://…/after.png)
- *   (b) non-UI evidence: a fenced code block or a link;
- *   (c) `No visual change` and a reason line.
+ *       page, the role (superintendent, foreman, pm, executive or visitor), the viewport (W×H) and the theme (light or
+ *       dark), e.g.
+ *         ![Before: /app · pm · 390×844 · light](https://…/before.png)
+ *         ![After: /app · pm · 390×844 · light](https://…/after.png)
+ *   (b) non-UI evidence: a fenced code block or a link that isn't a placeholder, with the section naming both Before and
+ *       After;
+ *   (c) `No visual change` and a reason, taken from the same line or the lines after it (never the line above).
+ *
+ * Placeholders FAIL: an empty code block, a block holding only TODO/TBD/…, a link to example.com/.org/.net, and a
+ * `No visual change` reason like TBD, TODO, n/a or "…".
+ *
+ * A PR that touches UI files needs (a), or (c) confirmed by a clean 0 px visual run. Code blocks, plain links and
+ * unlabeled `[shot](….png)` links are not visual evidence and FAIL on a UI diff.
  *
  * FAIL when: the section is missing or empty; a pair is unmatched; a label is malformed or the labels within a pair
  * differ; an image can't be fetched or its size can't be read; the two images in a pair differ in size; or the PR
@@ -27,6 +35,7 @@ export const SECTION_HEADING = /^##\s+Before\s*\/\s*After\s*$/im;
 export const NO_VISUAL_CHANGE_LINE = /^[\s>*_\-`]*No visual change\b/i;
 const NO_VISUAL_CHANGE = /[>*_\-`\s]*No visual change\b[`*_]*/i;
 export const THEMES = ["light", "dark"];
+export const ROLES = ["superintendent", "foreman", "pm", "executive", "visitor"];
 const VIEWPORT = /\b(\d{2,5})\s*[×x]\s*(\d{2,5})\b/;
 const IMAGE = /!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)|<img\b[^>]*>/gi;
 const SIDE = /^\s*(before|after)\s*[:\-–—]\s*(.+?)\s*$/i;
@@ -57,25 +66,90 @@ export const CURSOR_FOOTER_BADGE = new RegExp(
 );
 const EMPTY_DIV = /<div>(?:\s|&nbsp;)*<\/div>/g;
 
-/** The text under `## Before / After`, up to the next h1/h2 or the Cursor body-end marker. null when the heading is absent. */
+const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
+
+/**
+ * The text under `## Before / After`, up to the next h1/h2 or the Cursor body-end marker. null when the heading is absent.
+ * Lines inside fenced code blocks are never headings, so a `# run` comment in a bash fence doesn't end the section (and a
+ * fenced `## Before / After` doesn't start one).
+ */
 export function extractSection(body) {
-  const text = String(body ?? "").replace(/\r\n/g, "\n");
-  const m = SECTION_HEADING.exec(text);
-  if (!m) return null;
-  let rest = text.slice(m.index + m[0].length);
-  const end = rest.indexOf(CURSOR_BODY_END);
-  if (end !== -1) rest = rest.slice(0, end);
-  const next = rest.search(/^#{1,2}\s/m);
-  if (next !== -1) rest = rest.slice(0, next);
-  return rest.replace(CURSOR_FOOTER_BADGE, "").replace(EMPTY_DIV, "").trim();
+  const lines = String(body ?? "").replace(/\r\n/g, "\n").split("\n");
+  let fence = null;
+  let start = -1;
+  const out = [];
+  for (const line of lines) {
+    const f = FENCE.exec(line);
+    const inFence = fence !== null;
+    if (f) {
+      if (!inFence) fence = f[1][0];
+      else if (f[1][0] === fence && /^\s{0,3}(`{3,}|~{3,})\s*$/.test(line)) fence = null;
+    }
+    if (start === -1) {
+      if (!inFence && !f && SECTION_HEADING.test(line)) start = 0;
+      continue;
+    }
+    if (!inFence && !f) {
+      if (line.includes(CURSOR_BODY_END)) { out.push(line.slice(0, line.indexOf(CURSOR_BODY_END))); break; }
+      if (/^#{1,2}\s/.test(line)) break;
+    }
+    out.push(line);
+  }
+  if (start === -1) return null;
+  return out.join("\n").replace(CURSOR_FOOTER_BADGE, "").replace(EMPTY_DIV, "").trim();
 }
 
-/** Normalized label key: page, viewport and theme, so `390x844` and `390×844` match. */
+/** Fenced code blocks in a section: [{ content }], unclosed fences run to the end. */
+function codeBlocks(section) {
+  const blocks = [];
+  let cur = null;
+  let fence = null;
+  for (const line of section.split("\n")) {
+    const f = FENCE.exec(line);
+    if (cur === null) {
+      if (f) { cur = []; fence = f[1][0]; }
+    } else if (f && f[1][0] === fence && /^\s{0,3}(`{3,}|~{3,})\s*$/.test(line)) {
+      blocks.push({ content: cur.join("\n") });
+      cur = null;
+    } else cur.push(line);
+  }
+  if (cur !== null) blocks.push({ content: cur.join("\n"), unclosed: true });
+  return blocks;
+}
+/** Text outside fenced code blocks. */
+function proseOf(section) {
+  const keep = [];
+  let fence = null;
+  for (const line of section.split("\n")) {
+    const f = FENCE.exec(line);
+    if (fence === null) {
+      if (f) { fence = f[1][0]; continue; }
+      keep.push(line);
+    } else if (f && f[1][0] === fence && /^\s{0,3}(`{3,}|~{3,})\s*$/.test(line)) fence = null;
+  }
+  return keep.join("\n");
+}
+/** TODO, TBD, FIXME, XXX, placeholder, n/a, none, "…", "-", "?", "<reason>", or nothing at all. */
+export const PLACEHOLDER = /^[\s>*_`"'()[\]<>:.\-–—?]*(?:(?:todo|tbd|tbc|fixme|xxx|placeholder|n\/?a|none|reason|coming soon|wip)\b[\s*_`"'()[\]<>:.\-–—?!]*)?(?:…|\.\.\.)?[\s*_`"'()[\]<>.\-–—?!]*$/i;
+const isPlaceholder = (t) => PLACEHOLDER.test(String(t ?? "").replace(/\s+/g, " ").trim());
+const URL_RE = /https?:\/\/[^\s)<>"'\]]+/gi;
+const placeholderUrl = (u) => {
+  try {
+    return /(^|\.)example\.(com|org|net)$/i.test(new URL(u).hostname);
+  } catch {
+    return true;
+  }
+};
+
+export const PAIR_KEYS = ["page", "role", "viewport", "theme"];
+/** Normalized label key: page, role, viewport and theme, so `390x844` and `390×844` match. The role is read with the page removed. */
 function labelParts(label) {
   const vp = VIEWPORT.exec(label);
   const theme = THEMES.find((t) => new RegExp(`\\b${t}\\b`, "i").test(label));
   const page = (label.match(/(^|\s)(\/[^\s·|,]*)/) ?? [])[2];
-  return { page: page ?? null, viewport: vp ? `${vp[1]}×${vp[2]}` : null, theme: theme ?? null };
+  const rest = page ? label.replace(page, " ") : label;
+  const role = ROLES.find((r) => new RegExp(`(^|[^\\w/-])${r}(?![\\w/-])`, "i").test(rest));
+  return { page: page ?? null, role: role ?? null, viewport: vp ? `${vp[1]}×${vp[2]}` : null, theme: theme ?? null };
 }
 
 function images(section) {
@@ -113,21 +187,21 @@ export function parseBeforeAfter(body) {
       const which = side[1].toLowerCase();
       const label = side[2];
       const parts = labelParts(label);
-      const missing = ["page", "viewport", "theme"].filter((k) => !parts[k]);
+      const missing = PAIR_KEYS.filter((k) => !parts[k]);
       if (missing.length) problems.push(`${which} "${label}": label does not state the ${missing.join(", ")}`);
       const entry = { label, parts, url: img.url };
       if (which === "before") {
         open.push(entry);
         continue;
       }
-      const key = (x) => `${x.page}|${x.viewport}|${x.theme}`;
+      const key = (x) => PAIR_KEYS.map((k) => x[k]).join("|");
       const same = open.findIndex((o) => key(o.parts) === key(parts));
       const before = open.splice(same === -1 ? 0 : same, 1)[0];
       if (!before) {
         problems.push(`after "${label}" has no before`);
         continue;
       }
-      const diff = ["page", "viewport", "theme"].filter((k) => before.parts[k] !== parts[k]);
+      const diff = PAIR_KEYS.filter((k) => before.parts[k] !== parts[k]);
       if (diff.length) problems.push(`pair "${before.label}" / "${label}": labels differ in ${diff.join(", ")}`);
       pairs.push({ label: before.label, before, after: entry });
     }
@@ -137,11 +211,29 @@ export function parseBeforeAfter(body) {
   const lines = meaningful.split("\n").map((l) => l.trim()).filter(Boolean);
   const i = lines.findIndex((l) => NO_VISUAL_CHANGE_LINE.test(l));
   if (i !== -1) {
+    // The reason is on the claim's line or the lines after it; a line above the claim never counts.
     const sameLine = lines[i].replace(NO_VISUAL_CHANGE, "").replace(/^[\s*_.:\-–—]+|[\s*_.]+$/g, "");
-    const reason = sameLine || lines.slice(i + 1).find((l) => /\w/.test(l)) || lines.slice(0, i).find((l) => /\w/.test(l)) || "";
-    return { kind: "no-visual-change", reason, problems: reason ? [] : ["\"No visual change\" has no reason line"] };
+    const reason = sameLine || lines.slice(i + 1).find((l) => /\w/.test(l) && !FENCE.test(l)) || "";
+    const problems = !reason
+      ? ["\"No visual change\" has no reason on its line or the lines after it"]
+      : isPlaceholder(reason) || isPlaceholder(reason.replace(/^\W*reason\s*[:\-–—]\s*/i, ""))
+        ? [`"No visual change" reason "${reason.slice(0, 60)}" is a placeholder`]
+        : [];
+    return { kind: "no-visual-change", reason, problems };
   }
-  if (/```[\s\S]*?```/.test(meaningful) || /https?:\/\/\S+/.test(meaningful)) return { kind: "evidence", problems: [] };
+  const blocks = codeBlocks(meaningful);
+  const urls = [...proseOf(meaningful).matchAll(URL_RE)].map((m) => m[0]);
+  if (blocks.length || urls.length) {
+    const problems = [];
+    blocks.forEach((b, n) => {
+      if (isPlaceholder(b.content)) problems.push(`code block ${n + 1} is a placeholder (${b.content.trim() ? `"${b.content.trim().slice(0, 40)}"` : "empty"})`);
+    });
+    for (const u of urls) if (placeholderUrl(u)) problems.push(`link ${u} is a placeholder`);
+    const prose = proseOf(meaningful);
+    const named = ["Before", "After"].filter((w) => !new RegExp(`\\b${w}\\b`, "i").test(prose));
+    if (named.length) problems.push(`evidence does not name ${named.join(" or ")} (outside code blocks)`);
+    return { kind: "evidence", problems };
+  }
   return { kind: "unrecognized", problems: [] };
 }
 
@@ -228,8 +320,12 @@ export function evaluateBeforeAfter({ body, files = [], images: imgs = {}, visua
         f.push(`Before/After: pair "${label}" sizes differ: before ${sizes[0].width}×${sizes[0].height}, after ${sizes[1].width}×${sizes[1].height}`);
     }
   }
-  if (parsed.kind === "no-visual-change" && touchesUi(files)) {
-    const ui = files.map((x) => (typeof x === "string" ? x : x.path)).filter(isUiPath);
+  const ui = files.map((x) => (typeof x === "string" ? x : x.path)).filter(isUiPath);
+  if (ui.length && parsed.kind === "evidence")
+    f.push(`Before/After: touches UI (${ui.slice(0, 5).join(", ")}) but gives only code blocks or links; a UI diff needs labeled image pairs, or "No visual change" confirmed by a clean 0 px visual run`);
+  if (ui.length && parsed.kind === "pairs" && parsed.pairs.length === 0)
+    f.push(`Before/After: touches UI (${ui.slice(0, 5).join(", ")}) but has no labeled Before/After image pair`);
+  if (parsed.kind === "no-visual-change" && ui.length) {
     if (visual?.ran && (visual.diff || (visual.diffPixels ?? 0) > 0)) {
       verdict = "contradicted";
       const what = visual.failed?.length ? `${visual.failed.length} snapshot(s) differ: ${visual.failed.slice(0, 5).join(", ")}` : `${visual.diffPixels} px differ`;

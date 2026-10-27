@@ -2250,15 +2250,15 @@ console.log(`ok: checks.test.mjs (${results.length} cases)`);
   const mustFail = {
     "no section": [`## Summary\nChange.${tail}`, /no `## Before \/ After` section/],
     "empty section": [`${head}\n<!-- add shots -->\n${tail}`, /section is empty/],
-    "before with no after": [`${head}![Before: /app · 390×844 · light](https://img.test/app-before.png)${tail}`, /before "\/app · 390×844 · light" has no after/],
-    "mismatched sizes": [`${head}${pair("/app · 390×844 · light", "app-before.png", "app-after-tall.png")}${tail}`, /sizes differ: before 390×844, after 390×900/],
+    "before with no after": [`${head}![Before: /app · pm · 390×844 · light](https://img.test/app-before.png)${tail}`, /before "\/app · pm · 390×844 · light" has no after/],
+    "mismatched sizes": [`${head}${pair("/app · pm · 390×844 · light", "app-before.png", "app-after-tall.png")}${tail}`, /sizes differ: before 390×844, after 390×900/],
     "labels mismatch in a pair": [
-      `${head}![Before: /app · 390×844 · light](https://img.test/app-before.png)\n![After: /app · 390×844 · dark](https://img.test/app-after.png)${tail}`,
+      `${head}![Before: /app · pm · 390×844 · light](https://img.test/app-before.png)\n![After: /app · pm · 390×844 · dark](https://img.test/app-after.png)${tail}`,
       /labels differ in theme/,
     ],
-    "label without theme": [`${head}${pair("/app · 390×844", "app-before.png", "app-after.png")}${tail}`, /does not state the theme/],
-    "unfetchable image": [`${head}${pair("/app · 390×844 · light", "app-before.png", "gone.png")}${tail}`, /can't be fetched: HTTP 404/],
-    "no visual change without a reason": [`${head}No visual change${tail}`, /has no reason line/],
+    "label without theme": [`${head}${pair("/app · pm · 390×844", "app-before.png", "app-after.png")}${tail}`, /does not state the theme/],
+    "unfetchable image": [`${head}${pair("/app · pm · 390×844 · light", "app-before.png", "gone.png")}${tail}`, /can't be fetched: HTTP 404/],
+    "no visual change without a reason": [`${head}No visual change${tail}`, /has no reason on its line or the lines after it/],
   };
   for (const [name, [body, re]] of Object.entries(mustFail)) {
     const r = await gate(body);
@@ -2284,7 +2284,7 @@ console.log(`ok: checks.test.mjs (${results.length} cases)`);
   }
   // Valid fixtures that must PASS.
   {
-    const r = await gate(`${head}${pair("/app · 390×844 · light", "app-before.png", "app-after.png")}\n\n${pair("/app/jobs/25-031 · 1280x800 · dark", "job-before.png", "job-after.png")}${tail}`);
+    const r = await gate(`${head}${pair("/app · pm · 390×844 · light", "app-before.png", "app-after.png")}\n\n${pair("/app/jobs/25-031 · superintendent · 1280x800 · dark", "job-before.png", "job-after.png")}${tail}`);
     assert.deepEqual(r.failures, []);
     assert.equal(r.verdict, "pass");
     console.log("ok: before/after valid labeled image pairs pass");
@@ -2294,6 +2294,55 @@ console.log(`ok: checks.test.mjs (${results.length} cases)`);
     const r3 = await gate(`${head}No visual change\nReason: server-only query change.${tail}`, ["v5/src/app/app/page.tsx"], { ran: true, diffPixels: 0, diff: false });
     assert.deepEqual(r3.failures, []);
     console.log("ok: before/after No visual change with a reason and a clean 0 px run passes");
+  }
+  // Lead re-review (2026-10-27 09:18): role in the label and the pair key; UI diffs need pairs or a confirmed claim;
+  // placeholders; reason only from the claim's line or after; fenced `# run` doesn't cut the section.
+  {
+    const UI = ["v5/src/app/app/page.tsx"];
+    const NONUI = [".cursor/skills/verify-v5/checks.mjs"];
+    const CLEAN = { ran: true, diffPixels: 0, diff: false };
+    const mf = async (name, body, files, visual, re) => {
+      const r = await gate(body, files, visual);
+      assert.equal(r.pass, false, `before/after must-fail "${name}" passed: ${JSON.stringify(r)}`);
+      const hit = r.failures.find((x) => re.test(x));
+      assert.ok(hit, `before/after "${name}" must fail with ${re}; got ${JSON.stringify(r.failures)}`);
+      console.log(`ok: before/after must-fail ${name} → ${hit}`);
+    };
+    const ok = async (name, body, files, visual) => {
+      const r = await gate(body, files, visual);
+      assert.deepEqual(r.failures, [], `before/after "${name}" must pass; got ${JSON.stringify(r.failures)}`);
+      console.log(`ok: before/after passes: ${name}`);
+    };
+    const ev = "Before:\n```\nnot ok 3 - money clip\n```\nAfter:\n```\nok 3 - money clip\n```";
+    // 1. UI diff: only labeled pairs or a 0 px-confirmed claim.
+    await mf("UI diff with only a code block", `${head}${ev}${tail}`, UI, null, /touches UI .* but gives only code blocks or links/);
+    await mf("UI diff with only a plain link", `${head}Before and After: https://github.com/jgarrison929/pitbull/actions/runs/1${tail}`, UI, null, /touches UI .* but gives only code blocks or links/);
+    await mf("UI diff with an unlabeled [shot](png) link", `${head}Before / After: [shot](https://img.test/app-after.png)${tail}`, UI, null, /touches UI .* but gives only code blocks or links/);
+    await mf("UI diff with a code block, even with a clean 0 px run", `${head}${ev}${tail}`, UI, CLEAN, /touches UI .* but gives only code blocks or links/);
+    await ok("UI diff with labeled pairs (role included)", `${head}${pair("/app · foreman · 390×844 · light", "app-before.png", "app-after.png")}${tail}`, UI, null);
+    await ok("UI diff with No visual change + reason + clean 0 px run", `${head}No visual change: server-only query.${tail}`, UI, CLEAN);
+    // 2. Role required and part of the pair key.
+    await mf("label without a role", `${head}${pair("/app · 390×844 · light", "app-before.png", "app-after.png")}${tail}`, UI, null, /label does not state the role/);
+    await mf("pair whose roles differ", `${head}![Before: /app · pm · 390×844 · light](https://img.test/app-before.png)\n![After: /app · foreman · 390×844 · light](https://img.test/app-after.png)${tail}`, UI, null, /labels differ in role/);
+    await mf("role only inside the page path (/app/pm) is not a role", `${head}${pair("/app/pm · 390×844 · light", "app-before.png", "app-after.png")}${tail}`, UI, null, /label does not state the role/);
+    await ok("two pairs, same page/viewport/theme, different roles, interleaved", `${head}![Before: /app · pm · 390×844 · light](https://img.test/app-before.png)\n![Before: /app · executive · 390×844 · light](https://img.test/app-before.png)\n![After: /app · executive · 390×844 · light](https://img.test/app-after.png)\n![After: /app · pm · 390×844 · light](https://img.test/app-after.png)${tail}`, UI, null);
+    // 3. Placeholders.
+    await mf("empty code block", `${head}Before:\n\`\`\`\n\`\`\`\nAfter:\n\`\`\`\nok 3\n\`\`\`${tail}`, NONUI, null, /code block 1 is a placeholder \(empty\)/);
+    await mf("code block with only TODO", `${head}Before:\n\`\`\`\nnot ok 3\n\`\`\`\nAfter:\n\`\`\`\nTODO\n\`\`\`${tail}`, NONUI, null, /code block 2 is a placeholder \("TODO"\)/);
+    await mf("bare example.com link", `${head}Before and After: https://example.com${tail}`, NONUI, null, /link https:\/\/example\.com is a placeholder/);
+    await mf("evidence that doesn't name Before and After", `${head}Test output:\n\`\`\`\nok 3\n\`\`\`${tail}`, NONUI, null, /evidence does not name Before or After/);
+    await mf("No visual change: TBD", `${head}No visual change: TBD${tail}`, NONUI, null, /reason "TBD" is a placeholder/);
+    await mf("No visual change + Reason: TODO on the next line", `${head}No visual change\nReason: TODO${tail}`, NONUI, null, /reason "Reason: TODO" is a placeholder/);
+    await mf("No visual change reason borrowed from the line above", `${head}Server-only query change.\nNo visual change${tail}`, NONUI, null, /has no reason on its line or the lines after it/);
+    await ok("non-UI evidence naming Before and After with real output", `${head}${ev}${tail}`, NONUI, null);
+    await ok("non-UI evidence: a real CI link naming Before and After", `${head}Before: fails on main. After: https://github.com/jgarrison929/pitbull/actions/runs/1 passes.${tail}`, NONUI, null);
+    await ok("No visual change with the reason on the next line", `${head}No visual change\nReason: server-only query change.${tail}`, NONUI, null);
+    // 4. A `# run` comment inside a bash fence doesn't end the section.
+    const fenced = (afterBlock) => `${head}Before: https://github.com/jgarrison929/pitbull/actions/runs/1\n\`\`\`bash\n# run\nnode checks.test.mjs\n\`\`\`\nAfter:\n\`\`\`\n${afterBlock}\n\`\`\`${tail}`;
+    await mf("TODO block after a '# run' fence (section not cut)", fenced("TODO"), NONUI, null, /code block 2 is a placeholder \("TODO"\)/);
+    await ok("'# run' inside a bash fence keeps the After below it", fenced("ok 277"), NONUI, null);
+    assert.match(parseBeforeAfter(fenced("ok")).kind, /evidence/);
+    console.log("ok: before/after section skips headings inside fenced code");
   }
   // Cursor cloud-agent footer (#70, #82, #83 real bodies): the section ends at the body-end marker and only the two
   // cursor.com "Open in" badges are dropped.
