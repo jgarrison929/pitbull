@@ -25,9 +25,12 @@ const SERIES = [
 
 const W = 720;
 const H = 280;
-/** Left pad fits usdShort labels at TICK_FONT (readable ~11px at 390-wide SVG). */
+/** Left pad fits usdShort labels at TICK_FONT (readable at 320/390-wide SVG). */
 const PAD = { top: 16, right: 16, bottom: 40, left: 64 };
-/** User units: ~11px at 390 CSS px width, ~20px when the SVG paints near viewBox width. */
+/**
+ * User units for axis ticks. Scaled with the viewBox: ~10px at 320 CSS px
+ * width, ~11px at 390, ~20px near 1:1 desktop. Keep ≥18 (theme must-fail).
+ */
 const TICK_FONT = 20;
 
 function dayLabel(iso: string) {
@@ -180,6 +183,7 @@ export function SCurveChart({
                 textAnchor="end"
                 className="fill-muted-foreground"
                 style={{ fontSize: TICK_FONT }}
+                data-testid="s-curve-tick-y"
               >
                 {usdShort(cents)}
               </text>
@@ -198,6 +202,7 @@ export function SCurveChart({
               textAnchor="middle"
               className="fill-muted-foreground"
               style={{ fontSize: TICK_FONT }}
+              data-testid="s-curve-tick-x"
             >
               {dayLabel(p.on)}
             </text>
