@@ -4,6 +4,7 @@ import { getDbQueryCount } from "@/db";
 import { users } from "@/db/schema";
 import { planDateToday } from "@/lib/plan-date";
 import { listChangeOrders } from "@/server/change-orders";
+import { laborMhMilliByCostItem } from "@/server/cost-rollups";
 import {
   getJob,
   getJobEvControls,
@@ -113,6 +114,7 @@ export async function loadJobPage(
   if (!p) return null;
 
   const todayLA = planDateToday(seedNow());
+  const laborMhP = laborMhMilliByCostItem(companyId, p.job.id);
   const pagePlansP = getJobPagePlans(companyId, p.job.id, todayLA);
   const siblingsP = Promise.all([
     // Same WRITES-filtered feed as before (via job-changes, not assistant/actions).
@@ -144,11 +146,13 @@ export async function loadJobPage(
   const [
     [changes, draftClaim, evControls, approvalPending, coData, crewRows],
     reportedByPlan,
-  ] = await Promise.all([siblingsP, reportedP]);
+    laborMhByItem,
+  ] = await Promise.all([siblingsP, reportedP, laborMhP]);
 
   return {
     p,
     caps,
+    laborMhByItem,
     plans,
     openPlans,
     today,

@@ -1,11 +1,13 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { getDb, requireDb } from "@/db";
-import { companies, costItems, dailyPlans } from "@/db/schema";
+import { companies, costEntries, costItems, dailyPlans } from "@/db/schema";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
 import { seedId } from "@/seed";
 import { jobChanges, jobChangesCount } from "./assistant/actions";
 import { getCostItemPage } from "./cost-item-page";
+import { laborMhMilliByCostItem } from "./cost-rollups";
+import { getJob } from "./data";
 import { getPlanPage } from "./plan-page";
 import {
   approveDailyReport,
@@ -246,6 +248,84 @@ describe.skipIf(!db)("Part C drill-down loaders", () => {
       expect(relocked!.entries.every((e) => !e.sinceLock)).toBe(true);
       const throughAfter = relocked!.entries.reduce((s, e) => s + e.amountCents, 0);
       expect(throughAfter).toBe(relocked!.postedTotalCents);
+    },
+    60_000,
+  );
+
+  it(
+    "every 24-077 leaf actual MH matches the job map through unlock and relock",
+    async () => {
+      const companyId = await createSandbox();
+      created.push(companyId);
+      const job = await getJob(companyId, "24-077");
+      expect(job).not.toBeNull();
+      const jobId = job!.job.id;
+      const leaves = job!.items.filter((item) => item.isLeaf);
+      expect(leaves.length).toBeGreaterThan(1);
+      const zero = { lockedMhMilli: 0, pendingMhMilli: 0 };
+
+      async function assertMatch(label: string) {
+        const byItem = await laborMhMilliByCostItem(companyId, jobId);
+        for (const leaf of leaves) {
+          const page = await getCostItemPage(companyId, "24-077", leaf.code);
+          expect(page, `${label} ${leaf.code}`).not.toBeNull();
+          const split = byItem.get(leaf.id) ?? zero;
+          expect(page!.actualMhMilli, `${label} ${leaf.code}`).toBe(
+            split.lockedMhMilli,
+          );
+          expect(page!.pendingMhMilli, `${label} ${leaf.code}`).toBe(
+            split.pendingMhMilli,
+          );
+        }
+        return byItem;
+      }
+
+      const before = await assertMatch("locked");
+      const beforeTotal = [...before.values()].reduce(
+        (sum, split) => sum + split.lockedMhMilli + split.pendingMhMilli,
+        0,
+      );
+      expect(beforeTotal).toBeGreaterThan(0);
+      const basins = leaves.find((leaf) => leaf.code === "07-300");
+      const trench = leaves.find((leaf) => leaf.code === "03-210");
+      expect(basins).toBeTruthy();
+      expect(trench).toBeTruthy();
+      expect(before.get(basins!.id)!.lockedMhMilli).toBeGreaterThan(0);
+      expect(before.get(trench!.id)!.lockedMhMilli).toBeGreaterThan(0);
+
+      // Drop the period's lock stamp. Hours stay on the entries; they are pending.
+      await requireDb()
+        .update(costEntries)
+        .set({ lockedInAt: null })
+        .where(
+          and(
+            eq(costEntries.companyId, companyId),
+            inArray(
+              costEntries.costItemId,
+              leaves.map((leaf) => leaf.id),
+            ),
+          ),
+        );
+
+      const unlocked = await assertMatch("unlocked");
+      for (const leaf of leaves) {
+        expect(unlocked.get(leaf.id)?.lockedMhMilli ?? 0, leaf.code).toBe(0);
+      }
+
+      const relock = await lockProgressClaim(
+        companyId,
+        jobId,
+        seedId(companyId, "user:pm"),
+      );
+      expect(relock.ok).toBe(true);
+
+      const after = await assertMatch("relocked");
+      let relockedTotal = 0;
+      for (const split of after.values()) {
+        relockedTotal += split.lockedMhMilli;
+        expect(split.pendingMhMilli).toBe(0);
+      }
+      expect(relockedTotal).toBe(beforeTotal);
     },
     60_000,
   );

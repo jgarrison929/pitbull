@@ -23,6 +23,11 @@ export type WbsNode = {
   line?: CostLine;
   /** Precomputed on the server; summaries carry their leaves' sums. */
   money: WbsMoney;
+  /**
+   * Locked actual labor MH in milli-MH. Leaves only.
+   * Same integer the cost-item page shows as `actualMhMilli`.
+   */
+  actualMhMilli?: number;
 };
 
 const VALUE_SETS: Record<ValueSet, { label: string; title: string }> = {
@@ -56,6 +61,9 @@ function rowData(n: WbsNode) {
     "data-ce-cents": n.money.ceCents,
     "data-mh-milli": n.money.mhMilli,
     "data-qty": n.money.qtyMilli ?? "",
+    ...(n.isLeaf
+      ? { "data-actual-mh-milli": n.actualMhMilli ?? 0 }
+      : {}),
   };
 }
 
