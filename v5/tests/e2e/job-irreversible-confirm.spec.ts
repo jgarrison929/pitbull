@@ -33,6 +33,40 @@ async function leaveUnconfirmed(page: Page, trigger: Locator) {
   await expect(trigger).toBeFocused();
 }
 
+/** CSS pixels of the trigger's border box. Phone checks want at least 44×44. */
+async function tapBox(locator: Locator) {
+  return locator.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { width: r.width, height: r.height };
+  });
+}
+
+for (const width of [390, 320]) {
+  test(`Lock Period and Approve estimate are at least 44px at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({
+      width,
+      height: width === 320 ? 568 : 844,
+    });
+    await signIn(page, "pm");
+
+    await page.goto("/app/jobs/25-031");
+    const lock = page.getByTestId("lock-claim");
+    await expect(lock).toBeVisible();
+    const lockBox = await tapBox(lock);
+    expect(lockBox.width).toBeGreaterThanOrEqual(44);
+    expect(lockBox.height).toBeGreaterThanOrEqual(44);
+
+    await page.goto("/app/jobs/26-010");
+    const approve = page.getByTestId("approve-estimate");
+    await expect(approve).toBeVisible();
+    const approveBox = await tapBox(approve);
+    expect(approveBox.width).toBeGreaterThanOrEqual(44);
+    expect(approveBox.height).toBeGreaterThanOrEqual(44);
+  });
+}
+
 test("Cancel leaves Period 2 unlocked", async ({ page }) => {
   await signIn(page, "pm");
   await page.goto("/app/jobs/25-031");

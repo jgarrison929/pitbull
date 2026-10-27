@@ -184,7 +184,7 @@ export async function Job({
                 <ConfirmForm
                   action={runAction}
                   triggerLabel="Approve estimate"
-                  triggerClassName="rounded-md border px-3 py-1.5 text-xs font-medium"
+                  triggerClassName="rounded-md border px-3 py-1.5 text-xs font-medium max-sm:inline-flex max-sm:tap-target max-sm:items-center max-sm:justify-center max-sm:text-body"
                   triggerTestId="approve-estimate"
                   title={approveCopy.title}
                   description={approveCopy.description}
@@ -208,7 +208,7 @@ export async function Job({
                 <ConfirmForm
                   action={runAction}
                   triggerLabel={`Lock ${draftClaim.periodLabel}`}
-                  triggerClassName="rounded-md border px-3 py-1.5 text-xs font-medium"
+                  triggerClassName="rounded-md border px-3 py-1.5 text-xs font-medium max-sm:inline-flex max-sm:tap-target max-sm:items-center max-sm:justify-center max-sm:text-body"
                   triggerTestId="lock-claim"
                   title={lockCopy.title}
                   description={lockCopy.description}
