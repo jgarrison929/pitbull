@@ -5,12 +5,15 @@ import { Money } from "@/components/app/format";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
 import { utcDay } from "@/lib/dates";
 import { mh, qty, usdCents } from "@/lib/ev";
-import { actions } from "@/server/assistant/actions";
 import {
   timedGetCostItemPage,
   type CostEntryRow,
 } from "@/server/cost-item-page";
 import { requireUser } from "@/server/session";
+
+/** PM owns forecasts — keep this local so the cost-item route does not import
+ * the full assistant action table on every document render (Verify #60 TTFB). */
+const FORECAST_METHOD_ROLES = new Set(["pm"]);
 
 const EMPTY_LABOR =
   "Labor posts here when a daily report for this cost item is approved";
@@ -152,8 +155,7 @@ async function CostItem({
   );
   if (!data) notFound();
 
-  const canSetForecast =
-    actions["costItem.setForecastMethod"].roles?.includes(user.role) ?? false;
+  const canSetForecast = FORECAST_METHOD_ROLES.has(user.role);
 
   const installed =
     data.item.evMethod === "units"

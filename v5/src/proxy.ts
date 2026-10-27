@@ -70,23 +70,19 @@ function withServerTiming(res: NextResponse, proxyMs: number) {
  * - /app/jobs/:number/changes
  * - /app/jobs/:number/cost-items/:code  (not …/search)
  * - /app/jobs/:number/plans/:id
+ *
+ * Cost-item drills keep main’s two-step shape (session⋈job, then leaf by
+ * job_id+code). Verify #60: a folded session⋈job⋈item JOIN looked fine on
+ * Server-Timing but raised document TTFB tails past main under Phase A / the
+ * PR burst script on the Verify box — the cliff is past the proxy, and the
+ * heavier lookup contended with route data loads. Prefetch short-circuits were
+ * removed for the same reason (they bypassed proxy-pool admission control and
+ * stampeded app SSR under headed crawls).
  */
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const parsed = parseJobDrillPath(path);
   if (!parsed) return NextResponse.next();
-
-  // Prefetch / PPR segment flights re-hit this matcher and stampede the proxy
-  // pool under crawl bursts (Verify #60: v5proxy tails to 440 ms). Document
-  // navigations and soft navigations still run the 404 check.
-  if (
-    request.headers.get("Next-Router-Prefetch") === "1" ||
-    request.headers.get("Next-Router-Segment-Prefetch") === "1" ||
-    request.headers.get("Purpose") === "prefetch" ||
-    request.headers.get("Sec-Purpose") === "prefetch"
-  ) {
-    return NextResponse.next();
-  }
 
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!token) return NextResponse.next(); // requireUser will send them to /login
@@ -132,39 +128,6 @@ export async function proxy(request: NextRequest) {
       return withServerTiming(NextResponse.next(), performance.now() - t0);
     }
 
-    if (parsed.kind === "cost-item") {
-      // One round-trip: session + job + leaf cost item (#60).
-      const rows = await db<
-        { job_id: string; item_id: string | null }[]
-      >`
-        select j.id as job_id, ci.id as item_id
-        from sessions s
-        inner join jobs j on j.company_id = s.company_id
-        left join cost_items ci
-          on ci.job_id = j.id
-         and ci.code = ${parsed.code}
-         and ci.is_leaf = true
-        where s.id = ${sessionId}
-          and s.expires_at > now()
-          and j.number = ${parsed.number}
-        limit 1`;
-      const row = rows[0];
-      if (!row) {
-        const sessions = await db<{ company_id: string }[]>`
-          select company_id from sessions
-          where id = ${sessionId} and expires_at > now()
-          limit 1`;
-        if (!sessions[0]) {
-          return withServerTiming(NextResponse.next(), performance.now() - t0);
-        }
-        return withServerTiming(notFoundResponse(), performance.now() - t0);
-      }
-      if (!row.item_id) {
-        return withServerTiming(notFoundResponse(), performance.now() - t0);
-      }
-      return withServerTiming(NextResponse.next(), performance.now() - t0);
-    }
-
     // One round-trip: session + job (was two serial queries after a fresh connect).
     const rows = await db<{ job_id: string }[]>`
       select j.id as job_id
@@ -187,7 +150,24 @@ export async function proxy(request: NextRequest) {
       return withServerTiming(notFoundResponse(), performance.now() - t0);
     }
 
-    // job | changes
+    if (parsed.kind === "job" || parsed.kind === "changes") {
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
+    }
+
+    if (parsed.kind === "cost-item") {
+      // Main-shaped second hop: indexed leaf lookup by job_id + code.
+      const items = await db<{ id: string }[]>`
+        select id from cost_items
+        where job_id = ${jobId}
+          and code = ${parsed.code}
+          and is_leaf = true
+        limit 1`;
+      if (items.length === 0) {
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
+    }
+
     return withServerTiming(NextResponse.next(), performance.now() - t0);
   } catch {
     return withServerTiming(NextResponse.next(), performance.now() - t0);

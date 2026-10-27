@@ -36,17 +36,20 @@ describe("proxySql connection-string security", () => {
     );
   });
 
-  it("must-fail: cost-item drills use one session⋈job⋈item query + Server-Timing", () => {
+  it("must-fail: cost-item drills stay main-shaped (session⋈job then leaf) + Server-Timing", () => {
     const src = readFileSync(join(process.cwd(), "src/proxy.ts"), "utf8");
-    expect(src).toMatch(/left join cost_items ci/);
+    // Verify #60: folded session⋈job⋈item JOIN raised document TTFB past main
+    // on the Verify box even when v5proxy dur looked fine — keep the two-step
+    // indexed lookup. Still require Server-Timing so burst scripts can see proxy.
     expect(src).toMatch(/Server-Timing/);
     expect(src).toMatch(/v5proxy;dur=/);
-    expect(src).toMatch(/Next-Router-Prefetch/);
-    expect(src).toMatch(/Next-Router-Segment-Prefetch/);
-    // Old shape: session⋈job, then a second `select id from cost_items`.
-    expect(src).not.toMatch(
+    expect(src).toMatch(
       /select id from cost_items\s+where job_id = \$\{jobId\}/,
     );
+    expect(src).not.toMatch(/left join cost_items ci/);
+    // Prefetch short-circuit stampeded app SSR (bypass proxy admission).
+    expect(src).not.toMatch(/Next-Router-Prefetch/);
+    expect(src).not.toMatch(/Next-Router-Segment-Prefetch/);
   });
 
   it("must-fail: job route through proxy with slash password — no leak, not 500", async () => {

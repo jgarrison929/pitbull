@@ -60,4 +60,14 @@ describe("db pool max (V5_DB_POOL_MAX)", () => {
     expect(src).not.toMatch(/^import .+ from ["']@\/server\/session["']/m);
     expect(src).toMatch(/timedGetCostItemPage/);
   });
+
+  it("must-fail: cost-item page must not import the assistant action table", () => {
+    // Verify #60: document TTFB — keep the route free of the actions module.
+    const src = readFileSync(
+      join(process.cwd(), "src/app/app/jobs/[number]/cost-items/[code]/page.tsx"),
+      "utf8",
+    );
+    expect(src).not.toMatch(/from ["']@\/server\/assistant\/actions["']/);
+    expect(src).toMatch(/FORECAST_METHOD_ROLES/);
+  });
 });
