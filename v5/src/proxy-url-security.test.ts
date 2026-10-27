@@ -36,6 +36,13 @@ describe("proxySql connection-string security", () => {
     );
   });
 
+  it("must-fail: Server-Timing emits only v5proxy;dur=", () => {
+    const src = readFileSync(join(process.cwd(), "src/proxy.ts"), "utf8");
+    expect(src).toMatch(/withServerTiming/);
+    expect(src).toMatch(/v5proxy;dur=/);
+    expect(src).not.toMatch(/Server-Timing.*v5(?!proxy)/);
+  });
+
   it("must-fail: job route through proxy with slash password — no leak, not 500", async () => {
     const postgresCalls: string[] = [];
     const lines: string[] = [];

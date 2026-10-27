@@ -48,6 +48,19 @@ function proxySql(rawDatabaseUrl: string) {
   return sql;
 }
 
+function withServerTiming(res: NextResponse, proxyMs: number) {
+  // Append — never overwrite other Server-Timing metrics from the app.
+  // Job/cost/plan drills: only emit v5proxy;dur=… (no other metric names).
+  const prior = res.headers.get("Server-Timing");
+  const metric = `v5proxy;dur=${Math.round(proxyMs * 100) / 100}`;
+  res.headers.set(
+    "Server-Timing",
+    prior ? `${prior}, ${metric}` : metric,
+  );
+  res.headers.set("x-v5-proxy-ms", String(Math.round(proxyMs)));
+  return res;
+}
+
 /**
  * Unknown / invalid drill-down paths must be HTTP 404. Under Cache Components the
  * app shell Suspense boundaries commit 200 before page-level notFound() can run,
@@ -76,6 +89,7 @@ export async function proxy(request: NextRequest) {
 
   const sessionId = createHash("sha256").update(token).digest("hex");
   const db = proxySql(databaseUrl);
+  const t0 = performance.now();
   try {
     if (parsed.kind === "plan") {
       // One round-trip for plan drills: session + job + plan (was session⋈job
@@ -97,11 +111,15 @@ export async function proxy(request: NextRequest) {
           select company_id from sessions
           where id = ${sessionId} and expires_at > now()
           limit 1`;
-        if (!sessions[0]) return NextResponse.next();
-        return notFoundResponse();
+        if (!sessions[0]) {
+          return withServerTiming(NextResponse.next(), performance.now() - t0);
+        }
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
       }
-      if (!row.plan_id) return notFoundResponse();
-      return NextResponse.next();
+      if (!row.plan_id) {
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
     }
 
     // One round-trip: session + job (was two serial queries after a fresh connect).
@@ -120,12 +138,14 @@ export async function proxy(request: NextRequest) {
         select company_id from sessions
         where id = ${sessionId} and expires_at > now()
         limit 1`;
-      if (!sessions[0]) return NextResponse.next();
-      return notFoundResponse();
+      if (!sessions[0]) {
+        return withServerTiming(NextResponse.next(), performance.now() - t0);
+      }
+      return withServerTiming(notFoundResponse(), performance.now() - t0);
     }
 
     if (parsed.kind === "job" || parsed.kind === "changes") {
-      return NextResponse.next();
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
     }
 
     if (parsed.kind === "cost-item") {
@@ -135,13 +155,15 @@ export async function proxy(request: NextRequest) {
           and code = ${parsed.code}
           and is_leaf = true
         limit 1`;
-      if (items.length === 0) return notFoundResponse();
-      return NextResponse.next();
+      if (items.length === 0) {
+        return withServerTiming(notFoundResponse(), performance.now() - t0);
+      }
+      return withServerTiming(NextResponse.next(), performance.now() - t0);
     }
 
-    return NextResponse.next();
+    return withServerTiming(NextResponse.next(), performance.now() - t0);
   } catch {
-    return NextResponse.next();
+    return withServerTiming(NextResponse.next(), performance.now() - t0);
   }
 }
 

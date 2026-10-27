@@ -1760,47 +1760,8 @@ export const WRITES: ActionName[] = (Object.keys(actions) as ActionName[]).filte
   (name) => actions[name].writes,
 );
 
-function jobChangesWhere(companyId: string, jobNumber: string) {
-  return and(
-    eq(actionRuns.companyId, companyId),
-    sql`${actionRuns.args}->>'job' = ${jobNumber}`,
-    sql`${actionRuns.action} in (${sql.join(
-      WRITES.map((w) => sql`${w}`),
-      sql`, `,
-    )})`,
-  );
-}
-
-/** The audit trail for one job: every change anyone in this sandbox made, newest first. */
-export async function jobChanges(
-  companyId: string,
-  jobNumber: string,
-  limit = 20,
-  offset = 0,
-) {
-  const rows = await requireDb()
-    .select({ run: actionRuns, userName: users.name, role: users.role })
-    .from(actionRuns)
-    .innerJoin(users, eq(users.id, actionRuns.userId))
-    .where(jobChangesWhere(companyId, jobNumber))
-    .orderBy(desc(actionRuns.createdAt))
-    .limit(limit)
-    .offset(offset);
-  return rows.map(({ run, userName, role }) => ({
-    id: run.id,
-    action: run.action,
-    summary: run.summary,
-    createdAt: run.createdAt.toISOString(),
-    userName,
-    role,
-  }));
-}
-
-/** How many write actions are on this job's change list. */
-export async function jobChangesCount(companyId: string, jobNumber: string) {
-  const [row] = await requireDb()
-    .select({ n: sql<number>`count(*)::int` })
-    .from(actionRuns)
-    .where(jobChangesWhere(companyId, jobNumber));
-  return Number(row?.n ?? 0);
-}
+/** Thin job-page feed — same query as before; lives outside this table for TTFB. */
+export {
+  jobChanges,
+  jobChangesCount,
+} from "@/server/job-changes";
