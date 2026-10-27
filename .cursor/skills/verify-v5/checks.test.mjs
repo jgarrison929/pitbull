@@ -1968,6 +1968,20 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     assert.ok(evaluateRcAcceptance(all, ["5.0.4-0", ...SPEC504_EXECUTED_ITEMS.filter((x) => x !== "5.0.4-g: State is real.")]).some((l) => /State is real/.test(l)), "an item dropped from the executed list is reported not executed");
     assert.ok(evaluateRcAcceptance(all, ["5.0.4-a: Seeded count."]).every((l) => !l.includes('"Seeded count."')));
   }
+  // e-6 (spec #89, main 9497f7e9): the 5.0.4-e checks section, copied verbatim from 9497f7e9 (rc/5.0.4 gets the spec
+  // text with #88). Its 6 items are all executed; dropping e-6 from the list reports it; and the list entry is backed by
+  // a real step (e6.mjs runE6 + evaluateE6 in verify.mjs), not a name.
+  {
+    const e = acceptanceItems(readFileSync(path.join(here, "fixtures/spec-9497f7e9-5.0.4-e-checks.md"), "utf8"));
+    assert.equal(e.length, 6);
+    assert.deepEqual(e[5], { section: "5.0.4-e", title: "AC stays at the cutoff after an approval." });
+    assert.deepEqual(evaluateRcAcceptance(e, ["5.0.4-0", ...SPEC504_EXECUTED_ITEMS]), [], "every 5.0.4-e item at 9497f7e9 (e-6 included) is executed");
+    assert.deepEqual(evaluateRcAcceptance(e, ["5.0.4-0", ...SPEC504_EXECUTED_ITEMS.filter((x) => !/AC stays at the cutoff/.test(x))]), ['5.0.4-e: "AC stays at the cutoff after an approval." is not executed']);
+    const v = readFileSync(path.join(here, "verify.mjs"), "utf8");
+    const block = v.slice(v.indexOf("if (phoneChecks) {"), v.indexOf("rcSignals.executed504 = true"));
+    assert.match(block, /await step\(E6_NAME, async \(\) => \{\s*const o = await runE6\(browser, base\);\s*const failures = evaluateE6\(o\);/, "e-6 runs as a real step before executed504 is set");
+    assert.match(block, /check\(E6_NAME, failures\.length === 0/, "e-6 PASS only with no failures");
+  }
   const history = {
     branch: "rc/5.0.4",
     merges,
