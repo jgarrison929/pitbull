@@ -350,7 +350,7 @@ export function acceptanceItems(markdown) {
   let kind = null;
   let listCount = 0;
   const close = () => {
-    // A "Checks for" section with no numbered titles is still one item (5.0.4-f is a paragraph).
+    // A "Checks for" section with no numbered titles is still one item.
     if (kind === "list" && section && listCount === 0) items.push({ section, title: `Checks for ${section}` });
     section = null;
     kind = null;
