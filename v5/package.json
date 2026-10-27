@@ -1,6 +1,6 @@
 {
   "name": "pcs-v5",
-  "version": "5.0.2",
+  "version": "5.0.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,11 +13,11 @@
     "e2e:visual": "playwright test tests/e2e/visual.spec.ts",
     "e2e:visual:docker": "bash scripts/visual-in-playwright-docker.sh",
     "e2e:visual:docker:update": "bash scripts/visual-in-playwright-docker.sh --update",
-    "db:ensure": "node scripts/db-ensure.mjs",
-    "db:migrate": "node scripts/db-migrate.mjs",
+    "db:ensure": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/db-ensure.mjs",
+    "db:migrate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/db-migrate.mjs",
     "db:prepare": "npm run db:ensure && npm run db:migrate",
     "drizzle:check": "node scripts/drizzle-check.mjs",
-    "perf:cost-codes": "node scripts/perf-cost-codes.mjs"
+    "perf:cost-codes": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/perf-cost-codes.mjs"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.22",

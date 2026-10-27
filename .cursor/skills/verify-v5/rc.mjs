@@ -125,9 +125,9 @@ export function parseRcMerges(logText) {
  * A merged PR is named only when its diff touches one of these paths.
  */
 export const CHECK_PATHS = [
-  { id: "phone-overflow", re: /document scrollWidth|horizontal overflow/, paths: ["v5/src/app/layout.tsx", "v5/src/components/app/shell.tsx"] },
-  { id: "clipping", re: /clipped /, paths: ["v5/src/components/app/"] },
-  { id: "tap", re: /tap target/, paths: ["v5/src/components/app/"] },
+  { id: "phone-overflow", re: /document scrollWidth|horizontal overflow|job-strip element|job-strip missing/, paths: ["v5/src/app/layout.tsx", "v5/src/app/globals.css", "v5/src/components/app/shell.tsx"] },
+  { id: "clipping", re: /clipped /, paths: ["v5/src/app/globals.css", "v5/src/components/app/"] },
+  { id: "tap", re: /tap target/, paths: ["v5/src/app/globals.css", "v5/src/components/app/"] },
   { id: "text-size", re: /secondary text|input text/, paths: ["v5/src/app/", "v5/src/components/app/"] },
   { id: "one-tap", re: /one-tap primary|next-step/, paths: ["v5/src/server/next-steps.ts", "v5/src/app/app/"] },
   { id: "migration", re: /migration [\w.]+ is not applied|journal timestamps|rc migrations/, paths: ["v5/drizzle/"] },
@@ -213,13 +213,106 @@ export function migrationsAdded(mainEntries, rcEntries) {
   return (rcEntries ?? []).filter((e) => e?.tag && !have.has(e.tag));
 }
 
+/**
+ * The 4-digit migration id drizzle would skip, from the tag (`0021_later` → `0021`).
+ * Falls back to the tag, then a padded idx, then the entry index.
+ */
+function skippedMigrationId(entry, index) {
+  const tag = String(entry?.tag ?? "");
+  const id = /^(\d{4})/.exec(tag);
+  if (id) return id[1];
+  if (tag) return tag;
+  if (Number.isInteger(entry?.idx)) return String(entry.idx).padStart(4, "0");
+  return `entry ${index}`;
+}
+
+/**
+ * Idx values drizzle may skip between two applied entries. 0022 is reserved for an in-flight
+ * migration and is the only gap that still passes. Any other missing idx fails closed.
+ */
+export const RESERVED_GAPS = ["0022"];
+
+/**
+ * Walk the journal in entry order (not sorted by `when`).
+ * idx must strictly rise, tag and idx must be unique, and the tag's 4-digit prefix must equal idx.
+ * A gap passes only when every missing idx is in RESERVED_GAPS.
+ * An entry whose `when` is not strictly greater than the previous entry would be skipped:
+ * drizzle stores `when` as `__drizzle_migrations.created_at` and no-ops a stamp that is not greater.
+ * Equal `when` values fail. Returns one line per problem, including `0021 would be skipped`.
+ */
+export function journalSkipFailures(entries) {
+  const list = entries ?? [];
+  const f = [];
+  const seenTags = new Set();
+  const seenIdx = new Set();
+  for (let i = 0; i < list.length; i++) {
+    const entry = list[i];
+    const id = skippedMigrationId(entry, i);
+    const tag = entry?.tag;
+    if (tag && seenTags.has(tag)) f.push(`${id} duplicate tag ${tag}`);
+    if (tag) seenTags.add(tag);
+    const prefix = /^(\d{4})/.exec(String(tag ?? ""))?.[1] ?? null;
+    const padded = Number.isInteger(entry?.idx) ? String(entry.idx).padStart(4, "0") : null;
+    if (padded && seenIdx.has(padded)) f.push(`${id} duplicate idx ${padded}`);
+    if (padded) seenIdx.add(padded);
+    if (prefix === null || padded === null || prefix !== padded) {
+      f.push(`${id} tag prefix ${prefix ?? "(none)"} does not match idx ${padded ?? "(none)"}`);
+    }
+    if (i === 0) continue;
+    const prevIdx = list[i - 1]?.idx;
+    const curIdx = entry?.idx;
+    const rising = Number.isInteger(prevIdx) && Number.isInteger(curIdx) && curIdx > prevIdx;
+    if (!rising) f.push(`${id} idx is not strictly rising`);
+    else {
+      for (let g = prevIdx + 1; g < curIdx; g++) {
+        const gap = String(g).padStart(4, "0");
+        if (!RESERVED_GAPS.includes(gap)) f.push(`${gap} is an unreserved gap`);
+      }
+    }
+    if (!(Number(entry?.when) > Number(list[i - 1]?.when))) f.push(`${id} would be skipped`);
+  }
+  return f;
+}
+
 /** Drizzle skips a migration whose `when` is not strictly greater than the previous entry. */
 export function journalAppliesCleanly(entries) {
-  const list = entries ?? [];
-  for (let i = 1; i < list.length; i++) {
-    if (!(Number(list[i].when) > Number(list[i - 1].when))) return false;
-  }
-  return true;
+  return journalSkipFailures(entries).length === 0;
+}
+
+/**
+ * Applied tags from a /status label (string) or a /health `migrations` value (array, label, null, "unavailable").
+ * null means the list was not there. "unavailable" is not an empty list.
+ */
+export function appliedMigrationTags(value) {
+  if (Array.isArray(value)) return value.map((x) => String(x ?? "").trim()).filter(Boolean);
+  if (value == null) return null;
+  return parseMigrationsLabel(value);
+}
+
+/**
+ * Every run, not only `--rc`: the journal at the expected commit, compared with /status and /health.
+ * (a) idx strictly rises, tags and idx are unique, each tag prefix matches idx, gaps are only RESERVED_GAPS, and `when` strictly increases.
+ * (b) Every journal tag is in both applied lists.
+ * (c) Neither applied list has a tag the journal does not.
+ * `readError` is set when `git show <sha>:v5/drizzle/meta/_journal.json` failed. That fails closed.
+ */
+export function evaluateAppliedJournal({ journal, statusLabel, healthMigrations, readError } = {}) {
+  if (readError) return [String(readError)];
+  const entries = journal ?? [];
+  const f = [...journalSkipFailures(entries)];
+  const tags = entries.map((e) => e?.tag).filter(Boolean);
+  const known = new Set(tags);
+  const side = (name, applied) => {
+    if (applied == null) f.push(`${name} applied migrations are missing`);
+    else if (applied === "unavailable") f.push(`${name} applied migrations are unavailable`);
+    else {
+      for (const tag of tags) if (!applied.includes(tag)) f.push(`${tag} is not applied on ${name}`);
+      for (const tag of applied) if (!known.has(tag)) f.push(`${name} applied tag ${tag} is not in the journal`);
+    }
+  };
+  side("/status", appliedMigrationTags(statusLabel));
+  side("/health", appliedMigrationTags(healthMigrations));
+  return f;
 }
 
 /** /status `status-migrations` label → tags, "unavailable", or null when there is no database. */
@@ -297,7 +390,7 @@ export function evaluateRcAcceptance(items, executedSections) {
  * Extra RC checks. The trust bar (banned words, crawl, reset, /status, M2/M4/M5, phone layout)
  * is the existing verify run; this does not repeat it or relax it.
  * `history` null means git failed. `crawlRan` false means the nav crawl never recorded rows.
- * 5.0.4-0 is executed only when the crawl ran (document scrollWidth). a–g stay "not executed".
+ * 5.0.4-0 is executed only when the crawl ran (document scrollWidth, and the job-strip right edge). a–g stay "not executed".
  */
 export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, migrationsLabel, healthOk }) {
   const checks = [];
@@ -337,13 +430,14 @@ export function buildRcChecks({ history, historyError, crawlRan, crawlFailures, 
     }
     for (const [section, lines] of groups) add(`acceptance ${section}`, false, lines.join("; "));
     if (crawlRan) {
-      const overflowFails = (crawlFailures ?? []).filter((f) => /document scrollWidth/.test(f));
+      // Both clauses of the 5.0.4-0 acceptance sentence. Clause 2 is the job-strip right edge.
+      const overflowFails = (crawlFailures ?? []).filter((f) => /document scrollWidth|job-strip element |job-strip missing/.test(f));
       add(
         "acceptance 5.0.4-0",
         overflowFails.length === 0,
         overflowFails.length
           ? overflowFails.slice(0, 6).join("; ")
-          : "document scrollWidth ≤ viewport at 320 and 390 on every nav-crawl load",
+          : "document scrollWidth ≤ viewport, and no job-strip element past clientWidth, at 320 and 390 on every nav-crawl load",
       );
     }
   }

@@ -13,4 +13,11 @@ describe("AppShell chrome links", () => {
     expect(src).toMatch(/aria-label="Pitbull home"/);
     expect(src).toMatch(/Switch role/);
   });
+
+  it("shell nav still lists Status and Changelog (plain NavLink destinations)", () => {
+    // Crawl aborts were /app?_rsc= from docs pages; shell must keep these
+    // routes as NavLink (already plain <a>) without reintroducing next/link.
+    expect(src).toMatch(/href: "\/status"/);
+    expect(src).toMatch(/href: "\/changelog"/);
+  });
 });
