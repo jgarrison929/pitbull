@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { confirmDialog } from "./confirm-dialog";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
+import { usdCents } from "@/lib/ev";
 
 /** Seeded Cedar working plan (tomorrow under V5_SEED_NOW=2026-10-20). */
 const CEDAR_WORKING_DATE = "2026-10-21";
@@ -30,7 +31,7 @@ async function actualCents(page: Page) {
 }
 
 async function sinceLockActualCents(page: Page) {
-  const el = page.getByTestId("job-actual-since-lock").locator("[data-cents]");
+  const el = page.getByTestId("job-ac-since-lock");
   if ((await el.count()) === 0) return 0;
   return Number(await el.getAttribute("data-cents"));
 }
@@ -97,9 +98,9 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await approveAsSuperintendent(page);
   // Superintendent keeps CPI on the job page — baseline before PM lock.
   const cpiBefore = (await page.getByTestId("job-cpi").textContent())!;
-  // Headline AC is live (lock + since). Approved cost shows in both.
+  // One cutoff: tile AC stays at last lock; approved cost shows as since-lock.
+  expect(await actualCents(page)).toBe(actualBefore);
   const sinceAfterApprove = await sinceLockActualCents(page);
-  expect(await actualCents(page)).toBe(actualBefore + sinceAfterApprove);
   expect(sinceAfterApprove).toBeGreaterThan(0);
   // 80 MH on the pour × Bridge Crew 2 seeded rate (other lines may also post).
   expect(sinceAfterApprove).toBeGreaterThanOrEqual(
@@ -374,4 +375,83 @@ test("assistant rejects negative man-hours", async ({ page }) => {
   expect(await actualCents(page)).toBe(actualBefore);
   await page.reload();
   await expect(page.getByTestId("report-mh-04-210")).toHaveValue("60");
+});
+
+test("e-6 AC stays at the cutoff after the 24-118 approval", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await signIn(page, "pm");
+  await page.context().addCookies([
+    {
+      name: "pcs_theme",
+      value: "light",
+      url: new URL(page.url()).origin,
+    },
+  ]);
+  await page.getByTestId("user-menu").click();
+  await page.getByRole("button", { name: "Reset demo" }).click();
+  await expect(page).toHaveURL(/reset=1/);
+  await page.goto("/app/jobs/24-118");
+
+  const actualBefore = await actualCents(page);
+  const cpiBefore = (await page.getByTestId("job-cpi-index").innerText())
+    .replace(/\s+/g, " ")
+    .trim();
+  const eacBefore = await page.getByTestId("job-eac").getAttribute("data-cents");
+  const sinceBefore = await sinceLockActualCents(page);
+
+  await signIn(page, "superintendent");
+  await page.goto("/app/jobs/24-118");
+  const pending = page.locator(
+    '[data-testid="cost-tree-scroll"] [data-testid^="approval-pending-"]',
+  );
+  await expect(pending.first()).toBeVisible();
+  const pendingCount = await pending.count();
+  let reportCost = 0;
+  for (let i = 0; i < pendingCount; i++) {
+    reportCost += Number(await pending.nth(i).getAttribute("data-cents"));
+  }
+  expect(reportCost).toBeGreaterThan(0);
+
+  const plan = page.locator('[data-testid="plan-card"][data-status="reported"]');
+  await expect(plan).toHaveCount(1);
+  const planId = await plan.getAttribute("data-plan-id");
+  await confirmDialog(page, plan.getByTestId("approve-report"));
+  await expect(
+    page.locator(`[data-testid="plan-card"][data-plan-id="${planId}"]`),
+  ).toHaveAttribute("data-status", "approved");
+  await page.reload();
+
+  async function expectSinceLock(role: string) {
+    const line = page.getByTestId("job-ac-since-lock");
+    await expect(line, role).toBeVisible();
+    const cents = Number(await line.getAttribute("data-cents"));
+    expect(cents, role).toBe(sinceBefore + reportCost);
+    const text = (await line.innerText()).replace(/\s+/g, " ").trim();
+    expect(text, role).toBe(
+      `+${usdCents(cents)} posted since Period 1 lock`,
+    );
+  }
+
+  await expectSinceLock("superintendent");
+
+  await signIn(page, "pm");
+  await page.goto("/app/jobs/24-118");
+  expect(await actualCents(page)).toBe(actualBefore);
+  expect(
+    (await page.getByTestId("job-cpi-index").innerText())
+      .replace(/\s+/g, " ")
+      .trim(),
+  ).toBe(cpiBefore);
+  expect(await page.getByTestId("job-eac").getAttribute("data-cents")).toBe(
+    eacBefore,
+  );
+  await expectSinceLock("pm");
+
+  await signIn(page, "executive");
+  await page.goto("/app/jobs/24-118");
+  await expectSinceLock("executive");
+
+  await signIn(page, "foreman");
+  await page.goto("/app/jobs/24-118");
+  await expect(page.getByTestId("job-ac-since-lock")).toHaveCount(0);
 });

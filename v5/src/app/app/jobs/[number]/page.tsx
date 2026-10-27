@@ -23,7 +23,7 @@ import { JourneyHook } from "@/components/app/journey-hook";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { approveEstimateCopy, lockPeriodCopy } from "@/lib/confirm-copy";
-import { mh, pct, usdShort } from "@/lib/ev";
+import { mh, pct, usdCents, usdShort } from "@/lib/ev";
 import {
   showsCostIndexes,
   showsJobPageCostIndexes,
@@ -468,6 +468,7 @@ export async function Job({
                   <StatusIndex
                     index={p.cpi}
                     varianceCents={p.costVarianceCents}
+                    indexTestId="job-cpi-index"
                   />
                 )
               }
@@ -545,21 +546,21 @@ export async function Job({
                 —
               </span>
             ) : (
-              // Live cost: locked cutoff plus what has posted since. CPI and
-              // EAC stay on the lock, so this card is the one that moves when
-              // a report is approved.
-              <Money cents={p.actualCents + p.sinceLockActualCents} />
+              <Money cents={p.actualCents} />
             )
           }
           sub={
             estimateDraft
               ? "After estimate approval"
-              : p.sinceLockActualCents !== 0 ? (
+              : user.role !== "foreman" &&
+                  p.sinceLockActualCents > 0 &&
+                  p.lockPeriodLabel ? (
                   <>
                     vs {usdShort(p.earnedCents)} earned ·{" "}
-                    <span data-testid="job-actual-since-lock">
-                      <Money cents={p.sinceLockActualCents} /> since lock
-                    </span>
+                    <span
+                      data-testid="job-ac-since-lock"
+                      data-cents={p.sinceLockActualCents}
+                    >{`+${usdCents(p.sinceLockActualCents)} posted since ${p.lockPeriodLabel} lock`}</span>
                   </>
                 ) : (
                   `vs ${usdShort(p.earnedCents)} earned`

@@ -100,11 +100,14 @@ export function StatusIndex({
   index,
   varianceCents,
   testId,
+  indexTestId,
   statusWord = false,
 }: {
   index: number | null;
   varianceCents: number;
   testId?: string;
+  /** Index digits only, when the card root already owns `testId`. */
+  indexTestId?: string;
   /** Stack "On track", "Watch", or "At risk" under the index. */
   statusWord?: boolean;
 }) {
@@ -112,7 +115,7 @@ export function StatusIndex({
   const word = s ? statusStyle[s].label : null;
   const figures = (
     <>
-      <span data-testid={testId ? `${testId}-index` : undefined}>
+      <span data-testid={indexTestId ?? (testId ? `${testId}-index` : undefined)}>
         {idx(index)}
       </span>
       <span data-text="label" className="text-label font-normal">
