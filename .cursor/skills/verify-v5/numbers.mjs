@@ -94,6 +94,10 @@ export async function runM4M5(browser, base, { shotDir, job = "25-031", co = "CO
     const coStatus = await card.getAttribute("data-status");
     const coText = (await card.innerText()).replace(/\s+/g, " ").slice(0, 200);
     await card.getByRole("button", { name: /^Approve$/ }).click();
+    // ConfirmDialog names the verb. Cancel would leave CO-001 priced.
+    const approveDialog = page.getByRole("alertdialog");
+    await approveDialog.waitFor({ timeout: T });
+    await approveDialog.getByRole("button", { name: "Approve change order" }).click();
     await byLabel(page.locator('[data-testid="co-card"][data-status="approved"]')).first().waitFor({ timeout: T });
     const after = pick(await jobState(page, base, job));
     if (shotDir) await page.screenshot({ path: path.join(shotDir, "m4m5-after-approve.png"), fullPage: true });
