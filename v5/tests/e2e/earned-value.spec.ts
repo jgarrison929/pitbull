@@ -112,7 +112,7 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await page.goto("/app/jobs/25-031");
   await expect(page.getByTestId("lock-claim")).toBeVisible();
   await expect(page.getByTestId("lock-claim")).toContainText("Period 2");
-  await page.getByTestId("lock-claim").click();
+  await confirmDialog(page, page.getByTestId("lock-claim"));
   await expect(page.getByTestId("lock-claim")).toContainText("Period 3");
 
   await expect(page.getByTestId("earn-derivation").first()).toBeVisible();

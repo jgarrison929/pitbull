@@ -116,6 +116,32 @@ export function approveReportCopy(input: {
   };
 }
 
+export function lockPeriodCopy(input: {
+  jobNumber: string;
+  periodLabel: string;
+}): ConfirmCopy {
+  return {
+    title: `Lock ${input.periodLabel} on ${input.jobNumber}?`,
+    description: `Cost entries and installed quantities in ${input.periodLabel} are frozen by this lock and can no longer be edited. This cannot be undone.`,
+    confirmLabel: "Lock period",
+    destructive: false,
+  };
+}
+
+export function approveEstimateCopy(input: {
+  jobNumber: string;
+  /** Current Estimate total on the job, integer cents. */
+  currentEstimateCents: number;
+}): ConfirmCopy {
+  const amount = usdCents(input.currentEstimateCents);
+  return {
+    title: `Approve estimate on ${input.jobNumber}?`,
+    description: `Current Estimate ${amount} becomes Current Budget, and Original Budget freezes at that amount. This cannot be undone.`,
+    confirmLabel: "Approve estimate",
+    destructive: false,
+  };
+}
+
 export function returnReportCopy(input: {
   jobNumber: string;
   crew: string | null;
