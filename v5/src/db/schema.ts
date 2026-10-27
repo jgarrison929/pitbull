@@ -461,6 +461,14 @@ export const dailyPlanLines = pgTable(
     costItemId: uuid("cost_item_id")
       .notNull()
       .references(() => costItems.id, { onDelete: "cascade" }),
+    /**
+     * Optional link to a schedule activity (5.1.0-d / migration 0021).
+     * When set, writers copy the activity name into `activity` so older reads
+     * keep working. Null = free-text plan line (pre-5.1.0 behavior).
+     */
+    activityId: uuid("activity_id").references(() => activities.id, {
+      onDelete: "set null",
+    }),
     activity: text("activity").notNull(),
     location: text("location").notNull(),
     qtyMilli: milli("qty_milli"),
@@ -479,6 +487,7 @@ export const dailyPlanLines = pgTable(
   (t) => [
     index("daily_plan_lines_plan_idx").on(t.planId),
     index("daily_plan_lines_item_idx").on(t.costItemId),
+    index("daily_plan_lines_activity_idx").on(t.activityId),
   ],
 );
 

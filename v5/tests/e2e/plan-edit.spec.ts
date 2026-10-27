@@ -187,7 +187,7 @@ test("a foreman's line edit is in the job's changes for the PM, not in the PM's 
   await signIn(page, "pm");
   const rail = page.getByTestId("assistant-rail");
   await expect(rail.getByTestId("assistant-input")).toBeVisible();
-  // PM chat has the seeded locks and CO-001, never the foreman's pour edit.
+  // PM chat has the seeded locks and CO-001, never the foreman's pier edit.
   await expect(rail.getByTestId("action-run")).toHaveCount(SEED_PM_RUNS);
   await expect(
     rail

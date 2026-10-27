@@ -1,0 +1,3 @@
+ALTER TABLE "daily_plan_lines" ADD COLUMN "activity_id" uuid;--> statement-breakpoint
+ALTER TABLE "daily_plan_lines" ADD CONSTRAINT "daily_plan_lines_activity_id_activities_id_fk" FOREIGN KEY ("activity_id") REFERENCES "public"."activities"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "daily_plan_lines_activity_idx" ON "daily_plan_lines" USING btree ("activity_id");

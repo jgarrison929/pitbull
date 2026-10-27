@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { requireDb } from "@/db";
 import {
   actionRuns,
@@ -62,6 +62,7 @@ import { approveEstimate } from "@/server/estimate";
 import { importEstimateCsv } from "@/server/estimate-import";
 import {
   addPlanLine,
+  costItemLinkedToActivity,
   createDailyPlan,
   findCrewByName,
   removePlanLine,
@@ -643,6 +644,8 @@ export const actions: Record<ActionName, ActionDef> = {
         costItemId,
         costCode,
         activity,
+        activityId,
+        activityCode,
         location,
         qty,
         workers,
@@ -682,7 +685,8 @@ export const actions: Record<ActionName, ActionDef> = {
           .limit(1);
         itemId = item?.id;
       }
-      if (!itemId)
+      // Activity picker / code may supply the cost item via the schedule link.
+      if (!itemId && !(activityId || activityCode))
         return {
           summary: "Which cost item should I add? Name a leaf code on this job.",
           href: jobHref(j),
@@ -692,6 +696,8 @@ export const actions: Record<ActionName, ActionDef> = {
       const result = await addPlanLine(user, plan.id, {
         costItemId: itemId,
         activity,
+        activityId,
+        activityCode,
         location,
         qty,
         workers,
@@ -829,14 +835,44 @@ export const actions: Record<ActionName, ActionDef> = {
         change,
         j.lines.map((l) => l.id),
       );
-      if (result.errors)
+      if (result.errors) {
+        const errors: Record<string, string> = Object.fromEntries(
+          Object.entries(result.errors).filter(
+            (e): e is [string, string] => typeof e[1] === "string",
+          ),
+        );
         return {
-          summary: `Not changed. ${Object.values(result.errors).join(" ")}`,
-          errors: result.errors,
+          summary: `Not changed. ${Object.values(errors).join(" ")}`,
+          errors,
           ...where,
         };
+      }
       const v = result.values;
       const item = j.lines.find((l) => l.id === v.costItemId)!;
+      // 5.1.0-d: linked lines keep their activity_id; cost item must stay on
+      // that activity's links. Name is copied when activity_id is set (addLine /
+      // picker), not rewritten on every MH/qty edit (seed demo text stays).
+      const activityId = line.activityId ?? null;
+      if (activityId) {
+        const linked = await costItemLinkedToActivity(
+          user.companyId,
+          activityId,
+          v.costItemId,
+        );
+        if (!linked) {
+          const msg = `Cost item ${item.code} is not linked to this line's activity.`;
+          const errors: Record<string, string> = {
+            costItemId: msg,
+            form: msg,
+          };
+          return {
+            summary: msg,
+            errors,
+            refused: true,
+            ...where,
+          };
+        }
+      }
       const changes = describeChange(line, v, item.unit, item.code);
       if (!changes.length)
         return {
@@ -845,7 +881,7 @@ export const actions: Record<ActionName, ActionDef> = {
         };
       await requireDb()
         .update(dailyPlanLines)
-        .set(v)
+        .set({ ...v, activityId })
         .where(
           and(
             eq(dailyPlanLines.id, line.id),

@@ -70,6 +70,9 @@ export type JobArgs = {
   planId?: string;
   /** dailyPlan.addLine fields (screen + assistant). */
   activity?: string;
+  /** 5.1.0-d: schedule activity id or code on the plan line. */
+  activityId?: string;
+  activityCode?: string;
   location?: string;
   qty?: string;
   workers?: string;

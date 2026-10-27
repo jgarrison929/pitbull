@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq, max, sql } from "drizzle-orm";
 import { requireDb, type Db } from "@/db";
 import {
+  activities,
+  activityCostItems,
   costItems,
   crews,
   dailyPlanLines,
@@ -15,6 +17,10 @@ import {
   type LineInput,
   type LineValues,
 } from "@/lib/plan-line";
+import type { PlanActivityOption } from "@/lib/plan-activity";
+
+export type { PlanActivityOption };
+export { activitiesCoveringDate } from "@/lib/plan-activity";
 import {
   planDateInWindow,
   planDateToday,
@@ -300,12 +306,124 @@ export async function resolvePlanForWrite(
   return rows[0];
 }
 
+/**
+ * Resolve a schedule activity on a job by id or code.
+ * When set, plan-line writers copy `name` into the free-text `activity` column.
+ */
+export async function resolveJobActivity(
+  companyId: string,
+  jobId: string,
+  ref: { activityId?: string; activityCode?: string },
+): Promise<
+  | { activity: typeof activities.$inferSelect }
+  | { refused: string }
+  | { none: true }
+> {
+  const id = ref.activityId?.trim();
+  const code = ref.activityCode?.trim();
+  if (!id && !code) return { none: true };
+  const db = requireDb();
+  const [row] = await db
+    .select()
+    .from(activities)
+    .where(
+      and(
+        eq(activities.companyId, companyId),
+        eq(activities.jobId, jobId),
+        id ? eq(activities.id, id) : eq(activities.code, code!),
+      ),
+    )
+    .limit(1);
+  if (!row)
+    return {
+      refused: id
+        ? "That activity isn't on this job."
+        : `Activity ${code} isn't on this job.`,
+    };
+  return { activity: row };
+}
+
+/** True when the leaf cost item is linked to the activity (activity_cost_items). */
+export async function costItemLinkedToActivity(
+  companyId: string,
+  activityId: string,
+  costItemId: string,
+): Promise<boolean> {
+  const db = requireDb();
+  const [row] = await db
+    .select({ activityId: activityCostItems.activityId })
+    .from(activityCostItems)
+    .where(
+      and(
+        eq(activityCostItems.companyId, companyId),
+        eq(activityCostItems.activityId, activityId),
+        eq(activityCostItems.costItemId, costItemId),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
+/** First linked leaf cost item for an activity (add-line default when picking by activity). */
+export async function firstLinkedCostItemId(
+  companyId: string,
+  activityId: string,
+): Promise<string | null> {
+  const db = requireDb();
+  const [row] = await db
+    .select({ costItemId: activityCostItems.costItemId })
+    .from(activityCostItems)
+    .innerJoin(costItems, eq(costItems.id, activityCostItems.costItemId))
+    .where(
+      and(
+        eq(activityCostItems.companyId, companyId),
+        eq(activityCostItems.activityId, activityId),
+        eq(costItems.isLeaf, true),
+      ),
+    )
+    .orderBy(asc(costItems.code))
+    .limit(1);
+  return row?.costItemId ?? null;
+}
+
+/** Job activities with first linked leaf — filter by plan date in the picker. */
+export async function listJobActivitiesForPicker(
+  companyId: string,
+  jobId: string,
+): Promise<PlanActivityOption[]> {
+  const db = requireDb();
+  const rows = await db
+    .select({
+      id: activities.id,
+      code: activities.code,
+      name: activities.name,
+      earlyStartOn: activities.earlyStartOn,
+      earlyFinishOn: activities.earlyFinishOn,
+    })
+    .from(activities)
+    .where(
+      and(eq(activities.companyId, companyId), eq(activities.jobId, jobId)),
+    )
+    .orderBy(asc(activities.earlyStartOn), asc(activities.code));
+
+  const out: PlanActivityOption[] = [];
+  for (const a of rows) {
+    out.push({
+      ...a,
+      costItemId: await firstLinkedCostItemId(companyId, a.id),
+    });
+  }
+  return out;
+}
+
 export async function addPlanLine(
   user: CurrentUser,
   planId: string,
   line: LineInput & {
     costItemId?: string;
     activity?: string;
+    activityId?: string;
+    activityCode?: string;
     location?: string;
   },
 ): Promise<PlanWriteResult<{ lineId: string }>> {
@@ -317,7 +435,25 @@ export async function addPlanLine(
       `${found.crewName}'s plan for ${found.plan.planDate} is ${found.plan.status}, so lines are locked.`,
     );
 
-  const costItemId = line.costItemId;
+  const resolved = await resolveJobActivity(user.companyId, found.plan.jobId, {
+    activityId: line.activityId,
+    activityCode: line.activityCode,
+  });
+  if ("refused" in resolved) return refused(resolved.refused);
+
+  const linkedActivity = "activity" in resolved ? resolved.activity : null;
+  const activityId = linkedActivity?.id ?? null;
+
+  let costItemId = line.costItemId;
+  if (linkedActivity && !costItemId) {
+    costItemId =
+      (await firstLinkedCostItemId(user.companyId, linkedActivity.id)) ??
+      undefined;
+    if (!costItemId)
+      return refused(
+        `Activity ${linkedActivity.code} has no linked cost item to put on the plan.`,
+      );
+  }
   if (!costItemId) return refused("Pick a cost item on this job.");
 
   // Load by id + company, then require the item's job to match the plan.
@@ -341,6 +477,18 @@ export async function addPlanLine(
       "Pick a leaf cost item on this job. Summary codes and other jobs are refused.",
     );
 
+  if (linkedActivity) {
+    const linked = await costItemLinkedToActivity(
+      user.companyId,
+      linkedActivity.id,
+      item.id,
+    );
+    if (!linked)
+      return refused(
+        `Cost item ${item.code} is not linked to activity ${linkedActivity.code}.`,
+      );
+  }
+
   const blank: LineValues = {
     costItemId: item.id,
     activity: "",
@@ -354,7 +502,10 @@ export async function addPlanLine(
     blank,
     {
       costItemId: item.id,
-      activity: line.activity?.trim() || item.description,
+      // Linked activity: always copy the schedule name (5.1.0-d).
+      activity:
+        linkedActivity?.name ??
+        (line.activity?.trim() || item.description),
       location: line.location ?? "",
       qty: line.qty,
       workers: line.workers,
@@ -382,6 +533,7 @@ export async function addPlanLine(
     companyId: user.companyId,
     planId,
     costItemId: result.values.costItemId,
+    activityId,
     activity: result.values.activity,
     location: result.values.location,
     qtyMilli: result.values.qtyMilli,

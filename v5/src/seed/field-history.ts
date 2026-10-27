@@ -303,6 +303,8 @@ export function buildFieldHistory(args: {
           companyId,
           planId,
           costItemId: item.costItemId,
+          // 5.1.0-d: history lines stay free-text (null activity_id).
+          activityId: null,
           activity: item.description,
           location: "",
           // Planned qty mirrors reported so the card shows the day's work.

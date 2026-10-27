@@ -23,7 +23,7 @@ import {
   getReportedActualsForPlans,
 } from "@/server/progress";
 import { listChangeOrders } from "@/server/change-orders";
-import { listCrews } from "@/server/plans";
+import { listCrews, listJobActivitiesForPicker } from "@/server/plans";
 import { requireUser, type CurrentUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
 import { actions, jobChanges } from "@/server/assistant/actions";
@@ -92,6 +92,7 @@ export async function Job({
     approvalPending,
     coData,
     crewRows,
+    scheduleActivities,
   ] = await Promise.all([
     // Open cards keep full lines; 30-day history is summary-only (page budget).
     // todayLA defaults inside getJobPagePlans via seedNow + job TZ (never UTC).
@@ -106,6 +107,9 @@ export async function Job({
     getApprovalPendingByCostItem(user.companyId, p.job.id),
     listChangeOrders(user.companyId, p.job.number),
     canCreatePlan ? listCrews(user.companyId) : Promise.resolve([]),
+    canAddRemove
+      ? listJobActivitiesForPicker(user.companyId, p.job.id)
+      : Promise.resolve([]),
   ]);
   // #18 page wiring: surface owns open split / New-plan today (M8).
   // History summaries stay from getJobPagePlans (budget — no full line arrays).
@@ -268,6 +272,7 @@ export async function Job({
           jobNumber={p.job.number}
           canAddRemove={canAddRemove}
           costItems={canEdit || canAddRemove ? costItems : undefined}
+          activities={canAddRemove ? scheduleActivities : undefined}
           searchUrl={
             canEdit || canAddRemove
               ? `/app/jobs/${p.job.number}/cost-items/search`

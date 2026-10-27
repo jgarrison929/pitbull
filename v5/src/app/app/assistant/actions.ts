@@ -120,6 +120,8 @@ function argsFromForm(formData: FormData): JobArgs {
     crewId: str("crewId"),
     planId: str("planId"),
     activity: str("activity"),
+    activityId: str("activityId"),
+    activityCode: str("activityCode"),
     location: str("location"),
     qty: str("qty"),
     workers: str("workers"),

@@ -220,6 +220,7 @@ export function seedStressJob(companyId: string, today: Date): StressRows {
         companyId,
         planId,
         costItemId: outsideLeafId,
+        activityId: null,
         activity: "Stress pour outside first-40 slice",
         location: "Area 5",
         qtyMilli: 10_000,

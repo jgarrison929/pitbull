@@ -4,6 +4,7 @@ import { AddPlanLineForm } from "@/components/app/add-plan-line-form";
 import { PlanLineEditor } from "@/components/app/plan-line-editor";
 import { runAction } from "@/app/app/assistant/actions";
 import type { Option } from "@/components/form/form";
+import type { PlanActivityOption } from "@/lib/plan-activity";
 import { utcDay } from "@/lib/dates";
 import { qty } from "@/lib/ev";
 import { formatMhPerUnit } from "@/lib/plan-line";
@@ -17,6 +18,7 @@ export function PlanCard({
   jobNumber,
   actions,
   costItems,
+  activities,
   searchUrl,
   report,
   canAddRemove,
@@ -27,6 +29,8 @@ export function PlanCard({
   actions?: React.ReactNode;
   /** This job's cost items. Pass them only when the viewer may edit this plan's lines. */
   costItems?: (Option & { unit: string })[];
+  /** Schedule activities for the add-line picker (5.1.0-d). */
+  activities?: PlanActivityOption[];
   /** Server typeahead for large WBS. */
   searchUrl?: string;
   /** After submit: enter actual MH/qty without changing the plan. */
@@ -150,7 +154,9 @@ export function PlanCard({
         <AddPlanLineForm
           jobNumber={jobNumber}
           planId={plan.id}
+          planDate={plan.planDate}
           costItems={costItems}
+          activities={activities}
           searchUrl={searchUrl}
         />
       ) : null}
