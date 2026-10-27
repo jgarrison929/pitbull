@@ -12,7 +12,10 @@
 // - A reported submission on the server is an `li` in `job-changes-full` on /app/jobs/25-031/changes matching
 //   /Reported day's work/ (the dailyReport.post label), counted against the count before the submit.
 // - Demo path steps are the `li` elements in `[data-testid="demo-path"]`, in order. A step is done when the li (or a
-//   descendant) has data-done="true", data-state="done" or data-status="done", or its text has the word "Done".
+//   descendant) has data-done="true", data-state="done" or data-status="done", or contains a visible element whose
+//   data-testid ends in "-done". Step text is never judged: copy like "Done when 26-010 is approved" is not a done mark.
+// - d-4 counts reported rows three times: before the offline submit, after reconnecting and waiting (before any replay
+//   of ours), and after the 2 replays. The app's own retry must add exactly 1; our replays must add 0.
 import { changesPath, contextFor, signInRole } from "./crawl.mjs";
 import { resetDemo } from "./numbers.mjs";
 import { confirmIfDialog } from "./confirm-dialog.mjs";
@@ -139,9 +142,12 @@ export async function offlineReplayFlow(browser, base) {
     await ctx.setOffline(false);
     await page.waitForTimeout(3000);
     const req = posts[mark];
+    const headers = req ? Object.fromEntries(Object.entries(await req.allHeaders()).filter(([k]) => !/^(content-length|host|connection|:)/i.test(k))) : null;
+    const data = req?.postDataBuffer();
+    // The app's own retry, counted before any replay of ours so our replay can't stand in for missing offline handling.
+    out.reportedOnline = await reportedRows(page, base);
+    out.steps.push("online count");
     if (!req) { out.error = "no report request was made while offline or after reconnecting, so there is nothing to replay"; return out; }
-    const headers = Object.fromEntries(Object.entries(await req.allHeaders()).filter(([k]) => !/^(content-length|host|connection|:)/i.test(k)));
-    const data = req.postDataBuffer();
     for (let i = 0; i < 2; i++) {
       const r = await page.request.fetch(req.url(), { method: "POST", headers, data, maxRedirects: 0 }).catch((e) => ({ status: () => String(e.message).split("\n")[0] }));
       out.replays.push(r.status());
@@ -174,8 +180,9 @@ export async function demoStateFlow(browser, base) {
     out.demoPath = await page.evaluate(() => {
       const panel = [...document.querySelectorAll('[data-testid="demo-path"]')].find((e) => e.getClientRects().length > 0);
       if (!panel) return { missing: true };
-      const done = (li) => [li, ...li.querySelectorAll("*")].some((e) => e.getAttribute("data-done") === "true" || e.getAttribute("data-state") === "done" || e.getAttribute("data-status") === "done") || /\bDone\b/.test(li.innerText ?? "");
-      return { steps: [...panel.querySelectorAll("li")].map((li) => ({ text: (li.innerText ?? "").replace(/\s+/g, " ").trim().slice(0, 80), done: done(li) })) };
+      // Raw marks only; demoStepDone judges them (never the text).
+      const marks = (li) => [li, ...li.querySelectorAll("*")].map((e) => ({ done: e.getAttribute("data-done"), state: e.getAttribute("data-state"), status: e.getAttribute("data-status"), testid: e.getAttribute("data-testid"), visible: e.getClientRects().length > 0 })).filter((m) => m.done != null || m.state != null || m.status != null || m.testid != null);
+      return { steps: [...panel.querySelectorAll("li")].map((li) => ({ text: (li.innerText ?? "").replace(/\s+/g, " ").trim().slice(0, 80), marks: marks(li) })) };
     });
   } catch (error) {
     out.error = String(error?.message ?? error).split("\n")[0];
@@ -221,12 +228,22 @@ export function evaluateIssueReportApprove(r) {
 export function evaluateOfflineReplay(r) {
   const f = [];
   if (r.error) f.push(`${r.error} (after ${r.steps.join(", ") || "nothing"})`);
+  const isCount = (x) => typeof x === "number" && Number.isFinite(x);
+  if (r.steps.includes("online count")) {
+    if (!isCount(r.reportedBefore) || !isCount(r.reportedOnline)) f.push(`reported count before ("${r.reportedBefore}") or after reconnecting ("${r.reportedOnline}") not recorded`);
+    else if (r.reportedOnline - r.reportedBefore !== 1) f.push(`${r.reportedOnline - r.reportedBefore} reported submission(s) after reconnecting, before any replay (want exactly 1 from the app's own retry)`);
+  } else if (!r.error) f.push("online count (after reconnecting, before replay) not recorded");
   if (!r.steps.includes("replay")) { if (!r.error) f.push("replay not run"); return f; }
   if (r.replays.length !== 2) f.push(`${r.replays.length} replays (want 2)`);
-  const delta = r.reportedAfter - r.reportedBefore;
-  if (delta !== 1) f.push(`${delta} reported submission(s) after the offline submit and 2 replays (want exactly 1)`);
+  if (!isCount(r.reportedAfter)) f.push(`reported count after the replays ("${r.reportedAfter}") not recorded`);
+  else if (isCount(r.reportedOnline) && r.reportedAfter !== r.reportedOnline) f.push(`${r.reportedAfter - r.reportedOnline} reported submission(s) added by the 2 replays (want 0: ${r.reportedOnline} after reconnecting, ${r.reportedAfter} after replay)`);
   if (r.after?.status !== "reported") f.push(`plan ${r.planId} is "${r.after?.status}" after the replay (want reported)`);
   return f;
+}
+
+/** A demo-path step is done only by a done mark on the li or a descendant, or a visible [data-testid$="-done"]; never by its text. */
+export function demoStepDone(step) {
+  return (step?.marks ?? []).some((m) => m.done === "true" || m.state === "done" || m.status === "done" || (m.visible === true && /-done$/.test(m.testid ?? "")));
 }
 
 /** g-3. */
@@ -240,7 +257,7 @@ export function evaluateDemoState(r) {
   for (const i of [0, 1]) {
     const s = d.steps?.[i];
     if (!s) f.push(`g-3: demo-path has no step ${i + 1}`);
-    else if (!s.done) f.push(`g-3: step ${i + 1} "${s.text}" is not done`);
+    else if (!demoStepDone(s)) f.push(`g-3: step ${i + 1} "${s.text}" is not done`);
   }
   return f;
 }
