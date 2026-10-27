@@ -30,28 +30,31 @@ export function AddPlanLineForm({
   );
   if (!open) {
     return (
-      <button
-        type="button"
-        className="rounded-md border px-3 py-1.5 text-xs font-medium"
-        data-testid="add-plan-line"
-        onClick={() => setOpen(true)}
-      >
-        Add line
-      </button>
+      <div className="border-t px-4 py-3">
+        <button
+          type="button"
+          className="tap-target w-full rounded-md border px-3 py-2 text-body font-medium sm:w-auto"
+          data-testid="add-plan-line"
+          onClick={() => setOpen(true)}
+        >
+          Add line
+        </button>
+      </div>
     );
   }
   return (
     <form
       action={action}
-      className="flex w-full flex-col gap-2 border-t px-4 py-3"
+      className="flex w-full flex-col gap-3 border-t px-4 py-3"
       data-testid="add-plan-line-form"
     >
       <input type="hidden" name="action" value="dailyPlan.addLine" />
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="planId" value={planId} />
       <input type="hidden" name="label" value="Add plan line" />
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label className="flex flex-col gap-0.5 text-xs sm:col-span-2">
+      {/* Every field required before submit stays visible — never behind details. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-label font-medium sm:col-span-2">
           Cost item
           <ChoiceField
             id={`${uid}-cost`}
@@ -65,28 +68,28 @@ export function AddPlanLineForm({
             }}
           />
         </label>
-        <label className="flex flex-col gap-0.5 text-xs">
+        <label className="flex flex-col gap-1 text-label font-medium">
           Activity
           <input
             name="activity"
             type="text"
             required
             maxLength={LIMITS.text.max}
-            className="rounded-md border bg-background px-2 py-1.5 text-sm"
+            className="tap-target rounded-md border bg-background px-3 py-2 text-body"
             data-testid="add-line-activity"
           />
         </label>
-        <label className="flex flex-col gap-0.5 text-xs">
+        <label className="flex flex-col gap-1 text-label font-medium">
           Location
           <input
             name="location"
             type="text"
             maxLength={LIMITS.text.max}
-            className="rounded-md border bg-background px-2 py-1.5 text-sm"
+            className="tap-target rounded-md border bg-background px-3 py-2 text-body"
             data-testid="add-line-location"
           />
         </label>
-        <label className="flex flex-col gap-0.5 text-xs">
+        <label className="flex flex-col gap-1 text-label font-medium">
           Quantity {unit ? `(${unit})` : ""}
           <input
             name="qty"
@@ -95,11 +98,11 @@ export function AddPlanLineForm({
             min={LIMITS.qty.min}
             max={LIMITS.qty.max}
             step={LIMITS.qty.step}
-            className="rounded-md border bg-background px-2 py-1.5 text-sm tabular-nums"
+            className="tap-target rounded-md border bg-background px-3 py-2 text-body tabular-nums"
             data-testid="add-line-qty"
           />
         </label>
-        <label className="flex flex-col gap-0.5 text-xs">
+        <label className="flex flex-col gap-1 text-label font-medium">
           Workers
           <input
             name="workers"
@@ -109,11 +112,11 @@ export function AddPlanLineForm({
             max={LIMITS.workers.max}
             step={LIMITS.workers.step}
             defaultValue={3}
-            className="rounded-md border bg-background px-2 py-1.5 text-sm tabular-nums"
+            className="tap-target rounded-md border bg-background px-3 py-2 text-body tabular-nums"
             data-testid="add-line-workers"
           />
         </label>
-        <label className="flex flex-col gap-0.5 text-xs">
+        <label className="flex flex-col gap-1 text-label font-medium">
           Hours per worker
           <input
             name="hours"
@@ -123,28 +126,32 @@ export function AddPlanLineForm({
             max={LIMITS.hours.max}
             step={LIMITS.hours.step}
             defaultValue={8}
-            className="rounded-md border bg-background px-2 py-1.5 text-sm tabular-nums"
+            className="tap-target rounded-md border bg-background px-3 py-2 text-body tabular-nums"
             data-testid="add-line-hours"
           />
         </label>
       </div>
       {state.summary ? (
-        <p className="text-xs text-muted-foreground" data-testid="add-line-summary">
+        <p
+          className="text-label text-muted-foreground"
+          data-testid="add-line-summary"
+          data-text="label"
+        >
           {state.summary}
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+          className="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-50 sm:w-auto"
           data-testid="add-line-submit"
         >
           {pending ? "Adding…" : "Add line"}
         </button>
         <button
           type="button"
-          className="rounded-md border px-3 py-1.5 text-xs font-medium"
+          className="tap-target w-full rounded-md border px-3 py-2 text-body font-medium sm:w-auto"
           onClick={() => setOpen(false)}
         >
           Cancel

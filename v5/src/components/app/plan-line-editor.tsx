@@ -7,7 +7,6 @@ import { ChoiceField } from "@/components/form/combobox";
 import {
   described,
   Field,
-  FormActions,
   FormError,
   NumberInput,
   TextArea,
@@ -53,11 +52,12 @@ export function PlanLineEditor({
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted"
+          className="tap-target inline-flex items-center gap-1 rounded-md border px-3 py-2 text-label font-medium hover:bg-muted"
           aria-label={`Edit ${line.code} ${line.activity}`}
           data-testid="edit-line"
+          data-text="label"
         >
-          <Pencil className="size-3" /> Edit
+          <Pencil className="size-3.5" /> Edit
         </button>
       </div>
     );
@@ -137,7 +137,7 @@ function LineForm({
     <form
       action={action}
       onKeyDown={(ev) => ev.key === "Escape" && !pending && onDone()}
-      className="flex flex-col gap-3 rounded-lg border bg-background p-3"
+      className="flex flex-col gap-3 rounded-lg border bg-background p-3 text-body"
       data-testid="line-form"
       aria-label={`Edit ${line.code} ${line.activity}`}
     >
@@ -179,6 +179,7 @@ function LineForm({
             required
             maxLength={LIMITS.text.max}
             disabled={pending}
+            className="tap-target text-body"
             {...described(id("activity"), e.activity)}
           />
         </Field>
@@ -188,6 +189,7 @@ function LineForm({
             defaultValue={line.location}
             maxLength={LIMITS.text.max}
             disabled={pending}
+            className="tap-target text-body"
             {...described(id("location"), e.location)}
           />
         </Field>
@@ -205,6 +207,7 @@ function LineForm({
             step="any"
             required
             disabled={pending}
+            className="tap-target text-body"
             {...described(id("qty"), e.qty)}
           />
         </Field>
@@ -222,6 +225,7 @@ function LineForm({
             inputMode="numeric"
             required
             disabled={pending}
+            className="tap-target text-body"
             {...described(id("workers"), e.workers)}
           />
         </Field>
@@ -238,6 +242,7 @@ function LineForm({
             step={LIMITS.hours.step}
             required
             disabled={pending}
+            className="tap-target text-body"
             {...described(id("hours"), e.hours)}
           />
         </Field>
@@ -257,6 +262,7 @@ function LineForm({
             step={LIMITS.manHours.step}
             required
             disabled={pending}
+            className="tap-target text-body"
             {...described(id("manHours"), e.manHours)}
           />
         </Field>
@@ -267,10 +273,27 @@ function LineForm({
           defaultValue={line.notes}
           maxLength={LIMITS.notes.max}
           disabled={pending}
+          className="min-h-11 text-body"
           {...described(id("notes"), e.notes)}
         />
       </Field>
-      <FormActions pending={pending} onCancel={onDone} />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+        <button
+          type="button"
+          onClick={onDone}
+          disabled={pending}
+          className="tap-target w-full rounded-md border px-3 py-2 text-body font-medium hover:bg-muted disabled:opacity-50 sm:w-auto"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={pending}
+          className="tap-target w-full rounded-md bg-brand px-3 py-2 text-body font-medium text-brand-foreground disabled:opacity-50 sm:w-auto"
+        >
+          {pending ? "Saving…" : "Save"}
+        </button>
+      </div>
     </form>
   );
 }

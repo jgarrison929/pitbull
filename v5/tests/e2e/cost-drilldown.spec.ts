@@ -207,9 +207,13 @@ test("after approve: totals = AC on drill page and job page; no approved-qty row
   );
   expect(since).toBeGreaterThan(0);
 
-  const laborLink = page.getByTestId("cost-entry-plan-link").first();
-  await expect(laborLink).toBeVisible();
-  await expect(laborLink).toHaveAttribute(
+  // Phone cards + desktop table both carry the testid; Part C filters by
+  // client rects — e2e must assert the visible link (5.0.4-e).
+  const laborLink = page.locator(
+    '[data-testid="cost-entry-plan-link"]:visible',
+  );
+  await expect(laborLink.first()).toBeVisible();
+  await expect(laborLink.first()).toHaveAttribute(
     "href",
     `/app/jobs/25-031/plans/${planId}`,
   );

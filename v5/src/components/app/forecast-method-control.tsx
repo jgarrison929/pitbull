@@ -33,7 +33,7 @@ export function ForecastMethodControl({
       OPTIONS.find((o) => o.value === method)?.label ?? method;
     return (
       <p
-        className="text-sm text-muted-foreground"
+        className="text-body text-muted-foreground"
         data-testid="forecast-method-readonly"
         data-method={method}
       >
@@ -56,12 +56,15 @@ export function ForecastMethodControl({
         name="label"
         value={`Set forecast method on ${code}`}
       />
-      <label className="flex flex-col gap-1 text-xs">
+      <label
+        data-text="label"
+        className="flex min-w-[12rem] flex-1 flex-col gap-1 text-label"
+      >
         Forecast method
         <select
           name="forecastMethod"
           defaultValue={method}
-          className="rounded-md border bg-background px-2 py-1.5 text-sm"
+          className="tap-target rounded-md border bg-background px-3 py-2 text-body"
           data-testid="forecast-method-select"
         >
           {OPTIONS.map((o) => (
@@ -74,14 +77,15 @@ export function ForecastMethodControl({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-60"
+        className="tap-target rounded-md border px-4 text-body font-medium hover:bg-muted disabled:opacity-60"
         data-testid="forecast-method-save"
       >
         {pending ? "Saving…" : "Apply"}
       </button>
       {state.summary ? (
         <p
-          className="w-full text-xs text-muted-foreground"
+          data-text="label"
+          className="w-full text-label text-muted-foreground"
           data-testid="forecast-method-summary"
         >
           {state.summary}

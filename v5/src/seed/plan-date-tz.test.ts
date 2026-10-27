@@ -192,17 +192,25 @@ describe("seed plan dates use job time zone", () => {
   });
 
   it("M8 page wiring: job page mounts JobNewPlanSlot (lint-style; output test is authoritative)", () => {
-    const src = readFileSync(
+    const page = readFileSync(
       join(process.cwd(), "src/app/app/jobs/[number]/page.tsx"),
       "utf8",
     );
-    expect(src).toMatch(/jobPagePlanSurface\s*\(\s*plans\s*\)/);
+    // Surface call lives in the job-page data loader (TTFB refactor) — same
+    // `jobPagePlanSurface(plans)` contract; page still mounts the slot.
+    const loader = readFileSync(
+      join(process.cwd(), "src/server/job-page.ts"),
+      "utf8",
+    );
+    expect(loader).toMatch(/jobPagePlanSurface\s*\(\s*plans\s*\)/);
     // JSX mount — unused import alone must not satisfy this.
-    expect(src).toMatch(/<JobNewPlanSlot\b/);
-    expect(src).not.toMatch(/\bNewPlanForm\b/);
-    expect(src).not.toMatch(/splitPlansByPlanToday\s*\(/);
-    expect(src).not.toMatch(/jobPagePlans\s*\(/);
+    expect(page).toMatch(/<JobNewPlanSlot\b/);
+    expect(page).not.toMatch(/\bNewPlanForm\b/);
+    expect(page).not.toMatch(/splitPlansByPlanToday\s*\(/);
+    expect(page).not.toMatch(/jobPagePlans\s*\(/);
+    expect(loader).not.toMatch(/splitPlansByPlanToday\s*\(/);
+    expect(loader).not.toMatch(/jobPagePlans\s*\(/);
     // Any UTC calendar-day spelling on the page (slice / split / toJSON).
-    expect(src).not.toMatch(/toISOString\s*\(/);
+    expect(page).not.toMatch(/toISOString\s*\(/);
   });
 });

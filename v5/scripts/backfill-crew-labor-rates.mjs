@@ -7,6 +7,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
+import { parsePostgresUrl } from "../src/db/database-url.ts";
+import { redactDbEnsureError } from "./db-ensure.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const sqlPath = path.join(here, "backfill-crew-labor-rates.sql");
@@ -96,16 +98,30 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!databaseUrl) {
     console.log("backfill-crew-labor-rates skipped, DATABASE_URL is not set");
   } else {
-    const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} });
     try {
-      const result = await backfillCrewLaborRates(sql);
-      console.log(
-        result.applied
-          ? `backfill-crew-labor-rates applied (${result.statements} statements)`
-          : `backfill-crew-labor-rates skipped (${result.reason})`,
+      const parsed = parsePostgresUrl(databaseUrl);
+      if (!parsed) {
+        throw new Error("DATABASE_URL is not a usable Postgres URL");
+      }
+      const sql = postgres(parsed.connectionString, {
+        max: 1,
+        onnotice: () => {},
+      });
+      try {
+        const result = await backfillCrewLaborRates(sql);
+        console.log(
+          result.applied
+            ? `backfill-crew-labor-rates applied (${result.statements} statements)`
+            : `backfill-crew-labor-rates skipped (${result.reason})`,
+        );
+      } finally {
+        await sql.end();
+      }
+    } catch (err) {
+      console.error(
+        `backfill-crew-labor-rates failed: ${redactDbEnsureError(err)}`,
       );
-    } finally {
-      await sql.end();
+      process.exitCode = 1;
     }
   }
 }

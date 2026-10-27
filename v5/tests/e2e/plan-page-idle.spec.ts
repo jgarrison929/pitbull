@@ -22,12 +22,20 @@ async function signInSuperintendent(page: Page) {
   await page.waitForLoadState("networkidle");
 }
 
-/** First labor-row plan link on a Part C cost-item page (ids are per sandbox). */
+/**
+ * First visible labor-row plan link on a Part C cost-item page (ids are per
+ * sandbox). Phone cards (`md:hidden`) and the desktop table both set
+ * `cost-entry-plan-link`; `.first()` alone hits the CSS-hidden phone copy at
+ * desktop widths — filter visible so 320 and 1280 both resolve.
+ */
 async function firstPlanPath(page: Page): Promise<string> {
   await page.goto(`/app/jobs/${JOB}/cost-items/03-200`, {
     waitUntil: "networkidle",
   });
-  const link = page.getByTestId("cost-entry-plan-link").first();
+  const link = page
+    .getByTestId("cost-entry-plan-link")
+    .filter({ visible: true })
+    .first();
   await expect(link).toBeVisible({ timeout: 15_000 });
   const href = await link.getAttribute("href");
   expect(href, "plan link href").toMatch(/\/plans\/[0-9a-f-]{36}$/i);

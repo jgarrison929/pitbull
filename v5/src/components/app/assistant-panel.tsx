@@ -40,15 +40,26 @@ function speechCtor(): RecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-/** The assistant transcript and composer. Every reply is an action run read back from Postgres. */
+/**
+ * The assistant transcript and composer. Every reply is an action run read
+ * back from Postgres.
+ *
+ * 5.0.4-f: type scale + 44px targets apply on the phone `page` variant. The
+ * desktop `rail` keeps 5.0.4-c sizing so job-page visual baselines (driven by
+ * rail height via fitViewportToPage) stay stable. Compact mode (foreman phone
+ * home) is unchanged from #16.
+ */
 export function AssistantPanel({
   runs,
   variant,
   demoRole,
+  compact = false,
 }: {
   runs: RunView[];
   variant: "rail" | "page";
   demoRole: DemoRole;
+  /** Foreman phone home: input + last 3 messages, rest behind Show conversation. */
+  compact?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<AskState, FormData>(
     ask,
@@ -59,11 +70,17 @@ export function AssistantPanel({
   const listRef = useRef<HTMLOListElement>(null);
   const pathname = usePathname();
   const [listening, setListening] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const canSpeak = useSyncExternalStore(
     noop,
     () => speechCtor() !== null,
     () => false,
   );
+  const phone = variant === "page";
+  const visibleRuns =
+    compact && !showAll && runs.length > 3 ? runs.slice(-3) : runs;
+  const hiddenCount =
+    compact && !showAll && runs.length > 3 ? runs.length - 3 : 0;
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     const fd = new FormData(e.currentTarget);
@@ -103,43 +120,89 @@ export function AssistantPanel({
     <div
       className={cn(
         "flex min-h-0 flex-1 flex-col",
-        variant === "page" && "rounded-xl border bg-card",
+        phone && "rounded-xl border bg-card",
       )}
       data-testid={`assistant-${variant}`}
     >
-      <div className="flex items-center gap-2 border-b px-4 py-2.5 text-sm font-semibold">
+      <div
+        className={cn(
+          "flex items-center gap-2 border-b px-4 py-2.5 font-semibold",
+          phone ? "text-body" : "text-sm",
+        )}
+      >
         <Sparkles className="size-4 text-brand" /> Assistant
-        <span className="ml-auto text-xs font-normal text-muted-foreground">
+        <span
+          data-text="label"
+          className={cn(
+            "ml-auto font-normal text-muted-foreground",
+            phone ? "text-label" : "text-xs",
+          )}
+        >
           Runs the same actions as the screens
         </span>
       </div>
+      {hiddenCount > 0 ? (
+        <div className="border-b px-4 py-2">
+          <button
+            type="button"
+            className="tap-target text-label font-medium text-foreground underline underline-offset-2"
+            data-testid="assistant-show-conversation"
+            onClick={() => setShowAll(true)}
+          >
+            Show conversation ({hiddenCount} earlier)
+          </button>
+        </div>
+      ) : null}
       <ol
         ref={listRef}
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-4 p-4",
           variant === "rail" && "overflow-y-auto",
+          compact && !showAll && "max-h-72 overflow-y-auto",
         )}
         aria-live="polite"
       >
-        {runs.length === 0 && (
-          <li className="text-sm text-muted-foreground">
+        {visibleRuns.length === 0 && (
+          <li
+            data-text={phone ? "label" : undefined}
+            className={cn(
+              "text-muted-foreground",
+              phone ? "text-label" : "text-sm",
+            )}
+          >
             Ask about cost, schedule or tomorrow&apos;s crew plan. Each answer
             shows the action it ran.
           </li>
         )}
-        {runs.map((r) => (
+        {visibleRuns.map((r) => (
           <li
             key={r.id}
             className="flex flex-col gap-1.5"
             data-testid="action-run"
             data-action={r.action}
           >
-            <div className="ml-6 self-end rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground">
+            <div
+              className={cn(
+                "ml-6 self-end rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground",
+                phone ? "text-body" : "text-sm",
+              )}
+            >
               {r.prompt}
             </div>
-            <div className="mr-6 rounded-2xl rounded-bl-sm border bg-background px-3 py-2 text-sm">
+            <div
+              className={cn(
+                "mr-6 rounded-2xl rounded-bl-sm border bg-background px-3 py-2",
+                phone ? "text-body" : "text-sm",
+              )}
+            >
               <p data-testid="action-summary">{r.summary}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              <div
+                data-text="label"
+                className={cn(
+                  "mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground",
+                  phone ? "text-label" : "text-[11px]",
+                )}
+              >
                 <span
                   className="rounded bg-muted px-1.5 py-0.5 text-foreground"
                   data-testid="action-name"
@@ -162,7 +225,10 @@ export function AssistantPanel({
                   // those prefetches held cost-item networkidle in CI @1280.
                   <a
                     href={r.args.href}
-                    className="font-medium text-foreground underline underline-offset-2"
+                    className={cn(
+                      "font-medium text-foreground underline underline-offset-2",
+                      phone && "inline-flex min-h-11 items-center",
+                    )}
                   >
                     Open
                   </a>
@@ -171,10 +237,24 @@ export function AssistantPanel({
             </div>
           </li>
         ))}
-        {pending && <li className="text-sm text-muted-foreground">Working…</li>}
+        {pending && (
+          <li
+            data-text={phone ? "label" : undefined}
+            className={cn(
+              "text-muted-foreground",
+              phone ? "text-label" : "text-sm",
+            )}
+          >
+            Working…
+          </li>
+        )}
         {state.help && (
           <li
-            className="text-sm text-muted-foreground"
+            data-text={phone ? "label" : undefined}
+            className={cn(
+              "text-muted-foreground",
+              phone ? "text-label" : "text-sm",
+            )}
             data-testid="assistant-help"
           >
             {state.help}
@@ -188,7 +268,11 @@ export function AssistantPanel({
             type="button"
             onClick={() => send(e)}
             disabled={pending}
-            className="shrink-0 rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
+            data-text="label"
+            className={cn(
+              "shrink-0 rounded-full border text-muted-foreground hover:bg-muted",
+              phone ? "px-3 py-2 text-label" : "px-2.5 py-1 text-xs",
+            )}
           >
             {e}
           </button>
@@ -200,20 +284,25 @@ export function AssistantPanel({
         onSubmit={onSubmit}
         className={cn(
           "flex items-center gap-2 border-t bg-card p-3",
-          variant === "page" &&
-            "sticky bottom-[4.25rem] rounded-b-xl md:bottom-0",
+          phone && "sticky bottom-[4.25rem] rounded-b-xl md:bottom-0",
         )}
       >
-        <label htmlFor={`prompt-${variant}`} className="sr-only">
-          Ask the assistant
-        </label>
+        {/*
+          aria-label on the input — not a visually-hidden label. Tailwind
+          `sr-only` uses overflow:hidden + 1×1 clip, which the phone clip
+          scan counts as "Ask the assistant" (skill clipping @320).
+        */}
         <input
           ref={inputRef}
           id={`prompt-${variant}`}
           name="prompt"
+          aria-label="Ask the assistant"
           autoComplete="off"
           placeholder={listening ? "Listening…" : "Ask or tell me what to do"}
-          className="min-w-0 flex-1 rounded-full border bg-background px-3.5 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(
+            "min-w-0 flex-1 rounded-full border bg-background px-3.5 py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            phone ? "text-body" : "text-sm",
+          )}
           data-testid="assistant-input"
           data-ph-unmask=""
         />
@@ -224,7 +313,8 @@ export function AssistantPanel({
             aria-label="Speak"
             aria-pressed={listening}
             className={cn(
-              "grid size-9 place-items-center rounded-full border",
+              "grid place-items-center rounded-full border",
+              phone ? "size-11" : "size-9",
               listening && "bg-negative text-chrome-emphasis",
             )}
           >
@@ -235,7 +325,10 @@ export function AssistantPanel({
           type="submit"
           aria-label="Send"
           disabled={pending}
-          className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"
+          className={cn(
+            "grid place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-50",
+            phone ? "size-11" : "size-9",
+          )}
         >
           <ArrowUp className="size-4" />
         </button>
