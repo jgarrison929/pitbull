@@ -25,13 +25,19 @@ const SERIES = [
 
 const W = 720;
 const H = 280;
-/** Left pad fits usdShort labels at TICK_FONT (readable at 320/390-wide SVG). */
-const PAD = { top: 16, right: 16, bottom: 40, left: 64 };
 /**
- * User units for axis ticks. Scaled with the viewBox: ~10px at 320 CSS px
- * width, ~11px at 390, ~20px near 1:1 desktop. Keep ≥18 (theme must-fail).
+ * Pads keep every `<text>` bbox inside the viewBox at desktop and phone.
+ * Left fits end-anchored usdShort ("$64.8M"); top/bottom fit font ascent/descent;
+ * right fits the last middle/end-anchored date label.
  */
-const TICK_FONT = 20;
+const PAD = { top: 24, right: 40, bottom: 46, left: 102 };
+/**
+ * User units for axis ticks. Scaled with the viewBox: ≥9px at 320 CSS px
+ * width, ~12px at 390, ~24px near 1:1 desktop. Keep ≥18 (theme must-fail).
+ */
+const TICK_FONT = 24;
+/** Gap from plot edge to y-label right edge (textAnchor=end). */
+const Y_LABEL_GAP = 10;
 
 function dayLabel(iso: string) {
   return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", {
@@ -122,6 +128,9 @@ export function SCurveChart({
   const max = maxCents(points);
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => Math.round(max * t));
   const xLabelEvery = Math.max(1, Math.ceil(points.length / 6));
+  const xLabelIndexes = points
+    .map((p, i) => i)
+    .filter((i) => i % xLabelEvery === 0 || i === points.length - 1);
 
   return (
     <div
@@ -178,9 +187,10 @@ export function SCurveChart({
                 strokeWidth={1}
               />
               <text
-                x={PAD.left - 8}
-                y={y + 4}
+                x={PAD.left - Y_LABEL_GAP}
+                y={y}
                 textAnchor="end"
+                dominantBaseline="central"
                 className="fill-muted-foreground"
                 style={{ fontSize: TICK_FONT }}
                 data-testid="s-curve-tick-y"
@@ -191,15 +201,19 @@ export function SCurveChart({
           );
         })}
 
-        {/* X labels */}
-        {points.map((p, i) => {
-          if (i % xLabelEvery !== 0 && i !== points.length - 1) return null;
+        {/* X labels — start/end anchors on first/last so halves do not spill off the SVG. */}
+        {xLabelIndexes.map((i, idx) => {
+          const p = points[i]!;
+          const isFirst = idx === 0;
+          const isLast = idx === xLabelIndexes.length - 1;
+          const anchor = isFirst ? "start" : isLast ? "end" : "middle";
           return (
             <text
               key={p.on}
               x={xAt(i, points.length)}
-              y={H - 12}
-              textAnchor="middle"
+              y={H - 14}
+              textAnchor={anchor}
+              dominantBaseline="auto"
               className="fill-muted-foreground"
               style={{ fontSize: TICK_FONT }}
               data-testid="s-curve-tick-x"

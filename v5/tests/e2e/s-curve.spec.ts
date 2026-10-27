@@ -54,6 +54,46 @@ async function expectEarnedPathDrawn(
   ).toBeGreaterThan(0);
 }
 
+/**
+ * Verify probe12b: every svg `<text>` bbox must sit inside the svg viewport.
+ * Sub-pixel slack only — clipped `$` / trailing date digits must go RED.
+ */
+async function expectTicksInsideSvg(
+  page: Page,
+  chartTestId: string = "s-curve",
+) {
+  const svg = page.locator(
+    `[data-testid="${chartTestId}"] [data-testid="s-curve-svg"]`,
+  );
+  await expect(svg).toBeVisible();
+  const clipped = await svg.evaluate((el) => {
+    const svgRect = el.getBoundingClientRect();
+    const slack = 0.75; // sub-pixel antialias only
+    const out: string[] = [];
+    for (const t of el.querySelectorAll("text")) {
+      const r = t.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) {
+        out.push(`${t.textContent ?? ""}: empty bbox`);
+        continue;
+      }
+      if (
+        r.left < svgRect.left - slack ||
+        r.top < svgRect.top - slack ||
+        r.right > svgRect.right + slack ||
+        r.bottom > svgRect.bottom + slack
+      ) {
+        out.push(
+          `${JSON.stringify(t.textContent)} ` +
+            `text=[${r.left.toFixed(1)},${r.top.toFixed(1)}–${r.right.toFixed(1)},${r.bottom.toFixed(1)}] ` +
+            `svg=[${svgRect.left.toFixed(1)},${svgRect.top.toFixed(1)}–${svgRect.right.toFixed(1)},${svgRect.bottom.toFixed(1)}]`,
+        );
+      }
+    }
+    return out;
+  });
+  expect(clipped, `clipped tick labels on ${chartTestId}`).toEqual([]);
+}
+
 test("check 1+2: job S-curve last PV = budget; cutoff matches tiles on 25-031", async ({
   page,
 }) => {
@@ -77,6 +117,7 @@ test("check 1+2: job S-curve last PV = budget; cutoff matches tiles on 25-031", 
   expect(at.earned).toBe(await cents(page, "job-earned"));
   expect(at.actual).toBe(await cents(page, "job-actual"));
   await expectEarnedPathDrawn(page, "s-curve");
+  await expectTicksInsideSvg(page, "s-curve");
 });
 
 test("check 2: cutoff matches tiles on 24-118 and 24-077", async ({ page }) => {
@@ -92,6 +133,7 @@ test("check 2: cutoff matches tiles on 24-118 and 24-077", async ({ page }) => {
     expect(at.earned, number).toBe(await cents(page, "job-earned"));
     expect(at.actual, number).toBe(await cents(page, "job-actual"));
     await expectEarnedPathDrawn(page, "s-curve");
+    await expectTicksInsideSvg(page, "s-curve");
   }
 });
 
@@ -104,6 +146,25 @@ test("EV path draws on job S-curve (not a lone M / 0×0 bbox)", async ({
   await expectEarnedPathDrawn(page, "s-curve");
 });
 
+test("axis tick labels stay inside the svg viewport (desktop + phone)", async ({
+  page,
+}) => {
+  await signIn(page, "pm");
+  for (const width of [1440, 1280, 768, 390, 320] as const) {
+    await page.setViewportSize({ width, height: width <= 390 ? 844 : 900 });
+    await page.goto("/app/jobs/25-031");
+    await expect(page.getByTestId("s-curve")).toBeVisible();
+    await expectTicksInsideSvg(page, "s-curve");
+  }
+  await signIn(page, "executive");
+  for (const width of [1440, 390, 320] as const) {
+    await page.setViewportSize({ width, height: width <= 390 ? 844 : 900 });
+    await page.goto("/app");
+    await expect(page.getByTestId("portfolio-s-curve")).toBeVisible();
+    await expectTicksInsideSvg(page, "portfolio-s-curve");
+  }
+});
+
 test("phone axis ticks are readable at 320 and 390", async ({ page }) => {
   await signIn(page, "pm");
   for (const width of [320, 390] as const) {
@@ -113,9 +174,10 @@ test("phone axis ticks are readable at 320 and 390", async ({ page }) => {
     await expect(tick).toBeVisible();
     const box = await tick.boundingBox();
     expect(box, `${width}px tick bbox`).toBeTruthy();
-    // Floor: ~10 CSS px at 320/390 with TICK_FONT=20 in the 720 viewBox.
-    expect(box!.height, `${width}px tick height`).toBeGreaterThanOrEqual(8);
+    // Floor: TICK_FONT=22 in the 720 viewBox → ~9px at 320, ~11px at 390.
+    expect(box!.height, `${width}px tick height`).toBeGreaterThanOrEqual(9);
     expect(box!.width, `${width}px tick width`).toBeGreaterThan(0);
+    await expectTicksInsideSvg(page, "s-curve");
   }
 });
 
@@ -132,6 +194,7 @@ test("check 5: portfolio S-curve last PV = active budgets; cutoff = tiles", asyn
   expect(at.earned).toBe(await cents(page, "kpi-earned"));
   expect(at.planned).toBe(await cents(page, "kpi-planned"));
   await expectEarnedPathDrawn(page, "portfolio-s-curve");
+  await expectTicksInsideSvg(page, "portfolio-s-curve");
 });
 
 test("check 6: draft 26-010 has no curve section and no empty chart", async ({
