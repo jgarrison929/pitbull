@@ -582,7 +582,7 @@ function actionRunSpecs(today: Date, id: (k: string) => string) {
       prompt: "Why is Cedar Creek over budget?",
       action: "job.costVariance",
       summary:
-        "Cedar Creek Bridge is $1.8M over on earned vs actual cost (CPI 0.78). Largest overruns: 07-410 Cofferdam & dewatering −$576K; 03-450 Drilled shafts, 72 in −$340K; 04-310 Reinforcing steel −$276K.",
+        "Cedar Creek Bridge is $1.8M over on earned vs actual cost. Largest overruns: 07-410 Cofferdam & dewatering −$576K; 03-450 Drilled shafts, 72 in −$340K; 04-310 Reinforcing steel −$276K.",
       args: {
         requested: "25-031",
         job: "25-031",

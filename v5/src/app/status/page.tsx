@@ -28,14 +28,14 @@ export default function StatusPage() {
       <p className="text-body text-muted-foreground">
         <a
           href="/roadmap"
-          className="tap-target inline-flex items-center underline hover:no-underline"
+          className="tap-target inline-flex min-h-11 min-w-11 items-center underline hover:no-underline"
         >
           Roadmap
         </a>
         {" · "}
         <a
           href="/changelog"
-          className="tap-target inline-flex items-center underline hover:no-underline"
+          className="tap-target inline-flex min-h-11 min-w-11 items-center underline hover:no-underline"
         >
           Changelog
         </a>
@@ -92,7 +92,12 @@ async function StatusDetails() {
         label="Version"
         value={deploy.version}
         secondary={[
-          <span key="commit" className="break-all">
+          <span
+            key="commit"
+            data-clip="secondary"
+            title={`Commit ${deploy.commit}`}
+            className="block max-w-full truncate max-[639px]:max-w-[16rem] sm:max-w-[12rem]"
+          >
             Commit {deploy.commit}
           </span>,
           `CI gate ${ciGateValue}`,

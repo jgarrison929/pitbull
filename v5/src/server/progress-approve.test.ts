@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { seedId } from "@/seed";
 import { CREW_LABOR_RATE_CENTS } from "@/lib/crew-rates";
+import { jobRollupSql } from "./cost-rollups";
 import { createSandbox } from "./sandbox";
 import {
   approveDailyReport,
@@ -301,5 +302,31 @@ describe.skipIf(!db)("daily report approve posts once on plan date", () => {
     expect(itemAfter.actualCents).toBe(
       itemBefore.actualCents + 50 * CULVERT_RATE,
     );
+  });
+
+  it("approving the seeded 24-118 report raises live AC and leaves locked AC and CPI", async () => {
+    const companyId = await createSandbox();
+    created.push(companyId);
+    const jobId = seedId(companyId, "job:sr99");
+    const planId = seedId(companyId, "plan:sr99:today");
+    const before = await jobRollupSql(companyId, jobId);
+    const result = await approveDailyReport(
+      companyId,
+      planId,
+      superActor(companyId),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.already) throw new Error("expected a first approve");
+    expect(result.postedCents).toBeGreaterThan(0);
+
+    const after = await jobRollupSql(companyId, jobId);
+    expect(after.actualCents).toBe(before.actualCents);
+    expect(after.cpi).toBe(before.cpi);
+    expect(after.sinceLockActualCents - before.sinceLockActualCents).toBe(
+      result.postedCents,
+    );
+    const live = (cents: { actualCents: number; sinceLockActualCents: number }) =>
+      cents.actualCents + cents.sinceLockActualCents;
+    expect(live(after)).toBe(live(before) + result.postedCents);
   });
 });

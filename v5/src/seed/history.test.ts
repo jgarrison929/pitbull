@@ -69,6 +69,7 @@ describe.skipIf(!db)("superintendent seed action history", () => {
 
       for (const r of runs) {
         expect(r.summary).not.toMatch(/TODO|placeholder|lorem|TBD/i);
+        expect(r.summary).not.toMatch(/\bCPI\b/);
         expect(r.summary.length).toBeGreaterThan(20);
       }
 

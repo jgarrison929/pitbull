@@ -141,15 +141,17 @@ export function AssistantPanel({
           Runs the same actions as the screens
         </span>
       </div>
-      {hiddenCount > 0 ? (
+      {compact ? (
         <div className="border-b px-4 py-2">
           <button
             type="button"
-            className="tap-target text-label font-medium text-foreground underline underline-offset-2"
+            className="tap-target inline-flex min-h-11 items-center text-label font-medium text-foreground underline underline-offset-2"
             data-testid="assistant-show-conversation"
             onClick={() => setShowAll(true)}
           >
-            Show conversation ({hiddenCount} earlier)
+            {hiddenCount > 0
+              ? `Show conversation (${hiddenCount} earlier)`
+              : "Show conversation"}
           </button>
         </div>
       ) : null}
@@ -183,7 +185,7 @@ export function AssistantPanel({
             >
             <div
               className={cn(
-                "ml-6 self-end rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-primary-foreground",
+                "ml-6 self-end rounded-2xl rounded-br-sm bg-foreground px-3 py-2 text-background",
                 phone ? "text-body" : "text-sm",
               )}
             >
@@ -195,7 +197,15 @@ export function AssistantPanel({
                 phone ? "text-body" : "text-sm",
               )}
             >
-              <p data-testid="action-summary">{r.summary}</p>
+              <p data-testid="action-summary">
+                {demoRole === "superintendent"
+                  ? r.summary
+                      .replace(/\s*\(CPI [^)]*\)/g, "")
+                      .replace(/\bCPI\b/g, "")
+                      .replace(/\s{2,}/g, " ")
+                      .trim()
+                  : r.summary}
+              </p>
               <div
                 data-text="label"
                 className={cn(
@@ -227,7 +237,7 @@ export function AssistantPanel({
                     href={r.args.href}
                     className={cn(
                       "font-medium text-foreground underline underline-offset-2",
-                      phone && "inline-flex min-h-11 items-center",
+                      phone && "inline-flex min-h-11 min-w-11 items-center justify-center",
                     )}
                   >
                     Open

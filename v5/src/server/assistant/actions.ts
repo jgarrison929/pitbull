@@ -598,14 +598,24 @@ export const actions: Record<ActionName, ActionDef> = {
       const risky = all.filter(
         (j) => !j.estimateDraft && j.status !== "on-track",
       );
-      const flags = risky.map((j) =>
-        (j.cpi ?? Infinity) < (j.spi ?? Infinity)
+      const field = user.role === "superintendent";
+      const flags = risky.map((j) => {
+        const costWorse = (j.cpi ?? Infinity) < (j.spi ?? Infinity);
+        if (field) {
+          return costWorse
+            ? `${j.job.shortName} (over cost)`
+            : `${j.job.shortName} (SPI ${idx(j.spi)})`;
+        }
+        return costWorse
           ? `${j.job.shortName} (CPI ${idx(j.cpi)})`
-          : `${j.job.shortName} (SPI ${idx(j.spi)})`,
-      );
+          : `${j.job.shortName} (SPI ${idx(j.spi)})`;
+      });
+      const indexes = field
+        ? `Portfolio SPI ${idx(totals.spi)}`
+        : `Portfolio CPI ${idx(totals.cpi)}, SPI ${idx(totals.spi)}`;
       return {
         summary:
-          `${activeJobCount} active jobs. Portfolio CPI ${idx(totals.cpi)}, SPI ${idx(totals.spi)}. ` +
+          `${activeJobCount} active jobs. ${indexes}. ` +
           (flags.length
             ? `Needs attention: ${flags.join(", ")}.`
             : "Every job is on track."),
@@ -626,9 +636,11 @@ export const actions: Record<ActionName, ActionDef> = {
         .sort((a, b) => a.varianceCents - b.varianceCents)
         .slice(0, 3);
       const net = j.costVarianceCents;
+      const indexBit =
+        user.role === "superintendent" ? "" : ` (CPI ${idx(j.cpi)})`;
       return {
         summary:
-          `${j.job.shortName} is ${usdShort(Math.abs(net))} ${net < 0 ? "over" : "under"} on earned vs actual cost (CPI ${idx(j.cpi)}). ` +
+          `${j.job.shortName} is ${usdShort(Math.abs(net))} ${net < 0 ? "over" : "under"} on earned vs actual cost${indexBit}. ` +
           (worst.length
             ? `Largest overruns: ${worst.map((l) => `${l.code} ${l.description} ${usdShort(l.varianceCents)}`).join("; ")}.`
             : "No cost code is over."),

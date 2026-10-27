@@ -122,7 +122,13 @@ export async function getNextSteps(
       }
     } else {
       for (const p of planRows) {
-        if (p.status !== "issued" || p.foremanId !== user.userId) continue;
+        if (
+          p.status !== "issued" ||
+          p.foremanId !== user.userId ||
+          p.planDate > todayIso
+        ) {
+          continue;
+        }
         items.push({
           id: `report-${p.id}`,
           label: `Report today's quantities for ${p.crew} (${p.jobNumber})`,

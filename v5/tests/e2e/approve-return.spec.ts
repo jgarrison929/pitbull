@@ -21,7 +21,7 @@ function workingPlan(page: Page) {
   );
 }
 
-/** Cutoff AC (last lock) — does not move until the next PM lock. */
+/** Live AC on the job card: locked cutoff plus cost posted since that lock. */
 async function actualCents(page: Page) {
   return Number(
     await page
@@ -122,9 +122,9 @@ test.describe("superintendent approve / return", () => {
     await confirmDialog(page, workingPlan(page).getByTestId("approve-report"));
     await expect(workingPlan(page)).toHaveAttribute("data-status", "approved");
 
-    expect(await actualCents(page)).toBe(actualBefore);
     const sinceAfterApprove = await sinceLockActualCents(page);
     expect(sinceAfterApprove).toBeGreaterThanOrEqual(22 * BRIDGE_RATE_CENTS);
+    expect(await actualCents(page)).toBe(actualBefore + sinceAfterApprove);
 
     await expect(
       page.locator('[data-testid="approval-pending-04-210"]:visible'),
@@ -144,7 +144,7 @@ test.describe("superintendent approve / return", () => {
       /already approved/i,
     );
     await page.goto("/app/jobs/25-031");
-    expect(await actualCents(page)).toBe(actualBefore);
+    expect(await actualCents(page)).toBe(actualBefore + sinceAfterApprove);
     expect(await sinceLockActualCents(page)).toBe(sinceAfterApprove);
   });
 

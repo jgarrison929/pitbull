@@ -76,6 +76,8 @@
     /* Pitbull tokens: one brand accent (safety amber), neutral slate, three status tones. */
     --brand: oklch(0.82 0.16 80);
     --brand-foreground: oklch(0.2 0.02 260);
+    /* Active nav text. The fill token is too light on white for WCAG AA. */
+    --brand-text: oklch(0.42 0.11 70);
     --positive: oklch(0.52 0.13 155);
     --positive-soft: oklch(0.96 0.04 155);
     /* Light caution and muted-foreground clear WCAG 2.2 AA (4.5:1) on white,
@@ -127,6 +129,7 @@
 .dark {
     --brand: oklch(0.82 0.16 80);
     --brand-foreground: oklch(0.2 0.02 260);
+    --brand-text: oklch(0.86 0.14 85);
     --positive: oklch(0.72 0.14 155);
     --positive-soft: oklch(0.3 0.05 155);
     --caution: oklch(0.8 0.14 80);
@@ -169,6 +172,11 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Active phone tab. Keeps the text-brand class the contrast check selects. */
+a.text-brand[aria-current="page"] {
+    color: var(--brand-text);
 }
 
 @layer base {

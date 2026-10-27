@@ -70,6 +70,7 @@ export function ExactMoney({
     <button
       type="button"
       data-cents={cents}
+      title={`${sign}${exactText}`}
       data-testid="money-exact-toggle"
       aria-expanded={showExact}
       aria-label={

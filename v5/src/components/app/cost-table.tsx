@@ -720,7 +720,10 @@ function VirtualTreeMobile({
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     <CostCodeLabel n={n} jobNumber={jobNumber} />
-                    <span className="min-w-0 text-body font-medium whitespace-normal">
+                    <span
+                      className="min-w-0 text-body font-medium whitespace-normal"
+                      data-figure="detail"
+                    >
                       {n.description}
                     </span>
                   </div>
@@ -773,21 +776,22 @@ function VirtualTreeMobile({
                         <div
                           className="mt-1 text-body text-caution"
                           data-testid={`approval-pending-${l.code}`}
-                          data-cents={l.approvalPendingCents ?? 0}
                         >
-                          +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
-                          {(l.approvalPendingCents ?? 0) > 0 ? (
-                            <>
-                              {" · "}
-                              <Money
-                                cents={l.approvalPendingCents!}
-                                exact
-                              />{" "}
-                              pending
-                            </>
-                          ) : (
-                            " pending approval"
-                          )}
+                          <span data-figure="detail">
+                            +{qty(l.approvalPendingQtyMilli ?? 0)} {l.unit}
+                            {(l.approvalPendingCents ?? 0) > 0 ? (
+                              <>
+                                {" · "}
+                                <Money
+                                  cents={l.approvalPendingCents!}
+                                  exact
+                                />{" "}
+                                pending
+                              </>
+                            ) : (
+                              " pending approval"
+                            )}
+                          </span>
                         </div>
                       ) : null}
                       {!estimateDraft && pendingInstalledQtyMilli(l) > 0 ? (

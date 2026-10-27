@@ -21,11 +21,17 @@ export default function ChangelogPage() {
           />
         </div>
         <p className="mt-2 text-body">
-          <a href="/roadmap" className="underline hover:no-underline">
+          <a
+            href="/roadmap"
+            className="tap-target inline-flex min-h-11 items-center underline hover:no-underline"
+          >
             Roadmap
           </a>
           {" · "}
-          <a href="/status" className="underline hover:no-underline">
+          <a
+            href="/status"
+            className="tap-target inline-flex min-h-11 items-center underline hover:no-underline"
+          >
             Status
           </a>
         </p>

@@ -97,9 +97,9 @@ test("foreman reports quantity; after super approve + PM locks claim, job earned
   await approveAsSuperintendent(page);
   // Superintendent keeps CPI on the job page — baseline before PM lock.
   const cpiBefore = (await page.getByTestId("job-cpi").textContent())!;
-  // One cutoff: tile AC stays at last lock; approved cost shows as since-lock.
-  expect(await actualCents(page)).toBe(actualBefore);
+  // Headline AC is live (lock + since). Approved cost shows in both.
   const sinceAfterApprove = await sinceLockActualCents(page);
+  expect(await actualCents(page)).toBe(actualBefore + sinceAfterApprove);
   expect(sinceAfterApprove).toBeGreaterThan(0);
   // 80 MH on the pour × Bridge Crew 2 seeded rate (other lines may also post).
   expect(sinceAfterApprove).toBeGreaterThanOrEqual(

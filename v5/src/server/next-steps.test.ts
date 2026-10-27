@@ -77,7 +77,10 @@ describe("5.0.4-a seeded next-step counts", () => {
 
   it("foreman: issued I-5 today + draft Cedar tomorrow (both foreman-owned)", () => {
     const issued = rows.dailyPlans.filter(
-      (p) => p.status === "issued" && p.foremanId === foremanId,
+      (p) =>
+        p.status === "issued" &&
+        p.foremanId === foremanId &&
+        p.planDate <= todayIso,
     );
     const drafts = rows.dailyPlans.filter(
       (p) =>
