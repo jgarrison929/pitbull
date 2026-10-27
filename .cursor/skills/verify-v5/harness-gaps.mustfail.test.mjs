@@ -44,7 +44,7 @@ const routes = {
     <a href="/app">Back to today</a></main>`),
   "/act": () => page(`<main><div data-testid="state" data-status="draft">Draft</div>
     <button onclick="document.getElementById('dlg').style.display='block'">Approve</button>
-    <div id="dlg" role="alertdialog" aria-label="Approve?" style="display:none"><button data-testid="confirm-dialog-confirm" onclick="document.getElementById('dlg').style.display='none';fetch('/post',{method:'POST',headers:{'next-action':'x'}}).then((r)=>{if(r.ok)document.querySelector('[data-testid=state]').setAttribute('data-status','approved')}).catch(()=>{})">Approve</button><button data-testid="confirm-dialog-cancel">Cancel</button></div></main>`),
+    <div id="dlg" role="alertdialog" aria-label="Approve?" style="display:none"><button data-testid="confirm-dialog-confirm" onclick="document.getElementById('dlg').style.display='none';fetch('/post',{method:'POST',headers:{'next-action':'x'}}).then((r)=>{const mark=()=>{if(r.ok)document.querySelector('[data-testid=state]').setAttribute('data-status','approved')};${state.mode.post === "stream-abort" ? "return r.text().then(mark)" : "mark()"}}).catch(()=>{})">Approve</button><button data-testid="confirm-dialog-cancel">Cancel</button></div></main>`),
   "/other": () => page("<main>other</main>"),
 };
 const server = http.createServer((req, res) => {
@@ -60,6 +60,14 @@ const server = http.createServer((req, res) => {
       res.on("close", () => { if (!rec.finished) rec.aborted = true; });
       setTimeout(() => {
         if (mode === "abort") { req.socket.destroy(); return; }
+        // A streamed Server Action answer: status + first RSC chunk now, body left open (as the 26-010 approve on
+        // PR #87 CI). "stream-abort" cuts the socket mid-body instead.
+        if (mode === "stream" || mode === "stream-abort") {
+          res.writeHead(200, { "content-type": "text/x-component" });
+          res.write('0:{"a":"$@1"}\n');
+          if (mode === "stream-abort") setTimeout(() => req.socket.destroy(), 500);
+          return;
+        }
         res.writeHead(mode === "500" ? 500 : 200, { "content-type": "text/plain" });
         res.end("done", () => { rec.finished = true; });
       }, 1500);
@@ -260,7 +268,11 @@ await run("S10", "fix", "confirm, the save takes 1.5 s, the caller navigates rig
   const r = await confirmThenLeave("ok");
   return { green: r.finished && !r.aborted && !r.threw && r.shown, detail: `save ${r.finished ? "finished" : r.aborted ? "ABORTED by the navigation" : "unfinished"}; posted state ${r.shown ? "shown" : "not shown"}${r.threw ? `; threw ${r.threw}` : ""}` };
 });
-for (const [mode, title] of [["500", "the save answers HTTP 500"], ["abort", "the save's socket is destroyed (aborted)"]]) {
+await run("S10", "fix", "streamed Server Action answer: status 200 at once, RSC body left open (PR #87 CI M2 hang)", async () => {
+  const r = await confirmThenLeave("stream");
+  return { green: !r.threw && r.shown, detail: r.threw ? `confirmIfDialog threw: ${r.threw.slice(0, 110)}` : `returned on the 200; posted state ${r.shown ? "shown" : "not shown"}` };
+});
+for (const [mode, title] of [["500", "the save answers HTTP 500"], ["abort", "the save's socket is destroyed (aborted)"], ["stream-abort", "a streamed save is cut mid-body before the posted state shows"]]) {
   await run("S10", "must-fail", title, async () => {
     const r = await confirmThenLeave(mode);
     const fail = !!r.threw || !r.shown;
@@ -287,6 +299,7 @@ await run("S12", "fix", "a 127.0.0.1 run is labelled local loopback with the URL
 });
 
 await browser.close();
+server.closeAllConnections();
 server.close();
 rmSync(tmp, { recursive: true, force: true });
 const by = (k) => results.filter((r) => r.kind === k);

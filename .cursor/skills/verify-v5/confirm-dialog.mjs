@@ -87,55 +87,66 @@ export async function confirmIfDialog(page, { settled = null, timeout = 30000, g
     } catch (e) {
       throw new Error(`ConfirmDialog appeared and confirm was clicked, but the dialog did not hide: ${firstLine(e)}`);
     }
-    const saved = await writes.settle(timeout);
-    // S10: then the posted state. A save that "finished" but never shows its result is not a save.
+    // S10: wait for each confirmed write's response (status line and headers). A Next.js Server Action answers only
+    // after the action has run, so a 2xx status means the write is committed; an abort before it, or a 4xx/5xx, throws.
+    // The response body is NOT awaited: the action's RSC payload is streamed and may stay open well after the UI has
+    // updated (PR #87 CI: the 26-010 approve body was still open after 30 s, so response.finished() hung).
+    writes.stop();
+    const saved = await writes.responses(timeout);
+    // S10: then the posted state. A save that answered but never shows its result is not a save, and a write that
+    // fails while we wait (a stream aborted mid-way) throws.
     if (settled) {
       const t0 = now();
-      while (!(await shown(settled))) {
-        if (now() - t0 >= timeout) throw new Error(`ConfirmDialog confirmed${saved.length ? ` and the save finished (${saved.map((x) => `HTTP ${x.status}`).join(", ")})` : ""}, but the posted state did not appear within ${timeout} ms`);
+      for (;;) {
+        writes.throwIfFailed();
+        if (await shown(settled)) break;
+        if (now() - t0 >= timeout) throw new Error(`ConfirmDialog confirmed${saved.length ? ` and the save answered (${saved.map((x) => `HTTP ${x.status}`).join(", ")})` : ""}, but the posted state did not appear within ${timeout} ms`);
         await sleep(pollMs);
       }
+      writes.throwIfFailed();
     }
-    return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE, writes: saved };
+    return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE, writes: writes.summary() };
   } finally {
-    writes.stop();
+    writes.close();
   }
 }
 
 /**
- * S10: the app's writes (POST with a Next-Action header) from now on. settle(timeout) stops watching and waits for each
- * to finish; a write that failed (aborted, status -1), answered 4xx/5xx, or did not finish in time throws. A page
- * without request events (the unit-test fakes) has nothing to watch.
+ * S10: the app's writes (POST with a Next-Action header) seen from now until stop(). responses(timeout) waits for each
+ * one's response status: no response (aborted, status -1, net::ERR_*), a 4xx/5xx, or no answer within the timeout
+ * throws. throwIfFailed() throws once a watched write has fired requestfailed (e.g. its streamed body was cut). The
+ * body is never awaited (see confirmIfDialog). close() detaches everything. A page without request events (the
+ * unit-test fakes) has nothing to watch.
  */
 export function watchWrites(page) {
   const pending = [];
-  const on = (r) => { if (r.method() === "POST" && r.headers()["next-action"]) pending.push(r); };
   const live = typeof page?.on === "function";
-  if (live) page.on("request", on);
-  let stopped = !live;
-  const stop = () => { if (!stopped) { page.off("request", on); stopped = true; } };
+  const find = (r) => pending.find((p) => p.request === r);
+  const onRequest = (r) => {
+    if (r.method() === "POST" && r.headers()["next-action"]) pending.push({ request: r, url: r.url().replace(/^https?:\/\/[^/]+/, ""), status: null, failed: null, finished: false });
+  };
+  const onFailed = (r) => { const p = find(r); if (p) p.failed = r.failure()?.errorText ?? "request failed"; };
+  const onFinished = (r) => { const p = find(r); if (p) p.finished = true; };
+  if (live) { page.on("request", onRequest); page.on("requestfailed", onFailed); page.on("requestfinished", onFinished); }
+  let collecting = live;
+  let attached = live;
+  const stop = () => { if (collecting) { page.off("request", onRequest); collecting = false; } };
   return {
     stop,
-    async settle(timeout = 30000) {
-      stop();
-      const out = [];
-      for (const r of pending) {
-        const url = r.url().replace(/^https?:\/\/[^/]+/, "");
+    close() { stop(); if (attached) { page.off("requestfailed", onFailed); page.off("requestfinished", onFinished); attached = false; } },
+    throwIfFailed() { for (const p of pending) if (p.failed) throw new Error(`the save ${p.url} failed: ${p.failed}`); },
+    summary: () => pending.map((p) => ({ url: p.url, status: p.status, body: p.finished ? "complete" : p.failed ? "failed" : "streaming" })),
+    async responses(timeout = 30000) {
+      for (const p of pending) {
         let timer;
         const late = new Promise((resolve) => { timer = setTimeout(() => resolve("timeout"), timeout); });
-        const done = (async () => {
-          const res = await r.response();
-          if (!res) return { failure: r.failure()?.errorText ?? "no response" };
-          const err = await res.finished();
-          return { status: res.status(), failure: err ? String(err?.message ?? err) : r.failure()?.errorText ?? null };
-        })();
-        const got = await Promise.race([done, late]).finally(() => clearTimeout(timer));
-        if (got === "timeout") throw new Error(`the save ${url} did not finish within ${timeout} ms`);
-        if (got.failure) throw new Error(`the save ${url} failed: ${got.failure}`);
-        if (got.status >= 400) throw new Error(`the save ${url} answered HTTP ${got.status}`);
-        out.push({ url, status: got.status });
+        const got = await Promise.race([p.request.response().catch(() => null), late]).finally(() => clearTimeout(timer));
+        if (got === "timeout") throw new Error(`the save ${p.url} got no response within ${timeout} ms`);
+        if (!got) throw new Error(`the save ${p.url} failed: ${p.failed ?? p.request.failure()?.errorText ?? "no response"}`);
+        p.status = got.status();
+        if (p.status >= 400) throw new Error(`the save ${p.url} answered HTTP ${p.status}`);
       }
-      return out;
+      return pending.map((p) => ({ url: p.url, status: p.status }));
     },
   };
 }
