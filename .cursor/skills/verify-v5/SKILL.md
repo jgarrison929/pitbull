@@ -186,12 +186,16 @@ It FAILS when:
 - the two images in a pair differ in size;
 - the PR touches UI files (`v5/src/app/**`, any `components/**`, `*.css`, the visual baselines under `v5/tests/e2e/visual.spec.ts-snapshots/`) and claims `No visual change` while the visual run at `maxDiffPixels: 0` shows a diff. The verdict is **contradicted**, and the failure line names the files and the snapshots that differ. The same claim with no visual run to check it against also FAILS, because nothing confirms it.
 
+**Cursor footer.** Cursor cloud-agent bodies end with `<!-- CURSOR_AGENT_PR_BODY_END -->` and a footer `<div>` holding two cursor.com badges, "Open in Web" and "Open in Cursor" (`https://cursor.com/assets/images/open-in-(web|cursor)-(dark|light).png` inside an `<a href="https://cursor.com/…"><picture>`). The section ends at the marker, and only those exact badges are removed. Any other image in the section, including a lookalike badge from another host or a bare markdown image of the same badge, is still judged.
+
 Run it:
 
 ```bash
 node .cursor/skills/verify-v5/before-after.mjs --pr <n> --visual-report <playwright-json-report-of-visual.spec.ts>
 # or, when the visual run is summarized as a pixel count:
 node .cursor/skills/verify-v5/before-after.mjs --pr <n> --visual-diff-pixels <n>
+# offline, from a saved `gh pr view <n> --json body,files`:
+node .cursor/skills/verify-v5/before-after.mjs --pr-json pr.json --visual-diff-pixels <n>
 ```
 
 Run the visual suite with the CI pin (see **Visual baselines**), using `--reporter=json`, to get the report. Exit 0 means PASS, and exit 1 prints one `FAIL …` line per finding plus `Before/After gate: FAIL|CONTRADICTED`. The gate does not change any other pass rule.

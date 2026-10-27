@@ -15,7 +15,7 @@
  * the visual run at maxDiffPixels 0 shows a diff (verdict: contradicted). A UI-touching `No visual change` claim with
  * no visual run to check it against also fails: the claim can't be confirmed.
  *
- * Usage: node before-after.mjs --pr <number> [--repo owner/name] [--visual-report <playwright json>]
+ * Usage: node before-after.mjs --pr <number> | --pr-json <gh pr view json> [--repo owner/name] [--visual-report <playwright json>]
  *                              [--visual-diff-pixels <n>]
  */
 import { execFileSync } from "node:child_process";
@@ -43,14 +43,31 @@ export function isUiPath(p) {
 }
 export const touchesUi = (files) => (files ?? []).some((f) => isUiPath(typeof f === "string" ? f : f.path));
 
-/** The text under `## Before / After`, up to the next h1/h2. null when the heading is absent. */
+/**
+ * Cursor cloud-agent PR bodies end with `<!-- CURSOR_AGENT_PR_BODY_END -->` and a footer `<div>` of two cursor.com
+ * badges ("Open in Web", "Open in Cursor"). The section ends at that marker, and only those exact badges are removed
+ * (an `<a href="https://cursor.com/…">` wrapping a `<picture>` whose `<img alt="Open in Web|Open in Cursor">` comes from
+ * `https://cursor.com/assets/images/open-in-(web|cursor)-(dark|light).png`). No other image is exempt.
+ */
+export const CURSOR_BODY_END = "<!-- CURSOR_AGENT_PR_BODY_END -->";
+const BADGE_SRC = String.raw`https://cursor\.com/assets/images/open-in-(?:web|cursor)-(?:dark|light)\.png`;
+export const CURSOR_FOOTER_BADGE = new RegExp(
+  String.raw`<a href="https://cursor\.com/[^"]*">\s*<picture>(?:\s*<source [^>]*srcset="${BADGE_SRC}"[^>]*>)*\s*<img alt="Open in (?:Web|Cursor)"[^>]*src="${BADGE_SRC}"[^>]*>\s*</picture>\s*</a>`,
+  "g",
+);
+const EMPTY_DIV = /<div>(?:\s|&nbsp;)*<\/div>/g;
+
+/** The text under `## Before / After`, up to the next h1/h2 or the Cursor body-end marker. null when the heading is absent. */
 export function extractSection(body) {
   const text = String(body ?? "").replace(/\r\n/g, "\n");
   const m = SECTION_HEADING.exec(text);
   if (!m) return null;
-  const rest = text.slice(m.index + m[0].length);
+  let rest = text.slice(m.index + m[0].length);
+  const end = rest.indexOf(CURSOR_BODY_END);
+  if (end !== -1) rest = rest.slice(0, end);
   const next = rest.search(/^#{1,2}\s/m);
-  return (next === -1 ? rest : rest.slice(0, next)).trim();
+  if (next !== -1) rest = rest.slice(0, next);
+  return rest.replace(CURSOR_FOOTER_BADGE, "").replace(EMPTY_DIV, "").trim();
 }
 
 /** Normalized label key: page, viewport and theme, so `390x844` and `390×844` match. */
@@ -241,8 +258,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     return i === -1 ? undefined : process.argv[i + 1];
   };
   const pr = arg("--pr");
-  if (!pr) {
-    console.error("usage: node before-after.mjs --pr <number> [--repo owner/name] [--visual-report <json>] [--visual-diff-pixels <n>]");
+  const jsonFile = arg("--pr-json"); // a saved `gh pr view <n> --json body,files`, for offline runs and the CLI test
+  if (!pr && !jsonFile) {
+    console.error("usage: node before-after.mjs --pr <number> | --pr-json <file> [--repo owner/name] [--visual-report <json>] [--visual-diff-pixels <n>]");
     process.exit(2);
   }
   let visual = null;
@@ -251,7 +269,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     const n = Number(arg("--visual-diff-pixels"));
     visual = { ran: true, diffPixels: n, diff: n > 0 };
   }
-  const r = await runBeforeAfterGate({ pr, repo: arg("--repo") ?? "jgarrison929/pitbull", visual });
+  const gh = jsonFile ? () => readFileSync(jsonFile, "utf8") : execFileSync;
+  const r = await runBeforeAfterGate({ pr: pr ?? "file", repo: arg("--repo") ?? "jgarrison929/pitbull", visual, gh });
   for (const p of r.pairs) {
     const b = r.images[p.before.url];
     const a = r.images[p.after.url];
@@ -259,5 +278,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   }
   for (const x of r.failures) console.log(`FAIL ${x}`);
   console.log(`Before/After gate: ${r.verdict.toUpperCase()} (${r.kind})`);
-  process.exit(r.pass ? 0 : 1);
+  process.exitCode = r.pass ? 0 : 1; // FAIL and CONTRADICTED exit 1
+  process.exit(process.exitCode);
 }

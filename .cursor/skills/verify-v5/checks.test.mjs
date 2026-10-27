@@ -2295,6 +2295,50 @@ console.log(`ok: checks.test.mjs (${results.length} cases)`);
     assert.deepEqual(r3.failures, []);
     console.log("ok: before/after No visual change with a reason and a clean 0 px run passes");
   }
+  // Cursor cloud-agent footer (#70, #82, #83 real bodies): the section ends at the body-end marker and only the two
+  // cursor.com "Open in" badges are dropped.
+  const FOOTER = '<!-- CURSOR_AGENT_PR_BODY_END -->\n\n<div><a href="https://cursor.com/agents/bc-1?cursor_ref=pr_footer&cursor_cta=open_in_web"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cursor.com/assets/images/open-in-web-dark.png"><source media="(prefers-color-scheme: light)" srcset="https://cursor.com/assets/images/open-in-web-light.png"><img alt="Open in Web" width="114" height="28" src="https://cursor.com/assets/images/open-in-web-dark.png"></picture></a>&nbsp;<a href="https://cursor.com/background-agent?bcId=bc-1&cursor_ref=pr_footer&cursor_cta=open_in_cursor"><picture><source media="(prefers-color-scheme: dark)" srcset="https://cursor.com/assets/images/open-in-cursor-dark.png"><source media="(prefers-color-scheme: light)" srcset="https://cursor.com/assets/images/open-in-cursor-light.png"><img alt="Open in Cursor" width="131" height="28" src="https://cursor.com/assets/images/open-in-cursor-dark.png"></picture></a>&nbsp;</div>\n\n';
+  const body70 = `## Summary\nJob page TTFB.\n\n## Before / After\n\nNo visual change — server query/pool and job-page load timing only. No new screens.\n\n### Burst metrics\n\n| | TTFB p50 / p95 / max |\n|--|--:|\n| Before (main \`1381687\`) | 33 / **55** / 75 |\n| After (this head) | 32 / **63** / 91 |\n${FOOTER}`;
+  {
+    const r = await gate(body70, ["v5/src/app/app/jobs/[number]/page.tsx", "v5/src/components/app/cost-table.tsx"], { ran: true, diffPixels: 0, diff: false });
+    assert.deepEqual(r.failures, [], `a #70-shaped body with the Cursor footer and a clean 0 px run must pass; got ${JSON.stringify(r.failures)}`);
+    const r2 = await gate(body70, ["v5/src/server/jobs.ts"]);
+    assert.deepEqual(r2.failures, [], "the same body on a non-UI change passes");
+    const r3 = await gate(body70, ["v5/src/app/app/jobs/[number]/page.tsx"], null);
+    assert.ok(r3.failures.some((x) => /no visual run/.test(x)), "the footer fix does not loosen the strict No visual change rule");
+    console.log("ok: before/after #70-shaped body with the Cursor footer passes (clean 0 px run / non-UI); strict rule still applies");
+    const shot = `${head}Non-UI change, logs below.\n\`\`\`\nok\n\`\`\`\n![screenshot](https://img.test/app-after.png)\n${FOOTER}`;
+    const r4 = await gate(shot, [".cursor/skills/verify-v5/checks.mjs"]);
+    assert.ok(r4.failures.some((x) => /image "screenshot" is not labeled/.test(x)), `an unlabeled screenshot beside the footer must FAIL; got ${JSON.stringify(r4.failures)}`);
+    assert.ok(!r4.failures.some((x) => /Open in/.test(x)), "the Cursor badges are not reported");
+    console.log("ok: before/after must-fail unlabeled screenshot next to the Cursor footer");
+    const lookalike = `${head}No visual change: docs only.\n<div><a href="https://shields.io/x"><img alt="Open in Web" src="https://img.shields.io/badge/open-web.png"></a></div>${tail}`;
+    const r5 = await gate(lookalike, ["docs/x.md"]);
+    assert.ok(r5.failures.some((x) => /image "Open in Web" is not labeled/.test(x)), `a lookalike badge from another host is not exempt; got ${JSON.stringify(r5.failures)}`);
+    const inside = `${head}![Open in Cursor](https://cursor.com/assets/images/open-in-cursor-dark.png)\n${tail}`;
+    assert.ok((await gate(inside, ["docs/x.md"])).failures.some((x) => /"Open in Cursor" is not labeled/.test(x)), "a bare markdown image of the badge is not the footer");
+    console.log("ok: before/after must-fail lookalike badges (other host, bare markdown image) are not exempt");
+  }
+  // CLI exit codes: FAIL and CONTRADICTED exit 1, PASS exits 0 (--pr-json reads a saved gh pr view).
+  {
+    const { spawnSync } = await import("node:child_process");
+    const dir = mkdtempSync(path.join(os.tmpdir(), "ba-cli-"));
+    const run = (body, files, extra = []) => {
+      const f = path.join(dir, `pr-${Math.random().toString(36).slice(2)}.json`);
+      writeFileSync(f, JSON.stringify({ body, files: files.map((p) => ({ path: p })) }));
+      return spawnSync(process.execPath, [path.join(here, "before-after.mjs"), "--pr-json", f, ...extra], { encoding: "utf8" });
+    };
+    const fail = run(`## Summary${tail}`, ["docs/x.md"]);
+    assert.equal(fail.status, 1, `CLI must exit 1 on FAIL; got ${fail.status} ${fail.stdout}`);
+    assert.match(fail.stdout, /Before\/After gate: FAIL/);
+    const contra = run(`${head}No visual change: refactor.${tail}`, ["v5/src/app/app/page.tsx"], ["--visual-diff-pixels", "5"]);
+    assert.equal(contra.status, 1);
+    assert.match(contra.stdout, /Before\/After gate: CONTRADICTED/);
+    const pass = run(body70, ["v5/src/server/jobs.ts"]);
+    assert.equal(pass.status, 0, `CLI must exit 0 on PASS; got ${pass.status} ${pass.stdout}`);
+    rmSync(dir, { recursive: true, force: true });
+    console.log("ok: before/after CLI exits 1 on FAIL and CONTRADICTED, 0 on PASS");
+  }
   assert.equal(parseBeforeAfter("## Before / After\n").kind, "empty");
   assert.deepEqual(imageSize(png(3, 4)), { width: 3, height: 4 });
   assert.ok(isUiPath("v5/src/app/x.tsx") && isUiPath("v5/src/components/a.tsx") && isUiPath("v5/x.css") && isUiPath("v5/tests/e2e/visual.spec.ts-snapshots/a.png"));
