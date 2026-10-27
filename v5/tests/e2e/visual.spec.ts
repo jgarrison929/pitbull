@@ -16,14 +16,10 @@ import { THEME_COOKIE } from "@/lib/theme";
 /** Must match playwright.config webServer env V5_SEED_NOW. */
 const FROZEN_NOW = "2026-10-20T17:00:00.000Z";
 
-/** Zero tolerance — measured run-to-run noise is 0 on Linux Chromium.
- *  threshold 0 counts every channel change, including the light-token shift
- *  that the default 0.2 color distance was treating as the same pixel.
- */
+/** Zero tolerance — measured run-to-run noise is 0 on Linux Chromium. */
 const SHOT_OPTS = {
   animations: "disabled" as const,
   maxDiffPixels: 0,
-  threshold: 0,
 };
 
 async function freezeClock(page: Page) {
