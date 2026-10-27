@@ -93,17 +93,18 @@ export async function confirmIfDialog(page, { settled = null, timeout = 30000, g
     // updated (PR #87 CI: the 26-010 approve body was still open after 30 s, so response.finished() hung).
     writes.stop();
     const saved = await writes.responses(timeout);
-    // S10: then the posted state. A save that answered but never shows its result is not a save, and a write that
-    // fails while we wait (a stream aborted mid-way) throws.
+    // S10: then the posted state. A save that answered but never shows its result is not a save. The body may still
+    // fail after the 2xx: Next's client cancels the action stream itself (PR #87 CI: net::ERR_ABORTED on the 26-010
+    // approve, which had committed). That alone is not a failed save; it is reported if the posted state never shows.
     if (settled) {
       const t0 = now();
-      for (;;) {
-        writes.throwIfFailed();
-        if (await shown(settled)) break;
-        if (now() - t0 >= timeout) throw new Error(`ConfirmDialog confirmed${saved.length ? ` and the save answered (${saved.map((x) => `HTTP ${x.status}`).join(", ")})` : ""}, but the posted state did not appear within ${timeout} ms`);
+      while (!(await shown(settled))) {
+        if (now() - t0 >= timeout) {
+          const cut = writes.summary().filter((x) => x.body === "failed").map((x) => `${x.url} body ${x.error}`);
+          throw new Error(`ConfirmDialog confirmed${saved.length ? ` and the save answered (${saved.map((x) => `HTTP ${x.status}`).join(", ")})` : ""}, but the posted state did not appear within ${timeout} ms${cut.length ? ` (${cut.join("; ")})` : ""}`);
+        }
         await sleep(pollMs);
       }
-      writes.throwIfFailed();
     }
     return { dialog: true, outcome: "dialog", waitedMs: w.waitedMs, text, role: CONFIRM_DIALOG_ROLE, writes: writes.summary() };
   } finally {
@@ -113,9 +114,9 @@ export async function confirmIfDialog(page, { settled = null, timeout = 30000, g
 
 /**
  * S10: the app's writes (POST with a Next-Action header) seen from now until stop(). responses(timeout) waits for each
- * one's response status: no response (aborted, status -1, net::ERR_*), a 4xx/5xx, or no answer within the timeout
- * throws. throwIfFailed() throws once a watched write has fired requestfailed (e.g. its streamed body was cut). The
- * body is never awaited (see confirmIfDialog). close() detaches everything. A page without request events (the
+ * one's response status: no response (aborted before it answered, net::ERR_*), a 4xx/5xx, or no answer within the
+ * timeout throws. The body is never awaited, and a body that fails after a 2xx is only recorded in summary() (see
+ * confirmIfDialog). close() detaches everything. A page without request events (the
  * unit-test fakes) has nothing to watch.
  */
 export function watchWrites(page) {
@@ -134,8 +135,7 @@ export function watchWrites(page) {
   return {
     stop,
     close() { stop(); if (attached) { page.off("requestfailed", onFailed); page.off("requestfinished", onFinished); attached = false; } },
-    throwIfFailed() { for (const p of pending) if (p.failed) throw new Error(`the save ${p.url} failed: ${p.failed}`); },
-    summary: () => pending.map((p) => ({ url: p.url, status: p.status, body: p.finished ? "complete" : p.failed ? "failed" : "streaming" })),
+    summary: () => pending.map((p) => ({ url: p.url, status: p.status, body: p.finished ? "complete" : p.failed ? "failed" : "streaming", ...(p.failed ? { error: p.failed } : {}) })),
     async responses(timeout = 30000) {
       for (const p of pending) {
         let timer;
