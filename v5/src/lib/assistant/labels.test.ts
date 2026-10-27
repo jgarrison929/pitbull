@@ -40,6 +40,9 @@ describe("honesty: assistant rail labels", () => {
       }),
     ).toBe("Couldn't set forecast method on 25-031");
     expect(
+      actionRailLabel("schedule.setBaseline", "25-031", { refused: true }),
+    ).toBe("Couldn't set baseline on 25-031");
+    expect(
       actionRailLabel("changeOrder.approve", "25-031", { refused: true }),
     ).not.toMatch(/^Approved/);
   });
