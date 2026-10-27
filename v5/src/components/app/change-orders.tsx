@@ -538,7 +538,7 @@ function RaiseForm({
           maxLength={120}
           placeholder="What changed?"
           autoFocus={autoFocus}
-          className="tap-target rounded-md border bg-background px-3 py-2 text-body"
+          className="rounded-md border bg-background px-3 py-2 text-body"
           data-testid="co-raise-title"
         />
       </label>
