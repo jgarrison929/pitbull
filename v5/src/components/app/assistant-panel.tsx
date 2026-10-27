@@ -197,15 +197,7 @@ export function AssistantPanel({
                 phone ? "text-body" : "text-sm",
               )}
             >
-              <p data-testid="action-summary">
-                {demoRole === "superintendent"
-                  ? r.summary
-                      .replace(/\s*\(CPI [^)]*\)/g, "")
-                      .replace(/\bCPI\b/g, "")
-                      .replace(/\s{2,}/g, " ")
-                      .trim()
-                  : r.summary}
-              </p>
+              <p data-testid="action-summary">{r.summary}</p>
               <div
                 data-text="label"
                 className={cn(

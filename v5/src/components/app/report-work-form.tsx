@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { runActionState, type ActionState } from "@/app/app/assistant/actions";
 import { Figure } from "@/components/app/format";
 import { qty } from "@/lib/ev";
@@ -8,9 +14,11 @@ import { REPORT_LIMITS } from "@/lib/plan-line";
 import {
   claimReportSend,
   clearQueuedReport,
+  clearReportIdempotencyKey,
   queuedReportRaw,
   readQueuedReport,
   releaseReportSend,
+  reportIdempotencyKey,
   subscribeReportQueue,
   writeQueuedReport,
   type QueuedReport,
@@ -92,6 +100,11 @@ export function ReportWorkForm({
     () => queuedReportRaw(planId),
     () => null,
   );
+  useEffect(() => {
+    if (!state.summary || state.errors) return;
+    clearReportIdempotencyKey(planId, sessionStorage);
+  }, [state.summary, state.errors, planId]);
+
   const queued = useMemo((): QueuedReport | null => {
     if (!queuedRaw) return null;
     try {
@@ -138,6 +151,7 @@ export function ReportWorkForm({
         return;
       }
       clearQueuedReport(planId, sessionStorage);
+      clearReportIdempotencyKey(planId, sessionStorage);
       window.location.reload();
     } catch {
       releaseReportSend(planId);
@@ -152,6 +166,12 @@ export function ReportWorkForm({
       className="flex w-full flex-col gap-3"
       data-testid="report-work-form"
       onSubmit={(event) => {
+        const keyInput = event.currentTarget.elements.namedItem(
+          "idempotencyKey",
+        );
+        if (keyInput instanceof HTMLInputElement) {
+          keyInput.value = reportIdempotencyKey(planId, sessionStorage);
+        }
         const offline =
           typeof navigator !== "undefined" && navigator.onLine === false;
         if (!offline && !queued) return;
@@ -162,6 +182,7 @@ export function ReportWorkForm({
       <input type="hidden" name="action" value="dailyReport.post" />
       <input type="hidden" name="job" value={jobNumber} />
       <input type="hidden" name="planId" value={planId} />
+      <input type="hidden" name="idempotencyKey" defaultValue="" />
       <input type="hidden" name="label" value="Report day's work" />
       <ul className="flex flex-col gap-3">
         {lines.map((l) => (

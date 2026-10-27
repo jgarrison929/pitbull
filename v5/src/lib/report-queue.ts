@@ -20,8 +20,40 @@ export type QueuedReport = {
 const inflight = new Set<string>();
 const CHANGE = "pcs-report-queue";
 
+/** Client-generated. A replay with this key must not create a second report. */
+export const REPORT_IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,80}$/;
+
 function keyFor(planId: string) {
   return `pcs-report-unsent:${planId}`;
+}
+
+function idempotencyKeyFor(planId: string) {
+  return `pcs-report-key:${planId}`;
+}
+
+/** Undefined when missing or not a key this server will honor. */
+export function validReportIdempotencyKey(
+  value: string | undefined | null,
+): string | undefined {
+  if (!value || !REPORT_IDEMPOTENCY_KEY.test(value)) return undefined;
+  return value;
+}
+
+/**
+ * Stable for one unsent attempt, including a reload. A successful send
+ * clears it so the next amend is a new post.
+ */
+export function reportIdempotencyKey(planId: string, store: QueueStore): string {
+  const storageKey = idempotencyKeyFor(planId);
+  const existing = store.getItem(storageKey);
+  if (existing && REPORT_IDEMPOTENCY_KEY.test(existing)) return existing;
+  const next = crypto.randomUUID();
+  store.setItem(storageKey, next);
+  return next;
+}
+
+export function clearReportIdempotencyKey(planId: string, store: QueueStore) {
+  store.removeItem(idempotencyKeyFor(planId));
 }
 
 function emit() {

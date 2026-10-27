@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
 import { actionRuns, companies, dailyPlans } from "@/db/schema";
-import { recentRuns } from "@/server/assistant/actions";
+import { recentRuns, run } from "@/server/assistant/actions";
 import { createSandbox, resetSandbox } from "@/server/sandbox";
 import {
   SEED_FOREMAN_RUNS,
@@ -10,7 +10,7 @@ import {
   SEED_PM_RUNS,
   SEED_SUPERINTENDENT_RUNS,
 } from "./history";
-import { seedId } from "./index";
+import { SEED_COMPANY_NAME, seedId, seedUsers } from "./index";
 
 const db = getDb();
 const created: string[] = [];
@@ -70,8 +70,49 @@ describe.skipIf(!db)("superintendent seed action history", () => {
       for (const r of runs) {
         expect(r.summary).not.toMatch(/TODO|placeholder|lorem|TBD/i);
         expect(r.summary).not.toMatch(/\bCPI\b/);
+        expect(r.summary).not.toMatch(/\bSPI\b/);
         expect(r.summary.length).toBeGreaterThan(20);
       }
+
+      const now = new Date("2026-10-20T17:00:00.000Z");
+      const asUser = (key: "superintendent" | "pm") => {
+        const u = seedUsers.find((x) => x.key === key)!;
+        return {
+          userId: seedId(companyId, `user:${key}`),
+          companyId,
+          name: u.name,
+          title: u.title,
+          role: u.role,
+          companyName: SEED_COMPANY_NAME,
+          seededAt: now,
+          expiresAt: null,
+        };
+      };
+      const field = await run(
+        asUser("superintendent"),
+        "Summarize the portfolio",
+        "portfolio.summary",
+        {},
+      );
+      expect(field.result.summary).toMatch(/active jobs/);
+      expect(field.result.summary).not.toMatch(/\bCPI\b/);
+      expect(field.result.summary).not.toMatch(/\bSPI\b/);
+      const pm = await run(
+        asUser("pm"),
+        "Summarize the portfolio",
+        "portfolio.summary",
+        {},
+      );
+      expect(pm.result.summary).toMatch(/\bCPI\b/);
+      expect(pm.result.summary).toMatch(/\bSPI\b/);
+      const variance = await run(
+        asUser("superintendent"),
+        "Why is Cedar Creek over budget?",
+        "job.costVariance",
+        { job: "25-031" },
+      );
+      expect(variance.result.summary).not.toMatch(/\bCPI\b/);
+      expect(variance.result.summary).not.toMatch(/\bSPI\b/);
 
       // I-5 plan ended issued (returned); Cedar tomorrow stays draft.
       const [i5] = await db!

@@ -53,6 +53,11 @@ export type JobArgs = {
   forecastMethod?: string;
   /** dailyReport.post: optional per-line actuals (defaults = last report, else plan). */
   actuals?: ReportActualArg[];
+  /**
+   * dailyReport.post: client key so a replay of the same send is a no-op.
+   * A missing or invalid key still posts (assistant and older clients).
+   */
+  idempotencyKey?: string;
   /** changeOrder.*: "CO-001" or the change order's id (screen). */
   changeOrder?: string;
   title?: string;

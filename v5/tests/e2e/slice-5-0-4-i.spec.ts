@@ -807,7 +807,9 @@ test.describe("5.0.4-i phone fit and a11y", () => {
             const reportedText = (await reported.innerText())
               .replace(/\s+/g, " ")
               .trim();
-            expect(reportedText).toMatch(/^(Not reported yet|Reported .+)$/);
+            expect(reportedText).toMatch(
+              /^(?:Not reported yet|Reported \d[\d,]*(?:\.\d+)? \S+ · \d[\d,]*\.\d MH)$/,
+            );
           }
           const wide = await page.evaluate(() => {
             const w = document.documentElement.clientWidth;

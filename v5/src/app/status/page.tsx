@@ -5,6 +5,7 @@ import { MetricCard } from "@/components/app/metric-card";
 import { PageHeader } from "@/components/app/page";
 import { dbPing } from "@/db";
 import { formatMigrationsLabel } from "@/lib/applied-migrations";
+import { shortCommitSha } from "@/lib/build-info";
 import { getDeployStatus } from "@/lib/deploy-status";
 import { checkHealth } from "@/lib/health";
 import { formatLastVerify } from "@/lib/last-verify-format";
@@ -94,11 +95,11 @@ async function StatusDetails() {
         secondary={[
           <span
             key="commit"
-            data-clip="secondary"
+            data-testid="status-commit-visible"
             title={`Commit ${deploy.commit}`}
-            className="block max-w-full truncate max-[639px]:max-w-[16rem] sm:max-w-[12rem]"
+            className="block max-w-full break-all"
           >
-            Commit {deploy.commit}
+            Commit {shortCommitSha(deploy.commit)}
           </span>,
           `CI gate ${ciGateValue}`,
         ]}

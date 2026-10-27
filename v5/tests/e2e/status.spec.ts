@@ -21,6 +21,20 @@ test("status page shows version, commit, ci-gate, last-verify and health", async
       /^[0-9a-f]{40}$/i,
     );
   }
+  const full = (await page.getByTestId("status-commit").innerText()).trim();
+  const short = /^[0-9a-f]{7,}$/i.test(full) ? full.slice(0, 12) : full;
+  const visible = page.getByTestId("status-commit-visible");
+  await expect(visible).toHaveText(`Commit ${short}`);
+  await expect(visible).toHaveAttribute("title", `Commit ${full}`);
+  for (const width of [320, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    const clip = await visible.evaluate((el) => ({
+      overflow: el.scrollWidth > el.clientWidth,
+      ellipsis: getComputedStyle(el).textOverflow === "ellipsis",
+    }));
+    expect(clip.overflow, `commit clips at ${width}`).toBe(false);
+    expect(clip.ellipsis, `commit ellipsis at ${width}`).toBe(false);
+  }
   await expect(page.getByTestId("status-ci-gate")).toHaveText(
     /^(pass|fail|pending|unknown)( \(stale( \d+s)?\))?$/,
   );
