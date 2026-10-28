@@ -450,14 +450,17 @@ function VirtualTreeDesktop({
     overscan: 12,
   });
   // 5.0.4-c type scale: exact $665,000.00 needs ~9rem cols — avoid "Actu" / "$665,000.(".
-  // Role-fit omits CPI column for foreman/superintendent.
+  // Role-fit omits the CPI column for the foreman.
   // Exact dollars ("$2,025,400.00") need a 9rem floor. These class strings
   // stay whole so Tailwind emits them. The tree scrolls sideways in the card.
+  // The row list is overflow-x hidden, so this box has to be at least as wide
+  // as the column floors plus gaps. 52rem was short of that (860px of columns
+  // in an 832px box), which clipped the foreman's last dollars.
   const cols = showCostIndexes
     ? "grid-cols-[minmax(12rem,1.6fr)_minmax(5.5rem,0.6fr)_minmax(5rem,0.55fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(7.5rem,0.8fr)]"
     : "grid-cols-[minmax(12rem,1.6fr)_minmax(5.5rem,0.6fr)_minmax(5rem,0.55fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(9rem,1fr)]";
   return (
-    <div className={showCostIndexes ? "min-w-[64rem]" : "min-w-[52rem]"}>
+    <div className={showCostIndexes ? "min-w-[64rem]" : "min-w-[56rem]"}>
       <div
         className={cn(
           "grid gap-x-3 border-b px-2 pb-2 text-body font-medium text-muted-foreground",
