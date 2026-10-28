@@ -12,6 +12,7 @@ import { confirmIfDialog } from "./confirm-dialog.mjs";
 import { contextFor, signInRole } from "./crawl.mjs";
 import { countJourneyTaps } from "./journeys.mjs";
 import { resetDemo } from "./numbers.mjs";
+import { approvedCost, E6_JOB, E6_PROBE, sinceLockAfterFailures, sinceLockBefore, sinceLockZeroFailure } from "./e6.mjs";
 
 export const JOURNEY_SIZES = [{ width: 390, height: 844 }, { width: 1280, height: 800 }];
 const T = 30000;
@@ -126,7 +127,9 @@ export async function runJourney504(browser, base, key, { width, height }) {
     c.href = steps[idx].href;
     c.planId = planIdOf(c.href);
     if (key === "pm-co") { await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" }).catch(() => {}); c.before = { cb: await cents(page, "job-budget"), eac: await cents(page, "job-eac") }; await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
-    if (key === "super-approve") { await page.goto(`${base}/app/jobs/24-118`, { waitUntil: "networkidle" }).catch(() => {}); c.before = { ac: await cents(page, "job-actual") }; await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
+    // super-approve done state (spec #89, e-6's readings): job-actual, job-cpi-index, job-eac, job-ac-since-lock and the
+    // approval-pending cost, read as the superintendent on the 24-118 job page before the approval.
+    if (key === "super-approve") { await page.goto(`${base}/app/jobs/${E6_JOB}`, { waitUntil: "networkidle" }).catch(() => {}); c.before = await page.evaluate(E6_PROBE); await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
     const tapsBefore = out.entries.filter((e) => e.kind === "tap").length;
     const stepLoc = page.locator('[data-testid="next-step"]:visible').nth(idx);
     // S8: the /app screen's hook, read on the next-step this journey taps.
@@ -165,7 +168,7 @@ export async function runJourney504(browser, base, key, { width, height }) {
     if (key === "exec-open") out.doneState = await page.evaluate(() => { const vh = window.innerHeight; const inV = (e) => { if (!e || e.getClientRects().length === 0) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= vh; }; return { jobPage: /^\/app\/jobs\/[^/]+$/.test(location.pathname), kpi: inV(document.querySelector('[data-testid="job-eac"]')?.closest("[data-card]")), status: inV(document.querySelector('[data-testid="job-status"]')) }; });
     out.deadEnd = await page.evaluate(DEAD_END);
     if (key === "pm-co") { await page.reload({ waitUntil: "networkidle" }); c.after = { cb: await cents(page, "job-budget"), eac: await cents(page, "job-eac") }; out.doneState = { before: c.before, after: c.after }; }
-    if (key === "super-approve") { await page.reload({ waitUntil: "networkidle" }); out.doneState = { before: c.before, after: { ac: await cents(page, "job-actual") } }; }
+    if (key === "super-approve") { await page.goto(`${base}/app/jobs/${E6_JOB}`, { waitUntil: "networkidle" }); out.doneState = { before: c.before, after: await page.evaluate(E6_PROBE) }; }
     if (/submit|report/.test(key) && key !== "super-approve") {
       await page.goto(`${base}/app`, { waitUntil: "networkidle" });
       const left = await page.evaluate((src) => [...document.querySelectorAll('[data-testid="next-step"]')].filter((e) => e.getClientRects().length > 0).map((e) => (e.innerText ?? "").replace(/\s+/g, " ").trim()).filter((t) => new RegExp(src).test(t)), J.step.source);
@@ -218,6 +221,33 @@ export function hookFailures(r) {
   return f;
 }
 
+/**
+ * super-approve done state, aligned with spec #89 (main 9497f7e9, 5.0.4-e check 6 "AC stays at the cutoff after an
+ * approval"): the job page AC card (`job-actual`) "does not move when a report is approved, only when the next period
+ * is locked", and the approved cost shows on `job-ac-since-lock`. So, as the superintendent on 24-118, before → after
+ * the approval: job-actual, the job-cpi-index text and job-eac are unchanged; job-ac-since-lock is visible, its
+ * data-cents equals before (0 when absent) + the approved cost (the sum of the superintendent's approval-pending-*
+ * data-cents, which must be > 0) to the cent, and it reads exactly "+$X posted since Period 1 lock". No line is
+ * rendered at $0 or less. The e-6 helpers in e6.mjs do the since-lock and approved-cost readings.
+ */
+export function superApproveDoneFailures(s, w) {
+  const f = [];
+  const b = s?.before ?? {};
+  const a = s?.after ?? {};
+  const at = `${w}: done state`;
+  for (const [when, r] of [["before", b], ["after", a]]) { const z = sinceLockZeroFailure(r, `${at}, ${when}`); if (z) f.push(z); }
+  if (!Number.isInteger(b.actual)) f.push(`${at}: job-actual before the approval unreadable (${JSON.stringify(b.actual)})`);
+  if (!Number.isInteger(b.eac)) f.push(`${at}: job-eac before the approval unreadable (${JSON.stringify(b.eac)})`);
+  if (typeof b.cpiText !== "string" || b.cpiText === "") f.push(`${at}: job-cpi-index before the approval unreadable (${JSON.stringify(b.cpiText)})`);
+  if (a.actual !== b.actual) f.push(`${at}: job-actual ${b.actual}¢ → ${a.actual}¢ after the approval (want unchanged: spec #89, AC stays at the cutoff until the next lock)`);
+  if (a.cpiText !== b.cpiText) f.push(`${at}: job-cpi-index "${b.cpiText}" → "${a.cpiText}" after the approval (want unchanged)`);
+  if (a.eac !== b.eac) f.push(`${at}: job-eac ${b.eac}¢ → ${a.eac}¢ after the approval (want unchanged)`);
+  const ac = approvedCost(b.pending, `${at}: superintendent before`);
+  if (ac.failure) f.push(ac.failure);
+  f.push(...sinceLockAfterFailures(a.since, `${at}: superintendent after approval`, sinceLockBefore(b), ac.cents));
+  return f;
+}
+
 export function evaluateJourney504(r) {
   const w = `${r.name} @${r.width}x${r.height}`;
   const f = [];
@@ -239,10 +269,7 @@ export function evaluateJourney504(r) {
       if (dcb !== CO_DELTA_CENTS || deac !== CO_DELTA_CENTS) f.push(`${w}: done state: ΔCB ${dcb}¢, ΔEAC ${deac}¢ (want +${CO_DELTA_CENTS} each)`);
       break;
     }
-    case "super-approve":
-      if (!(s.after?.ac > s.before?.ac)) f.push(`${w}: done state: job-actual ${s.before?.ac} → ${s.after?.ac} (want a rise)`);
-      if (r.posts !== 1) f.push(`${w}: approve posted ${r.posts} time(s) (want once: "AC on its cost items rises once")`);
-      break;
+    case "super-approve": f.push(...superApproveDoneFailures(s, w)); if (r.posts !== 1) f.push(`${w}: approve posted ${r.posts} time(s) (want once: "AC on its cost items rises once")`); break;
     default:
       if (s.itemLeft?.length) f.push(`${w}: done state: next step still listed "${s.itemLeft[0]}"`);
       if (s.superLeft?.length) f.push(`${w}: done state: superintendent still sees "${s.superLeft[0]}"`);

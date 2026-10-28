@@ -34,8 +34,17 @@ bad("pm-forecast no cost-item-cb", evaluateJourney504(row("pm-forecast", { doneS
 ok("exec-open control", evaluateJourney504(row("exec-open", { doneState: { jobPage: true, kpi: true, status: true } })));
 bad("exec-open job-status missing (rc)", evaluateJourney504(row("exec-open", { doneState: { jobPage: true, kpi: true, status: false } })), /job-status in viewport false/);
 bad("pm-co ΔCB off by one cent", evaluateJourney504(row("pm-co", { doneState: { before: { cb: 0, eac: 0 }, after: { cb: 5999999, eac: 6000000 } } })), /ΔCB 5999999¢/);
-bad("super-approve posts twice", evaluateJourney504(row("super-approve", { posts: 2, doneState: { before: { ac: 1 }, after: { ac: 2 } } })), /posted 2 time/);
-bad("super-approve AC flat", evaluateJourney504(row("super-approve", { doneState: { before: { ac: 5 }, after: { ac: 5 } } })), /job-actual 5 → 5/);
+// super-approve done state (spec #89, main 9497f7e9): job-actual, CPI and EAC unchanged; job-ac-since-lock = before +
+// the approved cost (sum of approval-pending-* data-cents), text "+$X posted since Period 1 lock". checks.test.mjs has
+// the full must-fail list; these keep the journey evaluator's own file honest.
+const e6r = (o = {}) => ({ actual: 3079353280, cpiText: "0.97", eac: 3290000000, since: { count: 0, visible: false, cents: null, rawCents: null, text: null }, pending: { count: 1, cents: [668800], codes: ["03-210"] }, ...o });
+const e6line = (c) => ({ count: 1, visible: true, cents: c, rawCents: String(c), text: `+$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })} posted since Period 1 lock` });
+const superDone = (after = {}) => ({ settled: true, before: e6r(), after: e6r({ pending: { count: 0, cents: [], codes: [] }, since: e6line(668800), ...after }) });
+ok("super-approve control (#89: AC flat, since-lock +$6,688.00)", evaluateJourney504(row("super-approve", { doneState: superDone() })));
+bad("super-approve posts twice", evaluateJourney504(row("super-approve", { posts: 2, doneState: superDone() })), /posted 2 time/);
+bad("super-approve AC rises (#89: AC stays at the cutoff)", evaluateJourney504(row("super-approve", { doneState: superDone({ actual: 3079353280 + 668800 }) })), /job-actual 3079353280¢ → 3080022080¢ after the approval \(want unchanged/);
+bad("super-approve since-lock unchanged", evaluateJourney504(row("super-approve", { doneState: superDone({ since: e6r().since }) })), /job-ac-since-lock missing \(want 668800¢\)/);
+bad("super-approve since-lock wrong amount", evaluateJourney504(row("super-approve", { doneState: superDone({ since: e6line(668700) }) })), /job-ac-since-lock data-cents 668700 \(want 0 \+ 668800 = 668800¢\)/);
 // S8 must-fails (lead): zero matches, two visible matches, and a match that is not the measured action all fail.
 bad("S8 action screen with zero data-role hooks", evaluateJourney504(row("super-submit", { actionHook: hook("superintendent", { path: "/app/jobs/25-031", count: 0, hooks: [], isTarget: false, targetRole: null }) })), /action screen \/app\/jobs\/25-031 has 0 visible data-role="superintendent" element\(s\)/);
 bad("S8 action screen with two visible hooks", evaluateJourney504(row("super-submit", { actionHook: hook("superintendent", { path: "/app/jobs/25-031", count: 2, hooks: ["button a", "button b"] }) })), /has 2 visible data-role="superintendent" element\(s\)/);
