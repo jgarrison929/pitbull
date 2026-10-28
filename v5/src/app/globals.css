@@ -179,6 +179,18 @@ a.text-brand[aria-current="page"] {
     color: var(--brand-text);
 }
 
+/* 5.0.4-c: p, li, td, and button are 16px on phones unless marked a label.
+   Utility classes (text-xs, text-label) would otherwise win. */
+@media (max-width: 480px) {
+    p:not([data-text="label"]),
+    li:not([data-text="label"]),
+    td:not([data-text="label"]),
+    button:not([data-text="label"]) {
+        font-size: var(--text-body);
+        line-height: var(--text-body--line-height);
+    }
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;

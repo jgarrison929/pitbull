@@ -145,7 +145,7 @@ export function AssistantPanel({
         <div className="border-b px-4 py-2">
           <button
             type="button"
-            className="tap-target inline-flex min-h-11 items-center text-label font-medium text-foreground underline underline-offset-2"
+            className="tap-target inline-flex min-h-11 items-center text-body font-medium text-foreground underline underline-offset-2"
             data-testid="assistant-show-conversation"
             onClick={() => setShowAll(true)}
           >

@@ -286,10 +286,9 @@ async function CostItem({
   const canSetForecast =
     actions["costItem.setForecastMethod"].roles?.includes(user.role) ?? false;
 
-  const installed =
-    data.item.evMethod === "units"
-      ? data.item.claimedInstalledQtyMilli
-      : data.item.installedQtyMilli;
+  // Posted quantity, including qty approved since the last lock.
+  // Claimed installed stays the EV cutoff; this figure is what field posting checks.
+  const installed = data.item.installedQtyMilli;
 
   const sinceLockEntries = data.entries.filter((e) => e.sinceLock);
   const throughLockEntries = data.entries.filter((e) => !e.sinceLock);

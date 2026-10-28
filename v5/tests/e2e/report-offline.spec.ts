@@ -70,6 +70,8 @@ test.describe("offline report queue", () => {
     expect(posts.length - retryMark).toBe(1);
 
     await page.goto("/app/jobs/24-077/changes");
-    await expect(reportRows(page)).toHaveCount(rowsBefore + 1);
+    // The seeded report for this day is replaced, so the list stays at one row.
+    expect(rowsBefore).toBeGreaterThan(0);
+    await expect(reportRows(page)).toHaveCount(1);
   });
 });

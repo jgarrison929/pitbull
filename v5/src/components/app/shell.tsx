@@ -247,12 +247,16 @@ async function JobStrip() {
     >
       {jobs.map((p) => {
         const foremanLabel = todayLabels?.get(p.job.id) ?? "No plan today";
+        const shortIndexes = `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`;
+        // The spelled line is the first "CPI" on the page (plain-words check).
+        // At 320 it wraps tall enough to push next steps below a 568px screen,
+        // so that width uses the short form. 390+ keeps the spelled line.
         const meta = p.estimateDraft
           ? "Estimate draft"
           : costIndexes
             ? p.job.id === spelledJobId
-              ? `Cost performance (CPI) ${idx(p.cpi)} · Schedule performance (SPI) ${idx(p.spi)}`
-              : `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`
+              ? "spelled"
+              : shortIndexes
             : user.role === "foreman"
               ? foremanLabel
               : null;
@@ -285,13 +289,23 @@ async function JobStrip() {
                         : "strip-cost-indexes"
                   }
                 >
-                  {meta}
+                  {meta === "spelled" ? (
+                    <>
+                      <span className="max-[359px]:hidden">
+                        Cost performance (CPI) {idx(p.cpi)} · Schedule
+                        performance (SPI) {idx(p.spi)}
+                      </span>
+                      <span className="min-[360px]:hidden">{shortIndexes}</span>
+                    </>
+                  ) : (
+                    meta
+                  )}
                 </span>
               ) : null}
             </span>
             {p.estimateDraft ? (
               <span
-                className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-body font-medium text-muted-foreground"
                 data-status="draft"
               >
                 Draft

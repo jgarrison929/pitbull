@@ -1,11 +1,11 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChangeLogList } from "@/components/app/change-log-list";
 import type { AppRole } from "@/components/app/list-empty";
 import { MetricCard, PageHeader, Section } from "@/components/app/page";
-import { jobChanges, jobChangesCount } from "@/server/assistant/actions";
-import { getJob } from "@/server/data";
+import { reportedDayInSummary } from "@/lib/reported-day";
+import { getJobHeader } from "@/server/data";
+import { jobChanges, jobChangesCount } from "@/server/job-changes";
 import { requireUser } from "@/server/session";
 
 const PAGE_SIZE = 50;
@@ -41,25 +41,31 @@ async function Changes({
   const { number } = await params;
   const sp = await searchParams;
   const user = await requireUser();
-  const job = await getJob(user.companyId, number);
-  if (!job) notFound();
-
   const requested = Number(sp.page ?? "1") || 1;
-  const total = await jobChangesCount(user.companyId, number);
+  const page = Math.max(1, requested);
+  // Header, count, and the page of rows are independent. The old path waited
+  // on a full WBS rollup before either query, which blew the 1500 ms budget.
+  const [job, total, changes] = await Promise.all([
+    getJobHeader(user.companyId, number),
+    jobChangesCount(user.companyId, number),
+    jobChanges(user.companyId, number, PAGE_SIZE, (page - 1) * PAGE_SIZE),
+  ]);
+  if (!job) notFound();
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const page = Math.min(Math.max(1, requested), totalPages);
-  const changes = await jobChanges(
-    user.companyId,
-    number,
-    PAGE_SIZE,
-    (page - 1) * PAGE_SIZE,
-  );
   // Foreman must not see cost-index language in the feed (5.0.4-b check 2).
   const costBan = /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
-  const visible =
-    user.role === "foreman"
-      ? changes.filter((c) => !costBan.test(c.summary))
-      : changes;
+  // Newest first. A day reported, returned, and reported again is one report
+  // row. The earlier "Reported …" run stays in the assistant log.
+  const seenReportDay = new Set<string>();
+  const visible = changes.filter((c) => {
+    if (user.role === "foreman" && costBan.test(c.summary)) return false;
+    if (c.action !== "dailyReport.post") return true;
+    const day = reportedDayInSummary(c.summary);
+    if (!day) return true;
+    if (seenReportDay.has(day)) return false;
+    seenReportDay.add(day);
+    return true;
+  });
 
   return (
     <>
@@ -68,13 +74,13 @@ async function Changes({
         purpose="Every recorded change on this job, newest first."
         meta={
           <>
-            <Link
-              href={`/app/jobs/${job.job.number}`}
+            <a
+              href={`/app/jobs/${job.number}`}
               className="tap-target inline-flex items-center underline hover:no-underline"
               data-testid="changes-back"
             >
-              {job.job.number} · {job.job.name}
-            </Link>
+              {job.number} · {job.name}
+            </a>
             {" · "}
             {total === 0
               ? "No changes yet"
@@ -104,23 +110,23 @@ async function Changes({
               aria-label="Change list pages"
             >
               {page > 1 ? (
-                <Link
+                <a
                   href={`/app/jobs/${number}/changes?page=${page - 1}`}
                   className="tap-target inline-flex items-center underline hover:no-underline"
                 >
                   Previous
-                </Link>
+                </a>
               ) : null}
               <span className="tabular-nums text-muted-foreground">
                 Page {page} of {totalPages}
               </span>
               {page < totalPages ? (
-                <Link
+                <a
                   href={`/app/jobs/${number}/changes?page=${page + 1}`}
                   className="tap-target inline-flex items-center underline hover:no-underline"
                 >
                   Next
-                </Link>
+                </a>
               ) : null}
             </nav>
           ) : null
@@ -128,7 +134,7 @@ async function Changes({
       >
         <ChangeLogList
           changes={visible}
-          jobNumber={job.job.number}
+          jobNumber={job.number}
           role={user.role as AppRole}
           estimateApproved={!job.estimateDraft}
         />

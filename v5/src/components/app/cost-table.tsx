@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ValueSet, WbsMoney } from "@/lib/budget";
 import type { CostLine } from "@/lib/ev";
@@ -409,7 +408,7 @@ function CostCodeLabel({
     "mr-2 font-mono text-label text-muted-foreground";
   if (n.isLeaf && jobNumber) {
     return (
-      <Link
+      <a
         href={`/app/jobs/${jobNumber}/cost-items/${encodeURIComponent(n.code)}`}
         className={cn(
           codeClass,
@@ -418,7 +417,7 @@ function CostCodeLabel({
         data-testid={`cost-code-link-${n.code}`}
       >
         {n.code}
-      </Link>
+      </a>
     );
   }
   return <span className={codeClass}>{n.code}</span>;
@@ -452,35 +451,37 @@ function VirtualTreeDesktop({
   });
   // 5.0.4-c type scale: exact $665,000.00 needs ~9rem cols — avoid "Actu" / "$665,000.(".
   // Role-fit omits CPI column for foreman/superintendent.
+  // Fit the card. A 56rem minimum overflowed the rail layout and the
+  // overflow-x-hidden scroller cut the first cost codes.
   const cols = showCostIndexes
-    ? "grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem_10rem]"
-    : "grid-cols-[minmax(10rem,1.6fr)_7rem_7rem_9rem_9rem_9rem]";
+    ? "grid-cols-[minmax(0,1.8fr)_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,0.9fr)]"
+    : "grid-cols-[minmax(0,1.8fr)_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,0.75fr)_minmax(0,0.75fr)]";
   return (
-    <div className={showCostIndexes ? "min-w-[56rem]" : "min-w-[46rem]"}>
+    <div className="min-w-0">
       <div
         className={cn(
-          "grid gap-x-3 border-b px-2 pb-2 text-xs font-medium text-muted-foreground",
+          "grid gap-x-3 border-b px-2 pb-2 text-body font-medium text-muted-foreground",
           cols,
         )}
       >
-        <div>Cost code</div>
-        <div className="whitespace-nowrap text-right">Installed</div>
-        <div className="whitespace-nowrap text-right">% complete</div>
+        <div className="break-words">Cost code</div>
+        <div className="break-words text-right">Installed</div>
+        <div className="break-words text-right">% complete</div>
         <div
-          className="whitespace-nowrap text-right"
+          className="break-words text-right"
           title={VALUE_SETS[valueSet].title}
         >
           {VALUE_SETS[valueSet].label}
         </div>
-        <div className="whitespace-nowrap text-right">Earned</div>
-        <div className="whitespace-nowrap text-right">Actual</div>
+        <div className="break-words text-right">Earned</div>
+        <div className="break-words text-right">Actual</div>
         {showCostIndexes ? (
-          <div className="whitespace-nowrap text-right">CPI · variance</div>
+          <div className="break-words text-right">CPI · variance</div>
         ) : null}
       </div>
       <div
         ref={parentRef}
-        className="h-[min(32rem,70vh)] overflow-y-auto overflow-x-hidden"
+        className="h-[min(32rem,70vh)] overflow-auto"
         tabIndex={0}
         data-testid="cost-tree-scroll"
       >
@@ -516,13 +517,13 @@ function VirtualTreeDesktop({
                 id={n.isLeaf ? undefined : branchDomId("desktop", n.id)}
               >
                 <div
-                  className="min-w-0"
+                  className="min-w-0 break-words whitespace-normal"
                   style={{ paddingLeft: n.depth * 12 }}
                 >
                   {!n.isLeaf ? (
                     <button
                       type="button"
-                      className="mr-1 inline-flex size-6 items-center justify-center text-label text-muted-foreground"
+                      className="mr-1 inline-flex size-6 items-center justify-center text-body text-muted-foreground"
                       onClick={() => onToggle(n.id)}
                       aria-expanded={!collapsed.has(n.id)}
                       aria-controls={branchDomId("desktop", n.id)}
@@ -534,7 +535,7 @@ function VirtualTreeDesktop({
                   <CostCodeLabel n={n} jobNumber={jobNumber} />
                   <span
                     className={cn(
-                      "font-medium",
+                      "font-medium break-words whitespace-normal",
                       !n.isLeaf && "text-muted-foreground",
                     )}
                   >
@@ -588,14 +589,14 @@ function VirtualTreeDesktop({
                     ) : (
                       <BudgetCell money={n.money} set={valueSet} exact />
                     )}
-                    <div className="text-right md:whitespace-nowrap">
+                    <div className="min-w-0 break-words text-right whitespace-normal">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
                         <Money cents={l.earnedCents} exact />
                       )}
                     </div>
-                    <div className="text-right md:whitespace-nowrap">
+                    <div className="min-w-0 break-words text-right whitespace-normal">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
@@ -708,7 +709,7 @@ function VirtualTreeMobile({
                 {!n.isLeaf ? (
                   <button
                     type="button"
-                    className="tap-target inline-flex shrink-0 items-center justify-center text-label text-muted-foreground"
+                    className="tap-target inline-flex shrink-0 items-center justify-center text-body text-muted-foreground"
                     onClick={() => onToggle(n.id)}
                     aria-expanded={!collapsed.has(n.id)}
                     aria-controls={branchDomId("phone", n.id)}

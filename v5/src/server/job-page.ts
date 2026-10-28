@@ -110,6 +110,8 @@ export async function loadJobPage(
   role: Role,
 ) {
   const caps = jobPageCaps(role);
+  // The change feed only needs the job number, so it overlaps the WBS read.
+  const changesP = jobChanges(companyId, number);
   const p = await getJobCached(companyId, number);
   if (!p) return null;
 
@@ -117,8 +119,7 @@ export async function loadJobPage(
   const laborMhP = laborMhMilliByCostItem(companyId, p.job.id);
   const pagePlansP = getJobPagePlans(companyId, p.job.id, todayLA);
   const siblingsP = Promise.all([
-    // Same WRITES-filtered feed as before (via job-changes, not assistant/actions).
-    jobChanges(companyId, p.job.number),
+    changesP,
     caps.canLock
       ? draftClaimForJob(companyId, p.job.id)
       : Promise.resolve(null),
