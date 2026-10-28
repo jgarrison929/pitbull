@@ -243,14 +243,13 @@ async function JobStrip() {
     <nav
       aria-label="Jobs"
       data-testid="job-strip"
-      className="flex min-w-0 max-w-full flex-wrap gap-2 border-b px-4 py-2"
+      className="flex min-w-0 max-w-full flex-wrap gap-2 border-b px-4 py-2 max-sm:gap-1 max-sm:py-1"
     >
       {jobs.map((p) => {
         const foremanLabel = todayLabels?.get(p.job.id) ?? "No plan today";
         const shortIndexes = `CPI ${idx(p.cpi)} · SPI ${idx(p.spi)}`;
-        // The spelled line is the first "CPI" on the page (plain-words check).
-        // At 320 it wraps tall enough to push next steps below a 568px screen,
-        // so that width uses the short form. 390+ keeps the spelled line.
+        // The spelled line is the first "CPI" on the page (plain-words check),
+        // including at 320. The short form sits under it only at that width.
         const meta = p.estimateDraft
           ? "Estimate draft"
           : costIndexes
@@ -265,7 +264,13 @@ async function JobStrip() {
             key={p.job.id}
             href={`/app/jobs/${p.job.number}`}
             label={p.job.name}
-            className="flex min-w-0 max-w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 max-sm:min-h-11 max-sm:text-sm sm:gap-3"
+            className={cn(
+              "flex min-w-0 max-w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 max-sm:min-h-11 max-sm:text-sm sm:gap-3",
+              // Full width at 320, badge under the text, so the spelled CPI
+              // line wraps in two lines and the first next step stays above 568.
+              meta === "spelled" &&
+                "max-[359px]:w-full max-[359px]:flex-col max-[359px]:items-stretch",
+            )}
             activeClassName="border-foreground bg-muted/50 text-foreground"
           >
             <span className="min-w-0 flex-1">
@@ -291,11 +296,13 @@ async function JobStrip() {
                 >
                   {meta === "spelled" ? (
                     <>
-                      <span className="max-[359px]:hidden">
+                      <span className="block">
                         Cost performance (CPI) {idx(p.cpi)} · Schedule
                         performance (SPI) {idx(p.spi)}
                       </span>
-                      <span className="min-[360px]:hidden">{shortIndexes}</span>
+                      <span className="mt-0.5 block min-[360px]:hidden">
+                        {shortIndexes}
+                      </span>
                     </>
                   ) : (
                     meta

@@ -3,9 +3,8 @@ import { notFound } from "next/navigation";
 import { ChangeLogList } from "@/components/app/change-log-list";
 import type { AppRole } from "@/components/app/list-empty";
 import { MetricCard, PageHeader, Section } from "@/components/app/page";
-import { reportedDayInSummary } from "@/lib/reported-day";
 import { getJobHeader } from "@/server/data";
-import { jobChanges, jobChangesCount } from "@/server/job-changes";
+import { jobChanges } from "@/server/job-changes";
 import { requireUser } from "@/server/session";
 
 const PAGE_SIZE = 50;
@@ -41,31 +40,28 @@ async function Changes({
   const { number } = await params;
   const sp = await searchParams;
   const user = await requireUser();
-  const requested = Number(sp.page ?? "1") || 1;
-  const page = Math.max(1, requested);
-  // Header, count, and the page of rows are independent. The old path waited
-  // on a full WBS rollup before either query, which blew the 1500 ms budget.
-  const [job, total, changes] = await Promise.all([
+  const requestedRaw = Number(sp.page ?? "1");
+  const requested =
+    Number.isFinite(requestedRaw) && requestedRaw >= 1
+      ? Math.floor(requestedRaw)
+      : 1;
+  // Header and the collapsed feed are independent. The feed is one small
+  // read; paging happens after same plan+day reports collapse.
+  const [job, changes] = await Promise.all([
     getJobHeader(user.companyId, number),
-    jobChangesCount(user.companyId, number),
-    jobChanges(user.companyId, number, PAGE_SIZE, (page - 1) * PAGE_SIZE),
+    jobChanges(user.companyId, number, 10_000, 0),
   ]);
   if (!job) notFound();
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   // Foreman must not see cost-index language in the feed (5.0.4-b check 2).
   const costBan = /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
-  // Newest first. A day reported, returned, and reported again is one report
-  // row. The earlier "Reported …" run stays in the assistant log.
-  const seenReportDay = new Set<string>();
-  const visible = changes.filter((c) => {
-    if (user.role === "foreman" && costBan.test(c.summary)) return false;
-    if (c.action !== "dailyReport.post") return true;
-    const day = reportedDayInSummary(c.summary);
-    if (!day) return true;
-    if (seenReportDay.has(day)) return false;
-    seenReportDay.add(day);
-    return true;
-  });
+  const filtered =
+    user.role === "foreman"
+      ? changes.filter((c) => !costBan.test(c.summary))
+      : changes;
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(requested, totalPages);
+  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <>

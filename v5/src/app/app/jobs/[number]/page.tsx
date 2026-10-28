@@ -148,9 +148,9 @@ export async function Job({
     : null;
   const costBan =
     /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
-  const visibleChanges = statusBadge
-    ? changes
-    : changes.filter((c) => !costBan.test(c.summary));
+  const visibleChanges = (
+    statusBadge ? changes : changes.filter((c) => !costBan.test(c.summary))
+  ).slice(0, 20);
   // Initial combobox options: first leaves only. Large WBS uses server search.
   const costItems = p.lines.slice(0, 40).map((l) => ({
     value: l.id,

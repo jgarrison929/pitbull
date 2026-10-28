@@ -16,6 +16,26 @@ async function signIn(page: Page, role: string) {
   await expect(page).toHaveURL(/\/app/);
 }
 
+test("?page=99 clamps to the last page", async ({ page }) => {
+  await signIn(page, "pm");
+  await page.goto("/app/jobs/25-031/changes?page=99");
+  const card = page.getByTestId("changes-count-card");
+  await expect(card).toBeVisible();
+  const cardText = await card.innerText();
+  expect(cardText).not.toMatch(/Page 99/);
+  const paged = cardText.match(/Page (\d+) of (\d+)/);
+  const lastHref = paged
+    ? `/app/jobs/25-031/changes?page=${paged[1]}`
+    : "/app/jobs/25-031/changes";
+  if (paged) expect(paged[1]).toBe(paged[2]);
+  else expect(cardText).toContain("One page");
+  await page.goto(lastHref);
+  const last = await page.getByTestId("job-changes-full").innerText();
+  await page.goto("/app/jobs/25-031/changes?page=99");
+  await expect(page.getByTestId("job-changes-full")).toHaveText(last);
+  await expect(card).toHaveText(cardText);
+});
+
 for (const role of roles) {
   test(`every seeded job shows real change history for ${role}`, async ({
     page,

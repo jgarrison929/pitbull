@@ -1766,6 +1766,8 @@ export type RunArgs = {
   /** Cost code of the plan line an edit touched. */
   line?: string;
   href?: string;
+  /** dailyReport.post: which plan the report belongs to. */
+  planId?: string;
   /** When true, the rail chip uses a refusal label (never success wording). */
   refused?: true;
 };
@@ -1833,6 +1835,7 @@ export async function run(
         job: result.job ?? effectiveArgs.job ?? null,
         ...(result.line ? { line: result.line } : {}),
         ...(result.href ? { href: result.href } : {}),
+        ...(effectiveArgs.planId ? { planId: effectiveArgs.planId } : {}),
         ...(refused ? { refused: true as const } : {}),
       } satisfies RunArgs,
       summary: result.summary,

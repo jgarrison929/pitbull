@@ -451,13 +451,13 @@ function VirtualTreeDesktop({
   });
   // 5.0.4-c type scale: exact $665,000.00 needs ~9rem cols — avoid "Actu" / "$665,000.(".
   // Role-fit omits CPI column for foreman/superintendent.
-  // Fit the card. A 56rem minimum overflowed the rail layout and the
-  // overflow-x-hidden scroller cut the first cost codes.
+  // Exact dollars ("$2,025,400.00") need a 9rem floor. These class strings
+  // stay whole so Tailwind emits them. The tree scrolls sideways in the card.
   const cols = showCostIndexes
-    ? "grid-cols-[minmax(0,1.8fr)_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,0.9fr)]"
-    : "grid-cols-[minmax(0,1.8fr)_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,0.75fr)_minmax(0,0.75fr)]";
+    ? "grid-cols-[minmax(12rem,1.6fr)_minmax(5.5rem,0.6fr)_minmax(5rem,0.55fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(7.5rem,0.8fr)]"
+    : "grid-cols-[minmax(12rem,1.6fr)_minmax(5.5rem,0.6fr)_minmax(5rem,0.55fr)_minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(9rem,1fr)]";
   return (
-    <div className="min-w-0">
+    <div className={showCostIndexes ? "min-w-[64rem]" : "min-w-[52rem]"}>
       <div
         className={cn(
           "grid gap-x-3 border-b px-2 pb-2 text-body font-medium text-muted-foreground",
@@ -473,15 +473,15 @@ function VirtualTreeDesktop({
         >
           {VALUE_SETS[valueSet].label}
         </div>
-        <div className="break-words text-right">Earned</div>
-        <div className="break-words text-right">Actual</div>
+        <div className="min-w-[9rem] whitespace-nowrap text-right">Earned</div>
+        <div className="min-w-[9rem] whitespace-nowrap text-right">Actual</div>
         {showCostIndexes ? (
           <div className="break-words text-right">CPI · variance</div>
         ) : null}
       </div>
       <div
         ref={parentRef}
-        className="h-[min(32rem,70vh)] overflow-auto"
+        className="h-[min(32rem,70vh)] overflow-y-auto overflow-x-hidden"
         tabIndex={0}
         data-testid="cost-tree-scroll"
       >
@@ -583,20 +583,22 @@ function VirtualTreeDesktop({
                       )}
                     </div>
                     {estimateDraft && valueSet !== "ce" ? (
-                      <div className="text-right">
+                      <div className="min-w-[9rem] text-right">
                         <MetricDash />
                       </div>
                     ) : (
-                      <BudgetCell money={n.money} set={valueSet} exact />
+                      <div className="min-w-[9rem] whitespace-nowrap text-right tabular-nums">
+                        <BudgetCell money={n.money} set={valueSet} exact />
+                      </div>
                     )}
-                    <div className="min-w-0 break-words text-right whitespace-normal">
+                    <div className="min-w-[9rem] whitespace-nowrap text-right tabular-nums">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (
                         <Money cents={l.earnedCents} exact />
                       )}
                     </div>
-                    <div className="min-w-0 break-words text-right whitespace-normal">
+                    <div className="min-w-[9rem] whitespace-nowrap text-right tabular-nums">
                       {estimateDraft ? (
                         <MetricDash />
                       ) : (

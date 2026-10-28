@@ -111,7 +111,9 @@ export async function loadJobPage(
 ) {
   const caps = jobPageCaps(role);
   // The change feed only needs the job number, so it overlaps the WBS read.
-  const changesP = jobChanges(companyId, number);
+  // Wider than the 20-row preview so a foreman cost-language filter still
+  // starts at the same row as /changes (that page filters, then pages).
+  const changesP = jobChanges(companyId, number, 200);
   const p = await getJobCached(companyId, number);
   if (!p) return null;
 

@@ -200,6 +200,26 @@ test("after approve: totals = AC on drill page and job page; no approved-qty row
   // total; for the leaf, open the cost item and compare to the same rollup.
   await page.goto("/app/jobs/25-031/cost-items/04-210");
 
+  // d-5: claimed headline stays put; +12 is the since-lock line.
+  await expect(page.getByTestId("cost-item-installed")).toHaveText("248 CY");
+  const sinceQty = page.getByTestId("cost-item-qty-since-lock");
+  await expect(sinceQty).toHaveText("+12 CY posted since Period 1 lock");
+  await expect(sinceQty).toHaveAttribute("data-qty-milli", "12000");
+  await expect(sinceQty).toHaveAttribute("data-figure", "secondary");
+
+  await signIn(page, "foreman");
+  await page.goto("/app/jobs/25-031/cost-items/04-210");
+  await expect(page.getByTestId("cost-item-installed")).toHaveText("248 CY");
+  await expect(page.getByTestId("cost-item-qty-since-lock")).toHaveText(
+    "+12 CY posted since Period 1 lock",
+  );
+  await expect(page.getByTestId("cost-item-qty-since-lock")).toHaveAttribute(
+    "data-qty-milli",
+    "12000",
+  );
+
+  await signIn(page, "superintendent");
+  await page.goto("/app/jobs/25-031/cost-items/04-210");
   await expect(page.getByText("approved-qty")).toHaveCount(0);
 
   const ac = await page
@@ -261,6 +281,8 @@ test("after approve: totals = AC on drill page and job page; no approved-qty row
   await expect(page.getByTestId("lock-claim")).toContainText("Period 3");
   await page.goto("/app/jobs/25-031/cost-items/04-210");
   await expect(page.getByTestId("cost-item-since-lock")).toHaveCount(0);
+  await expect(page.getByTestId("cost-item-qty-since-lock")).toHaveCount(0);
+  await expect(page.getByTestId("cost-item-installed")).toHaveText("260 CY");
   const acAfter = await page
     .getByTestId("cost-item-ac")
     .locator("[data-cents]")
