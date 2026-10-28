@@ -17,7 +17,7 @@ Checked against `main` at `d56eb6be` on 2026-10-26 at 10:40 AM (PT). Slices nobo
 
 | Slice ID | Spec | Migration | Notes |
 |---|---|---|---|
-| 5.0.4-g | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-g-guided-demo-path) | none | Guided demo path. Targets `rc/5.0.4`. Needs a and b ([#26](https://github.com/jgarrison929/pitbull/pull/26), [#27](https://github.com/jgarrison929/pitbull/pull/27)) on the RC branch |
+| 5.0.5 demo path (was 5.0.4-g) | [5.0.5](5.0.5-s-curve.md#guided-demo-path-moved-from-504-g) | none | Guided demo path. Moved from 5.0.4 on 2026-10-27. Needs 5.0.4-a and 5.0.4-b ([#26](https://github.com/jgarrison929/pitbull/pull/26), [#27](https://github.com/jgarrison929/pitbull/pull/27)) on `main` |
 | 5.0.4-i | [5.0.4](5.0.4-clear-next-steps-and-mobile-polish.md#504-i-phone-fit-and-a11y-leftovers) | none | Phone fit and a11y leftovers from Pitbull UX: assistant chip wrap, short money on cost-item KPI cards, cost-tree toggle names, color-only CPI, `PmPercentForm` list markup, shell targets. Targets `rc/5.0.4` |
 | 5.1.1 wire-up | [5.1.1](5.1.1-dependencies-and-cpm.md) | **0022** | `activity_links`, `schedule.linkActivities` and `unlinkActivities`, CPM pass on write, critical-path highlight. The engine is on `main` in `v5/src/lib/cpm.ts`. Stack on 5.1.0-b ([#37](https://github.com/jgarrison929/pitbull/pull/37)) |
 | 5.1.2-b | [5.1.2](5.1.2-baseline-and-pv.md) | none | PV reads baseline dates. Stack on 5.1.2-a ([#36](https://github.com/jgarrison929/pitbull/pull/36)) |
