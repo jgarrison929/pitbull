@@ -61,8 +61,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.verify_v5 == 'true'
     runs-on: ubuntu-latest
-    # Post-#729 local verify ~7–9m; no Chromium apt install in this image. 20m is ample.
-    timeout-minutes: 20
+    # Post-#729 local verify ~7–9m; no Chromium apt install in this image. The job ran 14m43s on #94's first round;
+    # review round 2 adds the d-5 flow must-fail (~2 min) and the 390 super-approve journey fixtures, so 25m.
+    timeout-minutes: 25
     container:
       # Same tag+digest as .cursor/skills/verify-v5/Dockerfile (matches lockfile @playwright/test 1.64.1).
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
@@ -136,6 +137,10 @@ jobs:
       # 5.0.4-e check 6 on a 127.0.0.1 fake 24-118 page (~2 min). Same job for the same reason (time budget).
       - name: Skill e-6 must-fail (127.0.0.1 fixtures)
         run: node .cursor/skills/verify-v5/e6-mustfail.test.mjs
+
+      # 5.0.4-d check 5 drive (report, return with a reason, resubmit, approve) on a 127.0.0.1 fake 25-031 (~3 min).
+      - name: Skill d-5 flow must-fail (127.0.0.1 fixtures)
+        run: node .cursor/skills/verify-v5/field504-flow.mustfail.test.mjs
 
       - name: Prepare database (pre-deploy step)
         working-directory: v5

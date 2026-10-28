@@ -113,6 +113,45 @@ export async function runE6(browser, base) {
 
 const isCents = (x) => Number.isInteger(x);
 
+/**
+ * Shared e-6 readings (spec #89), also used by journey504.mjs's super-approve done state.
+ * The approved report's cost: the sum of the superintendent's `approval-pending-*` data-cents (an E6_PROBE `pending`
+ * reading). Returns { cents, failure }: cents is the sum (null when a data-cents is unreadable; 0 when there is no
+ * approval-pending element), and failure says why when the sum is missing, unreadable or ≤ 0 (null when it is > 0).
+ */
+export function approvedCost(pending, who = "superintendent before") {
+  const pend = pending ?? { count: 0, cents: [] };
+  const list = Array.isArray(pend.cents) ? pend.cents : [];
+  const sum = list.every(isCents) ? list.reduce((s, x) => s + x, 0) : null;
+  if (!pend.count) return { cents: sum, failure: `${who}: no [data-testid^="approval-pending-"] in cost-tree-scroll (the approved report's cost is unreadable)` };
+  if (sum == null) return { cents: null, failure: `${who}: approval-pending data-cents unreadable (${JSON.stringify(list)})` };
+  if (!(sum > 0)) return { cents: sum, failure: `${who}: approval-pending sum ${sum}¢ (want > 0)` };
+  return { cents: sum, failure: null };
+}
+
+/** job-ac-since-lock data-cents before the approval: 0 when the line is absent (spec #89). */
+export const sinceLockBefore = (reading) => (reading?.since?.count > 0 ? reading.since.cents : 0);
+
+/** "When the amount is $0, or less, the line is not rendered." Failure line or null for one E6_PROBE reading. */
+export function sinceLockZeroFailure(reading, label) {
+  const s = reading?.since;
+  return s?.count > 0 && !(isCents(s.cents) && s.cents > 0) ? `${label}: job-ac-since-lock is rendered with data-cents ${JSON.stringify(s.rawCents)} (want no line at $0 or less)` : null;
+}
+
+/**
+ * After the approval, for one role that sees the AC card: job-ac-since-lock is visible, its data-cents equals
+ * beforeSince + approved to the cent, and its text is exactly sinceLockText(data-cents). `label` prefixes each line.
+ */
+export function sinceLockAfterFailures(since, label, beforeSince, approved) {
+  const f = [];
+  const want = approved != null ? beforeSince + approved : null;
+  if (!since || since.count === 0) return [`${label}: job-ac-since-lock missing (want ${want == null ? "?" : `${want}¢`})`];
+  if (!since.visible) f.push(`${label}: job-ac-since-lock is not visible`);
+  if (want != null && since.cents !== want) f.push(`${label}: job-ac-since-lock data-cents ${since.rawCents} (want ${beforeSince} + ${approved} = ${want}¢)`);
+  if (isCents(since.cents) && since.text !== sinceLockText(since.cents)) f.push(`${label}: job-ac-since-lock reads "${since.text}" (want "${sinceLockText(since.cents)}")`);
+  return f;
+}
+
 /** Pure rule for runE6's observations. Returns failure lines (empty = PASS). */
 export function evaluateE6(o) {
   const f = [];
@@ -122,27 +161,19 @@ export function evaluateE6(o) {
   // "When the amount is $0, or less, the line is not rendered." Checked on every reading.
   for (const [when, set] of [["before", b], ["after", a]]) {
     for (const [role, r] of Object.entries(set)) {
-      if (r?.since?.count > 0 && !(isCents(r.since.cents) && r.since.cents > 0)) f.push(`${when}, ${role}: job-ac-since-lock is rendered with data-cents ${JSON.stringify(r.since.rawCents)} (want no line at $0 or less)`);
+      const z = sinceLockZeroFailure(r, `${when}, ${role}`);
+      if (z) f.push(z);
     }
   }
   if (!o.steps?.includes("superintendent before")) return f.length ? f : ["before readings not taken"];
-  const beforeSince = b.pm?.since?.count > 0 ? b.pm.since.cents : 0;
-  const pend = b.superintendent?.pending ?? { count: 0, cents: [] };
-  const approved = pend.cents.every(isCents) ? pend.cents.reduce((s, x) => s + x, 0) : null;
-  if (!pend.count) f.push(`superintendent before: no [data-testid^="approval-pending-"] in cost-tree-scroll (the approved report's cost is unreadable)`);
-  else if (approved == null) f.push(`superintendent before: approval-pending data-cents unreadable (${JSON.stringify(pend.cents)})`);
-  else if (!(approved > 0)) f.push(`superintendent before: approval-pending sum ${approved}¢ (want > 0)`);
+  const beforeSince = sinceLockBefore(b.pm);
+  const ac = approvedCost(b.superintendent?.pending);
+  const approved = ac.cents;
+  if (ac.failure) f.push(ac.failure);
   for (const k of ["actual", "eac"]) if (!isCents(b.pm?.[k])) f.push(`pm before: job-${k} data-cents unreadable`);
   if (!b.pm?.cpiText) f.push("pm before: job-cpi-index unreadable");
   if (!o.steps.includes("after")) return f;
-  const want = approved != null ? beforeSince + approved : null;
-  for (const role of E6_AFTER_ROLES) {
-    const s = a[role]?.since;
-    if (!s || s.count === 0) { f.push(`${role} after approval: job-ac-since-lock missing (want ${want == null ? "?" : `${want}¢`})`); continue; }
-    if (!s.visible) f.push(`${role} after approval: job-ac-since-lock is not visible`);
-    if (want != null && s.cents !== want) f.push(`${role} after approval: job-ac-since-lock data-cents ${s.rawCents} (want ${beforeSince} + ${approved} = ${want}¢)`);
-    if (isCents(s.cents) && s.text !== sinceLockText(s.cents)) f.push(`${role} after approval: job-ac-since-lock reads "${s.text}" (want "${sinceLockText(s.cents)}")`);
-  }
+  for (const role of E6_AFTER_ROLES) f.push(...sinceLockAfterFailures(a[role]?.since, `${role} after approval`, beforeSince, approved));
   const pa = a.pm ?? {};
   if (pa.actual !== b.pm?.actual) f.push(`pm: job-actual ${b.pm?.actual}¢ → ${pa.actual}¢ after the approval (want unchanged until the next lock)`);
   if (pa.cpiText !== b.pm?.cpiText) f.push(`pm: job-cpi-index "${b.pm?.cpiText}" → "${pa.cpiText}" after the approval (want unchanged)`);

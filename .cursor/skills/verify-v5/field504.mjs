@@ -7,19 +7,38 @@
 // - The plan is Cedar Creek's (25-031) first `plan-card` with a visible `submit-plan` after Reset demo, keyed by its
 //   `data-plan-id`; its line 04-210 is the pour the field intel checks use (report-mh-04-210 / report-qty-04-210).
 // - Live gain/loss is `report-gl-04-210`: "Earned 19.2 MH", "Actual 22.0 MH" and "−2.8 MH" (U+2212 or "-").
-// - The posted quantity is `cost-item-installed` on /app/jobs/25-031/cost-items/04-210: after approval it reads 12 more
-//   than before the report.
+// - d-5 flow and posted quantity (spec #93, main 9d05bd8d, 5.0.4-d check 5, spec lines 363-366): "the foreman reports
+//   12 CY, the superintendent returns it with a reason, the foreman resubmits, and the superintendent approves." The
+//   return uses the product's ReturnReportForm (`return-reason`, `return-report`, confirmed through confirmIfDialog);
+//   the plan goes back to `issued` with `return-reason-banner` naming the reason, and the foreman's 12 CY / 22.0 MH are
+//   kept (field intel check 5). The resubmit is the foreman's `report-work` again. On
+//   /app/jobs/25-031/cost-items/04-210, after a reload: "Before the foreman reports. `cost-item-installed` reads "248 CY",
+//   and `cost-item-qty-since-lock` has count 0." The line also has count 0 (and the headline stays 248 CY) while the
+//   report is reported, returned and resubmitted (field intel check 4: "Nothing posts before approval"). After the
+//   approval, as the superintendent, PM, executive and foreman, the headline still reads 248 CY, the line is visible,
+//   `data-qty-milli` is exactly "12000", and its text is exactly "+12 CY posted since Period 1 lock" ("`<P>` is 25-031's
+//   latest locked period, which is Period 1 after **Reset demo**"). When "Period <n> lock" appears elsewhere in `main`,
+//   every such n is 1 too. The line is never rendered at 0 (or less), on any reading.
 // - d-4 (Planner ruling 2026-10-27, #86): as the foreman on /app/jobs/24-077. A report row is an `li` in
 //   `job-changes-full` on /app/jobs/24-077/changes matching /Reported Culvert Crew A's work on I-5 Culverts for /
 //   (the dailyReport.post summary in server/assistant/actions.ts). S11: the old /Reported day's work/ is the
 //   assistant's action label, not the /changes wording, so it always counted 0.
+// - d-4 dedupe key (spec #93, main 9d05bd8d, 5.0.4-d check 4, spec line 360): "Dedupe is by plan plus report day." …
+//   "The report-row count above matches Culvert Crew A's summary only, so another crew's row neither fails nor satisfies
+//   it." The row has no data attributes (change-log-list.tsx renders `<li>` with the summary text), so the key is read
+//   from the summary "Reported <crew>'s work on <job short name> for <day>: …" (actions.ts dailyReport.post, day = en-US
+//   "Tue, Oct 27" in UTC). daily_plans is unique on (job, crew, plan date) (schema.ts daily_plans_job_crew_date_uidx), so
+//   on one job's /changes page crew + day names exactly one plan + day. The d-4 plan's key is Culvert Crew A · I-5
+//   Culverts · its plan-card `data-plan-date` formatted the same way. Both rules apply to that key only: it must appear
+//   exactly once, and a Culvert Crew A row on I-5 Culverts whose day is unreadable FAILS (it may be the key's). Rows of
+//   any other crew are never judged.
 // - Demo path steps are the `li` elements in `[data-testid="demo-path"]`, in order. A step is done when the li (or a
 //   descendant) has data-done="true", data-state="done" or data-status="done", or contains a visible element whose
 //   data-testid ends in "-done". Step text is never judged: copy like "Done when 26-010 is approved" is not a done mark.
 // - d-4: a manual Retry is acceptable and an automatic resend is not required. Offline, Report day's work must leave a
 //   visible `report-unsent` holding a `report-retry` "Retry" button; it survives a reload once back online; a
-//   double-click on Retry gives exactly 1 post and 1 report row. An automatic resend that gives exactly 1 post and 1
-//   report row with no Retry press also passes. A post is a POST with a Next-Action header that got a response.
+//   double-click on Retry gives exactly 1 post and 1 report row per plan + day. An automatic resend that gives exactly 1
+//   post and 1 report row per plan + day with no Retry press also passes. A post is a POST with a Next-Action header that got a response.
 import { changesPath, contextFor, signInRole } from "./crawl.mjs";
 import { resetDemo } from "./numbers.mjs";
 import { confirmIfDialog } from "./confirm-dialog.mjs";
@@ -33,6 +52,32 @@ export const FIELD_GL = { earned: "19.2", actual: "22.0", gl: "2.8" };
 export const OFFLINE_JOB = "24-077";
 /** S11 / #86: the /changes summary the app writes for dailyReport.post ("Reported <crew>'s work on <job> for <date>: …"). */
 export const REPORTED_ROW = /Reported Culvert Crew A's work on I-5 Culverts for /;
+/** The d-4 plan's crew and job short name, as the /changes summary names them. */
+export const OFFLINE_CREW = "Culvert Crew A";
+export const OFFLINE_JOB_NAME = "I-5 Culverts";
+/** dailyReport.post summary: "Reported <crew>'s work on <job> for <Ddd, Mmm d>: …". */
+export const REPORT_KEY = /Reported (.+?)'s work on (.+?) for ([A-Z][a-z]{2}, [A-Z][a-z]{2} \d{1,2}):/;
+/** The day as actions.ts writes it: `day(iso)` = en-US weekday short, month short, day numeric, UTC. */
+export function reportDay(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso ?? ""))) return null;
+  const d = new Date(`${iso}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+}
+/**
+ * Report rows on /changes grouped by (plan, day): crew + job + day from the summary. A row that says "Reported …'s work
+ * on" without a readable day is `unreadable` (its full text; never silently dropped).
+ */
+export function reportRowKeys(texts) {
+  const counts = new Map();
+  const unreadable = [];
+  for (const t of texts ?? []) {
+    const s = String(t ?? "").replace(/\s+/g, " ");
+    const m = REPORT_KEY.exec(s);
+    if (m) { const k = `${m[1]} · ${m[2]} · ${m[3]}`; counts.set(k, (counts.get(k) ?? 0) + 1); }
+    else if (/\bReported .+'s work on /.test(s)) unreadable.push(s);
+  }
+  return { counts, unreadable };
+}
 /** Rows (li texts) on /changes that are a report of the d-4 plan. */
 export function countReportRows(texts, re = REPORTED_ROW) {
   return (texts ?? []).filter((t) => re.test(String(t ?? ""))).length;
@@ -40,7 +85,6 @@ export function countReportRows(texts, re = REPORTED_ROW) {
 const SIZE = { width: 390, height: 844 };
 
 const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
-const num = (s) => { const m = String(s ?? "").replace(/,/g, "").match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
 
 async function open(page, base, p) {
   await page.goto(base + p, { waitUntil: "load" });
@@ -51,16 +95,45 @@ async function planStatus(page, id) {
   const c = card(page, id);
   return (await c.count()) ? { visible: true, status: await c.getAttribute("data-status") } : { visible: false, status: null };
 }
-async function reportedRows(page, base, job = OFFLINE_JOB) {
+/** Every `li` text in job-changes-full (reportRowKeys groups them by plan + day). */
+export async function reportedRows(page, base, job = OFFLINE_JOB) {
   await open(page, base, changesPath(job));
-  const texts = await page.evaluate(() => [...document.querySelectorAll('[data-testid="job-changes-full"] li')].map((li) => li.innerText ?? ""));
-  return countReportRows(texts);
+  return page.evaluate(() => [...document.querySelectorAll('[data-testid="job-changes-full"] li')].map((li) => (li.innerText ?? "").replace(/\s+/g, " ").trim()));
 }
-async function installed(page, base) {
+export const FIELD_CLAIMED = { qty: 248, unit: "CY" };
+export const FIELD_QTY_MILLI = 12000;
+/** In-page d-5 reading of the 04-210 cost item page: Installed headline, the qty since-lock line, other "Period n lock" mentions. */
+export const QTY_PROBE = () => {
+  const LINE = '[data-testid="cost-item-qty-since-lock"]';
+  const vis = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden";
+  const one = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
+  // Text of a subtree without the since-lock line, text nodes joined by spaces (so "Installed" "248 CY" stay apart).
+  const textOf = (root) => {
+    const parts = [];
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) if (!n.parentElement?.closest(LINE)) parts.push(n.nodeValue);
+    return one(parts.join(" "));
+  };
+  const inst = document.querySelector('[data-testid="cost-item-installed"]');
+  const lines = [...document.querySelectorAll(LINE)];
+  const line = lines.find(vis) ?? lines[0] ?? null;
+  const main = document.querySelector("main") ?? document.body;
+  const periods = [...textOf(main).matchAll(/Period (\d+) lock/g)].map((m) => Number(m[1]));
+  return {
+    path: location.pathname,
+    installed: inst ? textOf(inst) : null,
+    line: { count: lines.length, visible: vis(line), rawQty: line?.getAttribute("data-qty-milli") ?? null, text: line ? one(line.innerText) : null },
+    periods: [...new Set(periods)],
+  };
+};
+async function costItemReading(page, base) {
   await open(page, base, `/app/jobs/${FIELD_JOB}/cost-items/${FIELD_CODE}`);
-  const e = page.getByTestId("cost-item-installed").first();
-  return (await e.count()) ? oneLine(await e.innerText()) : null;
+  return page.evaluate(QTY_PROBE);
 }
+/** d-5 return reason (field intel check 5's example). */
+export const RETURN_REASON = "Recount pour 3";
+/** Roles that read the d-5 line after the approval: every role, foreman included. */
+export const QTY_AFTER_ROLES = ["superintendent", "pm", "executive", "foreman"];
 /** The working plan: first visible plan-card with a visible submit-plan. */
 async function draftPlanId(page, base) {
   await open(page, base, `/app/jobs/${FIELD_JOB}`);
@@ -87,14 +160,28 @@ async function fillReport(page, id) {
   await c.getByTestId(`report-qty-${FIELD_CODE}`).first().fill(FIELD_QTY);
 }
 
-/** d-3 then d-5: super issues, foreman sees it issued, enters 12 CY / 22.0 MH (live G/L), reports, super approves, posted qty. */
+/** The kept report values on the plan card (field intel check 5: "12 CY and 22.0 MH still filled in"). */
+async function reportValues(page, id) {
+  const c = card(page, id);
+  const val = async (tid) => { const l = c.getByTestId(tid).first(); return (await l.count()) ? await l.inputValue() : null; };
+  return { qty: await val(`report-qty-${FIELD_CODE}`), mh: await val(`report-mh-${FIELD_CODE}`) };
+}
+async function returnBanner(page, id) {
+  const b = card(page, id).getByTestId("return-reason-banner").first();
+  return (await b.count()) && (await b.isVisible()) ? oneLine(await b.innerText()) : null;
+}
+
+/**
+ * d-3 then d-5 (spec #93 line 363): super issues, foreman sees it issued, enters 12 CY / 22.0 MH (live G/L), reports,
+ * super returns it with a reason, foreman resubmits, super approves; the 04-210 line is read at every stage.
+ */
 export async function issueReportApproveFlow(browser, base) {
   const out = { steps: [] };
   const { ctx, page } = await newSandbox(browser, base, "superintendent");
   try {
     out.planId = await draftPlanId(page, base);
     if (!out.planId) { out.error = "no draft plan-card with a visible submit-plan on 25-031"; return out; }
-    out.installedBefore = await installed(page, base);
+    out.qtyBefore = await costItemReading(page, base);
     await open(page, base, `/app/jobs/${FIELD_JOB}`);
     await submitPlan(page, out.planId);
     out.superAfter = await planStatus(page, out.planId);
@@ -113,13 +200,40 @@ export async function issueReportApproveFlow(browser, base) {
     await card(page, out.planId).getByTestId("report-work").first().click({ timeout: T });
     await page.locator(`[data-testid="plan-card"][data-plan-id="${out.planId}"][data-status="reported"]:visible`).first().waitFor({ timeout: T }).catch(() => {});
     out.afterReport = await planStatus(page, out.planId);
+    out.qtyReported = await costItemReading(page, base);
     out.steps.push("report");
+    // Return with a reason (spec #93 line 363; ReturnReportForm: the reason input is inside the form, the trigger opens
+    // the ConfirmDialog). Settled when the card is back to issued.
+    await signInRole(page, base, "superintendent");
+    await open(page, base, `/app/jobs/${FIELD_JOB}`);
+    for (const tid of ["return-reason", "return-report"]) {
+      if (!(await card(page, out.planId).getByTestId(tid).count())) { out.error = `no ${tid} on plan ${out.planId} as the superintendent (spec #93: the superintendent returns it with a reason)`; return out; }
+    }
+    await card(page, out.planId).getByTestId("return-reason").first().fill(RETURN_REASON, { timeout: T });
+    await card(page, out.planId).getByTestId("return-report").first().click({ timeout: T });
+    await confirmIfDialog(page, { settled: page.locator(`[data-testid="plan-card"][data-plan-id="${out.planId}"][data-status="issued"]:visible`), timeout: T });
+    out.afterReturn = await planStatus(page, out.planId);
+    out.qtyReturned = await costItemReading(page, base);
+    out.steps.push("return");
+    // The foreman sees the reason and the kept values, then resubmits with report-work.
+    await signInRole(page, base, "foreman");
+    await open(page, base, `/app/jobs/${FIELD_JOB}`);
+    out.foremanReturned = { ...(await planStatus(page, out.planId)), banner: await returnBanner(page, out.planId), values: await reportValues(page, out.planId) };
+    await card(page, out.planId).getByTestId("report-work").first().click({ timeout: T });
+    await page.locator(`[data-testid="plan-card"][data-plan-id="${out.planId}"][data-status="reported"]:visible`).first().waitFor({ timeout: T }).catch(() => {});
+    out.afterResubmit = await planStatus(page, out.planId);
+    out.qtyResubmitted = await costItemReading(page, base);
+    out.steps.push("resubmit");
     await signInRole(page, base, "superintendent");
     await open(page, base, `/app/jobs/${FIELD_JOB}`);
     await card(page, out.planId).getByTestId("approve-report").first().click({ timeout: T });
     await confirmIfDialog(page, { settled: page.locator(`[data-testid="plan-card"][data-plan-id="${out.planId}"][data-status="approved"]:visible`), timeout: T });
     out.afterApprove = await planStatus(page, out.planId);
-    out.installedAfter = await installed(page, base);
+    out.qtyAfter = {};
+    for (const role of QTY_AFTER_ROLES) {
+      if (role !== "superintendent") await signInRole(page, base, role);
+      out.qtyAfter[role] = await costItemReading(page, base);
+    }
     out.steps.push("approve + posted qty");
   } catch (error) {
     out.error = String(error?.message ?? error).split("\n")[0];
@@ -157,6 +271,7 @@ export async function offlineRetryFlow(browser, base) {
       return c?.getAttribute("data-plan-id") ?? null;
     });
     if (!out.planId) { out.error = `no plan-card with a visible report-work on ${OFFLINE_JOB}`; return out; }
+    out.planDate = await page.evaluate((id) => document.querySelector(`[data-testid="plan-card"][data-plan-id="${id}"]`)?.getAttribute("data-plan-date") ?? null, out.planId);
     out.rowsBefore = await reportedRows(page, base);
     await open(page, base, `/app/jobs/${OFFLINE_JOB}`);
     const c = card(page, out.planId);
@@ -236,6 +351,64 @@ export async function demoStateFlow(browser, base) {
 
 const glHas = (text, re) => re.test(String(text ?? "").replace(/\u2212/g, "-"));
 
+/** First "<qty> <unit>" in the Installed card text ("Installed 248 CY 300 CY budgeted" → { qty: 248, unit: "CY" }). */
+export function headlineQty(text) {
+  const m = /(-?\d[\d,]*(?:\.\d+)?)\s*([A-Za-z]{1,4})\b/.exec(String(text ?? ""));
+  return m ? { qty: Number(m[1].replace(/,/g, "")), unit: m[2] } : null;
+}
+/** "`<P>` is 25-031's latest locked period, which is Period 1 after **Reset demo**" (spec #93 line 364). */
+export const FIELD_PERIOD = 1;
+export const LINE_TEXT = /^\+12 CY posted since Period 1 lock$/;
+const LINE_WANT = `+${FIELD_QTY} CY posted since Period ${FIELD_PERIOD} lock`;
+/**
+ * d-5 posted quantity (spec #93, main 9d05bd8d, spec lines 364-366). `before` is the superintendent's reading before the
+ * foreman reports; `pending` maps stage → reading while the report is not yet approved (reported, returned,
+ * resubmitted); `after` maps role → reading after the approval. Returns failure lines.
+ */
+export function postedQtyFailures(before, after, pending = {}) {
+  const f = [];
+  const claimed = `${FIELD_CLAIMED.qty} ${FIELD_CLAIMED.unit}`;
+  const at = `${FIELD_CODE} cost item`;
+  const hb = headlineQty(before?.installed);
+  if (!hb) f.push(`${at}, before: cost-item-installed headline unreadable ("${before?.installed ?? null}")`);
+  else if (hb.qty !== FIELD_CLAIMED.qty || hb.unit !== FIELD_CLAIMED.unit) f.push(`${at}, before: Installed headline ${hb.qty} ${hb.unit} (want the claimed ${claimed})`);
+  // "The line must NOT render when nothing has been posted since the lock (qty 0)": never at 0 or less, on any reading.
+  const zero = (r, who) => {
+    const l = r?.line;
+    if (l?.count > 0 && !(/^\d+$/.test(String(l.rawQty ?? "").trim()) && Number(l.rawQty) > 0)) f.push(`${at}, ${who}: cost-item-qty-since-lock is rendered with data-qty-milli ${JSON.stringify(l.rawQty)} (want no line at 0 or less)`);
+  };
+  zero(before, "before");
+  // "Before the foreman reports. … `cost-item-qty-since-lock` has count 0." Any line there FAILS, whatever it reads.
+  if (!before) f.push(`${at}, before the foreman reports: not read`);
+  else if (before.line?.count !== 0) f.push(`${at}, before the foreman reports: cost-item-qty-since-lock count ${JSON.stringify(before.line?.count ?? null)} (want 0)`);
+  // Nothing posts until the approval (field intel check 4): count 0 and the claimed headline while reported, returned
+  // and resubmitted.
+  for (const [stage, r] of Object.entries(pending)) {
+    const who = `${stage} (before the approval)`;
+    if (!r) { f.push(`${at}, ${who}: not read`); continue; }
+    if (r.line?.count !== 0) f.push(`${at}, ${who}: cost-item-qty-since-lock count ${JSON.stringify(r.line?.count ?? null)} (want 0: nothing posts before the approval)`);
+    const hp = headlineQty(r.installed);
+    if (!hp || hp.qty !== FIELD_CLAIMED.qty || hp.unit !== FIELD_CLAIMED.unit) f.push(`${at}, ${who}: Installed headline ${hp ? `${hp.qty} ${hp.unit}` : `unreadable ("${r.installed ?? null}")`} (want the claimed ${claimed})`);
+  }
+  for (const role of QTY_AFTER_ROLES) {
+    const r = after?.[role];
+    const who = `${role} after the approval`;
+    if (!r) { f.push(`${at}, ${who}: not read`); continue; }
+    zero(r, who);
+    const ha = headlineQty(r.installed);
+    if (!ha) f.push(`${at}, ${who}: cost-item-installed headline unreadable ("${r.installed ?? null}")`);
+    else if (ha.qty !== FIELD_CLAIMED.qty || ha.unit !== FIELD_CLAIMED.unit || (hb && (ha.qty !== hb.qty || ha.unit !== hb.unit))) f.push(`${at}, ${who}: Installed headline ${hb ? `${hb.qty} ${hb.unit}` : "?"} → ${ha.qty} ${ha.unit} (want unchanged at the claimed ${claimed})`);
+    const l = r.line ?? {};
+    if (!l.count) { f.push(`${at}, ${who}: cost-item-qty-since-lock missing (want "${LINE_WANT}", data-qty-milli ${FIELD_QTY_MILLI})`); continue; }
+    if (!l.visible) f.push(`${at}, ${who}: cost-item-qty-since-lock is not visible`);
+    if (String(l.rawQty ?? "").trim() !== String(FIELD_QTY_MILLI)) f.push(`${at}, ${who}: cost-item-qty-since-lock data-qty-milli ${JSON.stringify(l.rawQty)} (want "${FIELD_QTY_MILLI}")`);
+    if (!LINE_TEXT.test(String(l.text ?? ""))) f.push(`${at}, ${who}: cost-item-qty-since-lock reads "${l.text}" (want exactly "${LINE_WANT}")`);
+    const other = (r.periods ?? []).filter((n) => n !== FIELD_PERIOD);
+    if (other.length) f.push(`${at}, ${who}: the page says Period ${other.join(", ")} lock (want Period ${FIELD_PERIOD}, 25-031's latest lock after Reset demo)`);
+  }
+  return f;
+}
+
 /** d-3 (field intel check 2) and d-5 (field intel checks 3 and 11). */
 export function evaluateIssueReportApprove(r) {
   const f3 = [], f5 = [];
@@ -256,23 +429,49 @@ export function evaluateIssueReportApprove(r) {
     }
   } else if (!r.error) f5.push("live G/L not run");
   if (r.steps.includes("report") && r.afterReport?.status !== "reported") f5.push(`after Report day's work plan ${r.planId} is "${r.afterReport?.status}" (want reported)`);
+  // Return with a reason, then resubmit (spec #93 line 363). A missing or ineffective return FAILS.
+  if (r.steps.includes("return")) {
+    if (r.afterReturn?.status !== "issued") f5.push(`after the superintendent's return plan ${r.planId} is "${r.afterReturn?.status}" (want issued: the return did not take)`);
+    const fr = r.foremanReturned ?? {};
+    if (fr.status !== "issued") f5.push(`foreman after the return sees plan ${r.planId} as "${fr.status}" (want issued)`);
+    if (!String(fr.banner ?? "").includes(RETURN_REASON)) f5.push(`foreman after the return: return-reason-banner ${fr.banner == null ? "missing" : `reads "${fr.banner}"`} (want the reason "${RETURN_REASON}")`);
+    const v = fr.values ?? {};
+    if (Number(v.qty) !== Number(FIELD_QTY) || Number(v.mh) !== Number(FIELD_MH)) f5.push(`foreman after the return: report values ${JSON.stringify(v.qty ?? null)} CY / ${JSON.stringify(v.mh ?? null)} MH (want ${FIELD_QTY} CY and ${FIELD_MH} MH kept)`);
+  } else if (!r.error && r.steps.includes("report")) f5.push("return with a reason not run (spec #93: the superintendent returns it with a reason)");
+  if (r.steps.includes("resubmit")) {
+    if (r.afterResubmit?.status !== "reported") f5.push(`after the foreman's resubmit plan ${r.planId} is "${r.afterResubmit?.status}" (want reported)`);
+  } else if (!r.error && r.steps.includes("report")) f5.push("foreman resubmit not run (spec #93: the foreman resubmits)");
   if (r.steps.includes("approve + posted qty")) {
+    if (!r.steps.includes("return") || !r.steps.includes("resubmit")) f5.push("approved without the return and resubmit (spec #93 line 363)");
     if (r.afterApprove?.status !== "approved") f5.push(`after approve plan ${r.planId} is "${r.afterApprove?.status}" (want approved)`);
-    const b = num(r.installedBefore), a = num(r.installedAfter);
-    if (b == null || a == null) f5.push(`cost-item-installed unreadable (before "${r.installedBefore}", after "${r.installedAfter}")`);
-    else if (Math.abs(a - b - Number(FIELD_QTY)) > 1e-9) f5.push(`posted quantity on ${FIELD_CODE}: installed "${r.installedBefore}" → "${r.installedAfter}" (want +${FIELD_QTY})`);
+    f5.push(...postedQtyFailures(r.qtyBefore, r.qtyAfter, { reported: r.qtyReported, returned: r.qtyReturned, resubmitted: r.qtyResubmitted }));
   } else if (!r.error) f5.push("approval and posted quantity not run");
   return { "d-3": f3, "d-5": f5 };
 }
 
-/** d-4 (field intel check 10, Planner ruling 2026-10-27 #86). */
+/** d-4 (field intel check 10; spec #93, main 9d05bd8d, 5.0.4-d check 4). */
 export function evaluateOfflineRetry(r) {
   const f = [];
   if (r.error) f.push(`${r.error} (after ${r.steps.join(", ") || "nothing"})`);
-  const isCount = (x) => typeof x === "number" && Number.isFinite(x);
-  // #86 (59cbf2da): "the page has exactly 1 report row", an absolute count after reset (rowsBefore is evidence only).
-  const rows = isCount(r.rowsAfter) ? r.rowsAfter : null;
-  const rowsText = () => `${rows ?? "unreadable"} report row(s) on /app/jobs/24-077/changes (want exactly 1; ${r.rowsBefore ?? "?"} before the offline submit)`;
+  // Spec #93 (main 9d05bd8d) line 360: "Dedupe is by plan plus report day." … "The report-row count above matches
+  // Culvert Crew A's summary only, so another crew's row neither fails nor satisfies it." Both rules (readable, exactly
+  // one) apply to the d-4 plan's key only. rowsBefore is evidence only.
+  const rowsF = () => {
+    const out = [];
+    if (!Array.isArray(r.rowsAfter)) return [`report rows on /app/jobs/24-077/changes unreadable (${JSON.stringify(r.rowsAfter)})`];
+    const { counts, unreadable } = reportRowKeys(r.rowsAfter);
+    const own = new RegExp(`\\bReported ${OFFLINE_CREW}'s work on ${OFFLINE_JOB_NAME}\\b`);
+    for (const u of unreadable) if (own.test(u)) out.push(`${OFFLINE_CREW} report row with no readable day on /app/jobs/24-077/changes (the d-4 plan + day key can't be ruled out): "${u.slice(0, 120)}"`);
+    const day = reportDay(r.planDate);
+    if (!day) out.push(`plan ${r.planId} data-plan-date ${JSON.stringify(r.planDate ?? null)} unreadable (the d-4 plan + day key is unknown)`);
+    else {
+      const k = `${OFFLINE_CREW} · ${OFFLINE_JOB_NAME} · ${day}`;
+      const n = counts.get(k) ?? 0;
+      if (n === 0) out.push(`0 report rows for ${k} on /app/jobs/24-077/changes (want exactly 1; ${Array.isArray(r.rowsBefore) ? countReportRows(r.rowsBefore) : "?"} ${OFFLINE_CREW} row(s) before the offline submit)`);
+      else if (n !== 1) out.push(`${n} report rows for ${k} on /app/jobs/24-077/changes (want exactly 1 for the d-4 plan + day)`);
+    }
+    return out;
+  };
   if (r.steps.includes("offline submit") && r.offlineReached > 0) f.push(`${r.offlineReached} post(s) reached the server while offline (want 0)`);
   if (r.mode === "auto") {
     if (r.autoPosts !== 1) f.push(`automatic resend: ${r.autoPosts} post(s) (want exactly 1)`);
@@ -295,7 +494,7 @@ export function evaluateOfflineRetry(r) {
     }
   } else if (!r.error) f.push("back-online step not run");
   if (!r.steps.includes("rows")) { if (!r.error) f.push("report rows not counted"); }
-  else if (rows !== 1) f.push(rowsText());
+  else f.push(...rowsF());
   return f;
 }
 

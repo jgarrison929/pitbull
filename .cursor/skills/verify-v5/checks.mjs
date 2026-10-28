@@ -115,18 +115,47 @@ export const PRIMARY_ACTION_VERB = {
 /**
  * Kind of a clipped box. Protected content wins over a secondary label:
  * a status pill, money (`data-cents` or a `$` amount anywhere in the text), a table header, or an h1 / page title
- * anywhere in the box (the element, an ancestor that is that thing, or a descendant).
+ * in the box. Money, header and title count the element, an ancestor that is that thing, or a descendant.
+ * A status pill counts only the element itself or a descendant (`statusInBox`: its own `data-status`, or a pill it
+ * contains and cuts). An ancestor's `data-status` (a plan card or CO card carries one) does not make its text a status
+ * pill: rc/5.0.4 at ab74c4f3 labeled the activity name "HMA binder course, north approach" inside
+ * `plan-card[data-status]` a status pill. Such text is `text` (`statusAncestor`), which still fails at every width,
+ * and it is never treated as a secondary label, so moving it out of `status` cannot exempt it.
  * A secondary label is only the job strip or `data-clip="secondary"`. The company name left this list with
  * 5.0.4-b check 8 (main 4c9d3539), which requires it in full.
  * Being inside `header` does not make a clip secondary.
  */
-export function classifyClip({ statusInBox, centsInBox, moneyText, headerInBox, titleInBox, secondaryBox }) {
+export function classifyClip({ statusInBox, statusAncestor, centsInBox, moneyText, headerInBox, titleInBox, secondaryBox }) {
   if (statusInBox) return "status";
   if (centsInBox || moneyText) return "money";
   if (headerInBox) return "header";
   if (titleInBox) return "title";
-  if (secondaryBox) return "secondary";
+  if (secondaryBox && !statusAncestor) return "secondary";
   return "text";
+}
+
+/**
+ * The standard screen-reader-only pattern (Tailwind v4 `sr-only`: position absolute, 1px × 1px, overflow hidden,
+ * clip-path inset(50%); older `clip: rect(0 0 0 0)`). Such an element is never shown, so its overflow is not a visual
+ * clip (/status `<dl className="sr-only">` from PR #34). Every part is required: a box that is only 1px tall, or that
+ * ellipsizes, or that is not absolutely positioned, is not sr-only and is still checked.
+ * Input: computed style values plus the border-box size { position, overflowX, overflowY, clip, clipPath, width, height }.
+ */
+export function srOnlyHidden({ position, overflowX, overflowY, clip, clipPath, width, height }) {
+  const hidden = (v) => v === "hidden" || v === "clip";
+  const zeroRect = /^rect\(\s*0(px)?\s*,?\s*0(px)?\s*,?\s*0(px)?\s*,?\s*0(px)?\s*\)$/.test(String(clip ?? "").trim());
+  const inset50 = /^inset\(\s*50%\s*\)$/.test(String(clipPath ?? "").trim());
+  return (position === "absolute" || position === "fixed") && hidden(overflowX) && hidden(overflowY) && (zeroRect || inset50)
+    && Number.isFinite(width) && Number.isFinite(height) && width <= 1 && height <= 1;
+}
+
+/**
+ * e-1 phone cost rows: a row is a roll-up when it holds a tree toggle. The money figures are also
+ * `button[aria-expanded]` (exact-money.tsx `money-exact-toggle`, "Compact $395K. Show exact.", with data-cents), so
+ * they are not toggles. Same rule as axe.mjs TOGGLE_SELECTOR. Input: one aria-expanded button's attributes.
+ */
+export function isRollupToggle({ ariaExpanded, dataCents, testid }) {
+  return ariaExpanded != null && dataCents == null && testid !== "money-exact-toggle";
 }
 
 /** A dollar amount anywhere in the text. `$` followed by a digit (`Budget $1,234,567`). `$` alone is not money. */

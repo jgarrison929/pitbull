@@ -1,0 +1,2 @@
+6. **AC stays at the cutoff after an approval.** At 1280×800, light, after **Reset demo**, on `/app/jobs/24-118`, using the seeded `reported` plan for Interchange Crew 1:
+   - **Before.** As the PM, read `job-actual` `[data-cents]`, the `job-cpi-index` text, and `job-eac` `data-cents`. Read `job-ac-since-lock` `data-cents` (0 when the line is absent). As the superintendent, read the sum of `data-cents` over `[data-testid="cost-tree-scroll"] [data-testid^="approval-pending-"]`. That sum is the approved report's cost, and it must be more than 0.

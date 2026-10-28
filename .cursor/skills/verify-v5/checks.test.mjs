@@ -34,7 +34,12 @@ import {
   secondaryReachable,
   shaMatches,
   textHasMoney,
+  evaluateFigures,
+  isRollupToggle,
+  srOnlyHidden,
 } from "./checks.mjs";
+import { evaluateJourney504, JOURNEYS504, superApproveDoneFailures } from "./journey504.mjs";
+import { sinceLockText } from "./e6.mjs";
 import { parseLsRemoteTags } from "./main-ci.mjs";
 import { evaluateCostIndexes, evaluateNextSteps, evaluateTitlesAndLabels, NEXT_STEP_VERBS, PURPOSE_MAX_CHARS, PURPOSE_MIN_CHARS } from "./checks.mjs";
 import { AXE_PASSES, C8_TAGS, evaluateAxeRows, loadAxeSource, TOGGLE_NAME } from "./axe.mjs";
@@ -81,6 +86,24 @@ const mustFail = (name, failures) => {
   assert.ok(failures.length > 0, `must-fail case passed: ${name}`);
   results.push(`FAILS as expected: ${name} → ${failures[0]}`);
 };
+// 5.0.4-g moved to 5.0.5 (Joshua via lead, docs PR #95). Spec-conditional, full strength either way: if the spec has a
+// "### Checks for 5.0.4-g" section, acceptanceItems has g items and the rc checks list "acceptance 5.0.4-g" (not ok
+// until executed); if it doesn't, neither has any g item, so a stale g check can't linger.
+const G_SECTION = /^### Checks for 5\.0\.4-g\b/m;
+function gCoverageFailures(specText, rcChecks) {
+  const f = [];
+  const gItems = acceptanceItems(specText).filter((i) => i.section === "5.0.4-g");
+  const gChecks = (rcChecks ?? []).filter((c) => /^acceptance 5\.0\.4-g\b/.test(c.name));
+  if (G_SECTION.test(specText)) {
+    if (!gItems.length) f.push("spec has ### Checks for 5.0.4-g but acceptanceItems found no g item");
+    if (!gChecks.length) f.push("spec has ### Checks for 5.0.4-g but the rc checks have no acceptance 5.0.4-g item");
+    for (const c of gChecks) if (c.ok) f.push(`${c.name} is ok without being executed`);
+  } else {
+    if (gItems.length) f.push(`spec has no 5.0.4-g section but acceptanceItems found ${gItems.length} g item(s)`);
+    for (const c of gChecks) f.push(`stray ${c.name} in the rc checks, but the spec has no 5.0.4-g section`);
+  }
+  return f;
+}
 const mustPass = (name, failures) => {
   assert.deepEqual(failures, [], `good case failed: ${name}`);
   results.push(`passes: ${name}`);
@@ -1947,9 +1970,12 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
 
   const spec = readFileSync(path.join(here, "../../../docs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md"), "utf8");
   const items = acceptanceItems(spec);
-  for (const section of ["5.0.4-0", "5.0.4-a", "5.0.4-b", "5.0.4-c", "5.0.4-d", "5.0.4-e", "5.0.4-f", "5.0.4-g"]) {
+  // 5.0.4-g (guided demo path) moved to 5.0.5 (Joshua via lead, docs PR #95), so it is not a required section; it is
+  // judged spec-conditionally by gCoverageFailures below (present → its items required; absent → none allowed).
+  for (const section of ["5.0.4-0", "5.0.4-a", "5.0.4-b", "5.0.4-c", "5.0.4-d", "5.0.4-e", "5.0.4-f"]) {
     assert.ok(items.some((item) => item.section === section), `missing acceptance section ${section}`);
   }
+  const SPEC_HAS_G = G_SECTION.test(spec);
   assert.equal(items.filter((item) => item.section === "5.0.4-f").length, 1);
   // Spec now has a numbered check under ### Checks for 5.0.4-f (#78/#80); acceptanceItems uses that title.
   assert.equal(items.find((item) => item.section === "5.0.4-f").title, "Plan lines as cards on phones.");
@@ -1965,7 +1991,10 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
     const left = evaluateRcAcceptance(all, ["5.0.4-0", ...SPEC504_EXECUTED_ITEMS]);
     assert.ok(all.some((i) => i.section === "5.0.4-i"), "rc/5.0.4 carries the #80 spec (5.0.4-i present)");
     assert.deepEqual(left, [], "every #80 acceptance item is executed (field504.mjs covers d 2/10/3+11 and g-3)");
-    assert.ok(evaluateRcAcceptance(all, ["5.0.4-0", ...SPEC504_EXECUTED_ITEMS.filter((x) => x !== "5.0.4-g: State is real.")]).some((l) => /State is real/.test(l)), "an item dropped from the executed list is reported not executed");
+    // With 5.0.4-g in the spec the dropped item is g-3 (as before #95); without it, a d item stands in.
+    const dropped = SPEC_HAS_G ? "5.0.4-g: State is real." : "5.0.4-d: Must still pass: field intel checks 3 and 11.";
+    const droppedRe = SPEC_HAS_G ? /State is real/ : /field intel checks 3 and 11/;
+    assert.ok(evaluateRcAcceptance(all, ["5.0.4-0", ...SPEC504_EXECUTED_ITEMS.filter((x) => x !== dropped)]).some((l) => droppedRe.test(l)), "an item dropped from the executed list is reported not executed");
     assert.ok(evaluateRcAcceptance(all, ["5.0.4-a: Seeded count."]).every((l) => !l.includes('"Seeded count."')));
   }
   // e-6 (spec #89, main 9497f7e9): the 5.0.4-e checks section, copied verbatim from 9497f7e9 (rc/5.0.4 gets the spec
@@ -2023,7 +2052,24 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.equal(cleanCrawl.find((c) => c.name === "acceptance 5.0.4-0").ok, true);
   assert.equal(cleanCrawl.find((c) => c.name === "ellipsis/clipping at ≤480").ok, true);
   assert.equal(cleanCrawl.find((c) => c.name === "rc migrations apply and the app is healthy").ok, true);
-  assert.ok(cleanCrawl.some((c) => c.name === "acceptance 5.0.4-g" && !c.ok));
+  // 5.0.4-g, spec-conditional (docs PR #95): on this spec, g present → its acceptance check is listed and not ok;
+  // g absent → no acceptance 5.0.4-g check at all.
+  assert.deepEqual(gCoverageFailures(spec, cleanCrawl), [], `5.0.4-g coverage on this branch's spec (g section ${SPEC_HAS_G ? "present" : "absent"})`);
+  {
+    // Both branches on fixtures, whatever this branch's spec says.
+    const A = "### Checks for 5.0.4-a\n\n1. **Seeded count.** One.\n\n";
+    const G = "### Checks for 5.0.4-g\n\n1. **Links work.** One.\n2. **State is real.** Two.\n\n";
+    const withG = `${A}${G}## Next\n`;
+    const noG = `${A}## Next\n`;
+    const rcFor = (md) => buildRcChecks({ history: { ...history, added: [], spec: md }, crawlRan: true, crawlFailures: [], migrationsLabel: "(none)", healthOk: true });
+    mustPass("5.0.4-g fixture: spec with g → acceptance 5.0.4-g listed (not executed)", gCoverageFailures(withG, rcFor(withG)));
+    mustPass("5.0.4-g fixture: spec without g → no g item", gCoverageFailures(noG, rcFor(noG)));
+    mustFail("5.0.4-g fixture: spec with g but the g items dropped", gCoverageFailures(withG, rcFor(withG).filter((c) => !/^acceptance 5\.0\.4-g\b/.test(c.name))));
+    mustFail("5.0.4-g fixture: spec without g plus an injected stray g item", gCoverageFailures(noG, [...rcFor(noG), { name: "acceptance 5.0.4-g", ok: false, detail: '5.0.4-g: "Links work." is not executed' }]));
+    mustFail("5.0.4-g fixture: spec with g whose g check claims ok", gCoverageFailures(withG, rcFor(withG).map((c) => (/^acceptance 5\.0\.4-g\b/.test(c.name) ? { ...c, ok: true } : c))));
+    assert.ok(gCoverageFailures(noG, [...rcFor(noG), { name: "acceptance 5.0.4-g", ok: false, detail: "x" }]).some((l) => /stray/.test(l)));
+    assert.equal(acceptanceItems(withG).filter((i) => i.section === "5.0.4-g").length, 2);
+  }
   results.push("passes: 5.0.4-0 is executed by the crawl; 5.0.4-a through 5.0.4-g stay not executed; a desktop clip is not the ≤480 check");
 
   const sha = "9".repeat(40);
@@ -2324,6 +2370,168 @@ const sev = (r, s) => r.results.filter((x) => x.severity === s);
   assert.match(skill, /pass \(stale/);
   assert.match(skill, /nothing may create, start, or stop a container/);
   results.push(`passes: ${tests.length} skill tests are named in Run-it and in ci.yml; stale ci-gate and staging run conditions are documented`);
+}
+
+// ---- PR verify/journey-e6-harness (rc/5.0.4 --rc at ab74c4f3, #88 comment 6457589799) ----
+// Review round 2: the spec #93 (main 9d05bd8d) fixtures are the spec's own lines, unedited, and rc/5.0.4 (merged into
+// this branch) carries the same text in docs/v5/specs. d-4 line 360, d-5 lines 363-366, e-6 lines 391-392.
+{
+  const specPath = path.join(here, "../../../docs/v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md");
+  const specText = readFileSync(specPath, "utf8");
+  for (const f of ["spec-9d05bd8d-5.0.4-d-checks.md", "spec-9d05bd8d-5.0.4-e-check6.md", "spec-9d05bd8d-5.0.4-e-installed-card.md"]) {
+    for (const line of readFileSync(path.join(here, "fixtures", f), "utf8").split("\n").filter(Boolean)) assert.ok(specText.includes(line), `${f} line is in docs/v5/specs verbatim: ${line.slice(0, 60)}`);
+  }
+  const d = readFileSync(path.join(here, "fixtures/spec-9d05bd8d-5.0.4-d-checks.md"), "utf8");
+  for (const q of [
+    "- **Dedupe is by plan plus report day.** \"Exactly once\" means one queued report posts once across retries, however many Retry presses or resends there are. A second crew's report on the same day, for a different plan, is a separate report: it posts, and its report row stays visible. The report-row count above matches Culvert Crew A's summary only, so another crew's row neither fails nor satisfies it.",
+    "the foreman reports 12 CY, the superintendent returns it with a reason, the foreman resubmits, and the superintendent approves.",
+    "- **Before the foreman reports.** `cost-item-installed` reads \"248 CY\", and `cost-item-qty-since-lock` has count 0. `<P>` is 25-031's latest locked period, which is Period 1 after **Reset demo**.",
+    "- **After the approval.** `cost-item-installed` still reads \"248 CY\", the claimed quantity, until the next lock. `cost-item-qty-since-lock` is visible, its `data-qty-milli` is `12000`, and its `innerText`, with whitespace collapsed, equals `+12 CY posted since <P> lock`.",
+    "- **Every role sees it.** The superintendent, PM, executive, and foreman each see the same line with the same `data-qty-milli`.",
+  ]) assert.ok(d.includes(q), `spec #93 d-4/d-5 text quoted verbatim: ${q.slice(0, 60)}`);
+  results.push("passes: spec #93 (9d05bd8d) fixtures match docs/v5/specs on this branch; d-4 line 360, d-5 lines 363-366 and e-6 line 391-392 quoted verbatim");
+}
+// 1. Journey "superintendent: approve the seeded 24-118 report" follows spec #89 (main 9497f7e9), quoted verbatim from
+//    the fixtures (copied unedited from 9497f7e9): AC stays at the cutoff, the approved cost shows on job-ac-since-lock.
+{
+  const ruleText = readFileSync(path.join(here, "fixtures/spec-9497f7e9-5.0.4-e-ac-card.md"), "utf8");
+  const checkText = readFileSync(path.join(here, "fixtures/spec-9497f7e9-5.0.4-e-checks.md"), "utf8");
+  const SPEC89 = {
+    rule: "The job page Actual cost (AC) card (`job-actual`) shows AC at the locked cutoff, the same basis as CPI and EAC. Its figure does not move when a report is approved, only when the next period is locked.",
+    line: "When cost posted after the latest lock is more than $0, the card adds a second line that reads exactly `+$X posted since Period N lock`.",
+    title: "6. **AC stays at the cutoff after an approval.**",
+    after: "**After, as the superintendent, the PM, and the executive.** `job-ac-since-lock` is visible, and its `data-cents` equals the before value plus the approved report's cost, to the cent. Its `innerText`, with whitespace collapsed, equals `+<usdCents(data-cents)> posted since Period 1 lock`, because 24-118's latest locked period after reset is Period 1.",
+    unchanged: "**Unchanged, as the PM.** `job-actual` `[data-cents]`, the `job-cpi-index` text, and `job-eac` `data-cents` equal their before values exactly. They change only when the PM locks Period 2.",
+  };
+  assert.ok(ruleText.includes(SPEC89.rule) && ruleText.includes(SPEC89.line), "spec #89 AC-card rule quoted verbatim");
+  for (const k of ["title", "after", "unchanged"]) assert.ok(checkText.includes(SPEC89[k]), `spec #89 e-6 text "${k}" quoted verbatim`);
+  // Spec #93 (main 9d05bd8d) line 392, copied unedited into fixtures/spec-9d05bd8d-5.0.4-e-check6.md: the e-6 readings
+  // are taken at 1280×800, and the approved cost is the desktop cost-tree-scroll's approval-pending sum.
+  const e6Text93 = readFileSync(path.join(here, "fixtures/spec-9d05bd8d-5.0.4-e-check6.md"), "utf8");
+  for (const q of ["6. **AC stays at the cutoff after an approval.** At 1280×800, light, after **Reset demo**, on `/app/jobs/24-118`, using the seeded `reported` plan for Interchange Crew 1:",
+    "As the superintendent, read the sum of `data-cents` over `[data-testid=\"cost-tree-scroll\"] [data-testid^=\"approval-pending-\"]`. That sum is the approved report's cost, and it must be more than 0."]) assert.ok(e6Text93.includes(q), `spec #93 e-6 text quoted verbatim: ${q.slice(0, 60)}`);
+  const J = JOURNEYS504["super-approve"];
+  const hook = (o = {}) => ({ path: "/app", count: 1, hooks: ["a"], others: [], isTarget: true, targetRole: J.role, target: "a", firstStepIsHook: true, ...o });
+  // ab74c4f3's AC on 24-118 (3079353280¢) and e-6's measured approved cost on that run (+668800¢), split over 2 items.
+  // Review round 2 (spec #93, main 9d05bd8d, line 392 "At 1280×800"): the journey runs at 390×844 here, and its 24-118
+  // readings are taken at 1280×800 (readE6AtDesktop), where cost-tree-scroll renders the approval-pending rows. A
+  // reading taken at the 390 journey size has no desktop pending rows (only cost-tree-scroll-mobile renders) and FAILS.
+  const AC = 3079353280, APPROVED = [400000, 268800], SUM = 668800;
+  const DESK = { width: 1280, height: 800 };
+  const reading = (o = {}) => ({ path: "/app/jobs/24-118", actual: AC, cpiText: "0.97", eac: 3290000000, since: { count: 0, visible: false, cents: null, rawCents: null, text: null }, pending: { count: 2, cents: APPROVED, codes: ["03-210", "04-450"] }, readAt: DESK, ...o });
+  const line = (cents, text = sinceLockText(cents)) => ({ count: 1, visible: true, cents, rawCents: String(cents), text });
+  const after = (o = {}) => reading({ pending: { count: 0, cents: [], codes: [] }, since: line(SUM), ...o });
+  const run = (doneState, o = {}) => evaluateJourney504({ key: "super-approve", name: J.name, role: J.role, width: 390, height: 844, limit: 3, entries: [{ kind: "tap", label: "role card" }, { kind: "tap", label: "next step" }, { kind: "tap", label: "action" }], bad: [], posts: 1, firstActionTaps: 1, scrollNeed: 0, landed: "/app/jobs/24-118#plan-77", deadEnd: { nextStep: false, done: false, forward: true, path: "/app/jobs/24-118" }, appHook: { ...hook(), tappedIndex: 0 }, targetFound: true, actionHook: hook({ path: "/app/jobs/24-118" }), doneState: { settled: true, ...doneState }, ...o });
+  assert.equal(sinceLockText(SUM), "+$6,688.00 posted since Period 1 lock");
+  mustPass("journey super-approve (#89): AC unchanged, since-lock 0 → +$6,688.00 = approved cost (390×844 journey, 1280×800 readings)", run({ before: reading(), after: after() }));
+  mustPass("journey super-approve at 1280×800 (journey and readings both 1280×800)", run({ before: reading(), after: after() }, { width: 1280, height: 800 }));
+  mustPass("journey super-approve (#89): since-lock already $50.00 before → $50.00 + approved", run({ before: reading({ since: line(5000) }), after: after({ since: line(5000 + SUM) }) }));
+  const bad = (name, ds, re, o) => { const f = run(ds, o); assert.ok(f.some((x) => re.test(x)), `${name} must FAIL with ${re}; got ${JSON.stringify(f)}`); results.push(`FAILS as expected: ${name} → ${f.find((x) => re.test(x))}`); };
+  bad("journey super-approve (a): job-actual rises by the approved cost (the old 'want a rise' pass)", { before: reading(), after: after({ actual: AC + SUM }) }, /done state: job-actual 3079353280¢ → 3080022080¢ after the approval \(want unchanged/);
+  bad("journey super-approve (a'): job-actual rises and since-lock never appears (#88's live AC card)", { before: reading(), after: after({ actual: AC + SUM, since: { count: 0, visible: false, cents: null, rawCents: null, text: null } }) }, /job-ac-since-lock missing \(want 668800¢\)/);
+  bad("journey super-approve (b): job-ac-since-lock unchanged (absent before and after)", { before: reading(), after: after({ since: { count: 0, visible: false, cents: null, rawCents: null, text: null } }) }, /superintendent after approval: job-ac-since-lock missing \(want 668800¢\)/);
+  bad("journey super-approve (b'): job-ac-since-lock unchanged at $50.00", { before: reading({ since: line(5000) }), after: after({ since: line(5000) }) }, /job-ac-since-lock data-cents 5000 \(want 5000 \+ 668800 = 673800¢\)/);
+  bad("journey super-approve (c): since-lock rises by 1¢ too much", { before: reading(), after: after({ since: line(SUM + 1) }) }, /job-ac-since-lock data-cents 668801 \(want 0 \+ 668800 = 668800¢\)/);
+  bad("journey super-approve (c'): since-lock rises by one item only (400000¢)", { before: reading(), after: after({ since: line(400000) }) }, /job-ac-since-lock data-cents 400000 \(want 0 \+ 668800 = 668800¢\)/);
+  bad("journey super-approve: since-lock text names Period 2", { before: reading(), after: after({ since: line(SUM, "+$6,688.00 posted since Period 2 lock") }) }, /reads "\+\$6,688\.00 posted since Period 2 lock" \(want "\+\$6,688\.00 posted since Period 1 lock"\)/);
+  bad("journey super-approve: since-lock present but hidden", { before: reading(), after: after({ since: { ...line(SUM), visible: false } }) }, /job-ac-since-lock is not visible/);
+  bad("journey super-approve: no approval-pending cost before (approved cost unreadable)", { before: reading({ pending: { count: 0, cents: [], codes: [] } }), after: after() }, /superintendent before: no \[data-testid\^="approval-pending-"\]/);
+  bad("journey super-approve: CPI moves", { before: reading(), after: after({ cpiText: "0.96" }) }, /job-cpi-index "0\.97" → "0\.96"/);
+  bad("journey super-approve: EAC moves", { before: reading(), after: after({ eac: 3290000000 + SUM }) }, /job-eac 3290000000¢ → 3290668800¢/);
+  bad("journey super-approve: since-lock rendered at $0 before", { before: reading({ since: line(0, "+$0.00 posted since Period 1 lock") }), after: after() }, /before: job-ac-since-lock is rendered with data-cents "0"/);
+  bad("journey super-approve: job-eac unreadable before and after (equal nulls must not pass)", { before: reading({ eac: null }), after: after({ eac: null }) }, /job-eac before the approval unreadable/);
+  bad("journey super-approve: job-cpi-index unreadable before and after", { before: reading({ cpiText: null }), after: after({ cpiText: null }) }, /job-cpi-index before the approval unreadable/);
+  bad("journey super-approve: job-actual unreadable before", { before: reading({ actual: null }), after: after({ actual: null }) }, /job-actual before the approval unreadable/);
+  bad("journey super-approve: approve posts twice (unchanged rule)", { before: reading(), after: after() }, /approve posted 2 time\(s\)/, { posts: 2 });
+  bad("journey super-approve: no done state read", {}, /job-actual before the approval unreadable/);
+  // The lead's false FAIL at 390×844: the readings taken at the journey size, where cost-tree-scroll has no pending rows.
+  const at390 = { width: 390, height: 844 };
+  bad("journey super-approve 390×844: before read at the journey size (no desktop pending rows)", { before: reading({ readAt: at390, pending: { count: 0, cents: [], codes: [] } }), after: after({ readAt: at390 }) }, /done state, before: 24-118 read at 390×844 \(want 1280×800, spec #93 line 392\)/);
+  bad("journey super-approve 390×844: after read at the journey size", { before: reading(), after: after({ readAt: at390 }) }, /done state, after: 24-118 read at 390×844 \(want 1280×800/);
+  bad("journey super-approve: reading size unknown", { before: reading({ readAt: undefined }), after: after() }, /done state, before: 24-118 read at an unknown size/);
+  // The old rule is gone: the #89-correct case no longer fails "want a rise".
+  assert.ok(!run({ before: reading(), after: after() }).some((x) => /want a rise/.test(x)));
+  assert.equal(superApproveDoneFailures({ before: reading(), after: after() }, "w").length, 0);
+}
+
+// 2. e-1 phone cost rows: a roll-up holds a tree toggle, not an aria-expanded money button (exact-money.tsx).
+{
+  const attrs = (tag) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+  // The same rule crawl.mjs runs in the page: any `button[aria-expanded]` in the row that isRollupToggle accepts.
+  const rollupOf = (rowHtml) => [...rowHtml.matchAll(/<button\b[^>]*>/g)].map((m) => attrs(m[0])).filter((a) => "aria-expanded" in a)
+    .some((a) => isRollupToggle({ ariaExpanded: a["aria-expanded"], dataCents: a["data-cents"] ?? null, testid: a["data-testid"] ?? null }));
+  const oldRollupOf = (rowHtml) => /<button\b[^>]*\baria-expanded=/.test(rowHtml); // ab74c4f3: card.querySelector("button[aria-expanded]")
+  // Markup as the product renders it at ab74c4f3 (exact-money.tsx money-exact-toggle; cost-table.tsx phone tree toggle).
+  const MONEY = (c, s, x) => `<button type="button" data-cents="${c}" title="${x}" data-testid="money-exact-toggle" aria-expanded="false" aria-label="Compact ${s}. Show exact.">${s}</button>`;
+  const LEAF = `<div data-testid="cost-tree-row" data-code="02-100">${MONEY(39500000, "$395K", "$395,000.00")}${MONEY(41000000, "$410K", "$410,000.00")}</div>`;
+  const TOGGLE = `<button type="button" aria-expanded="true" aria-controls="cost-tree-phone-02" aria-label="Collapse 02 Earthwork"><svg></svg></button>`;
+  const ROLLUP = `<div data-testid="cost-tree-row" data-code="02">${TOGGLE}${MONEY(200000000, "$2.0M", "$2,000,000.00")}</div>`;
+  const MONEY_NO_TESTID = `<div data-testid="cost-tree-row"><button data-cents="100" aria-expanded="false" aria-label="Compact $1. Show exact.">$1</button></div>`;
+  assert.equal(oldRollupOf(LEAF), true, "the ab74c4f3 selector counted a leaf row with only money buttons as a roll-up");
+  assert.equal(rollupOf(LEAF), false, "a row whose only aria-expanded buttons are money buttons is not a roll-up");
+  assert.equal(rollupOf(MONEY_NO_TESTID), false, "a data-cents aria-expanded button is money, testid or not");
+  assert.equal(rollupOf(ROLLUP), true, "a row with the real tree toggle (Collapse 02 Earthwork) is a roll-up");
+  assert.equal(rollupOf(`<div data-testid="cost-tree-row"><button aria-expanded="false"></button></div>`), true, "an unnamed toggle without data-cents still counts (i-3 names it)");
+  const fig = (rollup, money) => evaluateFigures({ role: "executive", width: 320, path: "/app/jobs/24-118", cards: [{ testid: "cost-tree-row", code: "02", top: 900, aboveFold: false, costRow: true, rollup, primary: 1, secondary: 2, stray: [], money }] });
+  mustPass("e-1 roll-up 02 with usdShort money, title and data-cents", fig(rollupOf(ROLLUP), [{ text: "$2.0M", cents: "200000000", title: "$2,000,000.00" }]));
+  mustFail("e-1 real roll-up row with exact money (breaks usdShort)", fig(rollupOf(ROLLUP), [{ text: "$2,000,000.00", cents: "200000000", title: "$2,000,000.00" }]).filter((x) => /roll-up cost-tree-row 02 "\$2,000,000\.00" is not usdShort/.test(x)));
+  mustFail("e-1 real roll-up row whose money lacks a title", fig(rollupOf(ROLLUP), [{ text: "$2.0M", cents: "200000000", title: null }]).filter((x) => /lacks title or data-cents/.test(x)));
+  mustFail("e-1 real roll-up row with no money", fig(rollupOf(ROLLUP), []).filter((x) => /roll-up cost-tree-row 02 has no \[data-cents\] money/.test(x)));
+  // A money-only leaf row is not judged by the roll-up clause (its money is never recorded as roll-up money).
+  assert.deepEqual(fig(rollupOf(LEAF), undefined).filter((x) => /roll-up/.test(x)), [], "a money-only leaf row gets no roll-up lines");
+  results.push("passes: e-1 roll-up = tree toggle (Collapse 02 Earthwork); money-only rows (Compact $395K. Show exact.) are not roll-ups, though ab74c4f3's selector counted them");
+}
+
+// 3. Clip classifier: status by the element itself (or a pill it holds), not an ancestor card's data-status.
+{
+  const clipFails = (clip, width = 320) => evaluatePhoneUx({ role: "superintendent", width, path: "/app/jobs/24-118", clips: [clip] }).filter((x) => /clipped/.test(x));
+  // ab74c4f3: the activity span in report-work-form.tsx (max-[480px]:truncate, title = text) inside plan-card[data-status].
+  const activity = { statusInBox: false, statusAncestor: true, centsInBox: false, moneyText: false, headerInBox: false, titleInBox: false, secondaryBox: false };
+  assert.equal(classifyClip({ ...activity, statusInBox: true }), "status", "the ab74c4f3 input (statusInBox from el.closest) said status");
+  assert.equal(classifyClip(activity), "text", "an activity name inside a data-status card is text");
+  assert.equal(classifyClip({ ...activity, secondaryBox: true }), "text", "text under a data-status ancestor is never a secondary label (no new exemption)");
+  assert.equal(classifyClip({ statusInBox: true }), "status", "a real pill (own data-status) is a status pill");
+  assert.equal(classifyClip({ statusInBox: true, statusAncestor: true }), "status");
+  for (const t of ["HMA binder course, north approach", "Trench excavation, station 42+00"]) {
+    const f = clipFails({ kind: classifyClip(activity), text: t, ellipsis: true, reachable: true });
+    assert.ok(f.some((x) => x.includes(`clipped text "${t.slice(0, 40)}"`)), `${t} must FAIL as text at 320; got ${JSON.stringify(f)}`);
+    results.push(`FAILS as expected: ellipsized activity name in a data-status card → kind text → ${f[0]}`);
+  }
+  for (const w of [320, 390, 600, 1280]) assert.ok(clipFails({ kind: "text", text: "HMA binder course, north approach", ellipsis: true, reachable: true }, w).length > 0, `text clip FAILs at ${w}`);
+  mustFail("real ellipsized status pill 'At risk' → kind status", clipFails({ kind: classifyClip({ statusInBox: true }), text: "At risk", ellipsis: true, reachable: true }).filter((x) => /clipped status pill "At risk"/.test(x)));
+}
+
+// 4. sr-only: only the full visually-hidden pattern is exempt (Tailwind v4 sr-only, or clip: rect(0 0 0 0)).
+{
+  const TW4 = { position: "absolute", overflowX: "hidden", overflowY: "hidden", clip: "auto", clipPath: "inset(50%)", width: 1, height: 1 };
+  assert.equal(srOnlyHidden(TW4), true, "Tailwind v4 sr-only (the /status <dl>) is sr-only");
+  assert.equal(srOnlyHidden({ ...TW4, clipPath: "none", clip: "rect(0px, 0px, 0px, 0px)" }), true, "clip: rect(0 0 0 0) sr-only");
+  assert.equal(srOnlyHidden({ ...TW4, clipPath: "none", clip: "rect(0px 0px 0px 0px)" }), true);
+  assert.equal(srOnlyHidden({ ...TW4, width: 0, height: 0 }), true);
+  const fakes = {
+    "1px tall, 200px wide, ellipsis, static, no clip": { position: "static", overflowX: "hidden", overflowY: "hidden", clip: "auto", clipPath: "none", width: 200, height: 1 },
+    "1px × 1px absolute overflow hidden but no clip / clip-path": { ...TW4, clipPath: "none" },
+    "full pattern but 200px wide": { ...TW4, width: 200 },
+    "full pattern but 20px tall": { ...TW4, height: 20 },
+    "full pattern but position static": { ...TW4, position: "static" },
+    "full pattern but position relative": { ...TW4, position: "relative" },
+    "full pattern but overflow-y visible": { ...TW4, overflowY: "visible" },
+    "full pattern but overflow-x visible": { ...TW4, overflowX: "visible" },
+    "clip-path inset(10%)": { ...TW4, clipPath: "inset(10%)" },
+    "clip rect(0px, 100px, 20px, 0px)": { ...TW4, clipPath: "none", clip: "rect(0px, 100px, 20px, 0px)" },
+    "size unreadable": { ...TW4, width: undefined },
+  };
+  for (const [name, s] of Object.entries(fakes)) { assert.equal(srOnlyHidden(s), false, `${name} is not sr-only`); results.push(`FAILS as expected (not exempt): ${name}`); }
+  // The visible commit line on /status is a normal clip: still a FAIL when it ellipsizes.
+  const f = evaluatePhoneUx({ role: "pm", width: 320, path: "/status", clips: [{ kind: "text", text: "ab74c4f3fec33369acbd907e13bef3239db7302d", ellipsis: true, reachable: true }] });
+  mustFail("visible ellipsized /status commit line", f.filter((x) => /clipped text "ab74c4f3/.test(x)));
+  // crawl.mjs never exempts status-commit-visible, applies the exemption before counting, and keeps sr-only
+  // descendants from hiding a container's own clip.
+  const crawlSrc = readFileSync(path.join(here, "crawl.mjs"), "utf8");
+  assert.match(crawlSrc, /const VISIBLE_COMMIT = '\[data-testid="status-commit-visible"\]';/);
+  assert.match(crawlSrc, /if \(el\.matches\(VISIBLE_COMMIT\) \|\| el\.closest\(VISIBLE_COMMIT\) \|\| el\.querySelector\(VISIBLE_COMMIT\)\) return false;/);
+  assert.match(crawlSrc, /\.some\(countedClip\) && !hidesProtected\(el\)/);
+  results.push("passes: Tailwind v4 / rect(0 0 0 0) sr-only exempt; 11 partial patterns are not; the visible /status commit line is never exempt");
 }
 
 for (const line of results) console.log(line);

@@ -1,7 +1,7 @@
 // Browser half of the nav crawl: signs in by role card and measures each page. Evaluation lives in
 // checks.mjs (evaluateCrawlRow) so the must-fail tests can drive the same code against a fake server.
 import path from "node:path";
-import { BODY_FONT_SELECTOR, classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_BODY_FONT_PX, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, PHONE_OVERFLOW_WIDTHS, secondaryReachable, textHasMoney, FIGURE_GUARD, FIGURE_EXCEPTIONS, COMPANY_NAME, NAME_SELECTOR } from "./checks.mjs";
+import { BODY_FONT_SELECTOR, classifyClip, EMPTY_STATE, ERROR_BOUNDARY_SELECTOR, evaluateCrawlRow, MIN_BODY_FONT_PX, MIN_INPUT_FONT_PX, MIN_SECONDARY_FONT_PX, MIN_TAP_PX, PAGE_BUDGET_MS, PHONE_MAX_PX, PHONE_OVERFLOW_WIDTHS, secondaryReachable, textHasMoney, FIGURE_GUARD, FIGURE_EXCEPTIONS, COMPANY_NAME, NAME_SELECTOR, srOnlyHidden, isRollupToggle } from "./checks.mjs";
 import { costItemPlanLinks, discoverDrillLinks, DRILL_ROLE_ACCESS, drillDiscoveryFailures, drillPath, partCItemFor } from "./drill.mjs";
 import { captureFailure, secretValues, startFailureRecorder } from "./evidence.mjs";
 
@@ -265,12 +265,12 @@ export function closedDetails(el) {
 }
 
 /**
- * DOM scan passed to page.evaluate. classifyClip, secondaryReachable, textHasMoney and jobStripHits
- * are arguments so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
+ * DOM scan passed to page.evaluate. classifyClip, secondaryReachable, textHasMoney, jobStripHits, srOnlyHidden and
+ * isRollupToggle are arguments so the page runs the same functions as the unit tests. Playwright serializes one function; the page does not eval.
  * Phone observations are recorded only when phoneChecks is true. Otherwise those fields are omitted,
  * and evaluateCrawlRow's default (phoneChecks false) does not read them.
  */
-function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits, closedDetails) {
+function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits, closedDetails, srOnlyHidden, isRollupToggle) {
   const { intendedW, emptySrc, boundarySel, phoneMax, minTap, minSecondary, minInput, minBody, bodySel, phoneChecks, phoneOverflowWidths, figureGuard, figureExceptions, nameSelector, path } = arg;
   const FIGURE_GUARD_RE = new RegExp(figureGuard);
   const FIGURE_EXCEPTION_RES = (figureExceptions ?? []).map((src) => new RegExp(src, "g"));
@@ -386,6 +386,20 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
     const hides = cs.overflowX === "hidden" || cs.overflowX === "clip" || (cs.textOverflow === "ellipsis" && cs.overflowX !== "visible");
     return hides && el.clientWidth > 0 && el.scrollWidth > el.clientWidth;
   };
+  // The full sr-only pattern (checks.mjs srOnlyHidden) on the element or an ancestor: never shown, so its overflow is
+  // not a visual clip. The visible /status commit line is never exempt, nor is anything that is or holds it.
+  const VISIBLE_COMMIT = '[data-testid="status-commit-visible"]';
+  const srOnlyBox = (el) => {
+    if (el.matches(VISIBLE_COMMIT) || el.closest(VISIBLE_COMMIT) || el.querySelector(VISIBLE_COMMIT)) return false;
+    for (let a = el; a && a.nodeType === 1; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      const r = a.getBoundingClientRect();
+      if (srOnlyHidden({ position: cs.position, overflowX: cs.overflowX, overflowY: cs.overflowY, clip: cs.clip, clipPath: cs.clipPath, width: r.width, height: r.height })) return true;
+    }
+    return false;
+  };
+  const srOnlyClips = [];
+  const countedClip = (el) => isClipped(el) && !srOnlyBox(el);
   const provenExpansion = (el) => {
     if (el.getAttribute("aria-expanded") !== "true") return false;
     const id = el.getAttribute("aria-controls");
@@ -418,10 +432,14 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
   const clips = [];
   for (const el of document.querySelectorAll("body *")) {
     if (!isClipped(el)) continue;
+    if (srOnlyBox(el)) { srOnlyClips.push({ text: fullText(el), testid: el.getAttribute("data-testid") }); continue; }
     // Nested non-protected clips stay deepest-only. A container that itself cuts protected content is kept.
-    if ([...el.querySelectorAll("*")].some(isClipped) && !hidesProtected(el)) continue;
+    // An sr-only descendant does not make its container "not deepest".
+    if ([...el.querySelectorAll("*")].some(countedClip) && !hidesProtected(el)) continue;
     const kind = classifyClip({
-      statusInBox: boxHas(el, "[data-status]"),
+      // A status pill is the element's own data-status or a pill inside the box, not an ancestor card's data-status.
+      statusInBox: el.matches("[data-status]") || !!el.querySelector("[data-status]"),
+      statusAncestor: !!el.parentElement?.closest("[data-status]"),
       centsInBox: boxHas(el, "[data-cents]"),
       moneyText: textHasMoney(oneLine(el.textContent)),
       headerInBox: boxHas(el, "th, [data-clip='header']"),
@@ -468,6 +486,9 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
   out.textMissCount = textMissCount;
   out.clips = clips;
   out.clipCount = clips.length;
+  // Exempt sr-only overflow, recorded for evidence (not a failure, not counted in clipCount).
+  out.srOnlyClips = srOnlyClips.slice(0, 8);
+  out.srOnlyClipCount = srOnlyClips.length;
   out.primaryActions = primaryActions;
   // 5.0.4-a checks 1, 5, 7 and 9: every next-step label on /app (the overflow line is not a next-step element).
   const ellipsisOf = (el) => getComputedStyle(el).textOverflow === "ellipsis" || [...el.querySelectorAll("*")].some((c) => getComputedStyle(c).textOverflow === "ellipsis");
@@ -529,7 +550,8 @@ function scanPage(arg, classifyClip, secondaryReachable, textHasMoney, jobStripH
         if (m) stray.push(oneLine(n.textContent).slice(0, 60));
       }
       const row = card.matches('[data-testid="cost-tree-row"]') && card.closest('[data-testid="cost-tree-scroll-mobile"]');
-      const rollup = row ? Boolean(card.querySelector("button[aria-expanded]")) : false;
+      // A roll-up holds a tree toggle; the aria-expanded money buttons (money-exact-toggle, data-cents) are not one.
+      const rollup = row ? [...card.querySelectorAll("button[aria-expanded]")].some((b) => isRollupToggle({ ariaExpanded: b.getAttribute("aria-expanded"), dataCents: b.getAttribute("data-cents"), testid: b.getAttribute("data-testid") })) : false;
       cards.push({
         testid: card.getAttribute("data-testid"),
         code: card.getAttribute("data-code"),
@@ -627,7 +649,9 @@ const measureDom = new Function(
     "const textHasMoney = (" + textHasMoney.toString() + ");\n" +
     "const jobStripHits = (" + jobStripHits.toString() + ");\n" +
     "const closedDetails = (" + closedDetails.toString() + ");\n" +
-    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits, closedDetails);",
+    "const srOnlyHidden = (" + srOnlyHidden.toString() + ");\n" +
+    "const isRollupToggle = (" + isRollupToggle.toString() + ");\n" +
+    "return (" + scanPage.toString() + ")(arg, classifyClip, secondaryReachable, textHasMoney, jobStripHits, closedDetails, srOnlyHidden, isRollupToggle);",
 );
 
 /** Full navigation to base+p; time is wall clock from goto until network idle (includes Playwright's 500 ms idle window). */
