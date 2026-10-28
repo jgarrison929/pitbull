@@ -16,6 +16,44 @@ async function signIn(page: Page, role: string) {
   await expect(page).toHaveURL(/\/app/);
 }
 
+test("?page=99 clamps to the last page", async ({ page }) => {
+  await signIn(page, "pm");
+  await page.goto("/app/jobs/25-031/changes?page=99");
+  const card = page
+    .getByTestId("changes-count-card")
+    .locator("xpath=ancestor::*[@data-card][1]");
+  await expect(card).toBeVisible();
+  const cardText = await card.innerText();
+  expect(cardText).not.toMatch(/Page 99/);
+  const paged = cardText.match(/Page (\d+) of (\d+)/);
+  const lastHref = paged
+    ? `/app/jobs/25-031/changes?page=${paged[1]}`
+    : "/app/jobs/25-031/changes";
+  if (paged) expect(paged[1]).toBe(paged[2]);
+  else expect(cardText).toContain("One page");
+
+  const rowText = async () => {
+    const times = page.locator('[data-testid="job-changes-full"] time');
+    await expect(times.first()).not.toContainText("UTC");
+    return times.locator("xpath=ancestor::li[1]").evaluateAll((els) =>
+      els.map((li) => {
+        const copy = li.cloneNode(true) as HTMLElement;
+        copy.querySelectorAll("time").forEach((t) => t.remove());
+        return (copy.innerText || "").replace(/\s+/g, " ").trim();
+      }),
+    );
+  };
+
+  await page.goto(lastHref);
+  const last = await rowText();
+  expect(last.length).toBeGreaterThan(0);
+  await page.goto("/app/jobs/25-031/changes?page=99");
+  await expect.poll(rowText).toEqual(last);
+  const again = (await card.innerText()).replace(/\s+/g, " ");
+  expect(again).toBe(cardText.replace(/\s+/g, " "));
+  expect(again).not.toMatch(/Page 99/);
+});
+
 for (const role of roles) {
   test(`every seeded job shows real change history for ${role}`, async ({
     page,

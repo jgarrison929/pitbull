@@ -47,15 +47,14 @@ export function PlanLineEditor({
   const [editing, setEditing] = useState(false);
   if (!editing)
     return (
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">{children}</div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+        <div className="min-w-0">{children}</div>
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="tap-target inline-flex items-center gap-1 rounded-md border px-3 py-2 text-label font-medium hover:bg-muted"
+          className="tap-target scroll-mb-28 inline-flex w-fit items-center gap-1 rounded-md border px-3 py-2 text-body font-medium hover:bg-muted"
           aria-label={`Edit ${line.code} ${line.activity}`}
           data-testid="edit-line"
-          data-text="label"
         >
           <Pencil className="size-3.5" /> Edit
         </button>

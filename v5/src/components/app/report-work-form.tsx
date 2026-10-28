@@ -276,10 +276,7 @@ function ReportLineRow({
             <span className="mr-1 font-mono text-label text-muted-foreground">
               {l.code}
             </span>
-            <span
-              className="max-[480px]:truncate inline-block max-w-full align-bottom"
-              title={l.activity}
-            >
+            <span className="inline break-words whitespace-normal">
               {l.activity}
             </span>
           </div>

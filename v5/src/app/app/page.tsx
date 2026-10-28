@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { Assistant } from "@/components/app/assistant";
 import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
@@ -98,12 +97,12 @@ async function Portfolio() {
         >
           {atRiskLines.map((row) => (
             <li key={row.href}>
-              <Link
+              <a
                 href={row.href}
                 className="underline-offset-2 hover:underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:items-center"
               >
                 <AtRiskAmount text={row.text} cents={row.cents} />
-              </Link>
+              </a>
             </li>
           ))}
         </ul>
