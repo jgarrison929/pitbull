@@ -286,10 +286,19 @@ async function CostItem({
   const canSetForecast =
     actions["costItem.setForecastMethod"].roles?.includes(user.role) ?? false;
 
+  // Installed headline is the claimed quantity for unit items (5.0.4-i check 2).
+  // Qty approved since that lock is a separate line, same idea as job-ac-since-lock.
   const installed =
     data.item.evMethod === "units"
       ? data.item.claimedInstalledQtyMilli
       : data.item.installedQtyMilli;
+  const sinceLockQtyMilli =
+    data.item.evMethod === "units"
+      ? Math.max(
+          0,
+          data.item.installedQtyMilli - data.item.claimedInstalledQtyMilli,
+        )
+      : 0;
 
   const sinceLockEntries = data.entries.filter((e) => e.sinceLock);
   const throughLockEntries = data.entries.filter((e) => !e.sinceLock);
@@ -367,12 +376,39 @@ async function CostItem({
           }
           testId="cost-item-ac"
         />
-        <Kpi
-          label="Installed"
-          value={`${qty(installed)} ${data.item.unit}`}
-          sub={`${qty(data.item.budgetQtyMilli)} budgeted`}
-          testId="cost-item-installed"
-        />
+        <div
+          data-card
+          className="rounded-lg border bg-card px-4 py-4 lg:px-6 lg:py-6"
+        >
+          <div
+            data-text="label"
+            className="text-label font-medium text-muted-foreground"
+          >
+            Installed
+          </div>
+          <Figure
+            variant="primary"
+            className="mt-1 block"
+            data-testid="cost-item-installed"
+          >
+            {qty(installed)} {data.item.unit}
+          </Figure>
+          <div className="mt-1">
+            <Figure variant="secondary">
+              {qty(data.item.budgetQtyMilli)} budgeted
+            </Figure>
+          </div>
+          {sinceLockQtyMilli > 0 && data.periodLabel ? (
+            <Figure
+              variant="secondary"
+              className="mt-1 block"
+              data-testid="cost-item-qty-since-lock"
+              data-qty-milli={sinceLockQtyMilli}
+            >
+              {`+${qty(sinceLockQtyMilli)} ${data.item.unit} posted since ${data.periodLabel} lock`}
+            </Figure>
+          ) : null}
+        </div>
         <Kpi
           label="Earned MH"
           value={mh(data.earnedMhMilli)}

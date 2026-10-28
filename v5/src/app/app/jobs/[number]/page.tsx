@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ApproveReportForm,
@@ -149,9 +148,9 @@ export async function Job({
     : null;
   const costBan =
     /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
-  const visibleChanges = statusBadge
-    ? changes
-    : changes.filter((c) => !costBan.test(c.summary));
+  const visibleChanges = (
+    statusBadge ? changes : changes.filter((c) => !costBan.test(c.summary))
+  ).slice(0, 20);
   // Initial combobox options: first leaves only. Large WBS uses server search.
   const costItems = p.lines.slice(0, 40).map((l) => ({
     value: l.id,
@@ -262,7 +261,7 @@ export async function Job({
               ) : null}
               {estimateDraft ? (
                 <span
-                  className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                  className="inline-flex shrink-0 items-center rounded-full bg-muted px-2 py-0.5 text-body font-medium text-muted-foreground"
                   data-status="draft"
                   data-testid="draft-label"
                 >
@@ -331,7 +330,7 @@ export async function Job({
                   <input type="hidden" name="label" value="Submit plan" />
                   <button
                     type="submit"
-                    className="rounded-md border px-3 py-1.5 text-xs font-medium"
+                    className="tap-target rounded-md border px-3 py-2 text-body font-medium"
                     data-testid="submit-plan"
                   >
                     Submit plan
@@ -678,13 +677,13 @@ export async function Job({
         title="Changes on this job"
         meta="Every edit, report, approve, return, and change order, by anyone on this job"
         actions={
-          <Link
+          <a
             href={`/app/jobs/${p.job.number}/changes`}
-            className="text-xs font-medium underline hover:no-underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:items-center max-[640px]:text-body"
+            className="text-body font-medium underline hover:no-underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:items-center"
             data-testid="job-changes-full-link"
           >
             Full change list
-          </Link>
+          </a>
         }
       >
         {visibleChanges.length === 0 ? (

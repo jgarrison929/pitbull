@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { getPlansForJob } from "@/server/data";
 import { AddPlanLineForm } from "@/components/app/add-plan-line-form";
 import { Figure } from "@/components/app/format";
@@ -68,7 +67,7 @@ export function PlanCard({
       <header className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:py-2.5">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <h2 className="min-w-0 text-section font-semibold text-pretty break-words">
-            <Link
+            <a
               href={`/app/jobs/${jobNumber}/plans/${plan.id}`}
               className="hover:underline"
               data-testid="plan-detail-link"
@@ -78,7 +77,7 @@ export function PlanCard({
               {plan.crew}
               <span className="text-muted-foreground"> · </span>
               {utcDay(plan.planDate)}
-            </Link>
+            </a>
           </h2>
           <span
             className={cn(
@@ -154,8 +153,8 @@ export function PlanCard({
               data-code={l.code}
             >
               {costItems && draft ? (
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                  <div className="min-w-0">
                     <PlanLineEditor
                       line={l}
                       costItems={costItems}
@@ -349,10 +348,7 @@ function LineView({ l }: { l: Plan["lines"][number] }) {
         </div>
       </details>
       {l.notes ? (
-        <p
-          className="col-span-2 text-label text-muted-foreground"
-          data-testid="line-notes"
-        >
+        <p className="col-span-2 text-body text-muted-foreground" data-testid="line-notes">
           Note: {l.notes}
         </p>
       ) : null}

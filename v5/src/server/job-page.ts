@@ -110,6 +110,10 @@ export async function loadJobPage(
   role: Role,
 ) {
   const caps = jobPageCaps(role);
+  // The change feed only needs the job number, so it overlaps the WBS read.
+  // Wider than the 20-row preview so a foreman cost-language filter still
+  // starts at the same row as /changes (that page filters, then pages).
+  const changesP = jobChanges(companyId, number, 200);
   const p = await getJobCached(companyId, number);
   if (!p) return null;
 
@@ -117,8 +121,7 @@ export async function loadJobPage(
   const laborMhP = laborMhMilliByCostItem(companyId, p.job.id);
   const pagePlansP = getJobPagePlans(companyId, p.job.id, todayLA);
   const siblingsP = Promise.all([
-    // Same WRITES-filtered feed as before (via job-changes, not assistant/actions).
-    jobChanges(companyId, p.job.number),
+    changesP,
     caps.canLock
       ? draftClaimForJob(companyId, p.job.id)
       : Promise.resolve(null),

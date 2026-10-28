@@ -74,7 +74,12 @@ export function JourneyHook({ role }: { role: string }) {
       const hash = location.hash.replace(/^#/, "");
       const root = hash ? document.getElementById(hash) : null;
       if (root) {
-        const order = PREFER[role] ?? ACTION_IDS;
+        const preferred = PREFER[role] ?? ACTION_IDS;
+        // #estimate is the Harbor approve control. co-approve is not in that card.
+        const order =
+          hash === "estimate"
+            ? (["approve-estimate", ...preferred] as const)
+            : preferred;
         let picked: HTMLElement | null = null;
         for (const id of order) {
           const hit = [...root.querySelectorAll(`[data-testid="${id}"]`)].find(
@@ -100,18 +105,24 @@ export function JourneyHook({ role }: { role: string }) {
       const eac = document
         .querySelector('[data-testid="job-eac"]')
         ?.closest("[data-card]");
-      if (!status || !eac) return;
-      if (inView(status) && inView(eac)) return;
-      const sr = status.getBoundingClientRect();
-      const er = eac.getBoundingClientRect();
-      const top = Math.min(sr.top, er.top);
-      const bottom = Math.max(sr.bottom, er.bottom);
-      if (bottom - top <= window.innerHeight) {
-        window.scrollTo(0, Math.max(0, window.scrollY + top - 8));
+      const cpi = document
+        .querySelector('[data-testid="job-cpi"]')
+        ?.closest("[data-card]");
+      const parts = [eac, cpi, status].filter(
+        (el): el is Element => el != null && shown(el),
+      );
+      if (!eac || !status || parts.length === 0) return;
+      if (parts.every((el) => inView(el))) return;
+      const rects = parts.map((el) => el.getBoundingClientRect());
+      const top = Math.min(...rects.map((r) => r.top));
+      const bottom = Math.max(...rects.map((r) => r.bottom));
+      // Keep EAC and CPI on screen. Centering the status pill scrolls the
+      // KPI row above a 568px phone (top about -700).
+      if (bottom - top <= window.innerHeight - 16) {
+        window.scrollBy(0, top - 8);
         return;
       }
-      const focus = window.innerWidth < 768 ? status : eac;
-      focus.scrollIntoView({ block: "center" });
+      eac.scrollIntoView({ block: "start" });
     };
 
     apply();

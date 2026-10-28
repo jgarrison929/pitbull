@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { NextStepsResult } from "@/server/next-steps";
 
 /**
@@ -42,7 +41,7 @@ export function NextSteps({
         <ul className="divide-y">
           {items.map((step, index) => (
             <li key={step.id}>
-              <Link
+              <a
                 href={step.href}
                 className="tap-target flex min-h-11 items-center px-4 py-3 text-body font-medium hover:bg-muted/60 lg:px-6"
                 data-testid="next-step"
@@ -56,18 +55,18 @@ export function NextSteps({
                 }
               >
                 {step.label}
-              </Link>
+              </a>
             </li>
           ))}
           {moreCount > 0 ? (
             <li>
-              <Link
+              <a
                 href="#jobs"
                 className="tap-target flex min-h-11 items-center px-4 py-3 text-label text-muted-foreground hover:bg-muted/60 lg:px-6"
                 data-testid="next-steps-more"
               >
                 {moreCount} more on the Jobs list
-              </Link>
+              </a>
             </li>
           ) : null}
         </ul>

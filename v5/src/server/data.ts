@@ -246,6 +246,23 @@ export const getTodayPlanLabelsByJob = cache(
   },
 );
 
+/** Name and estimate state for chrome that must not roll up the WBS. */
+export async function getJobHeader(companyId: string, number: string) {
+  const db = requireDb();
+  const [job] = await db
+    .select({
+      id: jobs.id,
+      number: jobs.number,
+      name: jobs.name,
+      estimateStatus: jobs.estimateStatus,
+    })
+    .from(jobs)
+    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, number)))
+    .limit(1);
+  if (!job) return null;
+  return { ...job, estimateDraft: isEstimateDraft(job) };
+}
+
 /** Job id only — for search/typeahead paths that must not hydrate the WBS. */
 export async function resolveJobId(companyId: string, number: string) {
   const db = requireDb();

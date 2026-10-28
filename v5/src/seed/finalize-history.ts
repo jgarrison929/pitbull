@@ -552,6 +552,7 @@ function actionRunSpecs(today: Date, id: (k: string) => string) {
         requested: "24-077",
         job: "24-077",
         href: "/app/jobs/24-077",
+        planId: id("plan:i5:today"),
       },
     },
     {

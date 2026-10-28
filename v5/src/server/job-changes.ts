@@ -1,9 +1,11 @@
 import "server-only";
 
+import { cache } from "react";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { requireDb } from "@/db";
 import { actionRuns, users } from "@/db/schema";
 import { CO_COMMANDS } from "@/lib/change-order";
+import { collapseSamePlanReports } from "@/lib/reported-day";
 
 /**
  * Action names with `writes: true` in assistant/actions — kept as a static list
@@ -39,6 +41,45 @@ function jobChangesWhere(companyId: string, jobNumber: string) {
   );
 }
 
+function planIdOf(args: unknown): string | null {
+  if (!args || typeof args !== "object") return null;
+  const planId = (args as { planId?: unknown }).planId;
+  return typeof planId === "string" && planId.length > 0 ? planId : null;
+}
+
+type JobChangeRow = {
+  id: string;
+  action: string;
+  summary: string;
+  createdAt: string;
+  userName: string;
+  role: string;
+  planId: string | null;
+};
+
+/** Newest first, with a same plan+day re-report collapsed to the latest post. */
+const loadJobChanges = cache(async function loadJobChanges(
+  companyId: string,
+  jobNumber: string,
+): Promise<JobChangeRow[]> {
+  const rows = await requireDb()
+    .select({ run: actionRuns, userName: users.name, role: users.role })
+    .from(actionRuns)
+    .innerJoin(users, eq(users.id, actionRuns.userId))
+    .where(jobChangesWhere(companyId, jobNumber))
+    .orderBy(desc(actionRuns.createdAt));
+  const mapped = rows.map(({ run, userName, role }) => ({
+    id: run.id,
+    action: run.action,
+    summary: run.summary,
+    createdAt: run.createdAt.toISOString(),
+    userName,
+    role,
+    planId: planIdOf(run.args),
+  }));
+  return collapseSamePlanReports(mapped);
+});
+
 /** The audit trail for one job: every write anyone in this sandbox made, newest first. */
 export async function jobChanges(
   companyId: string,
@@ -46,29 +87,12 @@ export async function jobChanges(
   limit = 20,
   offset = 0,
 ) {
-  const rows = await requireDb()
-    .select({ run: actionRuns, userName: users.name, role: users.role })
-    .from(actionRuns)
-    .innerJoin(users, eq(users.id, actionRuns.userId))
-    .where(jobChangesWhere(companyId, jobNumber))
-    .orderBy(desc(actionRuns.createdAt))
-    .limit(limit)
-    .offset(offset);
-  return rows.map(({ run, userName, role }) => ({
-    id: run.id,
-    action: run.action,
-    summary: run.summary,
-    createdAt: run.createdAt.toISOString(),
-    userName,
-    role,
-  }));
+  const all = await loadJobChanges(companyId, jobNumber);
+  return all.slice(offset, offset + limit);
 }
 
-/** How many write actions are on this job's change list. */
+/** How many change rows are shown after same plan+day reports collapse. */
 export async function jobChangesCount(companyId: string, jobNumber: string) {
-  const [row] = await requireDb()
-    .select({ n: sql<number>`count(*)::int` })
-    .from(actionRuns)
-    .where(jobChangesWhere(companyId, jobNumber));
-  return Number(row?.n ?? 0);
+  const all = await loadJobChanges(companyId, jobNumber);
+  return all.length;
 }

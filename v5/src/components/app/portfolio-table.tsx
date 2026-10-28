@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { pct } from "@/lib/ev";
 import {
   showsCostIndexes,
@@ -82,13 +81,13 @@ export function PortfolioTable({
                 data-estimate={p.job.estimateStatus}
               >
                 <Td>
-                  <Link
+                  <a
                     href={`/app/jobs/${p.job.number}`}
                     className="font-medium hover:underline"
                     data-testid="job-link"
                   >
                     {p.job.name}
-                  </Link>
+                  </a>
                   <div
                     data-text="label"
                     className="whitespace-nowrap text-label text-muted-foreground"
@@ -167,7 +166,7 @@ export function PortfolioTable({
             data-estimate={p.job.estimateStatus}
             className="py-1"
           >
-            <Link
+            <a
               href={`/app/jobs/${p.job.number}`}
               className="tap-target flex flex-col gap-2 py-3"
               data-testid="job-link"
@@ -260,7 +259,7 @@ export function PortfolioTable({
                   </div>
                 </>
               )}
-            </Link>
+            </a>
             {!p.estimateDraft && costIndexes && !percentPrimary ? (
               <details className="pb-2">
                 <summary
