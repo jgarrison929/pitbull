@@ -38,7 +38,7 @@ Public versions are `5.<feature>.<increment>`.
 | 5.0.1 | Old history | Production verify 37/37 on 2026-10-25 | `v5.0.1` on the old history only | `demo.pcserp.app` and `app.pcserp.app` serve 5.0.1 at `05246e2e` | **Shipped** |
 | 5.0.2 | On `main`, version stamped | Passed 41/41 on `3d53c3f6`, 2026-10-26 at 9:12 AM PT | None | Not promoted | **Verified on staging, awaiting tag and production** |
 | 5.0.3 | On main (Parts B to F, #29, #16) | Pending staging verify on the tagged sha | v5.0.3 | Not yet promoted | **In release** |
-| 5.0.4 | 5.0.4-0 on `main`, 5.0.4-c on `rc/5.0.4`; a, b, d, e, f open; g not started | Not run | None | No | **In build** |
+| 5.0.4 | 5.0.4-0 on `main`, 5.0.4-c on `rc/5.0.4`; a, b, d, e, f open; g moved to 5.0.5 (2026-10-27) | Not run | None | No | **In build** |
 | 5.1.0 | 5.1.0-a on `main`; b, c, d open | 0020 applied on staging | None | No | **Merged in part, awaiting verify** |
 
 ## Just shipped: 5.0.1 (production) and 5.0.2 (staging)
@@ -121,7 +121,7 @@ State on 2026-10-26 at 10:40 AM PT. "Verify" is the latest Pitbull Verify verdic
 | [#14](https://github.com/jgarrison929/pitbull/pull/14) | Agent mistake guards (tests only) | `main` | Last Verify FAIL was for a red ci-gate. ci-gate green now, waiting for Verify |
 | [#6](https://github.com/jgarrison929/pitbull/pull/6) | Dependabot: TypeScript 7 | `main` | Not routed |
 
-Not started: 5.0.4-g (guided demo path), 5.1.1 wire-up (links table, link actions, Gantt critical path), 5.1.2-b and 5.1.2-c, and all of 5.2.
+Not started: the 5.0.5 guided demo path (moved from 5.0.4-g on 2026-10-27), 5.1.1 wire-up (links table, link actions, Gantt critical path), 5.1.2-b and 5.1.2-c, and all of 5.2.
 
 ## Next: finish 5.0.x
 
@@ -129,8 +129,8 @@ Not started: 5.0.4-g (guided demo path), 5.1.1 wire-up (links table, link action
 |---|---|---|---|---|
 | 5.0.2 | 2026-10-26 | Crew rates, field history, cost drill-down | [5.0.2](v5/specs/5.0.2-crew-rates-and-field-history.md) | Tag `v5.0.2`, promote production, production verify |
 | 5.0.3 | 2026-10-26 | Average Performance per cost item, dark theme, plan history, faster job pages | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) (Parts B to F) | Staging verify on the tagged sha, tag, production verify |
-| 5.0.4 | 2026-10-30 | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) | Slices a, b, d, e, f pass Verify into `rc/5.0.4`. Slice g gets built. One RC handover with phone checks, then merge to `main` and tag |
-| 5.0.5 | 2026-11-02 | The S-curve for each job and the portfolio | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) | #12 passes Verify and merges to main, then stamp, staging verify, tag |
+| 5.0.4 | 2026-10-30 | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) | Slices a, b, d, e, f pass Verify into `rc/5.0.4`. Slice g moved to 5.0.5 on 2026-10-27. One RC handover with phone checks, then merge to `main` and tag |
+| 5.0.5 | 2026-11-02 | The S-curve for each job and the portfolio | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) | #12 passes Verify and merges to main. The guided demo path (moved from 5.0.4-g) gets built after 5.0.4 merges to main. Then stamp, staging verify, tag |
 | 5.0.6 | 2026-11-04 | One job page order for every role: header with "Next for you", five KPI cards, the cost table, then the role's work. The first cost row sits within 900 px of the top at 1440 | [5.0.6](v5/specs/5.0.6-job-page-anatomy.md) | Starts after 5.0.4 merges to `main`. One slice, then stamp, staging verify, tag |
 | 5.0.7 | 2026-11-09 | A detail drawer for cost items, change orders, and plan lines on the job page, plus a read-only change order page at `/app/jobs/[number]/change-orders/[co]` | [5.0.7](v5/specs/5.0.7-detail-drawer.md) | Starts after 5.0.6 and the #62 follow-ups ([#70](https://github.com/jgarrison929/pitbull/pull/70)) merge. One slice, then stamp, staging verify, tag |
 
