@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Before/after test for the harness gaps S1–S12 from the rc/5.0.4 e3994a60 gap run, and S13–S16 from the rc/5.0.4 ab74c4f3 --rc run, S17–S18 from the Planner ruling relayed by the lead 2026-10-27 (d-5, d-4). Fixtures are static pages on a
+// Before/after test for the harness gaps S1–S12 from the rc/5.0.4 e3994a60 gap run, and S13–S16 from the rc/5.0.4 ab74c4f3 --rc run, S17–S18 from spec #93 (main 9d05bd8d; d-5, d-4). Fixtures are static pages on a
 // 127.0.0.1 server; the real skill functions (Playwright from v5/node_modules) run against them. No staging, no
 // production, no app build.
 //
@@ -414,8 +414,9 @@ await run("S16", "must-fail", "a visible container that cuts its own text still 
   return { green: f.some((x) => /clipped text "Operational since/.test(x)), detail: f.join("; ").slice(0, 160) || "no clip failure" };
 });
 
-// S17 (d-5, Planner ruling relayed by lead 2026-10-27, spec PR pending): QTY_PROBE in Chromium on a fake 04-210 page.
-// The Installed headline stays at the claimed 248 CY; cost-item-qty-since-lock carries the +12 CY for every role.
+// S17 (d-5, spec #93 main 9d05bd8d lines 363-366): QTY_PROBE in Chromium on a fake 04-210 page. The Installed headline
+// stays at the claimed 248 CY; cost-item-qty-since-lock has count 0 before the report and while the report is reported,
+// returned and resubmitted, then carries "+12 CY posted since Period 1 lock" for every role after the approval.
 const QLINE = (qty = "12000", text = "+12 CY posted since Period 1 lock", style = "") => `<p data-testid="cost-item-qty-since-lock" data-qty-milli="${qty}" style="${style}">${text}</p>`;
 const QPAGE = (installed = "248 CY", line = QLINE()) => page(`<main><h1>04-210</h1><div data-card data-testid="cost-item-installed"><p>Installed</p><p>${installed}</p><p>300 CY budgeted</p>${line}</div><p>Actual cost is through the Period 1 lock</p></main>`);
 const QPATH = "/app/jobs/25-031/cost-items/04-210";
@@ -429,13 +430,14 @@ const qRead = async (html) => {
 };
 // Judged through evaluateIssueReportApprove's d-5 list, so PV_SKILL_DIR=<old skill dir> judges the same pages by the old
 // rule (installedBefore → installedAfter must rise by +12; its reader took the card's innerText).
-const q17 = async ({ before = QPAGE("248 CY", ""), after = QPAGE(), foreman } = {}) => {
-  const b = await qRead(before); const a = await qRead(after); const fm = foreman ? await qRead(foreman) : a;
-  const flow = { steps: ["super submit", "foreman sees", "live G/L", "report", "approve + posted qty"], planId: "41", superAfter: { visible: true, status: "issued" }, foremanSees: { visible: true, status: "issued" }, liveGl: "−2.8 MH Earned 19.2 MH Actual 22.0 MH", afterReport: { visible: true, status: "reported" }, afterApprove: { visible: true, status: "approved" },
+const q17 = async ({ before = QPAGE("248 CY", ""), returned = QPAGE("248 CY", ""), after = QPAGE(), foreman } = {}) => {
+  const b = await qRead(before); const rt = await qRead(returned); const a = await qRead(after); const fm = foreman ? await qRead(foreman) : a;
+  const flow = { steps: ["super submit", "foreman sees", "live G/L", "report", "return", "resubmit", "approve + posted qty"], planId: "41", superAfter: { visible: true, status: "issued" }, foremanSees: { visible: true, status: "issued" }, liveGl: "−2.8 MH Earned 19.2 MH Actual 22.0 MH", afterReport: { visible: true, status: "reported" }, qtyReported: b,
+    afterReturn: { visible: true, status: "issued" }, qtyReturned: rt, foremanReturned: { visible: true, status: "issued", banner: "Returned: Recount pour 3", values: { qty: "12", mh: "22" } }, afterResubmit: { visible: true, status: "reported" }, qtyResubmitted: b, afterApprove: { visible: true, status: "approved" },
     qtyBefore: b, qtyAfter: { superintendent: a, pm: a, executive: a, foreman: fm }, installedBefore: b.installed, installedAfter: a.installed };
   return { f: field.evaluateIssueReportApprove(flow)["d-5"] };
 };
-await run("S17", "fix", "d-5: headline 248 CY before and after, +12 CY line (12000, Period 1) for all 4 roles", async () => {
+await run("S17", "fix", "d-5: headline 248 CY throughout, no line until the approval, +12 CY line (12000, Period 1) for all 4 roles", async () => {
   const { f } = await q17();
   return { green: f.length === 0, detail: f.join("; ").slice(0, 200) || "d-5 passes" };
 });
@@ -444,7 +446,9 @@ for (const [title, o, re] of [
   ["line missing after +12", { after: QPAGE("248 CY", "") }, /cost-item-qty-since-lock missing/],
   ["data-qty-milli 12 (not milli)", { after: QPAGE("248 CY", QLINE("12")) }, /data-qty-milli "12" \(want "12000"\)/],
   ["text '12 CY since lock'", { after: QPAGE("248 CY", QLINE("12000", "12 CY since lock")) }, /reads "12 CY since lock"/],
-  ["line names Period 2 while the page says Period 1", { after: QPAGE("248 CY", QLINE("12000", "+12 CY posted since Period 2 lock")) }, /names Period 2, but the page also says Period 1 lock/],
+  ["line names Period 2 while the page says Period 1", { after: QPAGE("248 CY", QLINE("12000", "+12 CY posted since Period 2 lock")) }, /reads "\+12 CY posted since Period 2 lock" \(want exactly "\+12 CY posted since Period 1 lock"\)/],
+  ["a +12 CY line already on the page before the foreman reports", { before: QPAGE("248 CY", QLINE()) }, /before the foreman reports: cost-item-qty-since-lock count 1 \(want 0\)/],
+  ["the +12 CY line on the page while the report is returned", { returned: QPAGE("248 CY", QLINE()) }, /returned \(before the approval\): cost-item-qty-since-lock count 1/],
   ["line rendered at 0 before anything is posted", { before: QPAGE("248 CY", QLINE("0", "+0 CY posted since Period 1 lock")) }, /before: cost-item-qty-since-lock is rendered with data-qty-milli "0"/],
   ["line hidden for the foreman (display:none)", { foreman: QPAGE("248 CY", QLINE("12000", "+12 CY posted since Period 1 lock", "display:none")) }, /foreman after the approval: cost-item-qty-since-lock is not visible/],
   ["line not rendered for the foreman", { foreman: QPAGE("248 CY", "") }, /foreman after the approval: cost-item-qty-since-lock missing/],
@@ -453,7 +457,8 @@ for (const [title, o, re] of [
   return { green: f.some((x) => re.test(x)), detail: f.join("; ").slice(0, 200) || "d-5 passed" };
 });
 
-// S18 (d-4, same ruling): one report row per (plan, day), read from a fake /changes page by field504's reader.
+// S18 (d-4, spec #93 main 9d05bd8d line 360): the d-4 plan's key (Culvert Crew A · I-5 Culverts · day) appears exactly
+// once and readably; another crew's row neither fails nor satisfies it. Read from a fake /changes page by field504's reader.
 const CROW = (crew, day = "Tue, Oct 27") => `<li><span>Bryce Foreman</span> · Reported ${crew}'s work on I-5 Culverts for ${day}: 110 man-hours pending (as planned). <span data-text="label">9:41 AM</span></li>`;
 const d4 = async (lis) => {
   state.mode.routes = { "/app/jobs/24-077/changes": () => page(`<main><h1>Changes</h1><ul data-testid="job-changes-full"><li>Mia PM · Issued Culvert Crew A's plan on I-5 Culverts</li>${lis.join("")}</ul></main>`) };
@@ -478,9 +483,18 @@ await run("S18", "must-fail", "d-4: the d-4 plan's row missing (only another cre
   const { f } = await d4([CROW("Culvert Crew B")]);
   return { green: f.some((x) => /0 report row.*on \/app\/jobs\/24-077\/changes/.test(x)), detail: f.join("; ").slice(0, 200) || "d-4 passed" };
 });
-await run("S18", "must-fail", "d-4: another crew's plan duplicated on the same day (old code counted only Culvert Crew A)", async () => {
+// Was a must-fail before review round 2; spec #93 line 360 makes it a must-PASS.
+await run("S18", "fix", "d-4: another crew's row neither fails nor satisfies (Crew B twice, Culvert Crew A once)", async () => {
   const { f } = await d4([CROW("Culvert Crew B"), CROW("Culvert Crew B"), CROW("Culvert Crew A")]);
-  return { green: f.some((x) => /2 report rows for Culvert Crew B · I-5 Culverts · Tue, Oct 27/.test(x)), detail: f.join("; ").slice(0, 200) || "d-4 passed" };
+  return { green: f.length === 0, detail: f.join("; ").slice(0, 200) || "d-4 rows pass" };
+});
+await run("S18", "fix", "d-4: another crew's row with no readable day neither fails nor satisfies", async () => {
+  const { f } = await d4([CROW("Culvert Crew B", "today"), CROW("Culvert Crew A")]);
+  return { green: f.length === 0, detail: f.join("; ").slice(0, 200) || "d-4 rows pass" };
+});
+await run("S18", "must-fail", "d-4: the d-4 plan's row unreadable (Culvert Crew A row with no readable day)", async () => {
+  const { f } = await d4([CROW("Culvert Crew A", "today")]);
+  return { green: f.some((x) => /Culvert Crew A report row with no readable day/.test(x)), detail: f.join("; ").slice(0, 200) || "d-4 passed" };
 });
 await run("S18", "fix", "d-4: the same crew's report on an earlier day is a different plan + day and stays", async () => {
   const { f } = await d4([CROW("Culvert Crew A", "Mon, Oct 26"), CROW("Culvert Crew A")]);

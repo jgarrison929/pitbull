@@ -12,7 +12,7 @@ import { confirmIfDialog } from "./confirm-dialog.mjs";
 import { contextFor, signInRole } from "./crawl.mjs";
 import { countJourneyTaps } from "./journeys.mjs";
 import { resetDemo } from "./numbers.mjs";
-import { approvedCost, E6_JOB, E6_PROBE, sinceLockAfterFailures, sinceLockBefore, sinceLockZeroFailure } from "./e6.mjs";
+import { approvedCost, E6_JOB, E6_PROBE, E6_SIZE, sinceLockAfterFailures, sinceLockBefore, sinceLockZeroFailure } from "./e6.mjs";
 
 export const JOURNEY_SIZES = [{ width: 390, height: 844 }, { width: 1280, height: 800 }];
 const T = 30000;
@@ -107,6 +107,27 @@ export function countWrites(page) {
   return { urls, stop() { if (!stopped) { page.off("request", on); stopped = true; } return urls.length; } };
 }
 
+/**
+ * One e-6 reading of the 24-118 job page for the super-approve done state, taken at 1280×800 whatever the journey's
+ * size (spec #93, main 9d05bd8d, line 392: "At 1280×800, light, … the sum of `data-cents` over
+ * `[data-testid="cost-tree-scroll"] [data-testid^="approval-pending-"]`"). At 390×844 the desktop `cost-tree-scroll`
+ * renders no rows (only `cost-tree-scroll-mobile` does), so a journey-size reading would be a false FAIL. The page is
+ * resized to E6_SIZE in the same session (same sandbox), read, and put back to the journey size. `readAt` records the
+ * layout viewport the reading saw.
+ */
+export async function readE6AtDesktop(page, base, { tolerateNav = false } = {}) {
+  const journey = page.viewportSize();
+  await page.setViewportSize(E6_SIZE);
+  try {
+    const nav = page.goto(`${base}/app/jobs/${E6_JOB}`, { waitUntil: "networkidle" });
+    await (tolerateNav ? nav.catch(() => {}) : nav);
+    const readAt = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+    return { ...(await page.evaluate(E6_PROBE)), readAt };
+  } finally {
+    if (journey) await page.setViewportSize(journey);
+  }
+}
+
 export async function runJourney504(browser, base, key, { width, height }) {
   const J = JOURNEYS504[key];
   const out = { key, name: J.name, role: J.role, width, height, limit: J.limit, entries: [], bad: [], posts: 0 };
@@ -128,8 +149,9 @@ export async function runJourney504(browser, base, key, { width, height }) {
     c.planId = planIdOf(c.href);
     if (key === "pm-co") { await page.goto(`${base}/app/jobs/25-031`, { waitUntil: "networkidle" }).catch(() => {}); c.before = { cb: await cents(page, "job-budget"), eac: await cents(page, "job-eac") }; await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
     // super-approve done state (spec #89, e-6's readings): job-actual, job-cpi-index, job-eac, job-ac-since-lock and the
-    // approval-pending cost, read as the superintendent on the 24-118 job page before the approval.
-    if (key === "super-approve") { await page.goto(`${base}/app/jobs/${E6_JOB}`, { waitUntil: "networkidle" }).catch(() => {}); c.before = await page.evaluate(E6_PROBE); await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
+    // approval-pending cost, read as the superintendent on the 24-118 job page before the approval, at 1280×800 (spec #93
+    // line 392) and then back to the journey size for the journey itself.
+    if (key === "super-approve") { c.before = await readE6AtDesktop(page, base, { tolerateNav: true }); await page.goto(`${base}/app`, { waitUntil: "networkidle" }); }
     const tapsBefore = out.entries.filter((e) => e.kind === "tap").length;
     const stepLoc = page.locator('[data-testid="next-step"]:visible').nth(idx);
     // S8: the /app screen's hook, read on the next-step this journey taps.
@@ -168,7 +190,7 @@ export async function runJourney504(browser, base, key, { width, height }) {
     if (key === "exec-open") out.doneState = await page.evaluate(() => { const vh = window.innerHeight; const inV = (e) => { if (!e || e.getClientRects().length === 0) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= vh; }; return { jobPage: /^\/app\/jobs\/[^/]+$/.test(location.pathname), kpi: inV(document.querySelector('[data-testid="job-eac"]')?.closest("[data-card]")), status: inV(document.querySelector('[data-testid="job-status"]')) }; });
     out.deadEnd = await page.evaluate(DEAD_END);
     if (key === "pm-co") { await page.reload({ waitUntil: "networkidle" }); c.after = { cb: await cents(page, "job-budget"), eac: await cents(page, "job-eac") }; out.doneState = { before: c.before, after: c.after }; }
-    if (key === "super-approve") { await page.goto(`${base}/app/jobs/${E6_JOB}`, { waitUntil: "networkidle" }); out.doneState = { before: c.before, after: await page.evaluate(E6_PROBE) }; }
+    if (key === "super-approve") out.doneState = { before: c.before, after: await readE6AtDesktop(page, base) };
     if (/submit|report/.test(key) && key !== "super-approve") {
       await page.goto(`${base}/app`, { waitUntil: "networkidle" });
       const left = await page.evaluate((src) => [...document.querySelectorAll('[data-testid="next-step"]')].filter((e) => e.getClientRects().length > 0).map((e) => (e.innerText ?? "").replace(/\s+/g, " ").trim()).filter((t) => new RegExp(src).test(t)), J.step.source);
@@ -235,6 +257,10 @@ export function superApproveDoneFailures(s, w) {
   const b = s?.before ?? {};
   const a = s?.after ?? {};
   const at = `${w}: done state`;
+  // Spec #93 line 392: the readings are taken at 1280×800, whatever the journey's own size.
+  for (const [when, r] of [["before", s?.before], ["after", s?.after]]) {
+    if (r && (r.readAt?.width !== E6_SIZE.width || r.readAt?.height !== E6_SIZE.height)) f.push(`${at}, ${when}: 24-118 read at ${r.readAt ? `${r.readAt.width}×${r.readAt.height}` : "an unknown size"} (want ${E6_SIZE.width}×${E6_SIZE.height}, spec #93 line 392)`);
+  }
   for (const [when, r] of [["before", b], ["after", a]]) { const z = sinceLockZeroFailure(r, `${at}, ${when}`); if (z) f.push(z); }
   if (!Number.isInteger(b.actual)) f.push(`${at}: job-actual before the approval unreadable (${JSON.stringify(b.actual)})`);
   if (!Number.isInteger(b.eac)) f.push(`${at}: job-eac before the approval unreadable (${JSON.stringify(b.eac)})`);

@@ -37,10 +37,13 @@ bad("pm-co ΔCB off by one cent", evaluateJourney504(row("pm-co", { doneState: {
 // super-approve done state (spec #89, main 9497f7e9): job-actual, CPI and EAC unchanged; job-ac-since-lock = before +
 // the approved cost (sum of approval-pending-* data-cents), text "+$X posted since Period 1 lock". checks.test.mjs has
 // the full must-fail list; these keep the journey evaluator's own file honest.
-const e6r = (o = {}) => ({ actual: 3079353280, cpiText: "0.97", eac: 3290000000, since: { count: 0, visible: false, cents: null, rawCents: null, text: null }, pending: { count: 1, cents: [668800], codes: ["03-210"] }, ...o });
+// Spec #93 (main 9d05bd8d) line 392: the 24-118 readings are taken at 1280×800 whatever the journey size (row() is 390×844).
+const e6r = (o = {}) => ({ actual: 3079353280, cpiText: "0.97", eac: 3290000000, since: { count: 0, visible: false, cents: null, rawCents: null, text: null }, pending: { count: 1, cents: [668800], codes: ["03-210"] }, readAt: { width: 1280, height: 800 }, ...o });
 const e6line = (c) => ({ count: 1, visible: true, cents: c, rawCents: String(c), text: `+$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })} posted since Period 1 lock` });
 const superDone = (after = {}) => ({ settled: true, before: e6r(), after: e6r({ pending: { count: 0, cents: [], codes: [] }, since: e6line(668800), ...after }) });
 ok("super-approve control (#89: AC flat, since-lock +$6,688.00)", evaluateJourney504(row("super-approve", { doneState: superDone() })));
+ok("super-approve 390×844 journey with its 24-118 readings at 1280×800", evaluateJourney504(row("super-approve", { width: 390, height: 844, doneState: superDone() })));
+bad("super-approve 390×844 read at the journey size (lead's false-FAIL path)", evaluateJourney504(row("super-approve", { doneState: { settled: true, before: e6r({ readAt: { width: 390, height: 844 }, pending: { count: 0, cents: [], codes: [] } }), after: e6r({ readAt: { width: 390, height: 844 }, pending: { count: 0, cents: [], codes: [] }, since: e6line(668800) }) } })), /before: 24-118 read at 390×844 \(want 1280×800/);
 bad("super-approve posts twice", evaluateJourney504(row("super-approve", { posts: 2, doneState: superDone() })), /posted 2 time/);
 bad("super-approve AC rises (#89: AC stays at the cutoff)", evaluateJourney504(row("super-approve", { doneState: superDone({ actual: 3079353280 + 668800 }) })), /job-actual 3079353280¢ → 3080022080¢ after the approval \(want unchanged/);
 bad("super-approve since-lock unchanged", evaluateJourney504(row("super-approve", { doneState: superDone({ since: e6r().since }) })), /job-ac-since-lock missing \(want 668800¢\)/);

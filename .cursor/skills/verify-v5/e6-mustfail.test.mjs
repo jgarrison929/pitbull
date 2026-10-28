@@ -15,6 +15,7 @@ const dir = process.env.PV_SKILL_DIR ? path.resolve(process.env.PV_SKILL_DIR) : 
 const require = createRequire(path.join(here, "../../../v5/package.json"));
 const { chromium } = require("@playwright/test");
 const { runE6, evaluateE6, sinceLockText, usdCents } = await import(pathToFileURL(path.join(dir, "e6.mjs")).href);
+const { runJourney504, evaluateJourney504 } = await import(pathToFileURL(path.join(dir, "journey504.mjs")).href);
 
 assert.equal(usdCents(124050), "$1,240.50");
 assert.equal(usdCents(5), "$0.05");
@@ -28,7 +29,10 @@ let s;
 const reset = () => { s = { ...SEED, approved: false, pending: { ...PENDING }, posts: 0 }; };
 reset();
 const money = (c) => `<span data-cents="${c}">${usdCents(c)}</span>`;
-const page = (role, body) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font-size:16px}</style></head><body>
+// Like CostTable: the desktop cost-tree-scroll sits in a md:block wrapper and its virtualized rows mount only when it has
+// a box (≥ 768 px); at 390 only cost-tree-scroll-mobile renders rows. So approval-pending-* is in cost-tree-scroll only
+// on a wide layout, which is why the super-approve journey reads 24-118 at 1280×800 (spec #93 line 392).
+const page = (role, body) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><style>body{font-size:16px}.desk{display:none}@media (min-width:768px){.desk{display:block}.phone{display:none}}</style></head><body>
 <header><details><summary data-testid="user-menu">${role}</summary><button onclick="fetch('/app',{method:'POST',headers:{'next-action':'reset'}}).then(()=>location.href='/app?reset=1')">Reset demo</button></details></header><main>${body}</main></body></html>`;
 function jobPage(role) {
   const since = s.since;
@@ -36,13 +40,15 @@ function jobPage(role) {
   const text = mode === "bad-text" ? `+${usdCents(since)} since lock` : mode === "no-period" ? `+${usdCents(since)} posted since lock` : `+${usdCents(since)} posted since Period 1 lock`;
   const line = show && !(mode === "missing" && s.approved) ? `<span data-testid="job-ac-since-lock" data-cents="${since}">${text}</span>` : "";
   const pending = Object.entries(s.pending).map(([code, c]) => `<div data-testid="approval-pending-${code}" data-cents="${c}">+1 CY · ${money(c)} pending</div>`).join("");
-  const card = `<article data-testid="plan-card" data-plan-id="77" data-status="${s.approved ? "approved" : "reported"}"><h3>${"Interchange Crew 1"}</h3>${s.approved ? "" : `<button data-testid="approve-report" onclick="document.getElementById('dlg').style.display='block'">Approve report</button>`}</article>
+  const card = `<article data-testid="plan-card" data-plan-id="77" id="plan-77" data-status="${s.approved ? "approved" : "reported"}"><h3>${"Interchange Crew 1"}</h3>${s.approved ? "" : `<button data-testid="approve-report" data-role="superintendent" onclick="document.getElementById('dlg').style.display='block'">Approve report</button>`}</article>
 <div id="dlg" role="alertdialog" aria-label="Approve report?" style="display:none"><button data-testid="confirm-dialog-confirm" onclick="document.getElementById('dlg').style.display='none';fetch('/app/jobs/24-118',{method:'POST',headers:{'next-action':'approve'}}).then((r)=>{if(r.ok)document.querySelector('[data-plan-id=\\'77\\']').setAttribute('data-status','approved')})">Approve</button><button data-testid="confirm-dialog-cancel">Cancel</button></div>`;
   return page(role, `<h1>I-405 Interchange</h1>
 <div data-card data-testid="job-actual"><div>Actual cost (AC)</div>${money(s.actual)}<div>vs $2.9M earned ${line ? `· ${line}` : ""}</div></div>
 <div data-card><div>EAC</div><span data-testid="job-eac" data-cents="${s.eac}">${usdCents(s.eac)}</span></div>
 ${role === "foreman" ? "" : `<div data-card>CPI <span data-testid="job-cpi-index">${s.cpi}</span></div>`}
-<div data-testid="cost-tree-scroll">${pending}</div>${card}`);
+<div class="desk"><div data-testid="cost-tree-scroll"></div></div><div class="phone"><div data-testid="cost-tree-scroll-mobile"></div></div>
+<template id="pend">${pending}</template><script>document.querySelector(innerWidth >= 768 ? '[data-testid="cost-tree-scroll"]' : '[data-testid="cost-tree-scroll-mobile"]').innerHTML = document.getElementById("pend").innerHTML;</script>
+${card}<a href="/app">Today</a>`);
 }
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
@@ -66,7 +72,7 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === "/signin") { res.writeHead(302, { "set-cookie": `role=${url.searchParams.get("role")}; Path=/`, location: "/app" }); res.end(); return; }
   if (url.pathname === "/login") return html(page("guest", ["executive", "pm", "superintendent", "foreman"].map((r) => `<button data-testid="role-${r}" onclick="location.href='/signin?role=${r}'">${r}</button>`).join("")));
-  if (url.pathname === "/app") return html(page(role, "<h1>Today</h1>"));
+  if (url.pathname === "/app") return html(page(role, `<h1>Today</h1>${role === "superintendent" && !s.approved ? `<a data-testid="next-step" data-role="superintendent" href="/app/jobs/24-118#plan-77">Approve Interchange Crew 1's report on 24-118</a>` : ""}`));
   if (url.pathname === "/app/jobs/24-118") return html(jobPage(role));
   res.writeHead(404); res.end("nf");
 });
@@ -98,6 +104,25 @@ try {
     const { f } = await runMode(m);
     assert.ok(f.some((x) => re.test(x)), `e-6 ${title} must FAIL with ${re}; got ${JSON.stringify(f)}`);
     lines.push(`FAILS as required: e-6 ${title} → ${f.find((x) => re.test(x))}`); n++;
+  }
+  // Review round 2, fix 1: the super-approve journey on a correct app passes at 390×844 and at 1280×800. At 390 its
+  // 24-118 readings are taken at 1280×800 (readE6AtDesktop) and the journey goes back to 390 for the rest.
+  for (const size of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+    mode = "good"; reset();
+    const r = await runJourney504(browser, base, "super-approve", size);
+    const f = evaluateJourney504(r);
+    assert.deepEqual(f, [], `super-approve journey @${size.width}x${size.height} on a correct app must PASS; got ${JSON.stringify(f)}`);
+    assert.deepEqual(r.doneState.before.readAt, { width: 1280, height: 800 }, "before read at 1280×800");
+    assert.deepEqual(r.doneState.after.readAt, { width: 1280, height: 800 }, "after read at 1280×800");
+    assert.equal(r.doneState.before.pending.count, 2, "both approval-pending rows read from the desktop cost-tree-scroll");
+    lines.push(`passes: super-approve journey @${size.width}x${size.height} (24-118 read at 1280×800: ${r.doneState.before.pending.count} approval-pending rows, since-lock "${r.doneState.after.since.text}"; ${r.posts} post)`); n++;
+  }
+  {
+    // The same journey on an app whose approve leaves since-lock unchanged still FAILS at 390.
+    mode = "missing"; reset();
+    const f = evaluateJourney504(await runJourney504(browser, base, "super-approve", { width: 390, height: 844 }));
+    assert.ok(f.some((x) => /@390x844: done state: superintendent after approval: job-ac-since-lock missing/.test(x)), `super-approve @390 with no since-lock line must FAIL; got ${JSON.stringify(f)}`);
+    lines.push(`FAILS as required: super-approve journey @390x844, since-lock never appears → ${f.find((x) => /job-ac-since-lock missing/.test(x))}`); n++;
   }
   // Pure-rule must-fails the page can't easily produce.
   const good = (await runMode("good")).o;
