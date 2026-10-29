@@ -168,6 +168,44 @@ test.describe("5.0.4 rc verify fixes", () => {
     });
   }
 
+  test("superintendent: one-line Fri, Oct 30 plan link is 44px tall at 390", async ({
+    page,
+  }) => {
+    // Pinned seed tomorrow is "Wed, Oct 21", which wraps to ~47px and
+    // already clears 44px. Fri, Oct 30 fits on one line, so rc is ~23px tall.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signIn(page, "superintendent");
+    await page.goto("/app/jobs/25-031");
+    await page.getByTestId("new-plan").click();
+    const form = page.getByTestId("new-plan-form");
+    await form.getByTestId("new-plan-crew").selectOption({ label: "Bridge Crew 2" });
+    await form.getByTestId("new-plan-date").fill("2026-10-30");
+    await form.getByTestId("new-plan-submit").click();
+    const link = page
+      .getByTestId("plan-detail-link")
+      .filter({ hasText: "Fri, Oct 30" });
+    await expect(link).toBeVisible({ timeout: 15_000 });
+    const box = await link.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const textRects = [...range.getClientRects()].filter(
+        (box) => box.width > 2 && box.height > 0 && box.height < 36,
+      );
+      const tops = new Set(textRects.map((box) => Math.round(box.top)));
+      return {
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+        lineTops: tops.size,
+        text: (el as HTMLElement).innerText.replace(/\s+/g, " ").trim(),
+      };
+    });
+    expect(box.text).toContain("Daily plan · Bridge Crew 2 · Fri, Oct 30");
+    expect(box.lineTops, JSON.stringify(box)).toBe(1);
+    expect(box.width, JSON.stringify(box)).toBeGreaterThanOrEqual(44);
+    expect(box.height, JSON.stringify(box)).toBeGreaterThanOrEqual(44);
+  });
+
   for (const [width, height] of [
     [320, 568],
     [768, 1024],
