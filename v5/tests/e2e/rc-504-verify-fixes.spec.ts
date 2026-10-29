@@ -168,14 +168,20 @@ test.describe("5.0.4 rc verify fixes", () => {
     });
   }
 
-  test("PM: Daily plan separators keep their spaces at 1280", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await signIn(page, "pm");
-    await page.goto("/app/jobs/25-031");
-    await expectSpacedPlanLink(page);
-  });
+  for (const [width, height] of [
+    [320, 568],
+    [768, 1024],
+    [1280, 800],
+  ] as const) {
+    test(`PM: Daily plan separators keep their spaces at ${width}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height });
+      await signIn(page, "pm");
+      await page.goto("/app/jobs/25-031");
+      await expectSpacedPlanLink(page);
+    });
+  }
 
   for (const width of [320, 390]) {
     for (const theme of ["light", "dark"] as const) {
