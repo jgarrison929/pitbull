@@ -42,8 +42,9 @@ export function schedule0020JournalClaim(args: {
   const tags = entries.map((e) => e.tag);
   const scheduleIdx = tags.indexOf("0020_schedule_activities");
   if (scheduleIdx < 0) return false;
-  // Position: last journal entry (not buried / not swapped with 0019).
-  if (scheduleIdx !== entries.length - 1) return false;
+  // Sits on 0019. Later migrations (0021+) may follow; 0020 is not buried under 0019.
+  if (tags[scheduleIdx - 1] !== "0019_crews_contract") return false;
+  if (scheduleIdx !== 20) return false;
   const schedule = entries[scheduleIdx]!;
   if (schedule.idx !== 20) return false;
   if (schedule.when !== 1793030000000) return false;
@@ -96,7 +97,10 @@ describe("migration 0020_schedule_activities", () => {
     expect(tags).toContain("0018_daily_plan_events");
     expect(tags).toContain("0019_crews_contract");
     expect(tags).toContain("0020_schedule_activities");
-    expect(tags.at(-1)).toBe("0020_schedule_activities");
+    expect(tags.at(-1)).toBe("0021_action_runs_job_idx");
+    const jobFeed = entries.find((e) => e.tag === "0021_action_runs_job_idx")!;
+    expect(jobFeed.idx).toBe(21);
+    expect(jobFeed.when).toBeGreaterThan(1793030000000);
     expect(tags.indexOf("0020_schedule_activities")).toBeGreaterThan(
       tags.indexOf("0019_crews_contract"),
     );

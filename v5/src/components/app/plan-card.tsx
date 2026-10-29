@@ -69,14 +69,34 @@ export function PlanCard({
           <h2 className="min-w-0 text-section font-semibold text-pretty break-words">
             <a
               href={`/app/jobs/${jobNumber}/plans/${plan.id}`}
-              className="hover:underline"
+              className="tap-target inline-flex max-w-full items-center hover:underline"
               data-testid="plan-detail-link"
             >
-              Daily plan
-              <span className="text-muted-foreground"> · </span>
-              {plan.crew}
-              <span className="text-muted-foreground"> · </span>
-              {utcDay(plan.planDate)}
+              {/*
+                One inline child so the spaces in " · " stay in normal
+                inline layout. The anchor is still an inline-flex 44px target.
+              */}
+              <span className="min-w-0 max-w-full break-words">
+                {[
+                  "Daily plan",
+                  <span
+                    key="sep-crew"
+                    className="text-muted-foreground"
+                    data-plan-sep=""
+                  >
+                    {" · "}
+                  </span>,
+                  plan.crew,
+                  <span
+                    key="sep-day"
+                    className="text-muted-foreground"
+                    data-plan-sep=""
+                  >
+                    {" · "}
+                  </span>,
+                  utcDay(plan.planDate),
+                ]}
+              </span>
             </a>
           </h2>
           <span

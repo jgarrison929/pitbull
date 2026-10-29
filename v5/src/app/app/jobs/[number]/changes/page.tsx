@@ -4,7 +4,7 @@ import { ChangeLogList } from "@/components/app/change-log-list";
 import type { AppRole } from "@/components/app/list-empty";
 import { MetricCard, PageHeader, Section } from "@/components/app/page";
 import { getJobHeader } from "@/server/data";
-import { jobChanges } from "@/server/job-changes";
+import { jobChanges, jobChangesCount } from "@/server/job-changes";
 import { requireUser } from "@/server/session";
 
 const PAGE_SIZE = 50;
@@ -45,23 +45,38 @@ async function Changes({
     Number.isFinite(requestedRaw) && requestedRaw >= 1
       ? Math.floor(requestedRaw)
       : 1;
-  // Header and the collapsed feed are independent. The feed is one small
-  // read; paging happens after same plan+day reports collapse.
-  const [job, changes] = await Promise.all([
+  // Foreman must not see cost-index language in the feed (5.0.4-b check 2).
+  // The filter is in the SQL so the page reads one bounded slice, not the
+  // whole feed, and the count matches what is shown.
+  const feedOptions = {
+    excludeCostLanguage: user.role === "foreman",
+  };
+  // Page 1 (the crawl) overlaps the count and the slice. A page past the
+  // end is clamped after the count comes back.
+  const [job, total, requestedRows] = await Promise.all([
     getJobHeader(user.companyId, number),
-    jobChanges(user.companyId, number, 10_000, 0),
+    jobChangesCount(user.companyId, number, feedOptions),
+    jobChanges(
+      user.companyId,
+      number,
+      PAGE_SIZE,
+      (requested - 1) * PAGE_SIZE,
+      feedOptions,
+    ),
   ]);
   if (!job) notFound();
-  // Foreman must not see cost-index language in the feed (5.0.4-b check 2).
-  const costBan = /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/;
-  const filtered =
-    user.role === "foreman"
-      ? changes.filter((c) => !costBan.test(c.summary))
-      : changes;
-  const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(requested, totalPages);
-  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const visible =
+    page === requested
+      ? requestedRows
+      : await jobChanges(
+          user.companyId,
+          number,
+          PAGE_SIZE,
+          (page - 1) * PAGE_SIZE,
+          feedOptions,
+        );
 
   return (
     <>

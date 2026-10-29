@@ -1,0 +1,1 @@
+CREATE INDEX "action_runs_company_job_created_idx" ON "action_runs" USING btree ("company_id",(args->>'job'),"created_at" DESC NULLS LAST);

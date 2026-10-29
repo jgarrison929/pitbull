@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CI_GATE_CACHE_TTL_MS,
   CI_GATE_ERROR_TTL_MS,
+  ciGateForRequest,
   clearCiGateCache,
   fetchCiGate,
+  formatCiGateLabel,
+  rememberCiGate,
   resolveCiGate,
 } from "./ci-gate";
 
@@ -123,6 +126,92 @@ describe("ci-gate server cache", () => {
     now += CI_GATE_CACHE_TTL_MS + 1;
     await fetchCiGate("cafe", {}, fetchFn, clock);
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns the known result after the TTL without waiting on GitHub", async () => {
+    let now = 1_000_000;
+    const clock = () => now;
+    const fetchFn = passFetch();
+    await fetchCiGate("page", {}, fetchFn, clock);
+    now += CI_GATE_CACHE_TTL_MS + 1;
+    let release!: () => void;
+    const hung = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          release = () =>
+            resolve(
+              Response.json({
+                check_runs: [
+                  {
+                    name: "ci-gate",
+                    status: "completed",
+                    conclusion: "success",
+                  },
+                ],
+              }),
+            );
+        }),
+    );
+    const started = Date.now();
+    const gate = await ciGateForRequest("page", {}, hung, clock);
+    expect(Date.now() - started).toBeLessThan(200);
+    // Overdue: the last pass is served immediately, and it is stale.
+    expect(gate.result).toBe("pass");
+    expect(gate.stale).toBe(true);
+    expect(gate.ageMs).toBe(CI_GATE_CACHE_TTL_MS + 1);
+    expect(formatCiGateLabel(gate)).toBe(
+      `pass (stale ${Math.round((CI_GATE_CACHE_TTL_MS + 1) / 1000)}s)`,
+    );
+    expect(hung).toHaveBeenCalledOnce();
+    release();
+    await vi.waitFor(() => expect(hung).toHaveBeenCalledOnce());
+  });
+
+  it("outage after a pass reports stale=true and pass (stale Ns)", async () => {
+    let now = 1_000_000;
+    const clock = () => now;
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          check_runs: [
+            { name: "ci-gate", status: "completed", conclusion: "success" },
+          ],
+        }),
+      )
+      .mockResolvedValue(new Response("unavailable", { status: 503 }));
+
+    const fresh = await fetchCiGate("outage-sha", {}, fetchFn, clock);
+    expect(fresh).toMatchObject({ result: "pass", stale: false, ageMs: 0 });
+
+    now += CI_GATE_CACHE_TTL_MS + 1_500;
+    const samples = [];
+    for (let i = 0; i < 4; i++) {
+      samples.push(await ciGateForRequest("outage-sha", {}, fetchFn, clock));
+      now += CI_GATE_ERROR_TTL_MS;
+    }
+    await vi.waitFor(() => expect(fetchFn.mock.calls.length).toBeGreaterThan(1));
+
+    for (const gate of samples) {
+      expect(gate.result).toBe("pass");
+      expect(gate.stale).toBe(true);
+      expect(gate.ageMs).toBeGreaterThan(0);
+      expect(formatCiGateLabel(gate)).toMatch(/^pass \(stale \d+s\)$/);
+    }
+
+    // After the failed refresh is recorded, a later read is still stale.
+    const settled = await ciGateForRequest("outage-sha", {}, fetchFn, clock);
+    expect(settled).toMatchObject({ result: "pass", stale: true });
+    expect(formatCiGateLabel(settled)).toMatch(/^pass \(stale \d+s\)$/);
+  });
+
+  it("an observation with an unknown age is stale", async () => {
+    rememberCiGate("no-age", "pass", null, () => 5_000_000);
+    const fetchFn = vi.fn(async () => new Response("down", { status: 503 }));
+    const gate = await ciGateForRequest("no-age", {}, fetchFn, () => 5_000_000);
+    expect(gate).toMatchObject({ result: "pass", stale: true, ageMs: null });
+    expect(formatCiGateLabel(gate)).toBe("pass (stale)");
+    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledOnce());
   });
 
   it("keys the cache by commit (different SHAs fetch separately)", async () => {

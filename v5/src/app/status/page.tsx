@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/app/page";
 import { dbPing } from "@/db";
 import { formatMigrationsLabel } from "@/lib/applied-migrations";
 import { shortCommitSha } from "@/lib/build-info";
+import { formatCiGateLabel } from "@/lib/ci-gate";
 import { getDeployStatus } from "@/lib/deploy-status";
 import { checkHealth } from "@/lib/health";
 import { formatLastVerify } from "@/lib/last-verify-format";
@@ -45,28 +46,17 @@ export default function StatusPage() {
   );
 }
 
-function ciLabel(v: string) {
-  if (v === "pass") return "pass";
-  if (v === "fail") return "fail";
-  if (v === "pending") return "pending";
-  return "unknown";
-}
-
 async function StatusDetails() {
   await connection();
   const [deploy, health] = await Promise.all([
     getDeployStatus(),
     checkHealth(dbPing()),
   ]);
-  const ciGateValue = (() => {
-    const label = ciLabel(deploy.ciGate);
-    if (!deploy.ciGateStale) return label;
-    const age =
-      deploy.ciGateAgeMs == null
-        ? "stale"
-        : `stale ${Math.round(deploy.ciGateAgeMs / 1000)}s`;
-    return `${label} (${age})`;
-  })();
+  const ciGateValue = formatCiGateLabel({
+    result: deploy.ciGate,
+    stale: deploy.ciGateStale,
+    ageMs: deploy.ciGateAgeMs,
+  });
   const migrationsLabel = formatMigrationsLabel(deploy.migrations);
   const operational = health.status === "ok";
   const lastVerify = formatLastVerify(

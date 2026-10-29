@@ -1,20 +1,95 @@
 import "server-only";
+import { eq } from "drizzle-orm";
 import { getDb, type Db } from "@/db";
+import { appSettings } from "@/db/schema";
 import {
   listAppliedMigrationNames,
   type AppliedMigrations,
 } from "@/lib/applied-migrations";
 import { getBuildInfo, type BuildInfo } from "@/lib/build-info";
-import { resolveCiGate, type CiGateResult } from "@/lib/ci-gate";
+import {
+  ciGateForRequest,
+  peekCiGate,
+  rememberCiGate,
+  type CiGateResult,
+} from "@/lib/ci-gate";
 import {
   readLastVerifyAt,
   readLastVerifyCommit,
 } from "@/lib/last-verify";
 
+/** One row: `${commit} ${result}`. Shared by every instance so /status does not wait on GitHub. */
+const CI_GATE_CACHE_KEY = "ci_gate_latest";
+
+function isStoredResult(value: string): value is CiGateResult {
+  return (
+    value === "pass" ||
+    value === "fail" ||
+    value === "pending" ||
+    value === "unknown"
+  );
+}
+
+async function readStoredCiGate(
+  db: Db,
+  commit: string,
+): Promise<{
+  result: Exclude<CiGateResult, "unknown">;
+  observedAtMs: number | null;
+} | null> {
+  try {
+    const [row] = await db
+      .select({ value: appSettings.value, updatedAt: appSettings.updatedAt })
+      .from(appSettings)
+      .where(eq(appSettings.key, CI_GATE_CACHE_KEY))
+      .limit(1);
+    if (!row) return null;
+    const space = row.value.indexOf(" ");
+    if (space < 0) return null;
+    const sha = row.value.slice(0, space);
+    const result = row.value.slice(space + 1);
+    if (sha !== commit || !isStoredResult(result) || result === "unknown") {
+      return null;
+    }
+    const observedAtMs = row.updatedAt
+      ? new Date(row.updatedAt).getTime()
+      : null;
+    return {
+      result,
+      observedAtMs:
+        observedAtMs != null && Number.isFinite(observedAtMs)
+          ? observedAtMs
+          : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function writeStoredCiGate(db: Db, commit: string, result: CiGateResult) {
+  if (result === "unknown") return;
+  try {
+    const now = new Date();
+    await db
+      .insert(appSettings)
+      .values({
+        key: CI_GATE_CACHE_KEY,
+        value: `${commit} ${result}`,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { value: `${commit} ${result}`, updatedAt: now },
+      });
+  } catch {
+    // A cache write must not fail /status.
+  }
+}
+
 export type DeployStatus = BuildInfo & {
   /** ci-gate check for this commit: pass / fail / pending / unknown */
   ciGate: CiGateResult;
-  /** True when ciGate is last-good after a GitHub error. */
+  /** True when ciGate is last-good after a failed or overdue refresh. */
   ciGateStale: boolean;
   /** ms since last successful GitHub observation; null if never observed. */
   ciGateAgeMs: number | null;
@@ -30,6 +105,45 @@ export type DeployStatus = BuildInfo & {
   migrations: AppliedMigrations;
 };
 
+/**
+ * ci-gate for a page render. Memory and the app_settings row answer
+ * immediately. GitHub runs only when neither has a result for this commit,
+ * and a later request does not wait on it again.
+ *
+ * An observation past the ci-gate TTL, or one whose age is
+ * unknown, is returned with stale=true and that age. A failed refresh keeps
+ * the last result and stays stale. A floating refresh does not write the DB:
+ * that query keeps the pool open and stalls the next reset.
+ */
+async function loadCiGate(
+  commit: string,
+  env: Record<string, string | undefined>,
+  fetchFn: typeof fetch,
+  database: Db | null,
+) {
+  const peeked = peekCiGate(commit);
+  let seeded = false;
+  if (!peeked.fresh && !peeked.lastGood && database) {
+    const stored = await readStoredCiGate(database, commit);
+    if (stored) {
+      rememberCiGate(commit, stored.result, stored.observedAtMs);
+      seeded = true;
+    }
+  }
+  const gate = await ciGateForRequest(commit, env, fetchFn);
+  if (
+    database &&
+    !peeked.fresh &&
+    !peeked.lastGood &&
+    !seeded &&
+    !gate.stale &&
+    gate.result !== "unknown"
+  ) {
+    await writeStoredCiGate(database, commit, gate.result);
+  }
+  return gate;
+}
+
 /** Full /status and /health payload: build + ci-gate + last verify + migrations. */
 export async function getDeployStatus(
   env: Record<string, string | undefined> = process.env,
@@ -40,11 +154,12 @@ export async function getDeployStatus(
   const build = getBuildInfo(env);
   const fullSha =
     env.RAILWAY_GIT_COMMIT_SHA ?? env.GIT_COMMIT_SHA ?? build.commit;
+  const database = db === undefined ? getDb() : db;
   const [gate, lastVerifyAt, lastVerifyCommit, migrations] = await Promise.all([
-    resolveCiGate(fullSha, env, fetchFn),
+    loadCiGate(fullSha, env, fetchFn, database),
     readLastVerifyAt(env),
     readLastVerifyCommit(env),
-    listAppliedMigrationNames(db === undefined ? getDb() : db),
+    listAppliedMigrationNames(database),
   ]);
   return {
     ...build,

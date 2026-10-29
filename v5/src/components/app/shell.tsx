@@ -102,7 +102,7 @@ export function AppShell({
           <JobStrip />
         </Suspense>
         <div className="flex min-h-0 min-w-0 max-w-full flex-1">
-          <main className="flex min-w-0 max-w-full flex-1 flex-col gap-5 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:p-6">
+          <main className="flex min-w-0 max-w-full flex-1 flex-col gap-5 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] max-[359px]:pt-2 md:p-6">
             {children}
           </main>
         </div>
@@ -266,10 +266,10 @@ async function JobStrip() {
             label={p.job.name}
             className={cn(
               "flex min-w-0 max-w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30 max-sm:min-h-11 max-sm:text-sm sm:gap-3",
-              // Full width at 320, badge under the text, so the spelled CPI
-              // line wraps in two lines and the first next step stays above 568.
-              meta === "spelled" &&
-                "max-[359px]:w-full max-[359px]:flex-col max-[359px]:items-stretch",
+              // 320px: the spelled CPI line wraps inside the pill. A stacked
+              // badge plus a second short-index line pushed the first next
+              // step past 568.
+              meta === "spelled" && "max-[359px]:w-full",
             )}
             activeClassName="border-foreground bg-muted/50 text-foreground"
           >
@@ -285,7 +285,15 @@ async function JobStrip() {
               </span>
               {meta ? (
                 <span
-                  className="block text-pretty break-words whitespace-normal tabular-nums"
+                  className={cn(
+                    "block text-pretty break-words whitespace-normal tabular-nums",
+                    // Short "CPI 0.96 · SPI …" on the other pills is a second
+                    // line at 320. The spelled line above is the first CPI.
+                    meta !== "spelled" &&
+                      costIndexes &&
+                      !p.estimateDraft &&
+                      "max-[359px]:hidden",
+                  )}
                   data-testid={
                     p.estimateDraft
                       ? "strip-estimate-draft"
@@ -295,15 +303,10 @@ async function JobStrip() {
                   }
                 >
                   {meta === "spelled" ? (
-                    <>
-                      <span className="block">
-                        Cost performance (CPI) {idx(p.cpi)} · Schedule
-                        performance (SPI) {idx(p.spi)}
-                      </span>
-                      <span className="mt-0.5 block min-[360px]:hidden">
-                        {shortIndexes}
-                      </span>
-                    </>
+                    <span className="block">
+                      Cost performance (CPI) {idx(p.cpi)} · Schedule
+                      performance (SPI) {idx(p.spi)}
+                    </span>
                   ) : (
                     meta
                   )}
@@ -318,10 +321,12 @@ async function JobStrip() {
                 Draft
               </span>
             ) : statusBadge ? (
-              <StatusPill
-                value={p.status!}
-                varianceCents={p.costVarianceCents}
-              />
+              <span className="max-[359px]:hidden">
+                <StatusPill
+                  value={p.status!}
+                  varianceCents={p.costVarianceCents}
+                />
+              </span>
             ) : null}
           </NavLink>
         );

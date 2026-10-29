@@ -84,12 +84,18 @@ async function Portfolio() {
 
   return (
     <>
+      {/*
+        Next steps sit above the title at every width. On a 320×568 phone the
+        job strip plus the title pushed the first task past the bottom edge
+        (exec bottom 663, PM bottom 615). The h1 stays on the page; the task
+        is what has to be fully in view.
+      */}
+      {next}
       <PageHeader
         title="What needs you today"
         purpose={PURPOSE}
         meta={`${activeJobCount} active jobs · earned value to date`}
       />
-      {next}
       {atRiskLines.length > 0 ? (
         <ul
           className="flex flex-col gap-2 text-sm max-[640px]:text-body"
@@ -99,7 +105,7 @@ async function Portfolio() {
             <li key={row.href}>
               <a
                 href={row.href}
-                className="underline-offset-2 hover:underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:items-center"
+                className="tap-target underline-offset-2 hover:underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:items-center"
               >
                 <AtRiskAmount text={row.text} cents={row.cents} />
               </a>

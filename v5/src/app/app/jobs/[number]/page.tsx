@@ -111,8 +111,9 @@ export async function Job({
   // PM and executive: phone fold leads with EAC and CPI (5.0.4-e). Field roles
   // keep plans first so Submit stays in the first screen.
   const phoneKpiFirst = showsCostIndexes(user.role);
-  // Executive: status and the EAC card share the first screen at 390 and 1280.
-  // PM keeps that order on phones only, so the desktop job layout stays put.
+  // Executive: status, EAC, and CPI share one block. The rest of the KPI
+  // strip used to sit between them, so at 320×568 the status pill landed
+  // near y=1000 after the hook scrolled EAC to the top.
   const executiveFold = user.role === "executive";
   const headerOrder = executiveFold
     ? "order-2"
@@ -120,17 +121,17 @@ export async function Job({
       ? "max-md:order-2"
       : undefined;
   const plansOrder = executiveFold
-    ? "order-3 flex flex-col gap-5"
+    ? "order-4 flex flex-col gap-5"
     : phoneKpiFirst
       ? "flex max-md:order-3 flex-col gap-5"
       : "flex flex-col gap-5";
   const kpiOrder = executiveFold
-    ? "order-1"
+    ? "order-3"
     : phoneKpiFirst
       ? "max-md:order-1"
       : undefined;
   const restOrder = executiveFold
-    ? "order-4 flex flex-col gap-5"
+    ? "order-5 flex flex-col gap-5"
     : phoneKpiFirst
       ? "flex max-md:order-4 flex-col gap-5"
       : "flex flex-col gap-5";
@@ -194,6 +195,75 @@ export async function Job({
         data-queries={timingPayload.queries}
         data-total-ms={timingPayload.totalMs}
       />
+      {executiveFold ? (
+        <div className="order-1 flex flex-col gap-3" data-testid="exec-fold">
+          {!estimateDraft && statusBadge ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusPill
+                value={p.status!}
+                varianceCents={p.costVarianceCents}
+                testId="job-status"
+              />
+            </div>
+          ) : null}
+          <KpiStrip>
+            <MetricCard
+              className="max-[400px]:py-2"
+              label="Estimate at completion (EAC)"
+              value={
+                estimateDraft ? (
+                  <span
+                    className="text-muted-foreground"
+                    data-testid="metric-dash"
+                  >
+                    —
+                  </span>
+                ) : (
+                  <span data-testid="job-eac" data-cents={p.eacCents}>
+                    {usdShort(p.eacCents)}
+                  </span>
+                )
+              }
+              secondary={
+                estimateDraft
+                  ? ["Approve the estimate to forecast"]
+                  : [
+                      `${p.costVarianceCents > 0 ? "+" : ""}${usdShort(p.costVarianceCents)} cost variance`,
+                    ]
+              }
+            />
+            <MetricCard
+              className="max-[400px]:py-2"
+              label="Cost performance (CPI)"
+              value={
+                estimateDraft ? (
+                  <span
+                    className="text-muted-foreground"
+                    data-testid="metric-dash"
+                  >
+                    —
+                  </span>
+                ) : (
+                  <StatusIndex
+                    index={p.cpi}
+                    varianceCents={p.costVarianceCents}
+                    indexTestId="job-cpi-index"
+                  />
+                )
+              }
+              secondary={
+                estimateDraft
+                  ? ["— earned", "— actual"]
+                  : [
+                      `Earned ${usdShort(p.earnedCents)}`,
+                      `Actual ${usdShort(p.actualCents)}`,
+                    ]
+              }
+              testId="job-cpi"
+            />
+          </KpiStrip>
+        </div>
+      ) : null}
       <div id="estimate" className={headerOrder}>
         <PageHeader
           title={p.job.name}
@@ -267,7 +337,7 @@ export async function Job({
                 >
                   Draft
                 </span>
-              ) : statusBadge ? (
+              ) : statusBadge && !executiveFold ? (
                 <StatusPill
                   value={p.status!}
                   varianceCents={p.costVarianceCents}
@@ -427,7 +497,7 @@ export async function Job({
       */}
       <div className={kpiOrder}>
       <KpiStrip>
-        {costIndexes ? (
+        {costIndexes && !executiveFold ? (
           <>
             <MetricCard
               label="Estimate at completion (EAC)"
@@ -679,7 +749,7 @@ export async function Job({
         actions={
           <a
             href={`/app/jobs/${p.job.number}/changes`}
-            className="text-body font-medium underline hover:no-underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:items-center"
+            className="tap-target text-body font-medium underline hover:no-underline max-[640px]:inline-flex max-[640px]:min-h-11 max-[640px]:min-w-11 max-[640px]:items-center"
             data-testid="job-changes-full-link"
           >
             Full change list

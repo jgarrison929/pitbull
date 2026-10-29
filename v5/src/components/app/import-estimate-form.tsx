@@ -47,7 +47,7 @@ export function ImportEstimateForm({ jobNumber }: { jobNumber: string }) {
   return (
     <form
       action={dispatch}
-      className="mb-3 flex flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-xs"
+      className="mb-3 flex flex-col gap-2 rounded-lg border bg-card px-4 py-3 text-body"
       data-testid="import-estimate-form"
     >
       <input type="hidden" name="action" value="estimate.importCsv" />
@@ -135,13 +135,18 @@ function ImportPicker({
       <input type="hidden" name="csv" value={csv} />
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex min-w-0 flex-col gap-1">
-          <span className="font-medium text-foreground">Import estimate</span>
+          <span
+            className="text-label font-medium text-foreground"
+            data-text="label"
+          >
+            Import estimate
+          </span>
           <input
             ref={inputRef}
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => void choose(e.target.files?.[0])}
-            className="max-w-full text-xs file:mr-2 file:rounded-md file:border file:bg-background file:px-2 file:py-1 file:text-xs max-[640px]:min-h-11 max-[640px]:text-body max-[640px]:file:text-body"
+            className="max-w-full text-body file:mr-2 file:rounded-md file:border file:bg-background file:px-2 file:py-1 file:text-body max-[640px]:min-h-11"
             data-testid="import-estimate-file"
           />
         </label>
