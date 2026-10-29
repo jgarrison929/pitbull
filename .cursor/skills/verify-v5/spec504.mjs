@@ -471,9 +471,21 @@ export async function readKpiRef(browser, base, spec) {
   return { job, code, desktop, phone };
 }
 
-/** S9: the first visible plan-line Edit button, by accessible name ("Edit" once trimmed; the svg adds a leading space). */
-export function editButton(page) {
-  return page.locator("main").getByRole("button", { name: /^\s*Edit\s*$/ }).filter({ visible: true }).first();
+/**
+ * d-1 (S19): the plan line whose editor d-1 opens. The draft Cedar plan on 25-031 holds the pour line 04-210.
+ * The app labels each line's Edit button `aria-label="Edit <code> <activity>"`, so its accessible name is
+ * "Edit 04-210 Pour Pier 3 column, lift 2", not "Edit" (S9's exact-name match never resolved on staging: 4/4
+ * click timeouts at 174d35be). The match is scoped to that one plan-line row and needs a button whose accessible
+ * name starts with the word "Edit", so "Remove", "Editor" or an Edit control on another line or outside the row
+ * can never be clicked instead.
+ */
+export const D1_LINE_CODE = "04-210";
+export const EDIT_NAME = /^\s*Edit\b/;
+export function planLineRow(page, code = D1_LINE_CODE) {
+  return page.locator(`main [data-testid="plan-line"][data-code="${code}"]`).filter({ visible: true }).first();
+}
+export function editButton(page, code = D1_LINE_CODE) {
+  return planLineRow(page, code).getByRole("button", { name: EDIT_NAME }).filter({ visible: true }).first();
 }
 
 /** S4: true when every a-2 target for the role is on the page and the link's anchor (if any) exists. */
@@ -554,12 +566,16 @@ export async function pagePass(browser, base, pass) {
                 row.targetWait = await waitForFirstTarget(page, { role, href: row.clicked.href });
               }
               if (pass.action === "clickEdit") {
-                // d-1: "PlanLineEditor (after **Edit**)": the first visible Edit button on a plan line.
-                // S9: the button's text is " Edit" (svg + leading space), so match its trimmed accessible name.
+                // d-1: "PlanLineEditor (after **Edit**)". S19: the Edit button on plan line 04-210, by an accessible
+                // name that starts with "Edit" (the app's aria-label is "Edit 04-210 <activity>"). The editor half
+                // counts as executed only when that row's line-form is open; evaluateRequiredFields fails it otherwise.
                 const edit = editButton(page);
-                row.clicked = { label: "Edit" };
+                row.editorOpened = false;
+                await edit.waitFor({ state: "visible", timeout: 10000 });
+                row.clicked = { label: ((await edit.getAttribute("aria-label")) ?? (await edit.innerText()) ?? "").replace(/\s+/g, " ").trim(), line: D1_LINE_CODE };
                 await edit.click({ timeout: 10000 });
-                await page.locator('[data-testid="line-form"]:visible').first().waitFor({ timeout: 10000 });
+                await planLineRow(page).locator('[data-testid="line-form"]').filter({ visible: true }).first().waitFor({ timeout: 10000 });
+                row.editorOpened = true;
               }
               row.htmlTheme = await page.evaluate(() => (document.documentElement.classList.contains("dark") ? "dark" : "light"));
               const arg = pass.probe === "firstTarget" ? { role, href: row.clicked?.href ?? null }
@@ -936,8 +952,14 @@ export function evaluateStepCount(r) {
   return f;
 }
 
-export function evaluateRequiredFields(r) {
+export function evaluateRequiredFields(r, pass) {
   const f = [];
+  // S19: d-1's editor half is NOT EXECUTED unless Edit was clicked, the line-form opened, and the probe saw the
+  // PlanLineEditor's visible Save. A row that never got there FAILS; it can never pass on an empty probe.
+  if (pass?.action === "clickEdit") {
+    if (r.editorOpened !== true) f.push(`${at(r)}: NOT EXECUTED: PlanLineEditor did not open after Edit on ${D1_LINE_CODE}`);
+    else if (!(r.data?.forms ?? []).some((x) => x.form === "PlanLineEditor")) f.push(`${at(r)}: NOT EXECUTED: no visible PlanLineEditor (line-form Save) after Edit on ${D1_LINE_CODE}`);
+  }
   for (const form of r.data?.forms ?? []) {
     const id = `${form.form} (${form.wantText})`;
     if (form.text !== form.wantText) f.push(`${at(r)}: ${id}: visible submit reads "${form.text}" (want "${form.wantText}")`);

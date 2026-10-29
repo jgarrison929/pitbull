@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import {
   evaluateAssistantCollapsed, evaluateAtRisk, evaluateCostRowsFit, evaluateFirstUse, evaluateFullWidth,
-  evaluateHomeOrder, evaluateKpiFold, evaluateNamedTargets, evaluatePhoneTables, evaluatePlanCards, evaluateTabular, pickPlanLink, evaluateFirstTarget, evaluateStepCount, evaluateDoneState, evaluateRequiredFields, evaluateDemoPath,
+  evaluateHomeOrder, evaluateKpiFold, evaluateNamedTargets, evaluatePhoneTables, evaluatePlanCards, evaluateTabular, pickPlanLink, evaluateFirstTarget, evaluateStepCount, evaluateDoneState, evaluateRequiredFields, evaluateDemoPath, evaluatePassRows, PASSES,
 } from "./spec504.mjs";
 import { evaluateFigures, FIGURE_GUARD, stripFigureExceptions } from "./checks.mjs";
 
@@ -185,6 +185,16 @@ bad("d-1 field display:none", evaluateRequiredFields(row({ data: { forms: [form(
 bad("d-1 listed field missing", evaluateRequiredFields(row({ data: { forms: [form({ listed: [{ want: "report-mh-", n: 0, notRequired: [] }] })] } })), /no report-mh-<code> field/);
 bad("d-1 listed field not required", evaluateRequiredFields(row({ data: { forms: [form({ listed: [{ want: "return-reason", n: 1, notRequired: ["return-reason"] }] })] } })), /return-reason has no required attribute/);
 bad("d-1 submit text", evaluateRequiredFields(row({ data: { forms: [form({ text: "Report" })] } })), /reads "Report" \(want "Report day's work"\)/);
+// d-1 editor half (S19): NOT EXECUTED is a FAIL, never a PASS on an empty probe.
+const D1E = PASSES["d-1e"];
+const lineForm = form({ form: "PlanLineEditor", text: "Save", wantText: "Save", required: [], listed: [] });
+const erow = (o) => row({ role: "foreman", path: "/app/jobs/25-031", status: 200, htmlTheme: "light", ...o });
+ok("d-1e control: Edit clicked, line-form open, Save seen", evaluatePassRows(D1E, [erow({ editorOpened: true, clicked: { label: "Edit 04-210 Pour Pier 3 column, lift 2" }, data: { forms: [lineForm] } })]));
+bad("d-1e editor never opened, empty probe", evaluatePassRows(D1E, [erow({ editorOpened: false, data: { forms: [] } })]), /NOT EXECUTED: PlanLineEditor did not open after Edit on 04-210/);
+bad("d-1e editorOpened missing (old row shape)", evaluatePassRows(D1E, [erow({ data: { forms: [] } })]), /NOT EXECUTED: PlanLineEditor did not open/);
+bad("d-1e opened but no PlanLineEditor Save in the probe", evaluatePassRows(D1E, [erow({ editorOpened: true, data: { forms: [form()] } })]), /NOT EXECUTED: no visible PlanLineEditor/);
+bad("d-1e Edit click timed out (174d35be staging)", evaluatePassRows(D1E, [erow({ error: "locator.click: Timeout 10000ms exceeded." })]), /locator\.click: Timeout 10000ms exceeded/);
+ok("d-1 (no Edit action) is not held to the editor rule", evaluatePassRows(PASSES["d-1"], [erow({ data: { forms: [form()] } })]));
 
 // g-1 / g-2
 const link = (o) => ({ role: "pm", href: "/app/jobs/26-010#estimate", path: "/app/jobs/26-010", status: 200, bad: [], allowed: true, ...o });
