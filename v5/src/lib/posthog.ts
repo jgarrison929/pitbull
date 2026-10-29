@@ -6,6 +6,11 @@ import {
   type PostHogClientConfig,
   type PostHogPublicEnvValues,
 } from "./posthog-config";
+import {
+  applyPbTestRunGate,
+  currentPbTestRun,
+  type PbTestRunClient,
+} from "./posthog-test-run";
 
 type PostHogClient = {
   __loaded?: boolean;
@@ -16,6 +21,9 @@ type PostHogClient = {
     properties?: Record<string, unknown>,
   ) => void;
   reset: () => void;
+  register?: PbTestRunClient["register"];
+  startSessionRecording?: PbTestRunClient["startSessionRecording"];
+  get_session_replay_url?: PbTestRunClient["get_session_replay_url"];
 };
 
 let client: PostHogClient | null = null;
@@ -62,10 +70,12 @@ export async function initPostHog(
     const posthog = mod.default as unknown as PostHogClient;
     if (posthog.__loaded) {
       client = posthog;
+      armTestRun(posthog);
       return posthog;
     }
     posthog.init(config.key, postHogInitOptionsFromConfig(config));
     client = posthog;
+    armTestRun(posthog);
     return posthog;
   })().catch(() => {
     // Analytics must never break product flows or spam the console in CI.
@@ -78,6 +88,32 @@ export async function initPostHog(
 
 export function getPostHogClient(): PostHogClient | null {
   return client?.__loaded ? client : null;
+}
+
+/**
+ * When `pb_test_run` is set, tag this session and force recording on.
+ * No cookie returns before any PostHog call, so init options and masking
+ * stay exactly as `postHogInitOptionsFromConfig` built them.
+ */
+function armTestRun(posthog: PostHogClient): void {
+  const testRun = currentPbTestRun();
+  if (!testRun) return;
+  if (
+    !posthog.register ||
+    !posthog.startSessionRecording ||
+    !posthog.get_session_replay_url
+  ) {
+    return;
+  }
+  try {
+    applyPbTestRunGate(
+      posthog as PbTestRunClient,
+      testRun,
+      window as { __pbReplayUrl?: string },
+    );
+  } catch {
+    // Test tagging must not take down a product session.
+  }
 }
 
 /** Identify by demo role only — person property, no real PII. */
