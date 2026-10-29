@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db";
 import { actionRuns, companies, users } from "@/db/schema";
@@ -8,6 +8,7 @@ import { createSandbox } from "@/server/sandbox";
 import {
   jobChanges,
   jobChangesCount,
+  jobChangesStatement,
   WRITE_ACTIONS,
 } from "@/server/job-changes";
 
@@ -32,9 +33,22 @@ describe("job change feed is bounded", () => {
     expect(query).toMatch(/limit \$\{take\}/);
     expect(query).toMatch(/offset \$\{skip\}/);
     expect(query).not.toMatch(/\.slice\(offset/);
+    expect(query).not.toMatch(/10_000/);
     expect(page).not.toMatch(/10_000/);
+    expect(page).not.toMatch(/\.slice\(/);
+    expect(page).toMatch(/const PAGE_SIZE = 50\b/);
+    expect(page).toMatch(
+      /jobChanges\(\s*user\.companyId,\s*number,\s*PAGE_SIZE,/,
+    );
     expect(page).toMatch(/jobChangesCount/);
-    expect(page).toMatch(/PAGE_SIZE/);
+    const migration = readFileSync(
+      new URL("../../drizzle/0021_action_runs_job_idx.sql", import.meta.url),
+      "utf8",
+    );
+    expect(migration).toContain("action_runs_company_job_created_idx");
+    expect(migration).toContain(`"company_id"`);
+    expect(migration).toContain(`(args->>'job')`);
+    expect(migration).toContain(`"created_at" DESC NULLS LAST`);
   });
 });
 
@@ -94,5 +108,33 @@ describe.skipIf(!db)("job change feed SQL page", () => {
     expect(
       foreman.some((row) => /\bCPI\b|\bSPI\b|At risk|[−-]\$\d/.test(row.summary)),
     ).toBe(false);
+
+    // Enough other jobs that a company-only index is the expensive plan.
+    // Base had no job index and loaded 10_000 rows into Node.
+    await db!.execute(sql`
+      insert into action_runs (
+        company_id, user_id, prompt, action, args, summary, created_at
+      )
+      select
+        ${companyId},
+        ${user!.id},
+        'bulk',
+        'dailyPlan.create',
+        jsonb_build_object('job', 'other-' || g),
+        'bulk',
+        now() - (g || ' seconds')::interval
+      from generate_series(1, 4000) g
+    `);
+    await db!.execute(sql`analyze action_runs`);
+    const explainedResult = await db!.execute(sql`
+      explain (format text)
+      ${jobChangesStatement(companyId, "25-031", 50, 0)}
+    `);
+    const explained = [...explainedResult]
+      .map((row) => String(Object.values(row as object)[0] ?? ""))
+      .join("\n");
+    expect(explained).toMatch(/\bLimit\b/);
+    expect(explained).toContain("action_runs_company_job_created_idx");
+    expect(explained).toMatch(/Index Cond:.*args ->> 'job'/);
   }, 30_000);
 });

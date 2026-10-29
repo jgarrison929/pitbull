@@ -27,6 +27,55 @@ async function setTheme(page: Page, theme: "light" | "dark") {
   await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
 }
 
+/**
+ * Painted separator width, not textContent. A flex item trims the
+ * spaces in " · " while textContent still contains them. innerText
+ * plus the range width is what the screen shows.
+ */
+async function expectSpacedPlanLink(page: Page) {
+  const link = page.getByTestId("plan-detail-link").first();
+  await expect(link).toBeVisible();
+  const measured = await link.evaluate((el) => {
+    const root = el as HTMLElement;
+    const seps = [...root.querySelectorAll("[data-plan-sep]")].map((sep) => {
+      const range = document.createRange();
+      range.selectNodeContents(sep);
+      const width = [...range.getClientRects()].reduce((sum, r) => sum + r.width, 0);
+      const probe = document.createElement("span");
+      probe.textContent = "·";
+      probe.style.font = getComputedStyle(sep).font;
+      probe.style.position = "absolute";
+      probe.style.left = "0";
+      probe.style.top = "0";
+      probe.style.visibility = "hidden";
+      document.body.appendChild(probe);
+      const dot = probe.getBoundingClientRect().width;
+      probe.remove();
+      return { width, dot, text: sep.textContent ?? "" };
+    });
+    const box = root.getBoundingClientRect();
+    return {
+      innerText: root.innerText.replace(/\u00a0/g, " "),
+      seps,
+      height: box.height,
+      width: box.width,
+    };
+  });
+  expect(measured.innerText.replace(/\s+/g, " ").trim()).toMatch(
+    /^Daily plan · .+ · \S/,
+  );
+  expect(measured.seps).toHaveLength(2);
+  for (const sep of measured.seps) {
+    expect(sep.text).toBe(" · ");
+    expect(
+      sep.width,
+      `separator painted ${sep.width}px; a bare middot is ${sep.dot}px`,
+    ).toBeGreaterThan(sep.dot + 2);
+  }
+  expect(measured.width).toBeGreaterThanOrEqual(44);
+  expect(measured.height).toBeGreaterThanOrEqual(44);
+}
+
 async function fullyInView(page: Page, testId: string) {
   return page.getByTestId(testId).first().evaluate((el) => {
     const r = el.getBoundingClientRect();
@@ -115,16 +164,18 @@ test.describe("5.0.4 rc verify fixes", () => {
       await page.setViewportSize({ width: 390, height: 844 });
       await signIn(page, role);
       await page.goto("/app/jobs/25-031");
-      const link = page.getByTestId("plan-detail-link").first();
-      await expect(link).toBeVisible();
-      const box = await link.evaluate((el) => {
-        const r = el.getBoundingClientRect();
-        return { width: r.width, height: r.height };
-      });
-      expect(box.width).toBeGreaterThanOrEqual(44);
-      expect(box.height).toBeGreaterThanOrEqual(44);
+      await expectSpacedPlanLink(page);
     });
   }
+
+  test("PM: Daily plan separators keep their spaces at 1280", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, "pm");
+    await page.goto("/app/jobs/25-031");
+    await expectSpacedPlanLink(page);
+  });
 
   for (const width of [320, 390]) {
     for (const theme of ["light", "dark"] as const) {

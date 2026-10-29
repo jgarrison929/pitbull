@@ -4,11 +4,30 @@ export type CiGateResult = "pass" | "fail" | "pending" | "unknown";
 
 export type CiGateObservation = {
   result: CiGateResult;
-  /** True when serving last-good after a GitHub error (stale-while-error). */
+  /**
+   * True when the value is last-good after a GitHub error, or the last
+   * observation is past the TTL (or its age is unknown). A page may return
+   * that value without waiting on GitHub; it must not look freshly checked.
+   */
   stale: boolean;
   /** ms since last successful GitHub observation; null if never observed. */
   ageMs: number | null;
 };
+
+/** /status copy. Stale with a known age is `pass (stale Ns)`. */
+export function formatCiGateLabel(gate: {
+  result: CiGateResult;
+  stale: boolean;
+  ageMs: number | null;
+}): string {
+  const label =
+    gate.result === "pass" || gate.result === "fail" || gate.result === "pending"
+      ? gate.result
+      : "unknown";
+  if (!gate.stale) return label;
+  if (gate.ageMs == null) return `${label} (stale)`;
+  return `${label} (stale ${Math.round(gate.ageMs / 1000)}s)`;
+}
 
 const DEFAULT_REPO = "jgarrison929/pitbull";
 
@@ -112,9 +131,33 @@ export function peekCiGate(
 }
 
 /**
+ * Remember a persisted observation so a cold process can answer without
+ * waiting on GitHub. Does not replace an in-memory entry. `observedAtMs`
+ * null means the age is unknown, so the next read is already overdue.
+ */
+export function rememberCiGate(
+  commit: string,
+  result: Exclude<CiGateResult, "unknown">,
+  observedAtMs: number | null,
+  now: () => number = Date.now,
+): void {
+  if (!commit || commit === "unknown") return;
+  if (cache.has(commit)) return;
+  const t = now();
+  cache.set(commit, {
+    result,
+    expiresAt: observedAtMs == null ? t - 1 : observedAtMs + CI_GATE_CACHE_TTL_MS,
+    stale: false,
+    lastGood: result,
+    lastGoodAt: observedAtMs ?? undefined,
+  });
+}
+
+/**
  * Page path for /status and /health. A fresh cache entry is returned as-is.
  * After the TTL, a known result is returned immediately and GitHub refreshes
  * in the background — the crawl must not wait on api.github.com again.
+ * That immediate value is stale, with the real age, until a refresh lands.
  * A cold cache still awaits GitHub once.
  */
 export async function ciGateForRequest(
@@ -135,10 +178,11 @@ export async function ciGateForRequest(
   const peeked = peekCiGate(commit, now);
   if (peeked.fresh) return peeked.fresh;
   if (peeked.lastGood) {
+    // Past the TTL (or age unknown): answer now, but do not call it fresh.
     void fetchCiGate(commit, env, fetchFn, now).catch(() => {});
     return {
       result: peeked.lastGood,
-      stale: false,
+      stale: true,
       ageMs: peeked.ageMs,
     };
   }

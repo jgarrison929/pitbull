@@ -136,8 +136,8 @@ function collapsedFeed(
   `;
 }
 
-/** The audit trail for one job: writes in this sandbox, newest first. */
-export async function jobChanges(
+/** One page of the job feed. The changes screen asks for 50. */
+export function jobChangesStatement(
   companyId: string,
   jobNumber: string,
   limit = 20,
@@ -146,14 +146,27 @@ export async function jobChanges(
 ) {
   const take = Math.max(0, Math.floor(limit));
   const skip = Math.max(0, Math.floor(offset));
-  const result = await requireDb().execute(sql`
+  return sql`
     ${collapsedFeed(companyId, jobNumber, options)}
     select id, action, summary, created_at, plan_id, user_name, role
     from collapsed
     order by created_at desc
     limit ${take}
     offset ${skip}
-  `);
+  `;
+}
+
+/** The audit trail for one job: writes in this sandbox, newest first. */
+export async function jobChanges(
+  companyId: string,
+  jobNumber: string,
+  limit = 20,
+  offset = 0,
+  options?: JobChangesOptions,
+) {
+  const result = await requireDb().execute(
+    jobChangesStatement(companyId, jobNumber, limit, offset, options),
+  );
   return [...result].map((row) => mapRow(row as RawChange));
 }
 
