@@ -4,6 +4,7 @@ import {
   beforeAfterSection,
   imageTag,
   prSections,
+  escapeCell,
   proofCell,
   scenarioOrder,
   scenariosTable,
@@ -76,6 +77,13 @@ describe("area-evidence", () => {
     const parsed = parseBeforeAfter(body);
     expect(parsed.kind).toBe("pairs");
     expect(parsed.problems).toEqual([]);
+  });
+
+  it("escapes pipes only after escaping backslashes", () => {
+    expect(escapeCell("a|b")).toBe("a\\|b");
+    expect(escapeCell("a\\b")).toBe("a\\\\b");
+    expect(escapeCell("a\\|b")).toBe("a\\\\\\|b");
+    expect(escapeCell("line\n2")).toBe("line 2");
   });
 
   it("orders PB-97-S1 before PB-97-S5", () => {

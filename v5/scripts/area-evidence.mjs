@@ -24,7 +24,12 @@ const ORDER = ["PB-97-S1", "PB-97-S2", "PB-97-S3", "PB-97-S4", "PB-97-S5"];
 
 /** @param {string} value */
 export function escapeCell(value) {
-  return String(value ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+  // Escape backslash before pipe. Replacing only "|" leaves a preceding
+  // backslash able to eat the escape (CodeQL js/incomplete-sanitization).
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\n/g, " ");
 }
 
 /**
