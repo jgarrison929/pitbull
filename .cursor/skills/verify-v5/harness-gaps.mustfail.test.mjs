@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Before/after test for the harness gaps S1–S12 from the rc/5.0.4 e3994a60 gap run, and S13–S16 from the rc/5.0.4 ab74c4f3 --rc run, S17–S18 from spec #93 (main 9d05bd8d; d-5, d-4). Fixtures are static pages on a
+// Before/after test for the harness gaps S1–S12 from the rc/5.0.4 e3994a60 gap run, and S13–S16 from the rc/5.0.4 ab74c4f3 --rc run, S17–S18 from spec #93 (main 9d05bd8d; d-5, d-4), S19 from the rc/5.0.4 174d35be --rc run (d-1 Edit button). Fixtures are static pages on a
 // 127.0.0.1 server; the real skill functions (Playwright from v5/node_modules) run against them. No staging, no
 // production, no app build.
 //
@@ -243,21 +243,51 @@ for (const [title, o] of [
   return { green: f.length > 0, detail: f.length ? f[0].slice(0, 150) : "old code has no per-screen journey hook check" };
 });
 
-// S9: d-1e finds the plan-line Edit button by its trimmed accessible name (" Edit", svg + space).
-const EDIT = (btn) => ({ "/app/jobs/25-031": () => page(`<main><article data-testid="plan-card">${btn}<form data-testid="line-form" hidden><input required name="qty"><button type="submit">Save</button></form></article></main>`) });
+// S9 + S19: d-1e opens the editor on plan line 04-210 through a button whose accessible name STARTS with "Edit"
+// (the app's aria-label is "Edit 04-210 <activity>"; S9's exact "Edit" never matched it on staging at 174d35be).
+const LINE = (code, inner) => `<li data-testid="plan-line" data-code="${code}"><span>${code} line</span>${inner}</li>`;
+const FORM = `<form data-testid="line-form" hidden><input required name="qty"><button type="submit">Save</button></form>`;
+const OPEN = `onclick="this.parentElement.querySelector('[data-testid=line-form]').hidden=false"`;
+const EDIT = (lis, outside = "") => ({ "/app/jobs/25-031": () => page(`<main>${outside}<article data-testid="plan-card" data-status="draft"><ul>${lis}</ul></article></main>`) });
 const d1e = async () => {
-  const rows = await spec.pagePass(browser, base, { ...spec.PASSES["d-1e"], roles: ["foreman"], sizes: [{ width: 390, height: 844 }] });
-  return rows[0];
+  const pass = { ...spec.PASSES["d-1e"], roles: ["foreman"], sizes: [{ width: 390, height: 844 }] };
+  const rows = await spec.pagePass(browser, base, pass);
+  return { r: rows[0], f: spec.evaluatePassRows(pass, rows) };
 };
 await run("S9", "fix", "Edit button whose text is ' Edit' after an svg", async () => {
-  state.mode.routes = EDIT(`<button onclick="this.nextElementSibling.hidden=false"><svg width="12" height="12" aria-hidden="true"></svg> Edit</button>`);
-  const r = await d1e();
-  return { green: !r.error && !!r.data, detail: r.error ? `row error: ${r.error.slice(0, 120)}` : "Edit clicked, line-form open, probe ran" };
+  state.mode.routes = EDIT(LINE("04-210", `<button ${OPEN}><svg width="12" height="12" aria-hidden="true"></svg> Edit</button>${FORM}`));
+  const { r, f } = await d1e();
+  return { green: !r.error && !!r.data && f.length === 0, detail: r.error ? `row error: ${r.error.slice(0, 120)}` : f.length ? f[0].slice(0, 150) : "Edit clicked, line-form open, probe ran, d-1e PASS" };
+});
+await run("S19", "fix", "the app's Edit button: aria-label 'Edit 04-210 Pour Pier 3 column, lift 2', text ' Edit'", async () => {
+  state.mode.routes = EDIT(LINE("04-310", `<button aria-label="Edit 04-310 Tie column cage">Edit</button>`) + LINE("04-210", `<button data-testid="edit-line" aria-label="Edit 04-210 Pour Pier 3 column, lift 2" ${OPEN}><svg width="12" height="12" aria-hidden="true"></svg> Edit</button><button>Remove</button>${FORM}`));
+  const { r, f } = await d1e();
+  return { green: !r.error && r.editorOpened === true && f.length === 0, detail: r.error ? `row error: ${r.error.slice(0, 120)}` : f.length ? f[0].slice(0, 150) : `clicked "${r.clicked?.label}", line-form open, d-1e PASS` };
 });
 await run("S9", "must-fail", "no Edit button", async () => {
-  state.mode.routes = EDIT(`<button>Remove</button>`);
-  const r = await d1e();
-  return { green: !!r.error, detail: `row error: ${String(r.error).slice(0, 100)}` };
+  state.mode.routes = EDIT(LINE("04-210", `<button>Remove</button>${FORM}`));
+  const { r, f } = await d1e();
+  return { green: f.length > 0, detail: f[0]?.slice(0, 150) ?? `d-1e passed (row error ${r.error})` };
+});
+await run("S19", "must-fail", "Edit on 04-210 opens no editor (click does nothing)", async () => {
+  state.mode.routes = EDIT(LINE("04-210", `<button aria-label="Edit 04-210 Pour Pier 3 column, lift 2">Edit</button>${FORM}`));
+  const { f } = await d1e();
+  return { green: f.length > 0, detail: f[0]?.slice(0, 150) ?? "d-1e passed with the editor closed" };
+});
+await run("S19", "must-fail", "Edit only on another line (04-310) and in the page header, none on 04-210", async () => {
+  state.mode.routes = EDIT(LINE("04-310", `<button aria-label="Edit 04-310 Tie column cage" ${OPEN}>Edit</button>${FORM}`) + LINE("04-210", `<button>Remove</button>`), `<button aria-label="Edit plan" onclick="document.querySelectorAll('[data-testid=line-form]').forEach((x)=>x.hidden=false)">Edit</button>`);
+  const { r, f } = await d1e();
+  return { green: f.length > 0 && !r.editorOpened, detail: f[0]?.slice(0, 150) ?? `d-1e passed (clicked ${r.clicked?.label})` };
+});
+await run("S19", "must-fail", "a button named 'Editor settings' on 04-210 is not the Edit control", async () => {
+  state.mode.routes = EDIT(LINE("04-210", `<button aria-label="Editor settings" ${OPEN}>Editor</button>${FORM}`));
+  const { r, f } = await d1e();
+  return { green: f.length > 0 && !r.editorOpened, detail: f[0]?.slice(0, 150) ?? `d-1e passed (clicked ${r.clicked?.label})` };
+});
+await run("S19", "must-fail", "Edit opens a line-form with no Save (editor half not proven)", async () => {
+  state.mode.routes = EDIT(LINE("04-210", `<button aria-label="Edit 04-210 Pour Pier 3 column, lift 2" ${OPEN}>Edit</button><form data-testid="line-form" hidden><input required name="qty"></form>`));
+  const { f } = await d1e();
+  return { green: f.length > 0, detail: f[0]?.slice(0, 150) ?? "d-1e passed with no Save" };
 });
 
 // S10: wait for the confirmed write to finish before navigating; a failed or aborted save is a FAIL.
