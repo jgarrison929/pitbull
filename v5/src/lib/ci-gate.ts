@@ -85,6 +85,66 @@ export async function resolveCiGate(
   return fetchCiGate(commit, env, fetchFn, now);
 }
 
+export type CiGatePeek = {
+  /** Set when the in-memory entry is still inside its TTL. */
+  fresh: CiGateObservation | null;
+  /** Last confirmed result, including after the TTL, so a page can answer without waiting on GitHub. */
+  lastGood: CiGateResult | null;
+  ageMs: number | null;
+};
+
+/** Read the in-memory observation. Does not call GitHub. */
+export function peekCiGate(
+  commit: string,
+  now: () => number = Date.now,
+): CiGatePeek {
+  const hit = cache.get(commit);
+  const t = now();
+  if (!hit) return { fresh: null, lastGood: null, ageMs: null };
+  const ageMs =
+    hit.lastGoodAt === undefined ? null : Math.max(0, t - hit.lastGoodAt);
+  const lastGood =
+    hit.lastGood && hit.lastGood !== "unknown" ? hit.lastGood : null;
+  if (hit.expiresAt > t) {
+    return { fresh: observationFromEntry(hit, t), lastGood, ageMs };
+  }
+  return { fresh: null, lastGood, ageMs };
+}
+
+/**
+ * Page path for /status and /health. A fresh cache entry is returned as-is.
+ * After the TTL, a known result is returned immediately and GitHub refreshes
+ * in the background — the crawl must not wait on api.github.com again.
+ * A cold cache still awaits GitHub once.
+ */
+export async function ciGateForRequest(
+  commit: string,
+  env: Record<string, string | undefined> = process.env,
+  fetchFn: typeof fetch = fetch,
+  now: () => number = Date.now,
+): Promise<CiGateObservation> {
+  const override = env.CI_GATE_RESULT?.trim().toLowerCase();
+  if (
+    override === "pass" ||
+    override === "fail" ||
+    override === "pending" ||
+    override === "unknown"
+  ) {
+    return { result: override, stale: false, ageMs: 0 };
+  }
+  const peeked = peekCiGate(commit, now);
+  if (peeked.fresh) return peeked.fresh;
+  if (peeked.lastGood) {
+    void fetchCiGate(commit, env, fetchFn, now).catch(() => {});
+    return {
+      result: peeked.lastGood,
+      stale: false,
+      ageMs: peeked.ageMs,
+    };
+  }
+  return fetchCiGate(commit, env, fetchFn, now);
+}
+
 export async function fetchCiGate(
   commit: string,
   env: Record<string, string | undefined> = process.env,

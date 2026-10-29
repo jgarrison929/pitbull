@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CI_GATE_CACHE_TTL_MS,
   CI_GATE_ERROR_TTL_MS,
+  ciGateForRequest,
   clearCiGateCache,
   fetchCiGate,
   resolveCiGate,
@@ -123,6 +124,39 @@ describe("ci-gate server cache", () => {
     now += CI_GATE_CACHE_TTL_MS + 1;
     await fetchCiGate("cafe", {}, fetchFn, clock);
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns the known result after the TTL without waiting on GitHub", async () => {
+    let now = 1_000_000;
+    const clock = () => now;
+    const fetchFn = passFetch();
+    await fetchCiGate("page", {}, fetchFn, clock);
+    now += CI_GATE_CACHE_TTL_MS + 1;
+    let release!: () => void;
+    const hung = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          release = () =>
+            resolve(
+              Response.json({
+                check_runs: [
+                  {
+                    name: "ci-gate",
+                    status: "completed",
+                    conclusion: "success",
+                  },
+                ],
+              }),
+            );
+        }),
+    );
+    const started = Date.now();
+    const gate = await ciGateForRequest("page", {}, hung, clock);
+    expect(Date.now() - started).toBeLessThan(200);
+    expect(gate).toMatchObject({ result: "pass", stale: false });
+    expect(hung).toHaveBeenCalledOnce();
+    release();
+    await vi.waitFor(() => expect(hung).toHaveBeenCalledOnce());
   });
 
   it("keys the cache by commit (different SHAs fetch separately)", async () => {

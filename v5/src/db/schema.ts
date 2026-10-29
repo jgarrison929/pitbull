@@ -640,7 +640,17 @@ export const actionRuns = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("action_runs_company_idx").on(t.companyId, t.createdAt)],
+  (t) => [
+    index("action_runs_company_idx").on(t.companyId, t.createdAt),
+    // Job change feed filters args->>'job' and reads newest-first.
+    // Without this, a company-wide bitmap scan plus a bad user join
+    // materializes the whole feed before the page can take 50 rows.
+    index("action_runs_company_job_created_idx").on(
+      t.companyId,
+      sql`(args->>'job')`,
+      t.createdAt.desc(),
+    ),
+  ],
 );
 
 /** Deploy-wide key/value (not sandbox-scoped): last verify stamp, etc. */

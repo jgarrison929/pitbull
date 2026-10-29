@@ -69,7 +69,7 @@ export function PlanCard({
           <h2 className="min-w-0 text-section font-semibold text-pretty break-words">
             <a
               href={`/app/jobs/${jobNumber}/plans/${plan.id}`}
-              className="hover:underline"
+              className="tap-target inline-flex max-w-full items-center break-words hover:underline"
               data-testid="plan-detail-link"
             >
               Daily plan

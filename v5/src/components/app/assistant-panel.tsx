@@ -229,7 +229,8 @@ export function AssistantPanel({
                     href={r.args.href}
                     className={cn(
                       "font-medium text-foreground underline underline-offset-2",
-                      phone && "inline-flex min-h-11 min-w-11 items-center justify-center",
+                      phone &&
+                        "tap-target inline-flex min-h-11 min-w-11 items-center justify-center",
                     )}
                   >
                     Open

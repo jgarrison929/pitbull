@@ -43,7 +43,7 @@ export function NextSteps({
             <li key={step.id}>
               <a
                 href={step.href}
-                className="tap-target flex min-h-11 items-center px-4 py-3 text-body font-medium hover:bg-muted/60 lg:px-6"
+                className="tap-target flex min-h-11 min-w-0 items-center whitespace-normal break-words px-4 py-2 text-body font-medium hover:bg-muted/60 lg:px-6"
                 data-testid="next-step"
                 data-step-id={step.id}
                 data-role={
@@ -62,7 +62,7 @@ export function NextSteps({
             <li>
               <a
                 href="#jobs"
-                className="tap-target flex min-h-11 items-center px-4 py-3 text-label text-muted-foreground hover:bg-muted/60 lg:px-6"
+                className="tap-target flex min-h-11 min-w-0 items-center whitespace-normal break-words px-4 py-2 text-label text-muted-foreground hover:bg-muted/60 lg:px-6"
                 data-testid="next-steps-more"
               >
                 {moreCount} more on the Jobs list
