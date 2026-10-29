@@ -30,16 +30,19 @@ export function isDeployedBase(baseURL: string | undefined): boolean {
   }
 }
 
+export type EvidenceShot = {
+  role: string;
+  which: "before" | "after";
+  file: string;
+};
+
 export type ScenarioMeta = {
   scenario: string;
   page: string;
-  role: string;
   viewport: string;
   theme: string;
-  before: string;
-  after: string;
-  beforeTaken: boolean;
-  afterTaken: boolean;
+  /** One entry per capture. Pairs are scenario+role, not the order of this list. */
+  shots: EvidenceShot[];
   replayUrl: string | null;
 };
 
@@ -48,8 +51,7 @@ type ReplayWindow = Window & { __pbReplayUrl?: string };
 export class Evidence {
   readonly scenario: string;
   role = "foreman";
-  beforeTaken = false;
-  afterTaken = false;
+  readonly shots: EvidenceShot[] = [];
   replayUrl: string | null = null;
 
   constructor(scenario: string) {
@@ -57,22 +59,25 @@ export class Evidence {
   }
 
   file(which: "before" | "after"): string {
-    return `${this.scenario}-${which}.jpg`;
+    return `${this.scenario}-${this.role}-${which}.jpg`;
   }
 
   async shoot(page: Page, which: "before" | "after", anchor: Locator): Promise<void> {
     fs.mkdirSync(evidenceDir, { recursive: true });
     await anchor.scrollIntoViewIfNeeded();
+    const file = this.file(which);
     await page.screenshot({
-      path: path.join(evidenceDir, this.file(which)),
+      path: path.join(evidenceDir, file),
       type: "jpeg",
       quality: 55,
       animations: "disabled",
       caret: "hide",
       scale: "css",
     });
-    if (which === "before") this.beforeTaken = true;
-    else this.afterTaken = true;
+    const shot: EvidenceShot = { role: this.role, which, file };
+    const index = this.shots.findIndex((s) => s.role === this.role && s.which === which);
+    if (index === -1) this.shots.push(shot);
+    else this.shots[index] = shot;
   }
 
   write(): void {
@@ -80,13 +85,9 @@ export class Evidence {
     const meta: ScenarioMeta = {
       scenario: this.scenario,
       page: JOB_PATH,
-      role: this.role,
       viewport: VIEWPORT_LABEL,
       theme: THEME,
-      before: this.file("before"),
-      after: this.file("after"),
-      beforeTaken: this.beforeTaken,
-      afterTaken: this.afterTaken,
+      shots: this.shots,
       replayUrl: this.replayUrl,
     };
     fs.writeFileSync(

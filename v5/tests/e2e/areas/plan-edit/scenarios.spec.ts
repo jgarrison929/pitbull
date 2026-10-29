@@ -1,11 +1,14 @@
+import type { Page } from "@playwright/test";
 import {
   expect,
+  type Evidence,
   JOB_PATH,
   openJob,
   pourLine,
   resetDemo,
   signIn,
   test,
+  VIEWPORT,
 } from "./support";
 
 test.describe.configure({ timeout: 90_000 });
@@ -70,23 +73,14 @@ test(
   "pm and executive see no Edit control on plan lines @PB-97-S3",
   { tag: "@PB-97-S3" },
   async ({ page, evidence }) => {
-    evidence.role = "pm";
     await signIn(page, "pm");
     await expect(page.getByTestId("signed-in-as")).toContainText("Marcus Lee");
     await resetDemo(page);
-    await openJob(page);
-    await expect(page.getByTestId("edit-line")).toHaveCount(0);
-    await evidence.shoot(page, "before", pourLine(page));
-
-    await page.reload();
-    await expect(page.getByTestId("edit-line")).toHaveCount(0);
-    await expect(pourLine(page).getByTestId("line-mh")).toHaveText("60");
-    await evidence.shoot(page, "after", pourLine(page));
+    await captureNoEdit(page, evidence, "pm", "Marcus Lee");
 
     await signIn(page, "executive");
     await expect(page.getByTestId("signed-in-as")).toContainText("Elena Brooks");
-    await openJob(page);
-    await expect(page.getByTestId("edit-line")).toHaveCount(0);
+    await captureNoEdit(page, evidence, "executive", "Elena Brooks");
   },
 );
 
@@ -158,3 +152,37 @@ test(
     await evidence.shoot(page, "after", pourLine(page));
   },
 );
+
+/** Same page, viewport, theme, and seed for one role. Before is the pour line at rest.
+ * After is that line once the role has hovered and clicked it. Edit stays absent. */
+async function captureNoEdit(
+  page: Page,
+  evidence: Evidence,
+  role: "pm" | "executive",
+  name: string,
+) {
+  evidence.role = role;
+  await page.setViewportSize({ ...VIEWPORT });
+  await openJob(page);
+  await expect(page.getByTestId("signed-in-as")).toContainText(name);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  const line = pourLine(page);
+  await expect(page.getByTestId("edit-line")).toHaveCount(0);
+  await expect(line.getByTestId("line-mh")).toHaveText("60");
+  await evidence.shoot(page, "before", line);
+
+  await line.hover();
+  const box = await line.boundingBox();
+  expect(box, "pour line box").toBeTruthy();
+  await page.mouse.click(box!.x + box!.width - 20, box!.y + box!.height / 2);
+  await expect(page).toHaveURL(new RegExp(`${JOB_PATH}$`));
+  await expect(page.getByTestId("edit-line")).toHaveCount(0);
+  const code = line.getByText("04-210", { exact: true });
+  await code.selectText();
+  await expect
+    .poll(() => page.evaluate(() => window.getSelection()?.toString() ?? ""))
+    .toContain("04-210");
+  await expect(page.getByTestId("edit-line")).toHaveCount(0);
+  await expect(line.getByTestId("line-mh")).toHaveText("60");
+  await evidence.shoot(page, "after", line);
+}

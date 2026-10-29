@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseBeforeAfter } from "../../.cursor/skills/verify-v5/before-after.mjs";
 import {
@@ -5,7 +8,9 @@ import {
   imageTag,
   prSections,
   escapeCell,
+  pairProblems,
   proofCell,
+  REQUIRED_PAIRS,
   scenarioOrder,
   scenariosTable,
 } from "./area-evidence.mjs";
@@ -88,5 +93,83 @@ describe("area-evidence", () => {
 
   it("orders PB-97-S1 before PB-97-S5", () => {
     expect(scenarioOrder("PB-97-S1")).toBeLessThan(scenarioOrder("PB-97-S5"));
+  });
+
+  it("keys S3 and S4 by scenario and role, not capture order", () => {
+    const page = "/app/jobs/25-031";
+    const viewport = "1280×800";
+    const theme = "light";
+    const shot = (
+      scenario: string,
+      role: string,
+      which: "before" | "after",
+      file: string,
+    ) => ({ scenario, role, which, file, page, viewport, theme, test: scenario, result: "pass" });
+    // Befores and afters are interleaved so a zip by capture order would cross S3 and S4.
+    const shots = [
+      shot("PB-97-S3", "pm", "before", "s3-pm-before.jpg"),
+      shot("PB-97-S3", "executive", "before", "s3-ex-before.jpg"),
+      shot("PB-97-S4", "pm", "before", "s4-pm-before.jpg"),
+      shot("PB-97-S4", "pm", "after", "s4-pm-after.jpg"),
+      shot("PB-97-S3", "executive", "after", "s3-ex-after.jpg"),
+      shot("PB-97-S3", "pm", "after", "s3-pm-after.jpg"),
+    ];
+    const section = beforeAfterSection(shots, (file) => file);
+    const parsed = parseBeforeAfter(section);
+    expect(parsed.kind).toBe("pairs");
+    expect(parsed.problems).toEqual([]);
+    const pairs = parsed.pairs ?? [];
+    expect(pairs.map((pair) => [pair.before.url, pair.after.url])).toEqual([
+      ["s3-pm-before.jpg", "s3-pm-after.jpg"],
+      ["s3-ex-before.jpg", "s3-ex-after.jpg"],
+      ["s4-pm-before.jpg", "s4-pm-after.jpg"],
+    ]);
+    expect(pairs[0]?.label).toBe("/app/jobs/25-031 · pm · 1280×800 · light");
+    expect(pairs[1]?.label).toBe("/app/jobs/25-031 · executive · 1280×800 · light");
+    expect(pairs[2]?.label).toBe("/app/jobs/25-031 · pm · 1280×800 · light");
+    const table = scenariosTable(shots);
+    const s3 = table.split("\n").filter((line) => line.includes("PB-97-S3"));
+    expect(s3).toHaveLength(1);
+    expect(s3[0]).toContain("`s3-pm-before.jpg`, `s3-pm-after.jpg`, `s3-ex-before.jpg`, `s3-ex-after.jpg`");
+  });
+
+  it("fails when a pair is byte-identical or a scenario role has no pair", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "area-evidence-"));
+    const written = REQUIRED_PAIRS.map((req) => {
+      const before = `${req.scenario}-${req.role}-before.jpg`;
+      const after = `${req.scenario}-${req.role}-after.jpg`;
+      fs.writeFileSync(path.join(dir, before), `before-${req.scenario}-${req.role}`);
+      fs.writeFileSync(path.join(dir, after), `after-${req.scenario}-${req.role}`);
+      return {
+        scenario: req.scenario,
+        role: req.role,
+        test: req.scenario,
+        result: "pass",
+        page: "/app/jobs/25-031",
+        viewport: "1280×800",
+        theme: "light",
+        before,
+        after,
+        beforeTaken: true,
+        afterTaken: true,
+        replayUrl: null,
+      };
+    });
+    expect(pairProblems(dir, written)).toEqual([]);
+
+    const pm = written.find((row) => row.scenario === "PB-97-S3" && row.role === "pm");
+    if (!pm) throw new Error("missing S3 pm fixture");
+    fs.writeFileSync(path.join(dir, pm.after), fs.readFileSync(path.join(dir, pm.before)));
+    expect(pairProblems(dir, written)).toEqual([
+      "PB-97-S3 pm before and after are byte-identical",
+    ]);
+
+    fs.writeFileSync(path.join(dir, pm.after), "after-PB-97-S3-pm");
+    const withoutExecutive = written.filter(
+      (row) => !(row.scenario === "PB-97-S3" && row.role === "executive"),
+    );
+    expect(pairProblems(dir, withoutExecutive)).toEqual([
+      "PB-97-S3 executive lacks a pair",
+    ]);
   });
 });

@@ -24,6 +24,12 @@ const FALLBACK_ROLE: Record<string, string> = {
   "PB-97-S5": "foreman",
 };
 
+type Shot = {
+  role?: string;
+  which?: "before" | "after";
+  file?: string;
+};
+
 type Meta = {
   page?: string;
   role?: string;
@@ -33,6 +39,7 @@ type Meta = {
   after?: string;
   beforeTaken?: boolean;
   afterTaken?: boolean;
+  shots?: Shot[];
   replayUrl?: string | null;
 };
 
@@ -70,14 +77,10 @@ export default class AreaPlanEditReporter implements Reporter {
           test: seen.title,
           result: seen.result,
           page: meta?.page ?? "/app/jobs/25-031",
-          role: meta?.role ?? FALLBACK_ROLE[id] ?? "foreman",
           viewport: meta?.viewport ?? "1280×800",
           theme: meta?.theme ?? "light",
-          before: meta?.before ?? `${id}-before.jpg`,
-          after: meta?.after ?? `${id}-after.jpg`,
-          beforeTaken: meta?.beforeTaken ?? false,
-          afterTaken: meta?.afterTaken ?? false,
           replayUrl: meta?.replayUrl ?? null,
+          shots: shotsFrom(meta, id),
         };
       });
     fs.writeFileSync(
@@ -101,4 +104,15 @@ function readMeta(id: string): Meta | null {
   const file = path.join(evidenceDir, `${id}.json`);
   if (!fs.existsSync(file)) return null;
   return JSON.parse(fs.readFileSync(file, "utf8")) as Meta;
+}
+
+/** Shots stay keyed by the role on each capture. A legacy single before/after becomes one role's shots. */
+function shotsFrom(meta: Meta | null, id: string): Shot[] {
+  if (meta?.shots?.length) return meta.shots;
+  if (!meta) return [];
+  const role = meta.role ?? FALLBACK_ROLE[id] ?? "foreman";
+  const shots: Shot[] = [];
+  if (meta.beforeTaken && meta.before) shots.push({ role, which: "before", file: meta.before });
+  if (meta.afterTaken && meta.after) shots.push({ role, which: "after", file: meta.after });
+  return shots;
 }
