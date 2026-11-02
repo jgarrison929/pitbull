@@ -1,12 +1,19 @@
 # Pitbull roadmap
 
-Status: checked against `main` at `d56eb6be` on 2026-10-26 at 10:40 AM (PT). This is a plan, not a promise. Versions and order move when evidence comes in.
+Status: checked against `main` at `9d05bd8` and `rc/5.0.4` at `eca038d` on 2026-11-02 at 10:30 AM (PT). This is a plan, not a promise. Versions and order move when evidence comes in.
 
 Pitbull is a construction project controls platform. The scope, the trust bar, and the InEight positioning are in the [fresh-start plan](v5/fresh-start-plan.md). The milestone history of 5.0.0 (M0 to M6) is in [Roadmap 5.0.0](roadmap-5.0.0.md).
 
 **PR numbers.** The repo moved to a fresh public history on 2026-10-25 (root commit `829164a`), and PR numbers restarted at #1. Numbers from #600 to #724 in this page and in older specs refer to the old private history. Links to PRs on the public history use full URLs.
 
-## Decisions in this refresh (2026-10-26)
+## Decisions in this refresh (2026-11-02)
+
+- **Nothing new shipped this week.** No new tag since `v5.0.3` (2026-10-27). Production on `demo.pcserp.app` and `app.pcserp.app` reports version 5.0.3 at `9e7ab3d8`, but its last verify is still 5.0.1's (2026-10-25 at 6:33 AM PT on `05246e2e`). 5.0.2 and 5.0.3 read "Tagged, awaiting production verify".
+- **5.0.4 is built and waits on one RC verify.** Every slice (a, b, c, d, e, f, i) is in `rc/5.0.4`, each with a Pitbull Verify PASS on its PR. The last was [#101](https://github.com/jgarrison929/pitbull/pull/101), PASS at `44cc91ac` on 2026-10-29. Slice g (guided demo path) moved to 5.0.5 as checks 7 to 10 ([#95](https://github.com/jgarrison929/pitbull/pull/95)). What is left needs no new builder: hand `rc/5.0.4` to staging, run `verify-v5 --rc` on its head, merge to `main`, and tag.
+- **Dates move about two weeks.** Joshua slowed builders on 2026-10-27 to save usage. Since then only docs, verify, and `rc/5.0.4` fixes merged, and the 5.1 slice PRs ([#35](https://github.com/jgarrison929/pitbull/pull/35) to [#41](https://github.com/jgarrison929/pitbull/pull/41)) have sat open since 2026-10-26. 5.0.4 keeps the two-week floor if it tags by 2026-11-10. The dates after 5.0.4 assume builders resume by 2026-11-09. If they don't, everything after 5.0.4 slides by the same number of days. The order does not change.
+- **No new specs this week.** 5.0.5 to 5.0.7 and all of 5.1 have build-ready specs, and 5.2.0, 5.2.1, and 5.2.5 do too. New spec work that needs builders waits until the pace comes back.
+
+## Decisions on 2026-10-26
 
 - **Shipped means verified and released.** An increment counts as shipped when Pitbull Verify passed on staging, the version is tagged, and production serves it. Merged work without that evidence reads "merged, awaiting verify".
 - **5.0.2 is verified on staging but not released.** The public history has no tags and no GitHub releases yet. Tag `v5.0.2` and promote to production before 5.0.3 is stamped.
@@ -36,10 +43,10 @@ Public versions are `5.<feature>.<increment>`.
 |---|---|---|---|---|---|
 | 5.0.0 | Old history | Passed 2026-10-24 | `v5.0.0` on the old history only | Superseded by 5.0.1 | **Shipped** |
 | 5.0.1 | Old history | Production verify 37/37 on 2026-10-25 | `v5.0.1` on the old history only | `demo.pcserp.app` and `app.pcserp.app` serve 5.0.1 at `05246e2e` | **Shipped** |
-| 5.0.2 | On `main`, version stamped | Passed 41/41 on `3d53c3f6`, 2026-10-26 at 9:12 AM PT | None | Not promoted | **Verified on staging, awaiting tag and production** |
-| 5.0.3 | On main (Parts B to F, #29, #16) | Pending staging verify on the tagged sha | v5.0.3 | Not yet promoted | **In release** |
-| 5.0.4 | 5.0.4-0 on `main`, 5.0.4-c on `rc/5.0.4`; a, b, d, e, f open; g not started | Not run | None | No | **In build** |
-| 5.1.0 | 5.1.0-a on `main`; b, c, d open | 0020 applied on staging | None | No | **Merged in part, awaiting verify** |
+| 5.0.2 | On `main`, version stamped | Passed 41/41 on `3d53c3f6`, 2026-10-26 at 9:12 AM PT | `v5.0.2` | Superseded by 5.0.3; no production verify | **Tagged, awaiting production verify** |
+| 5.0.3 | On `main` (Parts B to F, #29, #16) | No sign-off recorded on the tagged sha | `v5.0.3` (2026-10-27) | Serves 5.0.3 at `9e7ab3d8` ([#62](https://github.com/jgarrison929/pitbull/pull/62), after the tag); `/health` last verify is 5.0.1's | **Tagged, awaiting production verify** |
+| 5.0.4 | All slices in `rc/5.0.4` (34 commits ahead of `main`); g moved to 5.0.5 | Every slice PR passed; `--rc` on the RC head not run | None | No | **Built, awaiting RC verify** |
+| 5.1.0 | 5.1.0-a on `main`; b, c, d open since 2026-10-26 | `0020` applied on staging | None | No | **Merged in part, paused** |
 
 ## Just shipped: 5.0.1 (production) and 5.0.2 (staging)
 
@@ -77,7 +84,7 @@ Parts on the old history: A #707 (`0014`), B #713, C #706.
 
 ## Merged since the fresh start (2026-10-25 and 2026-10-26)
 
-These are on `main` and staging. None is part of a tagged release yet.
+These are on `main`. All of them are in the `v5.0.3` tag.
 
 | PR | What | Merged (PT) | Belongs to |
 |---|---|---|---|
@@ -96,43 +103,42 @@ These are on `main` and staging. None is part of a tagged release yet.
 
 5.0.3 Parts B (Average Performance, `0017`), C (dark theme), and E (rail unknown-job refusal), and the 5.1.1 CPM library (`cpm.ts` in v5), came in with the fresh-history snapshot. They are on `main` but not in any tagged release.
 
+## Merged since 2026-10-26 at 10:40 AM PT
+
+None of this is a tagged release yet, except the 5.0.3 stamp itself.
+
+- **Into `main` (27 PRs).** The 5.0.3 release stamp ([#50](https://github.com/jgarrison929/pitbull/pull/50)). Speed fixes: superintendent plan page idle ([#59](https://github.com/jgarrison929/pitbull/pull/59)), docs prefetch ([#57](https://github.com/jgarrison929/pitbull/pull/57)), and the job-page response tail on 24-077 and 24-118 ([#62](https://github.com/jgarrison929/pitbull/pull/62)). Fixes [#58](https://github.com/jgarrison929/pitbull/pull/58), [#46](https://github.com/jgarrison929/pitbull/pull/46), [#49](https://github.com/jgarrison929/pitbull/pull/49), and [#21](https://github.com/jgarrison929/pitbull/pull/21). The retired 3.8.2 app is gone, which closes every Dependabot alert ([#83](https://github.com/jgarrison929/pitbull/pull/83)). verify-v5 gained the schedule crawl, the ConfirmDialog checks, and the Before/After gate for PR bodies ([#42](https://github.com/jgarrison929/pitbull/pull/42), [#44](https://github.com/jgarrison929/pitbull/pull/44), [#68](https://github.com/jgarrison929/pitbull/pull/68), [#85](https://github.com/jgarrison929/pitbull/pull/85)). The rest are spec clarifications for 5.0.4 to 5.0.7 and CI fixes.
+- **Into `rc/5.0.4` (30 PRs).** Slices a, b, d, e, f, and i, the ConfirmDialog on Lock period and Approve estimate ([#71](https://github.com/jgarrison929/pitbull/pull/71)), WCAG 2.2 AA contrast in the light theme ([#67](https://github.com/jgarrison929/pitbull/pull/67)), the foreman cost tree that clipped its dollars ([#96](https://github.com/jgarrison929/pitbull/pull/96)), and the RC verify fixes ([#88](https://github.com/jgarrison929/pitbull/pull/88), [#92](https://github.com/jgarrison929/pitbull/pull/92), [#101](https://github.com/jgarrison929/pitbull/pull/101)). The 5.0.5 spec change that takes in slice g ([#95](https://github.com/jgarrison929/pitbull/pull/95)) is on `rc/5.0.4` only and reaches `main` when the RC merges.
+
 ## In flight
 
-State on 2026-10-26 at 10:40 AM PT. "Verify" is the latest Pitbull Verify verdict. A verdict on an older head does not count for the current head.
+State on 2026-11-02 at 10:30 AM PT. "Verify" is the latest Pitbull Verify verdict. A verdict on an older head does not count for the current head.
 
 | PR | Slice | Target branch | State |
 |---|---|---|---|
-| [#12](https://github.com/jgarrison929/pitbull/pull/12) | 5.0.5 (was 5.0.3 Part A), the S-curve | `main` | ci-gate green. Verify FAIL on an older head; current head waiting |
-| [#26](https://github.com/jgarrison929/pitbull/pull/26) | 5.0.4-a, "What needs you today" | `rc/5.0.4` | ci-gate green. Verify FAIL on an older head; current head waiting |
-| [#27](https://github.com/jgarrison929/pitbull/pull/27) | 5.0.4-b, page purpose lines and role-fit metrics | `rc/5.0.4` | ci-gate green. Verify FAIL on an older head; current head waiting |
-| [#32](https://github.com/jgarrison929/pitbull/pull/32) | 5.0.4-d, plan and report on phones | `rc/5.0.4` | ci-gate green, waiting for Verify |
-| [#33](https://github.com/jgarrison929/pitbull/pull/33) | 5.0.4-e, cost and earned value on phones | `rc/5.0.4` | ci-gate green, waiting for Verify |
-| [#34](https://github.com/jgarrison929/pitbull/pull/34) | 5.0.4-f, remaining screens | `rc/5.0.4` | ci-gate green, waiting for Verify |
-| [#37](https://github.com/jgarrison929/pitbull/pull/37) | 5.1.0-b, schedule server module and typed actions | `main` | ci-gate green, waiting for Verify |
-| [#40](https://github.com/jgarrison929/pitbull/pull/40) | 5.1.0-c, Gantt UI | `main` | ci-gate green, waiting for Verify |
-| [#41](https://github.com/jgarrison929/pitbull/pull/41) | 5.1.0-d, plan-line `activity_id` and picker, migration `0021` | `main` | ci-gate green, waiting for Verify |
-| [#42](https://github.com/jgarrison929/pitbull/pull/42) | verify-v5 crawls job schedule pages once the route exists | `main` | Verify FAIL on an older head; ci-gate running on the current head |
-| [#36](https://github.com/jgarrison929/pitbull/pull/36) | 5.1.2-a, baseline schema and set or re-baseline, migration `0023` | `main` | ci-gate green, waiting for Verify. Merges after `0022` exists, or renumbers |
-| [#35](https://github.com/jgarrison929/pitbull/pull/35) | 5.1.3-a, XER parser and all-or-nothing import | `main` | ci-gate green, waiting for Verify |
-| [#39](https://github.com/jgarrison929/pitbull/pull/39) | 5.1.3-b, Microsoft Project XML parser | `main` | ci-gate green, waiting for Verify |
-| [#38](https://github.com/jgarrison929/pitbull/pull/38) | 5.1.3-c, import UI and skipped-types summary | `main` | ci-gate green, waiting for Verify |
-| [#21](https://github.com/jgarrison929/pitbull/pull/21) | `db:ensure` parses `DATABASE_URL` without leaking the password | `main` | ci-gate green, waiting for Verify |
-| [#17](https://github.com/jgarrison929/pitbull/pull/17) | Extract DB test hooks | `main` | Lead held it for red smoke checks on older heads; ci-gate green now |
-| [#14](https://github.com/jgarrison929/pitbull/pull/14) | Agent mistake guards (tests only) | `main` | Last Verify FAIL was for a red ci-gate. ci-gate green now, waiting for Verify |
+| `rc/5.0.4` head `eca038d` | 5.0.4, all slices | `main` | Every slice PR passed Verify. Waiting for the staging handover and `verify-v5 --rc` |
+| [#102](https://github.com/jgarrison929/pitbull/pull/102) | verify-v5 weekly upkeep: cost-tree scroller must-fail and feature map | `rc/5.0.4` | Opened 2026-11-02, harness only |
+| [#12](https://github.com/jgarrison929/pitbull/pull/12) | 5.0.5, the S-curve | `main` | Verify FAIL at `80eb6d15` on 2026-10-27 (S-curve axis text clipped). No push since |
+| [#70](https://github.com/jgarrison929/pitbull/pull/70) | Job-page burst load under 1,000 ms (DB pool and cold paths, the #28 target) | `main` | Open since 2026-10-27. 5.0.7 waits on it |
+| [#99](https://github.com/jgarrison929/pitbull/pull/99) | Scenario-verified pilot for plan-line edit ([#97](https://github.com/jgarrison929/pitbull/issues/97), [#98](https://github.com/jgarrison929/pitbull/issues/98)) | `main` | Open since 2026-10-29. No product change |
+| [#37](https://github.com/jgarrison929/pitbull/pull/37), [#40](https://github.com/jgarrison929/pitbull/pull/40), [#41](https://github.com/jgarrison929/pitbull/pull/41) | 5.1.0-b server module, 5.1.0-c Gantt UI, 5.1.0-d plan-line `activity_id` (`0021`) | `main` | Open since 2026-10-26. Paused with the builders |
+| [#36](https://github.com/jgarrison929/pitbull/pull/36) | 5.1.2-a baseline schema (`0023`) | `main` | Open since 2026-10-26. Merges after `0022` exists, or renumbers |
+| [#35](https://github.com/jgarrison929/pitbull/pull/35), [#39](https://github.com/jgarrison929/pitbull/pull/39), [#38](https://github.com/jgarrison929/pitbull/pull/38) | 5.1.3-a XER, 5.1.3-b Microsoft Project XML, 5.1.3-c import UI | `main` | Open since 2026-10-26. Paused with the builders |
+| [#52](https://github.com/jgarrison929/pitbull/pull/52), [#17](https://github.com/jgarrison929/pitbull/pull/17), [#14](https://github.com/jgarrison929/pitbull/pull/14) | CI guards against repeated agent mistakes, DB test hooks | `main` | Open |
 | [#6](https://github.com/jgarrison929/pitbull/pull/6) | Dependabot: TypeScript 7 | `main` | Not routed |
 
-Not started: 5.0.4-g (guided demo path), 5.1.1 wire-up (links table, link actions, Gantt critical path), 5.1.2-b and 5.1.2-c, and all of 5.2.
+Not started: 5.1.1 wire-up (links table, link actions, Gantt critical path), 5.1.2-b and 5.1.2-c, and all of 5.2.
 
 ## Next: finish 5.0.x
 
 | Version | Target (PT) | Increment | Spec | What is left |
 |---|---|---|---|---|
-| 5.0.2 | 2026-10-26 | Crew rates, field history, cost drill-down | [5.0.2](v5/specs/5.0.2-crew-rates-and-field-history.md) | Tag `v5.0.2`, promote production, production verify |
-| 5.0.3 | 2026-10-26 | Average Performance per cost item, dark theme, plan history, faster job pages | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) (Parts B to F) | Staging verify on the tagged sha, tag, production verify |
-| 5.0.4 | 2026-10-30 | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) | Slices a, b, d, e, f pass Verify into `rc/5.0.4`. Slice g gets built. One RC handover with phone checks, then merge to `main` and tag |
-| 5.0.5 | 2026-11-02 | The S-curve for each job and the portfolio | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) | #12 passes Verify and merges to main, then stamp, staging verify, tag |
-| 5.0.6 | 2026-11-04 | One job page order for every role: header with "Next for you", five KPI cards, the cost table, then the role's work. The first cost row sits within 900 px of the top at 1440 | [5.0.6](v5/specs/5.0.6-job-page-anatomy.md) | Starts after 5.0.4 merges to `main`. One slice, then stamp, staging verify, tag |
-| 5.0.7 | 2026-11-09 | A detail drawer for cost items, change orders, and plan lines on the job page, plus a read-only change order page at `/app/jobs/[number]/change-orders/[co]` | [5.0.7](v5/specs/5.0.7-detail-drawer.md) | Starts after 5.0.6 and the #62 follow-ups ([#70](https://github.com/jgarrison929/pitbull/pull/70)) merge. One slice, then stamp, staging verify, tag |
+| 5.0.2 | 2026-10-26 | Crew rates, field history, cost drill-down | [5.0.2](v5/specs/5.0.2-crew-rates-and-field-history.md) | Tagged. Production verify, which now runs on 5.0.3 |
+| 5.0.3 | 2026-10-26 | Average Performance per cost item, dark theme, plan history, faster job pages | [5.0.3](v5/specs/5.0.3-s-curve-and-forecast-methods.md) (Parts B to F) | Tagged and deployed. Production verify |
+| 5.0.4 | 2026-11-05 (was 10-30) | Clear next steps for each role, a plain purpose line on every page, and a phone layout with one main number per card | [5.0.4](v5/specs/5.0.4-clear-next-steps-and-mobile-polish.md) | One RC handover with phone checks, `verify-v5 --rc` on the head, then merge to `main` and tag. No builder needed |
+| 5.0.5 | 2026-11-12 (was 11-02) | The S-curve for each job and the portfolio, plus the guided demo path (was 5.0.4-g) | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) | #12 fixes the clipped axis text and passes Verify. Checks 7 to 10 (guided demo path) get built. Then stamp, staging verify, tag |
+| 5.0.6 | 2026-11-16 (was 11-04) | One job page order for every role: header with "Next for you", five KPI cards, the cost table, then the role's work. The first cost row sits within 900 px of the top at 1440 | [5.0.6](v5/specs/5.0.6-job-page-anatomy.md) | Starts after 5.0.4 merges to `main`. One slice, then stamp, staging verify, tag |
+| 5.0.7 | 2026-11-19 (was 11-09) | A detail drawer for cost items, change orders, and plan lines on the job page, plus a read-only change order page at `/app/jobs/[number]/change-orders/[co]` | [5.0.7](v5/specs/5.0.7-detail-drawer.md) | Starts after 5.0.6 and the #62 follow-ups ([#70](https://github.com/jgarrison929/pitbull/pull/70)) merge. One slice, then stamp, staging verify, tag |
 
 5.0.4 is a 5.0 increment because the app did not show what to do next and was crowded on phones (Joshua's review, 2026-10-25). That misses trust bar item 5. It adds no migration, so it runs beside 5.1.0.
 
@@ -143,7 +149,7 @@ Gaps still open in the 5.0 story:
 | Gap on `main` | Promised for 5.0? | Placed in |
 |---|---|---|
 | No S-curve | Yes, section 4 step 5 and M4 | [5.0.5](v5/specs/5.0.5-s-curve.md) (was 5.0.3 Part A) ([#12](https://github.com/jgarrison929/pitbull/pull/12)) |
-| No page says what to do next. Phone pages were wider than the screen | Yes, trust bar item 5 | 5.0.4 (5.0.4-0 merged; the rest in build) |
+| No page says what to do next. Phone pages were wider than the screen | Yes, trust bar item 5 | 5.0.4 (built in `rc/5.0.4`, awaiting RC verify) |
 | Equipment hours on a plan cost nothing | Section 4 step 5 said "+ equipment". Decision 2026-10-24 | 5.6+ cost depth |
 | The foreman reports total man-hours per line, not hours per worker | Section 4 step 4. Decision 2026-10-24 | 5.6+ payroll export |
 
@@ -161,12 +167,12 @@ Locked rules for every 5.1 increment:
 
 | Version | Target (PT) | Increment | Spec | State |
 |---|---|---|---|---|
-| 5.1.0 | 2026-10-29 | Activities linked to cost items, one working calendar, a Gantt view, and daily plan lines linked to activities | [5.1.0](v5/specs/5.1.0-activities-and-gantt.md) | a merged ([#11](https://github.com/jgarrison929/pitbull/pull/11)). b, c, d open |
-| 5.1.1 | 2026-11-03 | Finish-to-start and start-to-start links with whole-day lag, forward and backward pass, total float, and the critical path. A cycle is refused | [5.1.1](v5/specs/5.1.1-dependencies-and-cpm.md) | CPM library on `main`. Wire-up not started; claims `0022` |
-| 5.1.2 | 2026-11-06 | A baseline that cannot be edited. PV and the S-curve read baseline dates with the linear spread. A re-baseline needs a reason | [5.1.2](v5/specs/5.1.2-baseline-and-pv.md) | a open ([#36](https://github.com/jgarrison929/pitbull/pull/36)). b and c not started |
-| 5.1.3 | 2026-11-10 | XER import, then Microsoft Project XML import, all-or-nothing | [5.1.3](v5/specs/5.1.3-schedule-import.md) | a, b, c all open |
+| 5.1.0 | 2026-11-13 (was 10-29) | Activities linked to cost items, one working calendar, a Gantt view, and daily plan lines linked to activities | [5.1.0](v5/specs/5.1.0-activities-and-gantt.md) | a merged ([#11](https://github.com/jgarrison929/pitbull/pull/11)). b, c, d open since 2026-10-26, paused |
+| 5.1.1 | 2026-11-18 (was 11-03) | Finish-to-start and start-to-start links with whole-day lag, forward and backward pass, total float, and the critical path. A cycle is refused | [5.1.1](v5/specs/5.1.1-dependencies-and-cpm.md) | CPM library on `main`. Wire-up not started; claims `0022` |
+| 5.1.2 | 2026-11-20 (was 11-06) | A baseline that cannot be edited. PV and the S-curve read baseline dates with the linear spread. A re-baseline needs a reason | [5.1.2](v5/specs/5.1.2-baseline-and-pv.md) | a open ([#36](https://github.com/jgarrison929/pitbull/pull/36)). b and c not started |
+| 5.1.3 | 2026-11-24 (was 11-10) | XER import, then Microsoft Project XML import, all-or-nothing | [5.1.3](v5/specs/5.1.3-schedule-import.md) | a, b, c all open |
 
-5.1.2 moves from 2026-11-10 to 2026-11-06 and 5.1.3 from 2026-11-17 to 2026-11-10, because their first slices are already in PRs. 5.1.0 and 5.1.1 keep their dates. A version still releases in order: 5.1.3 does not tag before 5.1.2, even if its slices merge first.
+On 2026-11-02 every 5.1 date moved about two weeks with the builder slowdown. The slices already in PRs keep 5.1 close behind 5.0.7 once builders resume. A version still releases in order: 5.1.3 does not tag before 5.1.2, even if its slices merge first.
 
 ## Then: 5.2 Contracts and subs
 
@@ -174,26 +180,26 @@ Locked rules for every 5.1 increment:
 
 | Version | Target (PT) | Increment | Spec | Migration |
 |---|---|---|---|---|
-| 5.2.0 | 2026-11-13 | Subcontracts with a vendor, a retention rate, and schedule-of-values lines mapped to cost items. Executing a subcontract commits cost. A commitment over Current Budget needs the executive | [5.2.0](v5/specs/5.2.0-subcontracts-and-commitments.md) | `0024` |
-| 5.2.1 | 2026-11-17 | The Committed Cost forecast method: EAC = AC + open commitment, which is the executed commitment when the item has no other cost. An owner change does not move a committed EAC | [5.2.1](v5/specs/5.2.1-committed-cost-forecast.md) | `0025` |
-| 5.2.2 | 2026-11-20 | Sub pay applications with retention. Approval posts gross earned to AC once and lowers open commitment | Spec next | `0026` (claim) |
-| 5.2.3 | 2026-11-24 | Sub change orders that reference owner change-order lines. Pending sub exposure shows next to EAC | Spec next | `0027` (claim) |
-| 5.2.4 | 2026-12-01 | Retention release capped at retention held, and subcontract close-out | Spec next | `0028` (claim, if needed) |
-| 5.2.5 | 2026-12-03 | Insurance expiry prompt on sub pay applications. When the sub's liability certificate has expired, submit asks for a current certificate in the same flow. The reviewer sees current, renewed, or expired. Submit and approval are not blocked | [5.2.5](v5/specs/5.2.5-insurance-expiry-prompt.md) | `0029` (claim) |
+| 5.2.0 | 2026-12-01 (was 11-13) | Subcontracts with a vendor, a retention rate, and schedule-of-values lines mapped to cost items. Executing a subcontract commits cost. A commitment over Current Budget needs the executive | [5.2.0](v5/specs/5.2.0-subcontracts-and-commitments.md) | `0024` |
+| 5.2.1 | 2026-12-03 (was 11-17) | The Committed Cost forecast method: EAC = AC + open commitment, which is the executed commitment when the item has no other cost. An owner change does not move a committed EAC | [5.2.1](v5/specs/5.2.1-committed-cost-forecast.md) | `0025` |
+| 5.2.2 | 2026-12-08 (was 11-20) | Sub pay applications with retention. Approval posts gross earned to AC once and lowers open commitment | Spec next | `0026` (claim) |
+| 5.2.3 | 2026-12-10 (was 11-24) | Sub change orders that reference owner change-order lines. Pending sub exposure shows next to EAC | Spec next | `0027` (claim) |
+| 5.2.4 | 2026-12-15 (was 12-01) | Retention release capped at retention held, and subcontract close-out | Spec next | `0028` (claim, if needed) |
+| 5.2.5 | 2026-12-17 (was 12-03) | Insurance expiry prompt on sub pay applications. When the sub's liability certificate has expired, submit asks for a current certificate in the same flow. The reviewer sees current, renewed, or expired. Submit and approval are not blocked | [5.2.5](v5/specs/5.2.5-insurance-expiry-prompt.md) | `0029` (claim) |
 
-5.2.3 lands before Thanksgiving Day (2026-11-26). 5.2.4 lands the Tuesday after, and 5.2.5 that Thursday. Specs for 5.2.2 to 5.2.4 are due by 2026-11-13, when 5.2.0 enters verify. 5.2.5 needs 5.2.2 on `main`.
+No 5.2 date lands on Thanksgiving Day (2026-11-26), and 5.2.5 lands before 2026-12-24. Specs for 5.2.2 to 5.2.4 are due by 2026-11-24, a week before 5.2.0 enters verify. 5.2.5 needs 5.2.2 on `main`.
 
 Joshua decided the insurance question on 2026-10-26: no hold on pay applications. Contracts intel recommendation 5 proposed refusing approval after expiry. 5.2.5 prompts for a current certificate at submit instead, and shows the state to the reviewer. See the [PRD decision](v5/prd/5.2-contracts-and-subs.md#insurance-decision-2026-10-26).
 
 ## Later releases
 
-Each later release needs an intel doc on the matching InEight module before its PRD. None of those intel docs exist yet. The intel for 5.3 is due by 2026-11-20 so its PRD can land with 5.2.2.
+Each later release needs an intel doc on the matching InEight module before its PRD. None of those intel docs exist yet. The intel for 5.3 is due by 2026-12-03 so its PRD can land with 5.2.2.
 
 | Release | Window (PT) | Module | Builds on |
 |---|---|---|---|
-| 5.3 | 5.3.0 by 2026-12-08, then weekly to 2027-01-08 (skipping 2026-12-24 to 2027-01-01) | **Document control.** Drawings and specs with revisions, transmittals, and RFIs and submittals tied to documents. Plan section 3 maps it to InEight Document, "auditable document control" | Projects |
-| 5.4 | January to early February 2027 | **Compliance.** A form builder, inspections, incidents, and mobile offline capture. Plan section 3 maps it to InEight Compliance (safety, quality, and environmental forms) | M3 mobile field views |
-| 5.5 | February 2027 | **Owner billing and portfolio reporting.** Owner billing on AIA G702 and G703, and portfolio reporting beyond the portfolio earned value that 5.0.0 started. Plan section 3 maps it to InEight Report & Explore | Budget, field progress, 5.2 retention |
+| 5.3 | 5.3.0 by 2026-12-22, then weekly to 2027-01-22 (skipping 2026-12-24 to 2027-01-01) | **Document control.** Drawings and specs with revisions, transmittals, and RFIs and submittals tied to documents. Plan section 3 maps it to InEight Document, "auditable document control" | Projects |
+| 5.4 | Late January to February 2027 | **Compliance.** A form builder, inspections, incidents, and mobile offline capture. Plan section 3 maps it to InEight Compliance (safety, quality, and environmental forms) | M3 mobile field views |
+| 5.5 | March 2027 | **Owner billing and portfolio reporting.** Owner billing on AIA G702 and G703, and portfolio reporting beyond the portfolio earned value that 5.0.0 started. Plan section 3 maps it to InEight Report & Explore | Budget, field progress, 5.2 retention |
 
 The windows are forecasts. Each PRD sets its own increment dates.
 
@@ -203,10 +209,10 @@ The plan does not stop at 5.5. From plan section 9, and from the 2026-10-24 deci
 
 | Release | Window | What | Builds on |
 |---|---|---|---|
-| 5.6 | March 2027 | **Payroll and accounting export of approved hours.** Hours per named worker on the daily report, then an export file of approved hours and approved sub pay applications for the contractor's payroll and accounting system. Export only. Pitbull does not run payroll or post a ledger | M3 daily reports, 5.2 pay applications |
-| 5.7 | April 2027 | **Equipment rates.** Equipment on a plan line carries an hourly rate, so approve posts equipment cost to AC. Plans already show equipment hours | M3, M4 |
-| 5.8 | May 2027 | **Work packaging.** Group cost items and activities into work packages for the field, with quantities and hours rolled up per package | M3, 5.1 |
-| 5.9 | June 2027 | **Estimating depth.** Resources and assemblies behind cost items, so an estimate builds from crews, equipment, and materials | M2 |
+| 5.6 | April 2027 | **Payroll and accounting export of approved hours.** Hours per named worker on the daily report, then an export file of approved hours and approved sub pay applications for the contractor's payroll and accounting system. Export only. Pitbull does not run payroll or post a ledger | M3 daily reports, 5.2 pay applications |
+| 5.7 | May 2027 | **Equipment rates.** Equipment on a plan line carries an hourly rate, so approve posts equipment cost to AC. Plans already show equipment hours | M3, M4 |
+| 5.8 | June 2027 | **Work packaging.** Group cost items and activities into work packages for the field, with quantities and hours rolled up per package | M3, 5.1 |
+| 5.9 | July 2027 | **Estimating depth.** Resources and assemblies behind cost items, so an estimate builds from crews, equipment, and materials | M2 |
 
 These windows hold the two-week floor and assume the current pace slows as modules get larger. They get dates when their PRDs land.
 
