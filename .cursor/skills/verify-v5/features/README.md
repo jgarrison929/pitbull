@@ -1,0 +1,17 @@
+# verify-v5 feature map
+
+Indexed 2026-11-02 against `rc/5.0.4` (`eca038de`). This directory's only file is this map. A row is a user-facing surface with the source that renders it. The harness column is the check that drives it. There are no separate playbooks.
+
+| Surface | Source | Harness |
+|---|---|---|
+| Approve estimate confirm | `v5/src/app/app/jobs/[number]/page.tsx` (`ConfirmForm`, `triggerTestId="approve-estimate"`) via `v5/src/components/form/confirm-form.tsx` | `numbers.mjs` `runM2` calls `confirmIfDialog` after the click. `checks.test.mjs` fails a drive that clicks Approve estimate without it. |
+| Lock Period confirm | same job page, `triggerTestId="lock-claim"` | `confirm504.mjs` and `job-confirm.mustfail.mjs`. The drive scan in `checks.test.mjs` includes `lock-claim`. |
+| Change order and plan confirms | `v5/src/components/app/change-orders.tsx`, `v5/src/components/app/plan-card.tsx`, `v5/src/components/app/approve-return-forms.tsx`, `v5/src/components/app/plan-scope.tsx` | `confirm-dialog.mjs`. CO approve is `numbers.mjs` `runM4M5`. Plan approve, return, and remove go through the same helper when a drive clicks them. |
+| Plan-line Edit name | `v5/src/components/app/plan-line-editor.tsx` `aria-label={`Edit ${line.code} ${line.activity}`}` | `spec504.mjs` `editButton` matches `/^\s*Edit\b/` on `plan-line` `04-210`. An Edit that does not open the editor fails `NOT EXECUTED` (`spec504-eval.test.mjs`). |
+| Foreman cost tree scroll | `v5/src/components/app/cost-table.tsx`: card `overflow-x-auto`, row list `cost-tree-scroll` `overflow-x-hidden`, foreman box `min-w-[56rem]` | Clip rule in `crawl.mjs`. `overflow-x: auto` whose text is fully inside the scrollable overflow passes. A hidden descendant whose `scrollWidth` exceeds `clientWidth` fails `clipped money`. Fixtures `/app/jobs/scroll-cut` and `/app/jobs/scroll-read` in `crawl-mustfail.test.mjs` at 768 and 1280. |
+| First task on screen | `v5/src/components/app/next-steps.tsx` `data-testid="next-step"` | `evaluateNextSteps` (5.0.4-a): the first next-step is above the fold and verb-first. |
+| Daily plan link tap size | `v5/src/components/app/plan-card.tsx` `plan-detail-link` with `tap-target`. `v5/src/app/globals.css` `.tap-target` is `min-height` / `min-width: 2.75rem` (44px) at every width. | Phone tap floor in `evaluatePhoneUx` is widths ≤ 480 (`PHONE_MAX_PX`). A short plan link at 768 or 1280 is not a tap miss. |
+| Changes feed bound | `v5/src/app/app/jobs/[number]/changes/page.tsx` `PAGE_SIZE = 50`, meta "Newest first · 50 per page" | Nav crawl requires at least one `job-changes-full` item. It does not count the page size. |
+| AC at the cutoff | `v5/src/app/app/jobs/[number]/page.tsx` `job-actual` and `job-ac-since-lock` | `e6.mjs`. After the superintendent approves, `job-actual` stays put and `job-ac-since-lock` rises by the approved cost to the cent. |
+| Designed empty states | `v5/src/components/app/list-empty.tsx` titles: "No cost posted on …", "No activities on this plan", "No history recorded", "No change orders on …", "No lines yet", "No changes on …", "No changes match this filter" | `EMPTY_STATE` matches a leaf whose text starts "No … yet / found / to show / available". Of those titles only "No lines yet" matches, and only inside voided CO-001 on 24-077 and draft CO-001 on 24-118 (`ALLOWED_EMPTY`). |
+| /status deployed commit | `v5/src/app/status/page.tsx` visible `status-commit-visible` and `<dl className="sr-only">` | S16. The sr-only `<dl>` is not a clip. An ellipsized visible commit line is. |

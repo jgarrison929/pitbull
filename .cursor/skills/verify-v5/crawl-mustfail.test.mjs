@@ -185,6 +185,11 @@ const PAGES = {
   "/app/jobs/77-clip/schedule": () => bare(`<h1>Schedule</h1>${GANTT}${clip("max-width:36px", "$1,234.56", 'data-cents="123456"')}`),
   // Phone checks on: /app/jobs/* with the strip removed must fail closed. bare() has no job-strip.
   "/app/jobs/no-strip": () => bare(`<h1 style="font-size:16px">Job</h1><div data-testid="cost-tree-row">03-210 Footing concrete</div><p>Cedar Creek notes.</p>`),
+  // #96: the card scroller is overflow-x:auto. The row list (cost-tree-scroll) is overflow-x:hidden
+  // and narrower than the money, so scrolling the card cannot reveal the cut dollars.
+  "/app/jobs/scroll-cut": () => bare(`<div style="overflow-x:auto;max-width:420px" data-testid="cost-tree-scroller"><div style="width:420px"><div data-testid="cost-tree-scroll" style="overflow-x:hidden;width:420px;height:32px;position:relative"><div data-testid="cost-tree-row" style="height:32px"><span data-cents="202540000" style="position:absolute;left:360px;white-space:nowrap;font-size:16px">$2,025,400.00</span></div></div></div></div>`),
+  // Twin: the same dollars sit fully inside the scrollable overflow. Scrolling the auto scroller reveals them.
+  "/app/jobs/scroll-read": () => bare(`<div style="overflow-x:auto;max-width:220px" data-testid="cost-tree-scroller"><div style="width:640px"><div data-testid="cost-tree-scroll" style="overflow-x:hidden;width:640px"><div data-testid="cost-tree-row" style="font-size:16px;white-space:nowrap"><span data-cents="202540000" style="display:inline-block">$2,025,400.00</span></div></div></div></div>`),
 };
 const CANARY_TOKEN = "canary-verify-token-1111-not-real";
 const CANARY_COOKIE = "canarycookie1111notreal";
@@ -296,6 +301,7 @@ let phoneRuleRows;
 let phoneGatedRows;
 let overflowWideRows;
 let desktopClipRows;
+let scrollerRows;
 let roleRows;
 let buriedRows;
 let missingRows;
@@ -355,6 +361,8 @@ try {
   phoneGatedRows = await crawl(browser, base, { pages: ["/phone/tap", "/phone/money", "/phone/nine"], roles: ["pm"], widths: [320] });
   overflowWideRows = await crawl(browser, base, { pages: ["/phone/overflow"], roles: ["pm"], widths: [1280], phoneChecks: true });
   desktopClipRows = await crawl(browser, base, { pages: ["/phone/desktop-ellipsis"], roles: ["pm"], widths: [1280], phoneChecks: true });
+  // Foreman job pages at the widths where #96 clipped money (768 and 1280).
+  scrollerRows = await crawl(browser, base, { pages: ["/app/jobs/scroll-cut", "/app/jobs/scroll-read"], roles: ["foreman"], widths: [768, 1280], phoneChecks: true });
   roleRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320], phoneChecks: true });
   await fetch(`${base}/__landing?mode=buried`);
   buriedRows = await crawl(browser, base, { pages: ["/app"], roles: CRAWL_ROLES, widths: [320], phoneChecks: true });
@@ -570,6 +578,17 @@ for (const width of [390, 1280]) {
   const deskFails = evaluatePhoneUx(desk);
   assert.ok(deskFails.some((x) => /clipped text at 1280px/.test(x)), `desktop ellipsis must fail; got ${JSON.stringify(deskFails)}`);
   lines.push(`FAILS as expected: /phone/desktop-ellipsis@1280 → ${deskFails.find((x) => /clipped text at 1280px/.test(x))}`);
+  // #96 scroller. /phone/header ("Actual", paints as Actu) and /phone/status ("At risk", paints as At ri) stay above.
+  for (const width of [768, 1280]) {
+    const cut = scrollerRows.find((r) => r.path === "/app/jobs/scroll-cut" && r.width === width);
+    const cutFails = evaluateCrawlRow(cut, { phoneChecks: true });
+    assert.ok(cutFails.some((x) => /clipped money "\$2,025,400\.00"/.test(x)), `/app/jobs/scroll-cut@${width} must fail clipped money; got ${JSON.stringify(cutFails)}`);
+    lines.push(`FAILS as expected: /app/jobs/scroll-cut@${width} → ${cutFails.find((x) => /clipped money/.test(x))}`);
+    const read = scrollerRows.find((r) => r.path === "/app/jobs/scroll-read" && r.width === width);
+    const readFails = evaluateCrawlRow(read, { phoneChecks: true });
+    assert.deepEqual(readFails, [], `/app/jobs/scroll-read@${width} must pass (money readable by scrolling); got ${JSON.stringify(readFails)}`);
+    lines.push(`passes: /app/jobs/scroll-read@${width} overflow-x:auto, dollars fully inside the scrollable overflow`);
+  }
   for (const role of CRAWL_ROLES) {
     const good = roleRows.find((r) => r.role === role && r.path === "/app");
     assert.deepEqual(evaluatePhoneUx(good), [], `${role} /app@320 must pass one-tap; got ${JSON.stringify(evaluatePhoneUx(good))}`);
