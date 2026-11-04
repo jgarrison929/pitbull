@@ -4,6 +4,7 @@ import { getDbQueryCount } from "@/db";
 import { users } from "@/db/schema";
 import { planDateToday } from "@/lib/plan-date";
 import { listChangeOrders } from "@/server/change-orders";
+import { jobCurve } from "@/server/curve";
 import {
   getJob,
   getJobEvControls,
@@ -113,6 +114,7 @@ export async function loadJobPage(
   if (!p) return null;
 
   const todayLA = planDateToday(seedNow());
+  const estimateDraft = p.job.estimateStatus === "draft";
   const pagePlansP = getJobPagePlans(companyId, p.job.id, todayLA);
   const siblingsP = Promise.all([
     // Same WRITES-filtered feed as before (via job-changes, not assistant/actions).
@@ -126,6 +128,8 @@ export async function loadJobPage(
     getApprovalPendingByCostItem(companyId, p.job.id),
     listChangeOrders(companyId, p.job.number),
     caps.canCreatePlan ? listCrews(companyId) : Promise.resolve([]),
+    // S-curve: skip the days×leaves query on draft estimates (no chart).
+    estimateDraft ? Promise.resolve(null) : jobCurve(companyId, p.job.id),
   ]);
 
   const pagePlans = await pagePlansP;
@@ -142,7 +146,7 @@ export async function loadJobPage(
   );
 
   const [
-    [changes, draftClaim, evControls, approvalPending, coData, crewRows],
+    [changes, draftClaim, evControls, approvalPending, coData, crewRows, curve],
     reportedByPlan,
   ] = await Promise.all([siblingsP, reportedP]);
 
@@ -160,6 +164,7 @@ export async function loadJobPage(
     coData,
     crewRows,
     reportedByPlan,
+    curve,
   };
 }
 
