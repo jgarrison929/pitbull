@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "e2e": "playwright test",
+    "e2e:area:plan-edit": "playwright test --project=area-plan-edit",
     "e2e:visual": "playwright test tests/e2e/visual.spec.ts",
     "e2e:visual:docker": "bash scripts/visual-in-playwright-docker.sh",
     "e2e:visual:docker:update": "bash scripts/visual-in-playwright-docker.sh --update",
