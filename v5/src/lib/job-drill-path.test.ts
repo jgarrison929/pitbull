@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import { parseJobDrillPath } from "./job-drill-path";
 
 describe("parseJobDrillPath", () => {
-  it("parses job, changes, cost-item, and plan paths", () => {
+  it("parses job, changes, schedule, cost-item, and plan paths", () => {
     expect(parseJobDrillPath("/app/jobs/25-031")).toEqual({
       kind: "job",
       number: "25-031",
     });
     expect(parseJobDrillPath("/app/jobs/25-031/changes")).toEqual({
       kind: "changes",
+      number: "25-031",
+    });
+    expect(parseJobDrillPath("/app/jobs/25-031/schedule")).toEqual({
+      kind: "schedule",
       number: "25-031",
     });
     expect(parseJobDrillPath("/app/jobs/25-031/cost-items/04-210")).toEqual({

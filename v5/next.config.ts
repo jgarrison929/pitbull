@@ -8,8 +8,9 @@ const nextConfig: NextConfig = {
   env: { BUILD_TIME: process.env.BUILD_TIME ?? new Date().toISOString() },
   cacheComponents: true,
   partialPrefetching: true,
-  // Estimate CSVs post through a server action; MAX_CSV_CHARS (1.5M) leaves room for multipart overhead.
-  experimental: { serverActions: { bodySizeLimit: "2mb" } },
+  // Estimate CSVs (1.5M) and schedule imports (10 MB XER/XML) post through server actions.
+  // 11mb leaves multipart overhead above MAX_SCHEDULE_IMPORT_BYTES.
+  experimental: { serverActions: { bodySizeLimit: "11mb" } },
   turbopack: {
     rules: {
       "*.css": {
