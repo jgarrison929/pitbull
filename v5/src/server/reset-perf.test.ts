@@ -82,7 +82,7 @@ describe.skipIf(!db)("demo reset performance", () => {
       );
       expect(phases.statements).toBeLessThanOrEqual(RESET_MAX_STATEMENTS);
       expect(phases.statements).toBe(
-        phases.insertStatements + 3 + 1, // deletes + company touch
+        phases.insertStatements + 4 + 1, // deletes + company touch
       );
       // Healthy path still matches the bulk formula.
       expect(phases.insertStatements).toBe(insertWorkStatementCount(rows));

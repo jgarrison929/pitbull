@@ -115,6 +115,30 @@ describe("5.1.0-a schedule seed", () => {
     );
   });
 
+  it("5.1.2-a: Award baseline on approved jobs; Harbor has none", () => {
+    expect(rows.scheduleBaselines).toHaveLength(3);
+    for (const number of ["25-031", "24-118", "24-077"]) {
+      const job = rows.jobs.find((j) => j.number === number)!;
+      const bas = rows.scheduleBaselines.filter((b) => b.jobId === job.id);
+      expect(bas).toHaveLength(1);
+      expect(bas[0]).toMatchObject({
+        name: "Award baseline",
+        reason: "Award",
+      });
+      const copies = rows.baselineActivities.filter(
+        (a) => a.baselineId === bas[0]!.id,
+      );
+      expect(copies.length).toBe(
+        rows.activities.filter((a) => a.jobId === job.id).length,
+      );
+    }
+    const harbor = rows.jobs.find((j) => j.number === "26-010")!;
+    expect(
+      rows.scheduleBaselines.filter((b) => b.jobId === harbor.id),
+    ).toHaveLength(0);
+    expect(rows.baselineActivities).toHaveLength(rows.activities.length);
+  });
+
   it("seeds Thanksgiving on each job calendar in the seed year", () => {
     expect(rows.calendarHolidays.map((h) => h.on).sort()).toEqual([
       "2026-11-26",

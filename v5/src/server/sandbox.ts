@@ -11,6 +11,7 @@ import {
   dailyPlanLines,
   dailyPlans,
   jobs,
+  scheduleBaselines,
   users,
 } from "@/db/schema";
 import { seed } from "@/seed";
@@ -185,6 +186,13 @@ export async function resetSandbox(
     const pending: Promise<unknown>[] = [];
     pending.push(
       tx.delete(actionRuns).where(eq(actionRuns.companyId, companyId)),
+    );
+    // Baselines restrict activity deletes (PRD). Clear them before jobs cascade
+    // into activities, otherwise Reset demo fails FK on baseline_activities.
+    pending.push(
+      tx
+        .delete(scheduleBaselines)
+        .where(eq(scheduleBaselines.companyId, companyId)),
     );
     pending.push(tx.delete(jobs).where(eq(jobs.companyId, companyId)));
     pending.push(tx.delete(crews).where(eq(crews.companyId, companyId)));
