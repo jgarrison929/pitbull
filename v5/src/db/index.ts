@@ -14,6 +14,7 @@ import {
 import * as schema from "./schema";
 
 export type Db = ReturnType<typeof drizzle<typeof schema>>;
+export type SqlClient = ReturnType<typeof postgres>;
 
 export {
   containsUserinfoLeak,
@@ -28,46 +29,32 @@ export {
 } from "./pool-config";
 
 let db: Db | null = null;
-let sqlClient: ReturnType<typeof postgres> | null = null;
-let queryCount = 0;
+let sqlClient: SqlClient | null = null;
 let dnsPreferV4Applied = false;
 
-/** Count of SQL statements issued through the shared client (tests / perf). */
-export function getDbQueryCount() {
-  return queryCount;
-}
+/**
+ * Optional client wrap — registered only from `db/test-hooks.ts`.
+ * Production leaves this null (no query counter, no busy-wait latency).
+ */
+let clientWrap: ((client: SqlClient) => SqlClient) | null = null;
 
-/** Reset the query counter without tearing down the pool. */
-export function resetDbQueryCount() {
-  queryCount = 0;
+/** @internal Test hooks only — see `src/db/test-hooks.ts`. */
+export function registerDbClientWrap(
+  wrap: ((client: SqlClient) => SqlClient) | null,
+) {
+  clientWrap = wrap;
 }
 
 /**
- * Drop the shared client so the next getDb() rebuilds it (latency options read
- * from env at construct time). Tests only — production keeps the warm singleton.
+ * Tear down the shared pool so the next getDb() rebuilds it.
+ * @internal Test hooks call this via `resetDbClient` in `test-hooks.ts`.
  */
-export async function resetDbClient() {
+export async function disposeDbClient() {
   if (sqlClient) {
     await sqlClient.end({ timeout: 5 });
   }
   sqlClient = null;
   db = null;
-  queryCount = 0;
-}
-
-function latencyMs() {
-  const raw = process.env.V5_DB_LATENCY_MS;
-  if (!raw) return 0;
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : 0;
-}
-
-/** Busy-wait so the postgres.js ThenableQuery API stays intact. */
-function sleepSync(ms: number) {
-  const end = performance.now() + ms;
-  while (performance.now() < end) {
-    /* spin */
-  }
 }
 
 let poolMaxLogged = false;
@@ -130,24 +117,6 @@ function ensureRailwayDns() {
   dnsPreferV4Applied = true;
 }
 
-function wrapClient(client: ReturnType<typeof postgres>) {
-  const delay = latencyMs();
-  const originalUnsafe = client.unsafe.bind(client);
-  // All drizzle-orm/postgres-js queries go through unsafe().
-  client.unsafe = ((query: string, params?: unknown, opts?: unknown) => {
-    queryCount += 1;
-    if (process.env.V5_DB_LOG_QUERIES === "1") {
-      const oneLine = String(query).replace(/\s+/g, " ").trim().slice(0, 120);
-      console.log(`SQL[${queryCount}] ${oneLine}`);
-    }
-    // Sync RTT: serializes parallel callers (pessimistic vs real network overlap)
-    // but preserves ThenableQuery (.values / transactions).
-    if (delay > 0) sleepSync(delay);
-    return originalUnsafe(query, params as never, opts as never);
-  }) as typeof client.unsafe;
-  return client;
-}
-
 /**
  * Build the shared client. Never passes a raw env URL with unencoded userinfo
  * to postgres.js (Invalid URL embeds the password in the error `input` field).
@@ -167,14 +136,14 @@ function openDb(url: string): Db | null {
     poolMaxLogged = true;
   }
   try {
-    sqlClient = wrapClient(
-      postgres(connectionString, {
-        max,
-        idle_timeout: 0,
-        max_lifetime: 60 * 30,
-        connect_timeout: 10,
-      }),
-    );
+    let client = postgres(connectionString, {
+      max,
+      idle_timeout: 0,
+      max_lifetime: 60 * 30,
+      connect_timeout: 10,
+    });
+    if (clientWrap) client = clientWrap(client);
+    sqlClient = client;
     db = drizzle(sqlClient, { schema });
     return db;
   } catch (err) {
