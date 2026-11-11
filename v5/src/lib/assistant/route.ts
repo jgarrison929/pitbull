@@ -19,6 +19,7 @@ export type ActionName =
   | "progressClaim.lock"
   | "estimate.importCsv"
   | "estimate.approve"
+  | "schedule.importXer"
   | "costItem.setPmPercent"
   | "costItem.setMilestone"
   | "costItem.setForecastMethod"
@@ -61,6 +62,15 @@ export type JobArgs = {
   coLines?: CoLineInput[];
   /** estimate.importCsv: the file text. Only the job page's file picker sets it; chat never does. */
   csv?: string;
+  /** schedule.import*: replace (default) or merge. */
+  mode?: string;
+  /** schedule.import*: original file name from the Schedule page picker (5.1.3-c). */
+  fileName?: string;
+  /**
+   * schedule.import*: raw file bytes from the Schedule page picker (screen only).
+   * Chat never sets this — the rail points the PM at the Schedule upload control.
+   */
+  fileBytes?: Uint8Array;
   /** dailyPlan.create / addLine / approve / return / removeLine: date or today/tomorrow. */
   date?: string;
   /** dailyPlan.create / addLine / approve / return / removeLine: crew id or name. */
@@ -161,6 +171,12 @@ export function route(prompt: string, jobs: JobRef[]): Intent | null {
   }
   if (has(/\bimport(s|ed|ing)?\b/) && has(/\b(estimate|csv)\b/))
     return { action: "estimate.importCsv", args };
+  // XER / P6 schedule import (5.1.3-a). File body comes from the Schedule page, not chat.
+  if (
+    has(/\bimport(s|ed|ing)?\b/) &&
+    has(/\b(schedule|xer|p6|primavera)\b/)
+  )
+    return { action: "schedule.importXer", args };
   if (
     has(/\b(lock|claim)\b/) &&
     has(/\b(progress|claim|earned|period)\b/)
@@ -651,6 +667,7 @@ export const examples = [
   "Return the report for Cedar Creek because Recount pour 3",
   "Lock the progress claim on 25-031",
   "Import the estimate CSV for Harbor Abutment",
+  "Import the XER schedule on Cedar Creek",
   "Approve the estimate on Harbor Abutment",
   "Raise a change order on Cedar Creek: Added guardrail at the east approach",
   "Approve change order CO-001 on Cedar Creek",

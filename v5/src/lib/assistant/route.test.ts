@@ -210,6 +210,11 @@ describe("assistant router", () => {
       { job: "26-010" },
     ],
     [
+      "Import the XER schedule on Cedar Creek",
+      "schedule.importXer",
+      { job: "25-031" },
+    ],
+    [
       "Approve the estimate on Harbor Abutment",
       "estimate.approve",
       { job: "26-010" },
