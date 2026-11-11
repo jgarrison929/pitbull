@@ -668,18 +668,40 @@ async function commit(
   return after;
 }
 
-/** Everything the job page and changeOrder.show read. Null when the job is not in this company. */
+export type ListChangeOrdersOpts = {
+  now?: Date;
+  /** Caller already loaded the job row (job page) — skip a redundant select. */
+  job?: JobRow;
+  /** Caller already has leaf OB/CB totals (getJob money.job) — skip the sum query. */
+  ledgerSums?: { original: number; current: number };
+  /** Caller already has last lock (getJob.lockAt) — skip lastLockDate. */
+  lockAt?: Date | null;
+};
+
+/**
+ * Everything the job page and changeOrder.show read. Null when the job is not
+ * in this company. Pass `opts.job` / `opts.ledgerSums` from getJob to cut
+ * redundant RTTs under crawl burst (without raising the pool).
+ */
 export async function listChangeOrders(
   companyId: string,
   jobNumber: string,
-  now = getSeedClock(),
+  opts: ListChangeOrdersOpts = {},
 ): Promise<JobChangeOrders | null> {
+  const now = opts.now ?? getSeedClock();
   const db = requireDb();
-  const [job] = await db
-    .select()
-    .from(jobs)
-    .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
-    .limit(1);
+  let job = opts.job ?? null;
+  if (job && (job.companyId !== companyId || job.number !== jobNumber)) {
+    job = null;
+  }
+  if (!job) {
+    const [row] = await db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.companyId, companyId), eq(jobs.number, jobNumber)))
+      .limit(1);
+    job = row ?? null;
+  }
   if (!job) return null;
 
   const cos = await db
@@ -689,7 +711,9 @@ export async function listChangeOrders(
     .orderBy(desc(changeOrders.number));
   const coIds = cos.map((c) => c.id);
   const needsLock = cos.some((c) => c.status === "priced");
-  // Lines, events, and budget sums are independent — overlap RTTs.
+  const haveSums = opts.ledgerSums != null;
+  const haveLock = opts.lockAt !== undefined;
+  // Lines, events, and (optional) budget sums are independent — overlap RTTs.
   const [lineRows, events, sumRows, lockAt] = await Promise.all([
     coIds.length
       ? db
@@ -727,24 +751,35 @@ export async function listChangeOrders(
             actorName: string | null;
           }[],
         ),
-    db
-      .select({
-        original: sql<number>`coalesce(sum(${costItems.obLaborCents} + ${costItems.obMaterialCents} + ${costItems.obEquipmentCents} + ${costItems.obSubCents}), 0)`.mapWith(
-          Number,
-        ),
-        current: sql<number>`coalesce(sum(${costItems.cbLaborCents} + ${costItems.cbMaterialCents} + ${costItems.cbEquipmentCents} + ${costItems.cbSubCents}), 0)`.mapWith(
-          Number,
-        ),
-      })
-      .from(costItems)
-      .where(
-        and(
-          eq(costItems.companyId, companyId),
-          eq(costItems.jobId, job.id),
-          eq(costItems.isLeaf, true),
-        ),
-      ),
-    needsLock ? lastLockDate(companyId, job.id) : Promise.resolve(null),
+    haveSums
+      ? Promise.resolve([
+          {
+            original: opts.ledgerSums!.original,
+            current: opts.ledgerSums!.current,
+          },
+        ])
+      : db
+          .select({
+            original: sql<number>`coalesce(sum(${costItems.obLaborCents} + ${costItems.obMaterialCents} + ${costItems.obEquipmentCents} + ${costItems.obSubCents}), 0)`.mapWith(
+              Number,
+            ),
+            current: sql<number>`coalesce(sum(${costItems.cbLaborCents} + ${costItems.cbMaterialCents} + ${costItems.cbEquipmentCents} + ${costItems.cbSubCents}), 0)`.mapWith(
+              Number,
+            ),
+          })
+          .from(costItems)
+          .where(
+            and(
+              eq(costItems.companyId, companyId),
+              eq(costItems.jobId, job.id),
+              eq(costItems.isLeaf, true),
+            ),
+          ),
+    haveLock
+      ? Promise.resolve(opts.lockAt ?? null)
+      : needsLock
+        ? lastLockDate(companyId, job.id)
+        : Promise.resolve(null),
   ]);
   const [sums] = sumRows;
 
@@ -754,14 +789,16 @@ export async function listChangeOrders(
     (byCo.get(coId) ?? []).reduce((s, r) => s + categoryTotal(lineCategories(r.line)), 0);
 
   const today = isoDay(now);
-  // Priced CO previews: one lock date (above) + parallel budget loads — no per-CO N+1.
+  // One shared budget load for every priced CO (was N parallel loadBudgetItems).
   const priced = cos.filter((co) => co.status === "priced");
   const previewByCo = new Map<string, ChangeOrderView["preview"]>();
-  await Promise.all(
-    priced.map(async (co) => {
-      const rows = byCo.get(co.id) ?? [];
-      const lines = rows.map((r) => toCoLine(r.line));
-      const ctx = await loadBudgetItems(db, job, lines, { lock: false });
+  if (priced.length) {
+    const pricedLines = priced.flatMap((co) =>
+      (byCo.get(co.id) ?? []).map((r) => toCoLine(r.line)),
+    );
+    const ctx = await loadBudgetItems(db, job, pricedLines, { lock: false });
+    for (const co of priced) {
+      const lines = (byCo.get(co.id) ?? []).map((r) => toCoLine(r.line));
       const p = planApproval(
         {
           ...ctx,
@@ -775,8 +812,8 @@ export async function listChangeOrders(
         co.id,
         p.ok ? { ok: true, move: p.plan.move } : { ok: false, why: describePlanRefusal(p.refusal) },
       );
-    }),
-  );
+    }
+  }
 
   const views: ChangeOrderView[] = [];
   for (const co of cos) {

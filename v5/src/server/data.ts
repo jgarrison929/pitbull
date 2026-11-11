@@ -233,7 +233,9 @@ export async function getJob(
 ) {
   const db = requireDb();
   // Job row, WBS, and last lock are independent when keyed by company+number —
-  // overlap all three RTTs (avoids serial job-then-rest under crawl burst).
+  // overlap all three RTTs. A folded scalar lock subquery looked cheaper (peak
+  // 3→2) but Verify #70 pooled TTFB p95 rose vs main under the warm 24-browser
+  // burst (165 vs 140) — restore the parallel lock select (typed Date column).
   const [jobRows, itemRows, lockRows] = await Promise.all([
     db
       .select()
@@ -380,6 +382,36 @@ export type PlanHistorySummary = {
  * aggregated history summaries so 30 days of field history does not ship
  * every line into the RSC payload (page budget / networkidle).
  */
+async function historyPlanTotals(
+  companyId: string,
+  historyIds: string[],
+): Promise<Map<string, { lineCount: number; manHours: number }>> {
+  const totals = new Map<string, { lineCount: number; manHours: number }>();
+  if (!historyIds.length) return totals;
+  const db = requireDb();
+  const rows = await db
+    .select({
+      planId: dailyPlanLines.planId,
+      lineCount: sql<number>`count(*)::int`.mapWith(Number),
+      // Same formula as planLine manHours: (workers * hoursTenths) / 10.
+      manHours: sql<number>`(sum(${dailyPlanLines.workers} * ${dailyPlanLines.hoursTenths})::float8 / 10)`.mapWith(
+        Number,
+      ),
+    })
+    .from(dailyPlanLines)
+    .where(
+      and(
+        eq(dailyPlanLines.companyId, companyId),
+        inArray(dailyPlanLines.planId, historyIds),
+      ),
+    )
+    .groupBy(dailyPlanLines.planId);
+  for (const r of rows) {
+    totals.set(r.planId, { lineCount: r.lineCount, manHours: r.manHours });
+  }
+  return totals;
+}
+
 export async function getJobPagePlans(
   companyId: string,
   jobId: string,
@@ -392,10 +424,18 @@ export async function getJobPagePlans(
   const openHeaders = headers.filter(({ plan }) => plan.planDate >= todayLA);
   const historyHeaders = headers.filter(({ plan }) => plan.planDate < todayLA);
 
-  const linesByPlan = await loadPlanLinesByPlanId(
-    companyId,
-    openHeaders.map(({ plan }) => plan.id),
-  );
+  // Open lines and history aggregates are independent once headers are known —
+  // overlap the two RTTs (serial chain was a cold-path tax under crawl burst).
+  const [linesByPlan, totals] = await Promise.all([
+    loadPlanLinesByPlanId(
+      companyId,
+      openHeaders.map(({ plan }) => plan.id),
+    ),
+    historyPlanTotals(
+      companyId,
+      historyHeaders.map(({ plan }) => plan.id),
+    ),
+  ]);
 
   const openPlans = openHeaders.map(({ plan, foreman, crew }) => ({
     ...plan,
@@ -403,32 +443,6 @@ export async function getJobPagePlans(
     foreman,
     lines: linesByPlan.get(plan.id) ?? [],
   }));
-
-  const historyIds = historyHeaders.map(({ plan }) => plan.id);
-  const totals = new Map<string, { lineCount: number; manHours: number }>();
-  if (historyIds.length) {
-    const db = requireDb();
-    const rows = await db
-      .select({
-        planId: dailyPlanLines.planId,
-        lineCount: sql<number>`count(*)::int`.mapWith(Number),
-        // Same formula as planLine manHours: (workers * hoursTenths) / 10.
-        manHours: sql<number>`(sum(${dailyPlanLines.workers} * ${dailyPlanLines.hoursTenths})::float8 / 10)`.mapWith(
-          Number,
-        ),
-      })
-      .from(dailyPlanLines)
-      .where(
-        and(
-          eq(dailyPlanLines.companyId, companyId),
-          inArray(dailyPlanLines.planId, historyIds),
-        ),
-      )
-      .groupBy(dailyPlanLines.planId);
-    for (const r of rows) {
-      totals.set(r.planId, { lineCount: r.lineCount, manHours: r.manHours });
-    }
-  }
 
   const historyPlans: PlanHistorySummary[] = historyHeaders
     .map(({ plan, crew }) => {
@@ -500,8 +514,9 @@ export async function listLeafCostOptions(
 /** Milestones + latest PM percent logs for on-screen EV method controls. */
 export async function getJobEvControls(companyId: string, jobId: string) {
   const db = requireDb();
-  // Three independent reads — overlap RTTs; scope logs to this job's leaves.
-  const [milestones, pmItems, logs] = await Promise.all([
+  // Milestones + pm_percent leaves first; skip the logs query when this job has
+  // no pm_percent items (saves a pool checkout under burst concurrency).
+  const [milestones, pmItems] = await Promise.all([
     db
       .select({
         id: costItemMilestones.id,
@@ -537,20 +552,23 @@ export async function getJobEvControls(companyId: string, jobId: string) {
         ),
       )
       .orderBy(asc(costItems.code)),
-    db
-      .select({
-        log: pmPercentLogs,
-      })
-      .from(pmPercentLogs)
-      .innerJoin(costItems, eq(costItems.id, pmPercentLogs.costItemId))
-      .where(
-        and(
-          eq(pmPercentLogs.companyId, companyId),
-          eq(costItems.jobId, jobId),
-        ),
-      )
-      .orderBy(desc(pmPercentLogs.at)),
   ]);
+
+  const logs = pmItems.length
+    ? await db
+        .select({
+          log: pmPercentLogs,
+        })
+        .from(pmPercentLogs)
+        .innerJoin(costItems, eq(costItems.id, pmPercentLogs.costItemId))
+        .where(
+          and(
+            eq(pmPercentLogs.companyId, companyId),
+            eq(costItems.jobId, jobId),
+          ),
+        )
+        .orderBy(desc(pmPercentLogs.at))
+    : [];
 
   return {
     milestones,

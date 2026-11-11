@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ValueSet, WbsMoney } from "@/lib/budget";
 import type { CostLine } from "@/lib/ev";
@@ -357,14 +356,17 @@ function CostCodeLabel({
 }) {
   const codeClass = "mr-2 font-mono text-xs text-muted-foreground";
   if (n.isLeaf && jobNumber) {
+    // Plain <a>: next/link still fires ?_rsc= after paint under partialPrefetching
+    // (even with prefetch={false}), and a job WBS can enqueue dozens of proxy+app
+    // pool hits that hold verify networkidle under the warm 24-browser burst.
     return (
-      <Link
+      <a
         href={`/app/jobs/${jobNumber}/cost-items/${encodeURIComponent(n.code)}`}
         className={cn(codeClass, "hover:underline hover:text-foreground")}
         data-testid={`cost-code-link-${n.code}`}
       >
         {n.code}
-      </Link>
+      </a>
     );
   }
   return <span className={codeClass}>{n.code}</span>;

@@ -113,18 +113,17 @@ export async function loadJobPage(
   if (!p) return null;
 
   const todayLA = planDateToday(seedNow());
+  // Light siblings overlap plans; CO + EV controls wait until plans resolve so
+  // peak pool checkouts under 24-browser × pool-20 stay lower (Verify i2 @
+  // 0189eca load 1046 / idle 1587). Reported-actuals overlap the heavy wave.
   const pagePlansP = getJobPagePlans(companyId, p.job.id, todayLA);
-  const siblingsP = Promise.all([
+  const lightP = Promise.all([
     // Same WRITES-filtered feed as before (via job-changes, not assistant/actions).
     jobChanges(companyId, p.job.number),
     caps.canLock
       ? draftClaimForJob(companyId, p.job.id)
       : Promise.resolve(null),
-    caps.canEvEdit
-      ? getJobEvControls(companyId, p.job.id)
-      : Promise.resolve({ milestones: [], pmItems: [] }),
     getApprovalPendingByCostItem(companyId, p.job.id),
-    listChangeOrders(companyId, p.job.number),
     caps.canCreatePlan ? listCrews(companyId) : Promise.resolve([]),
   ]);
 
@@ -136,15 +135,29 @@ export async function loadJobPage(
   const reportable = openPlans.filter(
     (pl) => pl.status === "issued" || pl.status === "reported",
   );
-  const reportedP = getReportedActualsForPlans(
-    companyId,
-    reportable.map((pl) => pl.id),
-  );
+
+  const heavyP = Promise.all([
+    caps.canEvEdit
+      ? getJobEvControls(companyId, p.job.id)
+      : Promise.resolve({ milestones: [], pmItems: [] }),
+    listChangeOrders(companyId, p.job.number, {
+      job: p.job,
+      ledgerSums: {
+        original: p.money.job.obCents,
+        current: p.money.job.cbCents,
+      },
+      lockAt: p.lockAt,
+    }),
+    getReportedActualsForPlans(
+      companyId,
+      reportable.map((pl) => pl.id),
+    ),
+  ]);
 
   const [
-    [changes, draftClaim, evControls, approvalPending, coData, crewRows],
-    reportedByPlan,
-  ] = await Promise.all([siblingsP, reportedP]);
+    [changes, draftClaim, approvalPending, crewRows],
+    [evControls, coData, reportedByPlan],
+  ] = await Promise.all([lightP, heavyP]);
 
   return {
     p,
