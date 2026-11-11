@@ -82,6 +82,15 @@ import {
 } from "@/server/progress";
 import { seedNow } from "@/server/seed-clock";
 import type { CurrentUser, Role } from "@/server/session";
+import {
+  addActivity,
+  editActivity,
+  linkCostItem,
+  removeActivity,
+  removeHoliday,
+  setHoliday,
+  unlinkCostItem,
+} from "@/server/schedule";
 
 // The typed actions. The assistant and on-screen buttons both call run(), so every change goes
 // through one path, is checked against the role, and is written to action_runs.
@@ -1458,6 +1467,314 @@ export const actions: Record<ActionName, ActionDef> = {
       };
     },
   },
+  "schedule.addActivity": {
+    title: "Add activity",
+    writes: true,
+    roles: ["pm"],
+    async run(user, args) {
+      if (!args.job) {
+        return {
+          summary: "Which job? Name it, like 25-031.",
+          refused: true,
+        };
+      }
+      const j = await resolveJob(user, args.job);
+      if (!j) return unknownJob(user, args.job);
+      const code = (args.code ?? args.activity ?? "").trim();
+      const name = (args.name ?? "").trim();
+      if (!code || !name || args.durationDays === undefined || !args.startOn) {
+        return {
+          summary:
+            "Add an activity with a code, name, duration in working days, and start date (YYYY-MM-DD).",
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      const result = await addActivity(
+        user.companyId,
+        { userId: user.userId, name: user.name },
+        j.job.number,
+        {
+          code,
+          name,
+          durationDays: args.durationDays,
+          startOn: args.startOn,
+        },
+      );
+      if (!result.ok) {
+        return {
+          summary: result.summary,
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      return {
+        summary: `Added activity ${result.activity.code} “${result.activity.name}” on ${result.shortName} (version ${result.activity.version}).`,
+        href: jobHref(j),
+        job: result.jobNumber,
+        line: result.activity.code,
+      };
+    },
+  },
+  "schedule.editActivity": {
+    title: "Edit activity",
+    writes: true,
+    roles: ["pm"],
+    async run(user, args) {
+      if (!args.job) {
+        return {
+          summary: "Which job? Name it, like 25-031.",
+          refused: true,
+        };
+      }
+      const j = await resolveJob(user, args.job);
+      if (!j) return unknownJob(user, args.job);
+      const activity = (args.activity ?? args.code ?? "").trim();
+      if (!activity) {
+        return {
+          summary: "Which activity should I edit? Name its code.",
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      const result = await editActivity(
+        user.companyId,
+        { userId: user.userId, name: user.name },
+        j.job.number,
+        {
+          activity,
+          version: args.version,
+          code: args.code,
+          name: args.name,
+          durationDays: args.durationDays,
+          startOn: args.startOn,
+        },
+      );
+      if (!result.ok) {
+        return {
+          summary: result.summary,
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      return {
+        summary: `Edited activity ${result.activity.code} on ${result.shortName}: “${result.activity.name}”, ${result.activity.earlyStartOn} → ${result.activity.earlyFinishOn} (version ${result.activity.version}).`,
+        href: jobHref(j),
+        job: result.jobNumber,
+        line: result.activity.code,
+      };
+    },
+  },
+  "schedule.removeActivity": {
+    title: "Remove activity",
+    writes: true,
+    roles: ["pm"],
+    async run(user, args) {
+      if (!args.job) {
+        return {
+          summary: "Which job? Name it, like 25-031.",
+          refused: true,
+        };
+      }
+      const j = await resolveJob(user, args.job);
+      if (!j) return unknownJob(user, args.job);
+      const activity = (args.activity ?? args.code ?? "").trim();
+      if (!activity) {
+        return {
+          summary: "Which activity should I remove? Name its code.",
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      const result = await removeActivity(
+        user.companyId,
+        { userId: user.userId, name: user.name },
+        j.job.number,
+        { activity, version: args.version },
+      );
+      if (!result.ok) {
+        return {
+          summary: result.summary,
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      return {
+        summary: `Removed activity ${result.activity.code} “${result.activity.name}” from ${result.shortName}.`,
+        href: jobHref(j),
+        job: result.jobNumber,
+        line: result.activity.code,
+      };
+    },
+  },
+  "schedule.linkCostItem": {
+    title: "Link cost item",
+    writes: true,
+    roles: ["pm"],
+    async run(user, args) {
+      if (!args.job) {
+        return {
+          summary: "Which job? Name it, like 25-031.",
+          refused: true,
+        };
+      }
+      const j = await resolveJob(user, args.job);
+      if (!j) return unknownJob(user, args.job);
+      const activity = (args.activity ?? "").trim();
+      const costCode = (args.costCode ?? "").trim();
+      if (!activity || !costCode) {
+        return {
+          summary:
+            "Link a leaf cost code to an activity — say the activity and the cost code.",
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      const result = await linkCostItem(
+        user.companyId,
+        { userId: user.userId, name: user.name },
+        j.job.number,
+        { activity, costCode },
+      );
+      if (!result.ok) {
+        return {
+          summary: result.summary,
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      return {
+        summary: `Linked ${result.costCode} to activity ${result.activity.code} on ${result.shortName}: planned ${result.plannedStartOn} → ${result.plannedFinishOn}.`,
+        href: jobHref(j),
+        job: result.jobNumber,
+        line: result.costCode,
+      };
+    },
+  },
+  "schedule.unlinkCostItem": {
+    title: "Unlink cost item",
+    writes: true,
+    roles: ["pm"],
+    async run(user, args) {
+      if (!args.job) {
+        return {
+          summary: "Which job? Name it, like 25-031.",
+          refused: true,
+        };
+      }
+      const j = await resolveJob(user, args.job);
+      if (!j) return unknownJob(user, args.job);
+      const activity = (args.activity ?? "").trim();
+      const costCode = (args.costCode ?? "").trim();
+      if (!activity || !costCode) {
+        return {
+          summary:
+            "Unlink a cost code from an activity — say the activity and the cost code.",
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      const result = await unlinkCostItem(
+        user.companyId,
+        { userId: user.userId, name: user.name },
+        j.job.number,
+        { activity, costCode },
+      );
+      if (!result.ok) {
+        return {
+          summary: result.summary,
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      return {
+        summary: `Unlinked ${result.costCode} from activity ${result.activity.code} on ${result.shortName}.`,
+        href: jobHref(j),
+        job: result.jobNumber,
+        line: result.costCode,
+      };
+    },
+  },
+  "schedule.setHoliday": {
+    title: "Set holiday",
+    writes: true,
+    roles: ["pm"],
+    async run(user, args) {
+      if (!args.job) {
+        return {
+          summary: "Which job? Name it, like 25-031.",
+          refused: true,
+        };
+      }
+      const j = await resolveJob(user, args.job);
+      if (!j) return unknownJob(user, args.job);
+      if (!args.date) {
+        return {
+          summary: "Which date should be a holiday? Use YYYY-MM-DD.",
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      const result = await setHoliday(
+        user.companyId,
+        { userId: user.userId, name: user.name },
+        j.job.number,
+        { date: args.date, name: args.name ?? "Holiday" },
+      );
+      if (!result.ok) {
+        return {
+          summary: result.summary,
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      return {
+        summary: `Set ${result.date} as “${result.name}” on ${result.shortName}. Activity dates that span that day moved with the calendar.`,
+        href: jobHref(j),
+        job: result.jobNumber,
+      };
+    },
+  },
+  "schedule.removeHoliday": {
+    title: "Remove holiday",
+    writes: true,
+    roles: ["pm"],
+    async run(user, args) {
+      if (!args.job) {
+        return {
+          summary: "Which job? Name it, like 25-031.",
+          refused: true,
+        };
+      }
+      const j = await resolveJob(user, args.job);
+      if (!j) return unknownJob(user, args.job);
+      if (!args.date) {
+        return {
+          summary: "Which holiday date should I remove? Use YYYY-MM-DD.",
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      const result = await removeHoliday(
+        user.companyId,
+        { userId: user.userId, name: user.name },
+        j.job.number,
+        { date: args.date },
+      );
+      if (!result.ok) {
+        return {
+          summary: result.summary,
+          refused: true,
+          job: j.job.number,
+        };
+      }
+      return {
+        summary: `Removed the holiday on ${result.date} from ${result.shortName}. Activity dates recomputed on the job calendar.`,
+        href: jobHref(j),
+        job: result.jobNumber,
+      };
+    },
+  },
   ...coActionDefs(),
   "changeOrder.show": {
     title: "Show change orders",
@@ -1644,6 +1961,8 @@ export type RunArgs = {
   /** Cost code of the plan line an edit touched. */
   line?: string;
   href?: string;
+  /** schedule.*: activity code for stale-version editor lookup (I8). */
+  activity?: string;
   /** When true, the rail chip uses a refusal label (never success wording). */
   refused?: true;
 };
@@ -1711,6 +2030,13 @@ export async function run(
         job: result.job ?? effectiveArgs.job ?? null,
         ...(result.line ? { line: result.line } : {}),
         ...(result.href ? { href: result.href } : {}),
+        // schedule.*: persist activity code so a later stale save can name the editor (I8).
+        ...(action.startsWith("schedule.") &&
+        (effectiveArgs.activity || effectiveArgs.code)
+          ? {
+              activity: (effectiveArgs.activity ?? effectiveArgs.code)!,
+            }
+          : {}),
         ...(refused ? { refused: true as const } : {}),
       } satisfies RunArgs,
       summary: result.summary,
