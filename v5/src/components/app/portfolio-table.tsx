@@ -2,7 +2,7 @@ import Link from "next/link";
 import { pct } from "@/lib/ev";
 import type { PortfolioJob } from "@/server/data";
 import { Money, Progress, StatusIndex, StatusPill } from "./format";
-import { Td, Th } from "./page";
+import { Td, Th } from "./page-shell";
 
 function DraftLabel() {
   return (

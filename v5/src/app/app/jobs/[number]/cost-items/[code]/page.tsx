@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ForecastMethodControl } from "@/components/app/forecast-method-control";
 import { Money } from "@/components/app/format";
-import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
+import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page-shell";
 import { utcDay } from "@/lib/dates";
 import { mh, qty, usdCents } from "@/lib/ev";
 import { actions } from "@/server/assistant/actions";
