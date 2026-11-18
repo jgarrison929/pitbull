@@ -1,0 +1,26 @@
+ERMHDR	XER	25.1	2026-10-20	Project Management	admin	Admin	dbx	PostgreSQL	UTF8
+%T	PROJECT
+%F	proj_id	proj_short_name	plan_start_date
+%R	1	Cedar	2026-11-02 08:00
+%T	CALENDAR
+%F	clndr_id	clndr_name	day_hr_cnt	clndr_data
+%R	1	Standard	8	
+%T	NONWORKDAYS
+%F	nonwork_date	nonwork_name
+%R	2026-11-26	Thanksgiving
+%T	TASK
+%F	task_id	proj_id	task_code	task_name	task_type	cstr_type	target_drtn_hr_cnt	target_start_date	clndr_id
+%R	10	1	A	Drive piles	TT_Task	CS_ASAP	40	2026-11-02 08:00	1
+%R	20	1	B	Pile caps	TT_Task		24	2026-11-09 08:00	1
+%R	30	1	C	Pier columns	TT_Task	CS_MSO	32	2026-11-09 08:00	1
+%R	40	1	D	Cap beam	TT_Task		16	2026-11-13 08:00	1
+%R	50	1	E	Tie column cage	TT_Task		16	2026-10-19 08:00	1
+%R	60	1	M1	Dummy milestone	TT_Mile		0		1
+%T	TASKPRED
+%F	task_pred_id	task_id	pred_task_id	pred_type	lag_hr_cnt
+%R	1	20	10	PR_FS	0
+%R	2	30	10	PR_FS	0
+%R	3	40	20	PR_FS	0
+%R	4	40	30	PR_FS	0
+%R	5	40	10	PR_FF	0
+%E
