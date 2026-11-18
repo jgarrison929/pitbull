@@ -8,13 +8,14 @@ import {
 import { ChangeOrdersSection } from "@/components/app/change-orders";
 import { CostTable } from "@/components/app/cost-table";
 import { Money, StatusIndex, StatusPill } from "@/components/app/format";
-import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
+import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page-shell";
 import { EvMethodControls } from "@/components/app/ev-method-controls";
 import { ImportEstimateForm } from "@/components/app/import-estimate-form";
 import { JobNewPlanSlot } from "@/components/app/job-new-plan-slot";
 import { PlanCard } from "@/components/app/plan-card";
 import { ReportWorkForm } from "@/components/app/report-work-form";
 import { mh, pct, usdShort } from "@/lib/ev";
+import { SCurveChart } from "@/components/app/s-curve-chart";
 import { timedLoadJobPage } from "@/server/job-page";
 import { requireUser, type CurrentUser } from "@/server/session";
 import { runAction } from "@/app/app/assistant/actions";
@@ -69,6 +70,7 @@ export async function Job({
     coData,
     crewRows,
     reportedByPlan,
+    curve,
   } = data;
   const {
     canEdit,
@@ -470,12 +472,41 @@ export async function Job({
             estimateDraft
               ? "After estimate approval"
               : p.sinceLockPlannedCents !== 0
-                ? `${usdShort(p.plannedCents)} planned · ${usdShort(p.sinceLockPlannedCents)} PV since lock`
-                : `schedule variance · ${usdShort(p.plannedCents)} planned`
+                ? (
+                    <>
+                      <span data-testid="job-planned">
+                        <span data-cents={p.plannedCents}>
+                          {usdShort(p.plannedCents)}
+                        </span>
+                      </span>{" "}
+                      planned · {usdShort(p.sinceLockPlannedCents)} PV since lock
+                    </>
+                  )
+                : (
+                    <>
+                      schedule variance ·{" "}
+                      <span data-testid="job-planned">
+                        <span data-cents={p.plannedCents}>
+                          {usdShort(p.plannedCents)}
+                        </span>
+                      </span>{" "}
+                      planned
+                    </>
+                  )
           }
           testId="job-spi"
         />
       </KpiStrip>
+      {curve && curve.points.length > 0 ? (
+        <Section
+          title="S-curve"
+          meta="Planned value spreads Current Budget between each cost item's dates. Earned and actual stop at the last locked period."
+          className="mt-3"
+          testId="s-curve-section"
+        >
+          <SCurveChart points={curve.points} cutoffOn={curve.cutoffOn} />
+        </Section>
+      ) : null}
       <p
         className="mt-2 text-xs text-muted-foreground"
         data-testid="estimate-categories"

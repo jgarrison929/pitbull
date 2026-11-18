@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LocalTime } from "@/components/app/local-time";
-import { PageHeader, Section } from "@/components/app/page";
+import { PageHeader, Section } from "@/components/app/page-shell";
 import { jobChanges, jobChangesCount } from "@/server/assistant/actions";
 import { getJob } from "@/server/data";
 import { requireUser } from "@/server/session";

@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import { Assistant } from "@/components/app/assistant";
-import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page";
+import { Kpi, KpiStrip, PageHeader, Section } from "@/components/app/page-shell";
 import { Money, StatusIndex } from "@/components/app/format";
 import { PortfolioTable } from "@/components/app/portfolio-table";
+import { SCurveChart } from "@/components/app/s-curve-chart";
 import { usdShort } from "@/lib/ev";
+import { portfolioCurve } from "@/server/curve";
 import { getPortfolio } from "@/server/data";
 import { requireUser } from "@/server/session";
 
@@ -17,9 +19,11 @@ export default function PortfolioPage() {
 
 async function Portfolio() {
   const user = await requireUser();
-  const { jobs, activeJobCount, totals, contractCents } = await getPortfolio(
-    user.companyId,
-  );
+  const [{ jobs, activeJobCount, totals, contractCents }, curve] =
+    await Promise.all([
+      getPortfolio(user.companyId),
+      portfolioCurve(user.companyId),
+    ]);
   const portfolio = (
     <>
       <PageHeader
@@ -36,7 +40,17 @@ async function Portfolio() {
         <Kpi
           label="Earned to date"
           value={<Money cents={totals.earnedCents} />}
-          sub={`vs ${usdShort(totals.plannedCents)} planned`}
+          sub={
+            <>
+              vs{" "}
+              <span data-testid="kpi-planned">
+                <span data-cents={totals.plannedCents}>
+                  {usdShort(totals.plannedCents)}
+                </span>
+              </span>{" "}
+              planned
+            </>
+          }
           testId="kpi-earned"
         />
         <Kpi
@@ -62,6 +76,20 @@ async function Portfolio() {
           testId="kpi-spi"
         />
       </KpiStrip>
+      {curve.points.length > 0 ? (
+        <Section
+          title="S-curve"
+          meta="Sum of active jobs — planned, earned, and actual to the last lock"
+          className="mb-3"
+          testId="s-curve-section"
+        >
+          <SCurveChart
+            points={curve.points}
+            cutoffOn={curve.cutoffOn}
+            testId="portfolio-s-curve"
+          />
+        </Section>
+      ) : null}
       <Section
         title="Jobs"
         meta="EAC is the sum of each job's per-item forecasts · EV/AC/PV at last lock"
