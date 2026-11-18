@@ -41,7 +41,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.11",
-    "eslint": "^10",
+    "eslint": "^10.15.0",
     "eslint-config-next": "16.4.5",
     "shadcn": "^4.22.1",
     "tailwindcss": "^4",
@@ -53,6 +53,9 @@
   },
   "packageManager": "npm@11.19.1",
   "overrides": {
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "@ts-morph/common": {
+      "minimatch": ">=11.0.1"
+    }
   }
 }
