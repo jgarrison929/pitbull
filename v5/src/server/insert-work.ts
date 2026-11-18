@@ -11,6 +11,7 @@ import {
   actionRuns,
   activities,
   activityCostItems,
+  baselineActivities,
   calendarHolidays,
   changeOrderEvents,
   changeOrderLines,
@@ -28,6 +29,7 @@ import {
   pmPercentLogs,
   progressClaimLines,
   progressClaims,
+  scheduleBaselines,
 } from "@/db/schema";
 import type { SeedRows } from "@/seed";
 
@@ -63,6 +65,9 @@ export function insertWorkStatementCount(rows: SeedRows): number {
   if (rows.calendarHolidays.length) n += 1;
   if (rows.activities.length) n += 1;
   if (rows.activityCostItems.length) n += 1;
+  // 5.1.2-a baselines (header → activity copies).
+  if (rows.scheduleBaselines.length) n += 1;
+  if (rows.baselineActivities.length) n += 1;
   if (rows.changeOrders.length) n += 1;
   if (rows.changeOrderLines.length) n += 1;
   if (rows.changeOrderEvents.length) n += 1;
@@ -75,14 +80,15 @@ export function insertWorkStatementCount(rows: SeedRows): number {
  * Field history is bulk-chunked; COs + action_runs + schedule are single
  * statements each. Going row-by-row for ~90 plans would be 90+.
  * +4 vs pre-5.1.0-a for job calendars / holidays / activities / links.
+ * +2 vs 5.1.0-a for schedule_baselines / baseline_activities.
  */
-export const INSERT_WORK_MAX_STATEMENTS = 28;
+export const INSERT_WORK_MAX_STATEMENTS = 30;
 
 /**
  * Statements in a full reset transaction: parallel-safe deletes + insertWork +
  * company seededAt touch. Cap covers the whole reset (not insert alone).
  */
-export const RESET_DELETE_STATEMENTS = 3; // action_runs, jobs, crews
+export const RESET_DELETE_STATEMENTS = 4; // action_runs, schedule_baselines, jobs, crews
 export const RESET_COMPANY_TOUCH_STATEMENTS = 1;
 export function resetTransactionStatementCount(rows: SeedRows): number {
   return (
@@ -93,7 +99,7 @@ export function resetTransactionStatementCount(rows: SeedRows): number {
 }
 
 /** Whole-reset statement budget — must stay well under 600ms at ~5ms RTT. */
-export const RESET_MAX_STATEMENTS = 34;
+export const RESET_MAX_STATEMENTS = 37;
 
 function chunk<T>(rows: T[], size: number): T[][] {
   if (rows.length === 0) return [];
@@ -150,6 +156,10 @@ export function enqueueInsertWork(
     enqueue(tx.insert(activities).values(rows.activities));
   if (rows.activityCostItems.length)
     enqueue(tx.insert(activityCostItems).values(rows.activityCostItems));
+  if (rows.scheduleBaselines.length)
+    enqueue(tx.insert(scheduleBaselines).values(rows.scheduleBaselines));
+  if (rows.baselineActivities.length)
+    enqueue(tx.insert(baselineActivities).values(rows.baselineActivities));
   if (rows.changeOrders.length)
     enqueue(tx.insert(changeOrders).values(rows.changeOrders));
   if (rows.changeOrderLines.length)

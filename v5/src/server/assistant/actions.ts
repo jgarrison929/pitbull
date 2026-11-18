@@ -80,6 +80,11 @@ import {
   setMilestoneComplete,
   setPmPercent,
 } from "@/server/progress";
+import {
+  rebaseline,
+  setBaseline,
+  type SetBaselineResult,
+} from "@/server/schedule";
 import { seedNow } from "@/server/seed-clock";
 import type { CurrentUser, Role } from "@/server/session";
 
@@ -434,6 +439,54 @@ function describeChange(
   return out;
 }
 
+
+function describeBaselineResult(
+  r: SetBaselineResult,
+  kind: "set" | "rebaseline",
+): ActionResult {
+  const jobNumber = r.ok ? r.job.number : r.job?.number;
+  if (r.ok) {
+    const verb = kind === "set" ? "Set" : "Re-baselined";
+    return {
+      summary: `${verb} “${r.baseline.name}” on ${r.job.shortName} (${r.baseline.activityCount} activities). Reason: ${r.baseline.reason}.`,
+      href: `/app/jobs/${r.job.number}`,
+      job: r.job.number,
+    };
+  }
+  const summary = (() => {
+    switch (r.refusal.kind) {
+      case "missing_job":
+        return "Which job? Name it or give its number, like 25-031.";
+      case "estimate_not_approved":
+        return r.job
+          ? `${r.job.shortName} is still a draft estimate — approve the estimate before setting a baseline.`
+          : "That job is still a draft estimate.";
+      case "no_activities":
+        return r.job
+          ? `${r.job.shortName} has no activities to baseline.`
+          : "That job has no activities to baseline.";
+      case "empty_name":
+        return "Name the baseline, like Award baseline.";
+      case "empty_reason":
+        return "Why are you setting this baseline? Add a short reason.";
+      case "baseline_exists":
+        return r.job
+          ? `${r.job.shortName} already has a baseline — re-baseline with a reason to append a new one.`
+          : "That job already has a baseline — re-baseline instead.";
+      case "no_baseline":
+        return r.job
+          ? `${r.job.shortName} has no baseline yet — set the first one before re-baselining.`
+          : "Set the first baseline before re-baselining.";
+      case "immutable":
+        return "Baseline dates are locked. Re-baseline to capture new dates.";
+    }
+  })();
+  return {
+    summary,
+    refused: true,
+    ...(jobNumber ? { job: jobNumber } : {}),
+  };
+}
 
 const CO_ACTIONS = {
   create: { title: "Raise a change order", roles: ["pm", "executive"] },
@@ -1456,6 +1509,50 @@ export const actions: Record<ActionName, ActionDef> = {
         job: item.jobNumber,
         line: result.code,
       };
+    },
+  },
+  "schedule.setBaseline": {
+    title: "Set baseline",
+    writes: true,
+    roles: ["pm"],
+    async run(user, { job, name, reason }) {
+      if (!job)
+        return {
+          summary:
+            "Which job? Name it or give its number, like 25-031.",
+          refused: true,
+        };
+      return describeBaselineResult(
+        await setBaseline(
+          user.companyId,
+          { userId: user.userId, role: user.role },
+          job,
+          { name, reason },
+        ),
+        "set",
+      );
+    },
+  },
+  "schedule.rebaseline": {
+    title: "Re-baseline",
+    writes: true,
+    roles: ["pm"],
+    async run(user, { job, name, reason }) {
+      if (!job)
+        return {
+          summary:
+            "Which job? Name it or give its number, like 25-031.",
+          refused: true,
+        };
+      return describeBaselineResult(
+        await rebaseline(
+          user.companyId,
+          { userId: user.userId, role: user.role },
+          job,
+          { name, reason },
+        ),
+        "rebaseline",
+      );
     },
   },
   ...coActionDefs(),

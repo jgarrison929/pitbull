@@ -734,3 +734,46 @@ export const activityCostItems = pgTable(
     index("activity_cost_items_item_idx").on(t.costItemId),
   ],
 );
+
+/**
+ * Append-only schedule baselines (5.1.2). Latest wins for PV; prior rows stay readable.
+ * Immutable: no update path mutates baseline dates after insert.
+ */
+export const scheduleBaselines = pgTable(
+  "schedule_baselines",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    reason: text("reason").notNull(),
+    setAt: timestamp("set_at", { withTimezone: true }).notNull().defaultNow(),
+    setById: uuid("set_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [index("schedule_baselines_job_idx").on(t.jobId, t.setAt)],
+);
+
+/** Immutable copy of activity dates at baseline time. */
+export const baselineActivities = pgTable(
+  "baseline_activities",
+  {
+    id: uuid("id").primaryKey(),
+    companyId: companyRef(),
+    baselineId: uuid("baseline_id")
+      .notNull()
+      .references(() => scheduleBaselines.id, { onDelete: "cascade" }),
+    activityId: uuid("activity_id")
+      .notNull()
+      .references(() => activities.id, { onDelete: "restrict" }),
+    startOn: date("start_on").notNull(),
+    finishOn: date("finish_on").notNull(),
+    durationDays: integer("duration_days").notNull(),
+  },
+  (t) => [
+    uniqueIndex("baseline_activities_pair_uidx").on(t.baselineId, t.activityId),
+  ],
+);

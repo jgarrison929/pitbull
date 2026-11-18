@@ -7,6 +7,7 @@ import type {
   actionRuns,
   activities,
   activityCostItems,
+  baselineActivities,
   calendarHolidays,
   changeOrderEvents,
   changeOrderLines,
@@ -25,6 +26,7 @@ import type {
   pmPercentLogs,
   progressClaimLines,
   progressClaims,
+  scheduleBaselines,
   users,
 } from "@/db/schema";
 import { plugLabor, SHB_CSV, valueSetColumns } from "@/lib/budget";
@@ -513,6 +515,8 @@ export type SeedRows = {
   calendarHolidays: Insert<typeof calendarHolidays>[];
   activities: Insert<typeof activities>[];
   activityCostItems: Insert<typeof activityCostItems>[];
+  scheduleBaselines: Insert<typeof scheduleBaselines>[];
+  baselineActivities: Insert<typeof baselineActivities>[];
   /** Post-history change orders (baked by finalizeSeedWithHistory). */
   changeOrders: Insert<typeof changeOrders>[];
   changeOrderLines: Insert<typeof changeOrderLines>[];
@@ -542,6 +546,8 @@ export const WORK_SEED_KEYS = [
   "calendarHolidays",
   "activities",
   "activityCostItems",
+  "scheduleBaselines",
+  "baselineActivities",
   "changeOrders",
   "changeOrderLines",
   "changeOrderEvents",
@@ -595,6 +601,8 @@ export function seed(companyId: string, today: Date): SeedRows {
     calendarHolidays: [],
     activities: [],
     activityCostItems: [],
+    scheduleBaselines: [],
+    baselineActivities: [],
     changeOrders: [],
     changeOrderLines: [],
     changeOrderEvents: [],
@@ -1090,11 +1098,14 @@ export function seed(companyId: string, today: Date): SeedRows {
         isLeaf: c.isLeaf ?? true,
       })),
       cedarPlanDate: isoDate(addDays(today, 1)),
+      setById: pmId,
     });
     out.jobCalendars.push(...schedule.jobCalendars);
     out.calendarHolidays.push(...schedule.calendarHolidays);
     out.activities.push(...schedule.activities);
     out.activityCostItems.push(...schedule.activityCostItems);
+    out.scheduleBaselines.push(...schedule.scheduleBaselines);
+    out.baselineActivities.push(...schedule.baselineActivities);
   }
 
   // Optional 10k WBS for local/perf only. Do not set V5_SEED_STRESS on the
