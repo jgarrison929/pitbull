@@ -72,6 +72,7 @@ function withServerTiming(res: NextResponse, proxyMs: number) {
  * - /app/error-probe when V5_ERROR_PROBE is unset (e2e-only probe)
  * - /app/jobs/:number
  * - /app/jobs/:number/changes
+ * - /app/jobs/:number/schedule  (404 when estimate is still draft)
  * - /app/jobs/:number/cost-items/:code  (not …/search)
  * - /app/jobs/:number/plans/:id
  */
@@ -133,8 +134,10 @@ export async function proxy(request: NextRequest) {
     }
 
     // One round-trip: session + job (was two serial queries after a fresh connect).
-    const rows = await db<{ job_id: string }[]>`
-      select j.id as job_id
+    const rows = await db<
+      { job_id: string; estimate_status: string }[]
+    >`
+      select j.id as job_id, j.estimate_status
       from sessions s
       inner join jobs j on j.company_id = s.company_id
       where s.id = ${sessionId}
@@ -156,6 +159,12 @@ export async function proxy(request: NextRequest) {
 
     if (parsed.kind === "job" || parsed.kind === "changes") {
       return withServerTiming(NextResponse.next(), performance.now() - t0);
+    }
+
+    // Harbor (draft estimate) has no Schedule entry — 5.1.0-c / 5.1.3-c.
+    if (parsed.kind === "schedule") {
+      if (rows[0].estimate_status === "draft") return notFoundResponse();
+      return NextResponse.next();
     }
 
     if (parsed.kind === "cost-item") {
@@ -182,6 +191,7 @@ export const config = {
     "/app/error-probe",
     "/app/jobs/:number",
     "/app/jobs/:number/changes",
+    "/app/jobs/:number/schedule",
     "/app/jobs/:number/cost-items/:code",
     "/app/jobs/:number/plans/:id",
   ],

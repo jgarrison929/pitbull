@@ -61,6 +61,11 @@ import { importErrorLines } from "@/lib/estimate-reconcile";
 import { approveEstimate } from "@/server/estimate";
 import { importEstimateCsv } from "@/server/estimate-import";
 import {
+  formatSkippedLines,
+  importXerSchedule,
+} from "@/server/schedule-import";
+import type { ScheduleImportResult } from "@/lib/schedule-import";
+import {
   addPlanLine,
   createDailyPlan,
   findCrewByName,
@@ -96,6 +101,8 @@ export type ActionResult = {
   errors?: Record<string, string>;
   /** Multi-line feedback (e.g. CSV row errors) shown as a list under the summary. */
   detailLines?: string[];
+  /** schedule.import*: skipped constructs with counts (shown under the summary). */
+  skipped?: { kind: string; count: number; sample?: string }[];
   /** Role, unknown job, or domain refusal — rail chip must not use success wording. */
   refused?: true;
 };
@@ -108,6 +115,30 @@ type ActionDef = {
   writes?: true;
   run(user: CurrentUser, args: JobArgs): Promise<ActionResult>;
 };
+
+function scheduleImportActionResult(
+  result: ScheduleImportResult,
+  href: string,
+): ActionResult {
+  if (result.ok) {
+    const skippedLines = formatSkippedLines(result.skipped);
+    return {
+      summary: result.summary,
+      href,
+      job: result.jobNumber,
+      ...(result.skipped.length ? { skipped: result.skipped } : {}),
+      ...(skippedLines.length ? { detailLines: skippedLines } : {}),
+    };
+  }
+  return {
+    summary: result.summary,
+    href,
+    job: result.jobNumber,
+    refused: true,
+    ...(result.detailLines?.length ? { detailLines: result.detailLines } : {}),
+    ...(result.skipped?.length ? { skipped: result.skipped } : {}),
+  };
+}
 
 const day = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -1307,6 +1338,66 @@ export const actions: Record<ActionName, ActionDef> = {
         href: jobHref(j),
         job: j.job.number,
         ...(detailLines?.length ? { detailLines } : {}),
+      };
+    },
+  },
+  "schedule.importXer": {
+    title: "Import schedule XER",
+    writes: true,
+    roles: ["pm"],
+    async run(user, { job, fileBytes, fileName, mode }) {
+      if (!job)
+        return {
+          summary:
+            "Which job's schedule should I import? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      const scheduleHref = `/app/jobs/${j.job.number}/schedule`;
+      if (!fileBytes?.byteLength) {
+        return {
+          summary: `Import reads a Primavera XER file. Open ${j.job.shortName}'s Schedule page and choose the file under Import schedule.`,
+          href: scheduleHref,
+          job: j.job.number,
+        };
+      }
+      const result = await importXerSchedule(
+        user.companyId,
+        j.job.number,
+        fileBytes,
+        { fileName, mode },
+      );
+      return scheduleImportActionResult(result, scheduleHref);
+    },
+  },
+  "schedule.importMspXml": {
+    title: "Import schedule Microsoft Project XML",
+    writes: true,
+    roles: ["pm"],
+    async run(user, { job, fileBytes }) {
+      if (!job)
+        return {
+          summary:
+            "Which job's schedule should I import? Name the job number.",
+        };
+      const j = await resolveJob(user, job);
+      if (!j) return unknownJob(user, job);
+      const scheduleHref = `/app/jobs/${j.job.number}/schedule`;
+      if (!fileBytes?.byteLength) {
+        return {
+          summary: `Import reads a Microsoft Project XML file. Open ${j.job.shortName}'s Schedule page and choose the file under Import schedule.`,
+          href: scheduleHref,
+          job: j.job.number,
+        };
+      }
+      // 5.1.3-b owns parseMspXml + importMspXmlSchedule. UI keeps the action
+      // wired so .xml uploads hit a typed refusal until that slice lands.
+      return {
+        summary:
+          "This file could not be read as Microsoft Project XML. Use a Project XML export (.xml), not a binary .MPP.",
+        href: scheduleHref,
+        job: j.job.number,
+        refused: true,
       };
     },
   },
