@@ -14,8 +14,9 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asc, eq } from "drizzle-orm";
-import { getDb, resetDbClient } from "@/db";
+import { getDb } from "@/db";
 import { companies, dailyPlans } from "@/db/schema";
+import { resetDbClient } from "@/db/test-hooks";
 import { planDateToday } from "@/lib/plan-date";
 import { jobChanges } from "@/server/assistant/actions";
 import { listChangeOrders } from "@/server/change-orders";

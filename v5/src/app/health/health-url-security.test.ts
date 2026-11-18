@@ -8,8 +8,8 @@ import {
   containsUserinfoLeak,
   databaseConnectionString,
   databaseUrlHost,
-  resetDbClient,
 } from "@/db";
+import { resetDbClient } from "@/db/test-hooks";
 
 vi.mock("next/server", () => ({
   connection: async () => {},

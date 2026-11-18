@@ -6,12 +6,12 @@
  * N+1 (one query per history plan) cannot return.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { getDb } from "@/db";
 import {
-  getDb,
   getDbQueryCount,
   resetDbClient,
   resetDbQueryCount,
-} from "@/db";
+} from "@/db/test-hooks";
 import { companies } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { planDateToday } from "@/lib/plan-date";
@@ -182,6 +182,8 @@ describe.skipIf(!db)("job page query budget (field history)", () => {
       (pl) => pl.planDate < planDateToday(seedNow()),
     );
     expect(history.length).toBe(FIELD_HISTORY_WORKING_DAYS);
+    // Wrap-off would leave queries at 0 and pass ≤ budget vacuously — require work.
+    expect(queries).toBeGreaterThan(0);
     // N+1 would be 1 + history (or 1 + plans) — this bound goes red if it returns.
     expect(queries).toBeLessThanOrEqual(PLANS_QUERY_BUDGET);
     expect(queries).toBeLessThan(history.length);
@@ -191,7 +193,9 @@ describe.skipIf(!db)("job page query budget (field history)", () => {
       expect(job).not.toBeNull();
       resetDbQueryCount();
       const rows = await getPlansForJob(companyId, job!.job.id);
-      expect(getDbQueryCount()).toBeLessThanOrEqual(PLANS_QUERY_BUDGET);
+      const jobQueries = getDbQueryCount();
+      expect(jobQueries).toBeGreaterThan(0);
+      expect(jobQueries).toBeLessThanOrEqual(PLANS_QUERY_BUDGET);
       expect(
         rows.filter((pl) => pl.planDate < planDateToday(seedNow())).length,
       ).toBe(FIELD_HISTORY_WORKING_DAYS);

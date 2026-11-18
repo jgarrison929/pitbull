@@ -4,12 +4,12 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
+import { getDb } from "@/db";
 import {
-  getDb,
   getDbQueryCount,
   resetDbClient,
   resetDbQueryCount,
-} from "@/db";
+} from "@/db/test-hooks";
 import { companies } from "@/db/schema";
 import { getCostItemPage } from "@/server/cost-item-page";
 import { createSandbox } from "@/server/sandbox";
@@ -56,6 +56,8 @@ describe.skipIf(!db)("cost item page query budget", () => {
     expect(page).not.toBeNull();
     expect(page!.item.code).toBe("04-210");
     expect(page!.entries.length).toBeGreaterThan(10);
+    // Wrap-off would leave queries at 0 and pass ≤ budget vacuously — require work.
+    expect(queries).toBeGreaterThan(0);
     expect(queries).toBeLessThanOrEqual(COST_ITEM_QUERY_BUDGET);
     expect(queries).toBeLessThan(page!.entries.length);
   });
