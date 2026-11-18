@@ -256,6 +256,62 @@ describe("assistant router", () => {
       },
     ],
     [
+      "Add activity X on 25-031",
+      "schedule.addActivity",
+      { job: "25-031", code: "X", activity: "X" },
+    ],
+    [
+      "Add activity F on 25-031: Falsework, 3 days starting 2026-11-17",
+      "schedule.addActivity",
+      {
+        job: "25-031",
+        code: "F",
+        activity: "F",
+        name: "Falsework",
+        durationDays: "3",
+        startOn: "2026-11-17",
+      },
+    ],
+    [
+      "Link cost item 04-210 to activity C on 25-031",
+      "schedule.linkCostItem",
+      { job: "25-031", activity: "C", costCode: "04-210" },
+    ],
+    [
+      "Unlink cost item 04-210 from activity C on Cedar Creek",
+      "schedule.unlinkCostItem",
+      { job: "25-031", activity: "C", costCode: "04-210" },
+    ],
+    [
+      "Set holiday 2026-11-11 named Mid-span outage on 25-031",
+      "schedule.setHoliday",
+      {
+        job: "25-031",
+        date: "2026-11-11",
+        name: "Mid-span outage on 25-031",
+      },
+    ],
+    [
+      "Remove holiday 2026-11-11 on 25-031",
+      "schedule.removeHoliday",
+      { job: "25-031", date: "2026-11-11" },
+    ],
+    [
+      "Edit activity C on 25-031 version 1: rename to Pier cols",
+      "schedule.editActivity",
+      {
+        job: "25-031",
+        activity: "C",
+        version: "1",
+        name: "Pier cols",
+      },
+    ],
+    [
+      "Remove activity D on 25-031 version 1",
+      "schedule.removeActivity",
+      { job: "25-031", activity: "D", version: "1" },
+    ],
+    [
       "Price CO-001 on 25-031: new 91-100 Retaining wall LS labor 18,500 material 23,250 equipment 6,100 sub 12,150; 04-210 material -2,000 qty 10",
       "changeOrder.price",
       {
