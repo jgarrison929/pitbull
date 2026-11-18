@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { getPlansForJob } from "@/server/data";
 import { AddPlanLineForm } from "@/components/app/add-plan-line-form";
 import { PlanLineEditor } from "@/components/app/plan-line-editor";
@@ -53,7 +52,8 @@ export function PlanCard({
     >
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
         <h2 className="min-w-0 text-sm font-semibold">
-          <Link
+          {/* Plain <a>: next/link ?_rsc= prefetch after paint holds job-page networkidle. */}
+          <a
             href={`/app/jobs/${jobNumber}/plans/${plan.id}`}
             className="hover:underline"
             data-testid="plan-detail-link"
@@ -63,7 +63,7 @@ export function PlanCard({
             <span className="whitespace-nowrap">{plan.crew}</span>
             <span className="text-muted-foreground"> · </span>
             <span className="whitespace-nowrap">{utcDay(plan.planDate)}</span>
-          </Link>
+          </a>
         </h2>
         <span
           className={cn(

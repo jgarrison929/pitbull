@@ -24,6 +24,7 @@ export {
 export {
   DEFAULT_DB_POOL_MAX,
   PROXY_DB_POOL_MAX,
+  DB_POOL_MAX_SOFT_CAP,
   dbPoolMaxFromEnv,
 } from "./pool-config";
 
